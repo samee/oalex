@@ -196,7 +196,8 @@ string Dfa::checkError() const {
       }
     }
     /* A DFA component with LabelEdges are separated from other components
-       with PushEdges. */
+       with PushEdges. Also, states in terminal components shouldn't have
+       outgoing PushEdges. */
     vector<bool> inLabel(n,false),inNonLabel(n,false);
     for(a=0;a<n;++a) for(const DfaEdge& e:adjList[a]) {
       if(holds_alternative<LabelEdge>(e))
@@ -206,6 +207,11 @@ string Dfa::checkError() const {
     }
     for(a=0;a<n;++a) if(inLabel[a]&&inNonLabel[a])
       return Str()<<"Components mix in state "<<a;
+    for(a=0;a<n;++a) if(inNonLabel[a]) for(const DfaEdge& e:adjList[a]) {
+      if(holds_alternative<PushEdge>(e))
+        return Str()<<"State "<<a
+                    <<" in terminal component has outgoing PushEdge";
+    }
 
     // All out-edges out of stState must be PushEdges.
     for(const DfaEdge& e:outOf(stState))
