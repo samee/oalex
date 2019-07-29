@@ -176,6 +176,10 @@ class GssHooks {
 
 namespace internal {
 
+// These objects are only created in closeHead, by converting from
+// GssHead. They are usually merged as GssHead, before turning into GssEdges.
+// This means we will never have two GssEdge objects with the same stPos(),
+// enPos, and v.
 struct GssEdge {
   shared_value v;
   DfaState enState;
@@ -193,8 +197,6 @@ struct GssHead {
   std::variant<DfaState,MidString> enState;
   std::vector<std::shared_ptr<const GssEdge>> prev;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
-  // Assumes transition is either a single character or Label.
-  void gssPush(const DfaEdge& de,size_t breakPos,shared_value newv);
 };
 
 /* Fields:

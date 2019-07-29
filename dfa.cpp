@@ -63,6 +63,13 @@ bool operator==(const DfaEdge& e1,const DfaEdge& e2) { return !(e1!=e2); }
 
 namespace {
 
+// This is only used internally, user hooks never see this.
+struct InputViewVal : SemVal {
+  input_view s;
+  InputViewVal(size_t st,size_t en,input_view ss)
+    : SemVal(st,en),s(std::move(ss)) {}
+};
+
 DfaState dest(const DfaEdge* edge) noexcept {
   if(auto e=get_if<CharRangeEdge>(edge)) return e->dest;
   if(auto e=get_if<LabelEdge>(edge)) return e->dest;
@@ -138,6 +145,33 @@ bool canMerge(const optional<GssHead>& a,
   return a->stPos()==b.h.stPos() &&
          std::get<DfaState>(a->enState)==b.labeledEdge->dest;
 }
+
+shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
+  // This is typically taken care of in enqueueLabeledHeads, pre-merging.
+  if(auto iv=dynamic_cast<const InputViewVal*>(head.v.get()))
+    BugDie()<<"Unexpectedly pushing from unreduced string "<<string_view(iv->s);
+
+  auto ge=make_shared<GssEdge>();
+  ge->v=std::move(head.v);
+  ge->prev=std::move(head.prev);
+  ge->enPos=breakPos;
+  if(DfaState* a=get_if<DfaState>(&head.enState)) ge->enState=*a;
+  else BugDie()<<"Can't push back from a state in "<<head.enState.index();
+  return ge;
+}
+
+GssHead openNew(shared_ptr<const GssEdge> ge,
+                const DfaEdge& de,shared_value newv) {
+  GssHead rv;
+  rv.prev={std::move(ge)};
+  rv.v=std::move(newv);
+  if(auto se=get_if<StringEdge>(&de)) {
+    if(se->s.size()>1) rv.enState=MidString{se,rv.prev[0]->enPos};
+    else rv.enState=se->dest;
+  }else rv.enState=dest(&de);
+  return rv;
+}
+
 
 }  // namespace
 
@@ -230,34 +264,6 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-// This is only used internally, user hooks never see this.
-struct InputViewVal : SemVal {
-  input_view s;
-  InputViewVal(size_t st,size_t en,input_view ss)
-    : SemVal(st,en),s(std::move(ss)) {}
-};
-
-void GssHead::gssPush(const DfaEdge& de,size_t breakPos,
-                      shared_value newv) {
-  if(auto iv=dynamic_cast<const InputViewVal*>(this->v.get()))
-    BugDie()<<"Unexpectedly pushing from unreduced string "<<string_view(iv->s);
-
-  // Initialize new GssEdge.
-  auto ge=make_shared<GssEdge>();
-  ge->v=std::move(v);
-  ge->prev=std::move(prev);
-  ge->enPos=breakPos;
-  if(DfaState* a=get_if<DfaState>(&enState)) ge->enState=*a;
-  else BugDie()<<"Can't push back from a state in "<<this->enState.index();
-
-  // Push it in.
-  this->prev={std::move(ge)};
-  this->v=std::move(newv);
-  if(auto se=get_if<StringEdge>(&de)) {
-    if(se->s.size()>1) this->enState=MidString{se,breakPos};
-    else this->enState=se->dest;
-  }else this->enState=dest(&de);
-}
 
 shared_value GlrCtx::valFromString(const SemVal* sv) const {
   const InputViewVal* iv=dynamic_cast<const InputViewVal*>(sv);
@@ -316,11 +322,15 @@ void GlrCtx::shift(char ch) {
     // Convention: we don't keep zero-length heads. A new head is only allocated
     // when the previous one got pushed back to a GssEdge, and a non-null
     // string was available for the new GssHead.
+    // The only exception is the first shift() call, when we do start with a
+    // single zero-length head.
     if(pos<=head.stPos()&&
         !(pos==0&&head.stPos()==0)) BugDie()<<"GSS corrupted. Head backwards.";
     // If no match in outedges, it=erase.
     // If direct match in outedge, modify in-place. ++it
     // If match through PushEdge, push and shift.
+    // We allow multiple shifts, but at most one out of each node. Multiple
+    // can be in consideration if current node has PushEdges coming out of it.
     if(const MidString* ms=get_if<MidString>(&head.enState)) {
       const StringEdge& se=*ms->se;  // Die if ms->se is null.
       size_t i=pos-ms->edgeStart;
@@ -351,7 +361,8 @@ void GlrCtx::shift(char ch) {
           for(const DfaEdge& e2:dfa_->outOf(pe->dest)) {
             if(!charCanStart(ch,&e2)) continue;
             auto iv=make_shared<InputViewVal>(pos,string::npos,grab_tail(buf_));
-            head.gssPush(e2,pos,std::move(iv));
+            auto ge=closeHead(std::move(head),pos);
+            head=openNew(std::move(ge),e2,std::move(iv));
             matched=true;
             break;
           }
@@ -434,14 +445,14 @@ vector<shared_value> GlrCtx::parse(function<int16_t()> getch) {
     while(!q.empty()) {
       GssPendingReduce cur;
       optional<GssHead> prevHead,newHead;
-      // Pop as many as I can merge in.
-      while(!q.empty()&&canMerge(prevHead,q.top())) {
+      do {
         cur=q.top(); q.pop();
         if(cur.pushAgain)
           newHead=changeValue(cur.oldPrev,cur.h.v,*cur.labeledEdge);
         else newHead=reduceValue(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
         prevHead=mergeHeads(prevHead,newHead);
-      }
+        // Keep popping as many as I can merge in.
+      } while(!q.empty()&&canMerge(prevHead,q.top()));
       // cur is guaranteed not to be garbage at this point.
       // TODO BugDie on a proper empty check.
       if(prevHead) {
