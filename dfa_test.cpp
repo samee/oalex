@@ -74,6 +74,98 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
+namespace checkCheckError {
+
+void expectError(const Dfa& dfa,string_view b) {
+  const string a=dfa.checkError();
+  if(a.find(b)==string::npos)
+    BugDie()<<"Was expecting '"<<b<<"' got '"<<a<<'\'';
+}
+
+const Dfa dfaCanon {
+  {{PushEdge{1}},{}},  // adjList
+  {{},{}},             // labelsMap
+  {0,1},               // statePrioMap
+  0,                   // stState
+  -1                   // enLabel, glrParse() not invoked.
+};
+
+void checksLabelsMapSize() {
+  Dfa dfa=dfaCanon;
+  dfa.labelsMap.clear();
+  expectError(dfa,"adjList and labelsMap has different sizes.");
+}
+
+void checksStatePrioMapSize() {
+  Dfa dfa=dfaCanon;
+  dfa.statePrioMap.clear();
+  expectError(dfa,"adjList and statePrioMap has different sizes.");
+}
+
+void checksEmptyStringEdge() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={StringEdge{"",1}};
+  expectError(dfa,"empty string edge");
+}
+
+void checksPushLoop() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={PushEdge{1}};
+  expectError(dfa,"PushEdge self-loop");
+}
+
+void checksPrefixFreeStrings() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={StringEdge{"a",1},StringEdge{"ab",1}};
+  expectError(dfa,"is a prefix of");
+}
+
+void checksDistinctLabels() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={LabelEdge{DfaLabel{0},0},LabelEdge{DfaLabel{0},1}};
+  expectError(dfa,"Duplicate labels");
+}
+
+void checksComponentSeparation() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={LabelEdge{DfaLabel{0},0},StringEdge{"foo",0}};
+  expectError(dfa,"Components mix");
+}
+
+void checksPushesFromTerminal() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[1]={StringEdge{"foo",1},PushEdge{0}};
+  expectError(dfa,"terminal component has outgoing PushEdge");
+}
+
+void checksNonPushFromStart() {
+  Dfa dfa=dfaCanon;
+  dfa.adjList[0].push_back({LabelEdge{DfaLabel{1},1}});
+  expectError(dfa,"Start state must have only PusheEdges");
+}
+
+void checksAmbiguousPrio() {
+  Dfa dfa=dfaCanon;
+  dfa.statePrioMap[0]=dfa.statePrioMap[1]=0;
+  expectError(dfa,"statePrioMap has duplicates");
+}
+
+void test() {
+  // Ordered roughly in the same order as code in checkError.
+  checksLabelsMapSize();
+  checksStatePrioMapSize();
+  checksEmptyStringEdge();
+  checksPushLoop();
+  checksPrefixFreeStrings();
+  checksDistinctLabels();
+  checksComponentSeparation();
+  checksPushesFromTerminal();
+  checksNonPushFromStart();
+  checksAmbiguousPrio();
+}
+
+}  // namespace checkCheckError.
+
 namespace singleShifts {
 
 const Dfa dfa{
@@ -564,6 +656,7 @@ void test() {
 }  // namespace
 
 int main() {
+  checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();
   listParse::test();

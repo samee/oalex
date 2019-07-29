@@ -158,14 +158,14 @@ string Dfa::checkError() const {
 
     /* Check that:
        - StringEdge::s are not be empty.
-       - Loops of PushEdge don't exist. */
+       - Self-loops of PushEdge don't exist. */
     for(a=0;a<n;++a) {
       for(const DfaEdge& e:adjList[a]) {
         if(auto se=get_if<StringEdge>(&e)) {
           if(se->s.empty()) return Str()<<"State "<<a<<" has empty string edge";
         }else if(auto pe=get_if<PushEdge>(&e)) {
           if(pe->dest==DfaState{a})
-            return Str()<<"We have a PushEdge loop at state "<<a;
+            return Str()<<"We have a PushEdge self-loop at state "<<a;
         }
       }
     }
