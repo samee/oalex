@@ -264,7 +264,6 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-
 shared_value GlrCtx::valFromString(const SemVal* sv) const {
   const InputViewVal* iv=dynamic_cast<const InputViewVal*>(sv);
   return iv&&iv->s.size()!=0
@@ -314,11 +313,48 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   return GssHead{newv,s1,std::move(mergedPrev)};
 }
 
+// Can move from *it.
+void GlrCtx::shiftAllPushEdges(DfaState s,char ch,list<GssHead>::iterator it) {
+  shared_ptr<GssEdge> ge;
+  shared_ptr<InputViewVal> iv;
+  for(const DfaEdge& e1:dfa_->outOf(s)) if(auto pe=get_if<PushEdge>(&e1)) {
+    for(const DfaEdge& e2:dfa_->outOf(pe->dest)) if(charCanStart(ch,&e2)) {
+      if(!ge) {
+        iv=make_shared<InputViewVal>(pos(),string::npos,grab_tail(buf_));
+        ge=closeHead(std::move(*it),pos());
+      }
+      heads_.insert(it,openNew(ge,e2,iv));
+    }
+  }
+}
+
+bool GlrCtx::shiftTerminalEdge(
+    DfaState s,char ch,variant<DfaState,MidString>& enState) const {
+  for(const DfaEdge& e:dfa_->outOf(s)) {
+    if(holds_alternative<LabelEdge>(e)) continue;
+    else if(const auto *se=get_if<StringEdge>(&e)) {
+      if(se->s[0]!=ch) continue;
+      if(se->s.size()==1) enState=se->dest;
+      else enState=MidString{se,pos()};
+      return true;
+    }else if(const auto *cre=get_if<CharRangeEdge>(&e)) {
+      if(cre->st<=ch&&ch<=cre->en) {
+        enState=cre->dest;
+        return true;
+      }
+    }else if(!holds_alternative<PushEdge>(e))
+      BugDie()<<"Shift edge found with unknown index "<<e.index();
+  }
+  return false;
+}
+
+// We should have a GssHead::shift that is easier to test in isolation. TODO
 void GlrCtx::shift(char ch) {
   const size_t pos=this->pos();
   auto it=heads_.begin();
   while(it!=heads_.end()) {
     GssHead& head=*it;
+
     // Convention: we don't keep zero-length heads. A new head is only allocated
     // when the previous one got pushed back to a GssEdge, and a non-null
     // string was available for the new GssHead.
@@ -326,11 +362,7 @@ void GlrCtx::shift(char ch) {
     // single zero-length head.
     if(pos<=head.stPos()&&
         !(pos==0&&head.stPos()==0)) BugDie()<<"GSS corrupted. Head backwards.";
-    // If no match in outedges, it=erase.
-    // If direct match in outedge, modify in-place. ++it
-    // If match through PushEdge, push and shift.
-    // We allow multiple shifts, but at most one out of each node. Multiple
-    // can be in consideration if current node has PushEdges coming out of it.
+
     if(const MidString* ms=get_if<MidString>(&head.enState)) {
       const StringEdge& se=*ms->se;  // Die if ms->se is null.
       size_t i=pos-ms->edgeStart;
@@ -342,37 +374,11 @@ void GlrCtx::shift(char ch) {
         ++it;
       }
     }else if(DfaState* a=get_if<DfaState>(&head.enState)) {
-      bool matched=false;
-      for(const DfaEdge& e1:dfa_->outOf(*a)) {
-        if(holds_alternative<LabelEdge>(e1)) continue;
-        else if(const auto *se=get_if<StringEdge>(&e1)) {
-          if(se->s[0]!=ch) continue;
-          // Match. Assume I am already in a non-LabelEdge component.
-          if(se->s.size()==1) head.enState=se->dest;
-          else head.enState=MidString{se,pos};
-          matched=true;
-          break;
-        }else if(const auto *cre=get_if<CharRangeEdge>(&e1)) {
-          if(ch<cre->st||cre->en<ch) continue;
-          head.enState=cre->dest;
-          matched=true;
-          break;
-        }else if(const auto* pe=get_if<PushEdge>(&e1)) {
-          for(const DfaEdge& e2:dfa_->outOf(pe->dest)) {
-            if(!charCanStart(ch,&e2)) continue;
-            auto iv=make_shared<InputViewVal>(pos,string::npos,grab_tail(buf_));
-            auto ge=closeHead(std::move(head),pos);
-            head=openNew(std::move(ge),e2,std::move(iv));
-            matched=true;
-            break;
-          }
-          if(matched) break;
-        }else {
-          BugDie()<<"shift edge found with unknown index "<<e1.index();
-        }
+      if(shiftTerminalEdge(*a,ch,head.enState)) ++it;
+      else {
+        shiftAllPushEdges(*a,ch,it);
+        it=heads_.erase(it);
       }
-      if(matched) ++it;
-      else it=heads_.erase(it);
     }
   }
   buf_.push_back(ch);

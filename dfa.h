@@ -245,6 +245,9 @@ class GlrCtx {
       std::optional<internal::GssHead> h2);
   static GssHead startingHeadAt(DfaState s);
   struct SegfaultOnHooks {};
+  void shiftAllPushEdges(DfaState s,char ch,std::list<GssHead>::iterator it);
+  bool shiftTerminalEdge(DfaState s,char ch,
+                         std::variant<DfaState,MidString>& enState) const;
  public:
   GlrCtx(const Dfa& dfa,GssHooks& hk) : dfa_(&dfa), hooks_(&hk) {}
   // Used only in a unit test.
