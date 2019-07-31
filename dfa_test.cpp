@@ -245,6 +245,75 @@ void test() {
 
 }  // namespace singleStringParse
 
+namespace stringSequenceParse {
+// Code started passing all tests even when I hardcoded stPos==0.
+// That's why this test exists.
+
+//  0 --PushEdge--> 1 --lbl0--> 2 --lbl0--> 3
+//  0 --PushEdge--> 4 --"foo"--> 5
+//  2 --PushEdge--> 6 --"bar"--> 7
+//  0 --PushEdge--> 8 --lbl1--> 9
+const Dfa dfa{
+  { {PushEdge{1},PushEdge{4},PushEdge{8}},
+    {LabelEdge{DfaLabel{0},DfaState{2}}},
+    {LabelEdge{DfaLabel{0},DfaState{3}},PushEdge{6}},
+    {},
+    {StringEdge{"foo",5}},
+    {},
+    {StringEdge{"bar",7}},
+    {},
+    {LabelEdge{DfaLabel{1},DfaState{9}}},
+    {},
+  },  // adjList
+  // labelsMap
+  {{},{},{},{DfaLabel{1}},{},{DfaLabel{0}},{},{DfaLabel{0}},{},{DfaLabel{2}}},
+  {0,1,2,3,4,5,6,7,8,9},                // statePrioMap
+  0,                                    // stState
+  2,                                    // enLabel
+};
+
+struct Hooks : public GssHooks {
+  shared_value extend(DfaState fromState
+                     ,const DfaEdge& withEdge
+                     ,const shared_value& fromVal
+                     ,const shared_value& withVal
+                     ) override {
+    if(fromState!=DfaState{2})
+      BugMe<<"Extend called from state "<<fromState.to_int<<" != 2";
+    if(withEdge!=dfa.outOf(fromState)[0])
+      BugMe<<"Extend called with unexpected edge "<<edgeDebug(withEdge);
+    auto v1=dynamic_cast<const StringVal*>(fromVal.get());
+    auto v2=dynamic_cast<const StringVal*>(withVal.get());
+    if(v1->enPos!=v2->stPos)
+      BugMe<<"String parts are not adjacent. "<<v1->enPos<<" != "<<v2->stPos;
+    // Not a constant-time string-concatenation, but it's okay if this
+    // grammar won't be ambiguous.
+    return make_shared<StringVal>(v1->stPos,v2->enPos,v1->s+v2->s);
+  }
+  shared_value use_value(DfaLabel,shared_value val) override {
+    return val;
+  }
+  shared_value merge(DfaState  // en
+                    ,shared_value  // v1
+                    ,shared_value  // v2
+                    ) override {
+    BugMe<<"called unexpectedly";
+  }
+};
+
+
+void test() {
+  dieIfBad(dfa);
+  Hooks hooks;
+  vector<shared_value> res=glrParse(dfa,hooks,GetFromString("foobar"));
+
+  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
+  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
+}
+
+}  // namespace stringSequenceParse
+
 
 namespace listParse {
 
@@ -659,6 +728,7 @@ int main() {
   checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();
+  stringSequenceParse::test();
   listParse::test();
   slowListParse::test();
 }
