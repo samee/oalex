@@ -19,13 +19,6 @@
          even be an null-string transition.
      * Augment Dfa::labelsMap to support AND and NOT.
      * Add explicit support for returning errors and warnings from GssHooks.
-     * Allow shift-shift conflicts by relaxing prefix-free constraints.
-       The in-place stack modification has no benefits when we look across
-       a PushEdge. We can see some benefit in keeping the constraint in a
-       single non-LabelEdge component, to achieve regex-like performance.
-       But we should still be able to point to different non-LabelEdge
-       components through different PushEdges without having to union
-       unrelated regexes.
      * Better error reporting features.
 
   Either:
@@ -248,8 +241,8 @@ class GlrCtx {
   static GssHead startingHeadAt(DfaState s);
   struct SegfaultOnHooks {};
   void shiftAllPushEdges(DfaState s,char ch,std::list<GssHead>::iterator it);
-  bool shiftTerminalEdge(DfaState s,char ch,
-                         std::variant<DfaState,MidString>& enState) const;
+  bool shiftTerminalEdge(
+      char ch,std::variant<DfaState,MidString>& enState) const;
  public:
   GlrCtx(const Dfa& dfa,GssHooks& hk) : dfa_(&dfa), hooks_(&hk) {}
   // Used only in a unit test.

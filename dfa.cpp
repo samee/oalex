@@ -307,9 +307,10 @@ void GlrCtx::shiftAllPushEdges(DfaState s,char ch,list<GssHead>::iterator it) {
   }
 }
 
+// Shift ch from enState, asserts enState is a DfaState.
 bool GlrCtx::shiftTerminalEdge(
-    DfaState s,char ch,variant<DfaState,MidString>& enState) const {
-  for(const DfaEdge& e:dfa_->outOf(s)) {
+    char ch,variant<DfaState,MidString>& enState) const {
+  for(const DfaEdge& e:dfa_->outOf(std::get<DfaState>(enState))) {
     if(holds_alternative<LabelEdge>(e)) continue;
     else if(const auto *se=get_if<StringEdge>(&e)) {
       if(se->s[0]!=ch) continue;
@@ -353,7 +354,7 @@ void GlrCtx::shift(char ch) {
         ++it;
       }
     }else if(DfaState* a=get_if<DfaState>(&head.enState)) {
-      if(shiftTerminalEdge(*a,ch,head.enState)) ++it;
+      if(shiftTerminalEdge(ch,head.enState)) ++it;
       else {
         shiftAllPushEdges(*a,ch,it);
         it=heads_.erase(it);
