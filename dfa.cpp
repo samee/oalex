@@ -110,20 +110,6 @@ bool isPrefixEdge(const DfaEdge& e1,const DfaEdge& e2) {
   }else BugDie()<<"isPrefixEdge called on wrong edge type";
 }
 
-// All outedges out of state a. Includes immediate-neighbors through
-// PushEdge, but does not recursively keep following PusheEdges.
-// PushEdge themselves are not included in the return value.
-vector<DfaEdge> outsThruPushes(const Dfa& dfa,DfaState a) {
-  vector<DfaEdge> rv;
-  for(const DfaEdge& ea:dfa.outOf(a)) {
-    if(auto pe=get_if<PushEdge>(&ea)) {
-      for(const DfaEdge& eb:dfa.outOf(pe->dest))
-        if(!holds_alternative<PushEdge>(eb)) rv.push_back(eb);
-    }else rv.push_back(ea);
-  }
-  return rv;
-}
-
 // Pops earlier than everything else.
 const GssPendingReduce len0={0,-1,GssHead{},nullptr,nullptr,true};
 
@@ -206,22 +192,15 @@ string Dfa::checkError() const {
 
     /* Check that:
        - All StringEdge and CharRangeEdge out of a node are prefix-free.
-         even when considering PushEdge-neighbors (not transitive closures).
        - All outgoing LabelEdges are distinct.
-       FIXME even this check should not use outsThruPushes. We should not
-       force unrelated DFAs to be unioned.
     */
     for(a=0;a<n;++a) {
-      auto outs=outsThruPushes(*this,DfaState{a});
+      auto outs=outOf(DfaState{a});
       for(const DfaEdge& ei:outs) for(const DfaEdge& ej:outs) if(&ei!=&ej) {
         if(stringOrCharEdge(ei)&&stringOrCharEdge(ej)&&
            isPrefixEdge(ei,ej))
           return Str()<<"Conflict out of state "<<a<<": "
                       <<edgeDebug(ei)<<" is a prefix of"<<edgeDebug(ej);
-      }
-      // Label-distinctness is not necessary through PushEdges.
-      outs=outOf(DfaState{a});
-      for(const DfaEdge& ei:outs) for(const DfaEdge& ej:outs) if(&ei!=&ej) {
         if(auto lei=get_if<LabelEdge>(&ei))
           if(auto lej=get_if<LabelEdge>(&ej))
             if(lei->lbl==lej->lbl)

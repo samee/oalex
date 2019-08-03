@@ -513,9 +513,9 @@ Exercises merge() by parsing the slow way. Here's our ambiguous grammar:
 I won't worry about spaces here. Start with state 0:
 
 0 --PushEdge--> 1 --'a'--> 2 --'a'--> 2  // lblList{1,2}
-0 --PushEdge--> 3 --lblList1--> 4
+0 --PushEdge--> 3 --lblList--> 4
                   --lblComma--> 5
-                  --lblList2--> 6  // lblList{1,2}
+                  --lblList--> 6  // lblList{1,2}
 5 --PushEdge--> 3
 4 --PushEdge--> 7 --','--> 8 // lblComma
 
@@ -529,9 +529,6 @@ or 4 as well, if there is nothing at state 6.
 
 */
 
-// Semantically equivalent labels for "identifier". Separate just to get around
-// the stupid non-dupliate assumption in Dfa::checkError. The fact that you can
-// get around it with duplicate labels shows exactly how stupid it is. FIXME.
 const DfaLabel lblList{0};
 const DfaLabel lblComma{2};
 const DfaLabel lblEndMarker{3};
@@ -722,6 +719,42 @@ void test() {
 
 }  // namespace slowListParse
 
+
+namespace shiftShiftConflict {
+const Dfa dfa = {
+  { // adjList
+    {PushEdge{1},PushEdge{2},PushEdge{4}},
+    {CharRangeEdge{'a','j',1}},
+    {StringEdge{"foo",3}},
+    {},
+    {LabelEdge{DfaLabel{0},5}},
+    {},
+  },
+  {{},{DfaLabel{0}},{},{DfaLabel{0}},{},{DfaLabel{1}}}, // labelsMap
+  {0,1,2,3,4,5},  // statePrioMap
+  0,              // stState
+  1,              // enLabel
+};
+
+using Hooks=singleStringParse::Hooks;
+
+void test() {
+  dieIfBad(dfa);
+  Hooks hooks;
+  vector<shared_value> res=glrParse(dfa,hooks,GetFromString("foo"));
+  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
+  const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
+  if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
+
+  res=glrParse(dfa,hooks,GetFromString("fad"));
+  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
+  const StringVal& sv2=dynamic_cast<const StringVal&>(*res[0]);
+  if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
+
+}
+
+}  // namespace shiftShiftConflict
+
 }  // namespace
 
 int main() {
@@ -731,4 +764,5 @@ int main() {
   stringSequenceParse::test();
   listParse::test();
   slowListParse::test();
+  shiftShiftConflict::test();
 }

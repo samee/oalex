@@ -140,6 +140,8 @@ struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 // two GssEdges with the same end state, size, and starting point get merged
 // into one.
 //
+// Clarify: Note on July 27th: When did a LabelEdge have a 'push' attribute?
+//
 // The heads of the Gss are represented by GssHead, in that they don't have
 // an end-point yet; they represent the "top" of the parsing stack. In contrast
 // to GssEdges, GssHead represent a path of terminal edges. When they
