@@ -103,7 +103,7 @@ struct SemVal {
   virtual ~SemVal() = default;
 };
 
-// Used by the default implementation of GssAggregator::makeString.
+// Used by GlrCtx::valFromString.
 struct StringVal : SemVal {
   std::string s;
   StringVal(size_t st,size_t en,std::string ss)
@@ -150,22 +150,17 @@ using SharedVal=std::shared_ptr<const SemVal>;
 // state here is discouraged.  If necessary, it should only keep state
 // describing the input string directly, not a particular SemVal or parsed AST,
 // since those can get invalidated later.
+//
+// All of these may return nullptr to indicate invalid parsing.
 class GssAggregator {
  public:
   virtual SharedVal extend(DfaState fromState,
-      const DfaEdge& withEdge,
+      const LabelEdge& withEdge,
       const SharedVal& fromVal,
       const SharedVal& withVal) = 0;
 
-  // nullptr return means parsing invalid.
-  virtual SharedVal
-    makeString(size_t st,size_t en,std::string s) {
-    return std::make_shared<StringVal>(st,en,std::move(s));
-  }
   // Move or copy a value from val for lbl.
-  // nullptr return means parsing invalid.
   virtual SharedVal useVal(DfaLabel lbl,SharedVal val) = 0;
-  // Returning nullptr indicates parsing is invalid. We can discard both.
   virtual SharedVal merge(DfaState en,
       SharedVal v1,SharedVal v2) = 0;
   virtual ~GssAggregator() = default;
@@ -231,7 +226,7 @@ class GlrCtx {
   SharedVal valFromString(const SemVal* sv) const;
   std::optional<internal::GssHead>
     reduceValue(const internal::GssEdge& prev,SharedVal v,
-                const DfaEdge& edge);
+                const LabelEdge& edge);
   std::optional<internal::GssHead> changeValue(
       std::shared_ptr<const internal::GssEdge> prev,
       SharedVal v,const LabelEdge& edge);
@@ -254,6 +249,45 @@ class GlrCtx {
 };
 
 }  // namespace internal
+
+using SharedListVal=std::shared_ptr<const struct ListVal>;
+
+struct ListVal : public SemVal {
+  SharedListVal prev;
+  SharedVal last;
+  size_t size;
+  SharedVal get(size_t i) const { return i+1==size?last:prev->get(i); }
+  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
+ private:
+  ListVal(size_t st,size_t en) : SemVal(st,en) {}
+};
+
+// prev can be null, last must not be null. Corollary: size can't be 0.
+inline SharedListVal Append(SharedListVal prev,SharedVal last) {
+  ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
+  lv.size=(prev?prev->size+1:1);
+  lv.prev=std::move(prev);
+  lv.last=std::move(last);
+  return std::make_shared<const ListVal>(std::move(lv));
+}
+
+class GssHooks : private GssAggregator {
+  // Privately override the base API, but don't expose it.
+  SharedVal extend(DfaState fromState,const LabelEdge& withEdge,
+                   const SharedVal& fromVal,const SharedVal& withVal) override;
+  SharedVal useVal(DfaLabel lbl,SharedVal val) override;
+  SharedVal merge(DfaState en,SharedVal v1,SharedVal v2) override;
+
+  SharedVal reduceStringOrList(SharedListVal prev,DfaLabel lbl,SharedVal v);
+ public:
+  virtual SharedListVal merge(DfaState en,
+                              SharedListVal lv1,SharedListVal lv2);
+  virtual SharedVal reduceString(DfaLabel lbl,
+                                 std::shared_ptr<const StringVal> sv);
+  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
+  friend std::vector<SharedVal> glrParse(
+    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
+};
 
 /*  glrParse(). Parse an input using GLR algorithm.
     Returns a vector of possible parse trees, as built up by the hooks provided.
@@ -278,5 +312,10 @@ class GlrCtx {
 */
 std::vector<SharedVal> glrParse(
     const Dfa& dfa,GssAggregator& hk,std::function<int16_t()> getch);
+
+inline std::vector<SharedVal> glrParse(
+    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch) {
+  return glrParse(dfa,static_cast<GssAggregator&>(hk),std::move(getch));
+}
 
 }  // namespace oalex

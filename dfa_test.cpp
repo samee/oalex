@@ -201,22 +201,10 @@ void test() {
 
 namespace singleStringParse {
 
-struct Hooks : public GssAggregator {
-  SharedVal extend(DfaState  // fromState
-                     ,const DfaEdge&  // withEdge
-                     ,const SharedVal&  // fromVal
-                     ,const SharedVal&   // withVal
-                     ) override {
-    BugMe<<"called unexpectedly";
-  }
-  SharedVal useVal(DfaLabel,SharedVal val) override {
-    return val;
-  }
-  SharedVal merge(DfaState  // en
-                    ,SharedVal  // v1
-                    ,SharedVal  // v2
-                    ) override {
-    BugMe<<"called unexpectedly";
+struct Hooks : public GssHooks {
+  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+    if(lbl!=DfaLabel{0}) BugMe<<"Unexpected label "<<lbl.toInt;
+    else return lv->last;
   }
 };
 
@@ -234,12 +222,17 @@ const Dfa dfa{
   1,                                         // enLabel
 };
 
+const StringVal& extricateString(const vector<SharedVal>& v) {
+  return dynamic_cast<const StringVal&>(
+           *dynamic_cast<const ListVal&>(*v[0]).last);
+}
+
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  const StringVal& sv=extricateString(res);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -273,11 +266,9 @@ const Dfa dfa{
 };
 
 struct Hooks : public GssAggregator {
-  SharedVal extend(DfaState fromState
-                     ,const DfaEdge& withEdge
-                     ,const SharedVal& fromVal
-                     ,const SharedVal& withVal
-                     ) override {
+  SharedVal extend(DfaState fromState, const LabelEdge& withEdge,
+                   const SharedVal& fromVal, const SharedVal& withVal
+                  ) override {
     if(fromState!=DfaState{2})
       BugMe<<"Extend called from state "<<fromState.toInt<<" != 2";
     if(withEdge!=dfa.outOf(fromState)[0])
@@ -294,9 +285,9 @@ struct Hooks : public GssAggregator {
     return val;
   }
   SharedVal merge(DfaState  // en
-                    ,SharedVal  // v1
-                    ,SharedVal  // v2
-                    ) override {
+                 ,SharedVal  // v1
+                 ,SharedVal  // v2
+                 ) override {
     BugMe<<"called unexpectedly";
   }
 };
@@ -409,14 +400,13 @@ shared_ptr<ConsListVal> extendList(shared_ptr<const ConsListVal> list,
 
 struct Hooks : public GssAggregator {
   SharedVal extend(
-      DfaState fromState,const DfaEdge& withEdge,
+      DfaState fromState,const LabelEdge& withEdge,
       const SharedVal& fromVal,const SharedVal& withVal
       ) override {
-    const LabelEdge& le=get<LabelEdge>(withEdge);
-    if(le.lbl==lblSpace) {
-      if(fromState!=le.dest) BugMe<<"Spaces causing state change";
+    if(withEdge.lbl==lblSpace) {
+      if(fromState!=withEdge.dest) BugMe<<"Spaces causing state change";
       else return fromVal;
-    }else if(le.lbl==lblIdent) {
+    }else if(withEdge.lbl==lblIdent) {
       if(fromState==DfaState{0})
         return makeSingletonList(dynamic_cast<const StringVal&>(*withVal));
       else if(fromState==DfaState{2}) {
@@ -425,14 +415,14 @@ struct Hooks : public GssAggregator {
         return extendList(list,ident);
       }else BugMe<<"Wasn't expecting identifier edge out of state "
                  <<fromState.toInt;
-    }else if(le.lbl==lblComma) {
+    }else if(withEdge.lbl==lblComma) {
       const StringVal& sv=dynamic_cast<const StringVal&>(*withVal);
       if(sv.s!=",") BugMe<<"Non comma string "<<sv.s;
       auto rv=make_shared<ConsListVal>(
           dynamic_cast<const ConsListVal&>(*fromVal));
       rv->hasComma=true;
       return rv;
-    }else BugMe<<"Extending with unexpected label "<<le.lbl.toInt;
+    }else BugMe<<"Extending with unexpected label "<<withEdge.lbl.toInt;
     BugMe<<"called unexpectedly";
   }
   DfaLabel onlyLabel(DfaState s) {
@@ -449,9 +439,9 @@ struct Hooks : public GssAggregator {
     else BugMe<<"Trying to use strange label "<<lbl.toInt;
   }
   SharedVal merge(DfaState  // en
-                    ,SharedVal  // v1
-                    ,SharedVal  // v2
-                    ) override {
+                 ,SharedVal  // v1
+                 ,SharedVal  // v2
+                 ) override {
     BugMe<<"called unexpectedly";
   }
 };
@@ -605,7 +595,7 @@ class ConcatListVal : public SemVal {
 
 struct Hooks : public GssAggregator {
   SharedVal extend(
-      DfaState fromState,const DfaEdge& withEdge,
+      DfaState fromState,const LabelEdge& withEdge,
       const SharedVal& fromVal,const SharedVal& withVal
       ) override {
     auto clvCopy=make_shared<ConcatListVal>(
@@ -737,18 +727,19 @@ const Dfa dfa = {
 };
 
 using Hooks=singleStringParse::Hooks;
+using singleStringParse::extricateString;
 
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
+  const StringVal& sv1=extricateString(res);
   if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
 
   res=glrParse(dfa,hooks,GetFromString("fad"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv2=dynamic_cast<const StringVal&>(*res[0]);
+  const StringVal& sv2=extricateString(res);
   if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
 
 }

@@ -29,13 +29,14 @@ unnecessary. I would rather make it work like this:
 
 `class GssHooks`:
 
-  * `merge()` Only works on RConsList. By default errors out.
-  * `reduceLabel()` Gathers up RConsList into custom values. More like
+  * `merge()` Only works on ListVal. By default errors out.
+  * `reduceList()` Gathers up ListVal into custom values. More like
     `useValue()`, but it doesn't matter if return LabelEdge goes through a
-    PushEdge. `SharedVal reduceLabel(DfaLabel,RConsList)`.
+    PushEdge. `SharedVal reduceList(DfaLabel,ListVal)`.
+  * `reduceString()`.
 
 The old API can still be available as `GssAggregator`. `extend()` calls are
-automatically aggregated into `RConsList`s. This old API will only be used for
+automatically aggregated into `ListVal`s. This old API will only be used for
 implementing the new one, and will not be used in `dfa_test.cpp`. I might even
 make it internal for now.
 
@@ -44,9 +45,10 @@ make it internal for now.
 
 Plan:
   1. Rename GssHooks to GssAggregator. (done)
-  2. Implement RConsList.
-     - Has templated `dynamic_pointer_cast`s for destructuring
-  3. Implement new GssHooks to use RConsList and expose the new API above.
+  2. Implement ListVal. (done)
+     - Has utilities for size and indexing. (done)
+     - `dfa_test.cpp` can optionally have structured dynamic_cast bindings.
+  3. Implement new GssHooks to use ListVal and expose the new API above. (done)
   4. See if we can simplify `dfa_test.cpp`
 
 

@@ -246,15 +246,15 @@ namespace internal {
 SharedVal GlrCtx::valFromString(const SemVal* sv) const {
   const InputViewVal* iv=dynamic_cast<const InputViewVal*>(sv);
   return iv&&iv->s.size()!=0
-    ?hooks_->makeString(iv->stPos,pos(),string(iv->s))
+    ?make_shared<StringVal>(iv->stPos,pos(),string(iv->s))
     :nullptr;
 }
 
 optional<GssHead> GlrCtx::reduceValue(const GssEdge& prev,SharedVal v,
-                                   const DfaEdge& edge) {
+                                      const LabelEdge& edge) {
   SharedVal newv=hooks_->extend(prev.enState,edge,prev.v,std::move(v));
   if(!newv) return nullopt;
-  return GssHead{newv,dest(&edge),prev.prev};
+  return GssHead{newv,edge.dest,prev.prev};
 }
 
 // Same as reduceValue, but using hooks_->useVal instead of hooks_->extend.
@@ -460,6 +460,56 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
 }
 
 }  // namespace internal
+
+SharedListVal GssHooks::merge(DfaState,
+                              SharedListVal lv1,SharedListVal lv2) {
+  BugDie()<<"Unexpectedly encountered ambiguous parsing: ["
+          <<lv1->stPos<<','<<lv2->enPos<<')';
+}
+
+SharedVal GssHooks::reduceStringOrList(
+    SharedListVal prev,DfaLabel lbl,SharedVal v) {
+  if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
+    SharedVal v2=reduceList(lbl,std::move(lv));
+    return Append(prev,std::move(v2));
+  }else if(auto sv=dynamic_pointer_cast<const StringVal>(v)) {
+    SharedVal v2=reduceString(lbl,std::move(sv));
+    return Append(prev,std::move(v2));
+  }else {
+    BugDie()<<"GssHooks should reduce from String or List. Got "
+            <<typeid(*v).name()<<" instead, on label "<<lbl.toInt;
+  }
+}
+
+SharedVal GssHooks::extend(DfaState fromState,const LabelEdge& withEdge,
+                           const SharedVal& fromVal,const SharedVal& withVal) {
+  SharedListVal fromlv=dynamic_pointer_cast<const ListVal>(fromVal);
+  if(!fromlv)
+    BugDie()<<"GssHooks should always extend from a ListVal. Got "
+            <<typeid(*fromVal).name()<<" instead, on edge "<<fromState.toInt
+            <<" ---DfaLabel{"<<withEdge.lbl.toInt<<"}--> "<<withEdge.dest.toInt;
+  return reduceStringOrList(std::move(fromlv),withEdge.lbl,withVal);
+}
+
+SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
+  return sv;
+}
+
+SharedVal GssHooks::useVal(DfaLabel lbl,SharedVal val) {
+  return reduceStringOrList(nullptr,lbl,std::move(val));
+}
+
+SharedVal GssHooks::merge(DfaState en,SharedVal v1,SharedVal v2) {
+  SharedListVal lv1=dynamic_pointer_cast<const ListVal>(v1);
+  SharedListVal lv2=dynamic_pointer_cast<const ListVal>(v2);
+  if(lv1==nullptr||lv2==nullptr)
+    BugDie()<<"GssHooks can only merge lists. Found "
+            <<typeid(*lv1).name()<<" and "<<typeid(*lv2).name()<<" at DfaState{"
+            <<en.toInt<<"}";
+  return merge(en,std::move(lv1),std::move(lv2));
+}
+
+// TODO rename reduceVal, because it conflicts with reduceList.
 
 vector<SharedVal> glrParse(
     const Dfa& dfa,GssAggregator& hk,function<int16_t()> getch) {
