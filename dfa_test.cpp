@@ -423,7 +423,7 @@ struct Hooks : public GssHooks {
         auto ident=dynamic_cast<const StringVal&>(*withVal);
         auto list=dynamic_pointer_cast<const ConsListVal>(fromVal);
         return extendList(list,ident);
-      }else BugMe<<"Wasnt' expecting identifier edge out of state "
+      }else BugMe<<"Wasn't expecting identifier edge out of state "
                  <<fromState.to_int;
     }else if(le.lbl==lblComma) {
       const StringVal& sv=dynamic_cast<const StringVal&>(*withVal);
