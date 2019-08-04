@@ -462,7 +462,7 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
 }  // namespace internal
 
 vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
+    const Dfa& dfa,GssAggregator& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);
 }

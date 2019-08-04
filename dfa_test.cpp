@@ -201,7 +201,7 @@ void test() {
 
 namespace singleStringParse {
 
-struct Hooks : public GssHooks {
+struct Hooks : public GssAggregator {
   SharedVal extend(DfaState  // fromState
                      ,const DfaEdge&  // withEdge
                      ,const SharedVal&  // fromVal
@@ -272,7 +272,7 @@ const Dfa dfa{
   2,                                    // enLabel
 };
 
-struct Hooks : public GssHooks {
+struct Hooks : public GssAggregator {
   SharedVal extend(DfaState fromState
                      ,const DfaEdge& withEdge
                      ,const SharedVal& fromVal
@@ -407,7 +407,7 @@ shared_ptr<ConsListVal> extendList(shared_ptr<const ConsListVal> list,
   return rv;
 }
 
-struct Hooks : public GssHooks {
+struct Hooks : public GssAggregator {
   SharedVal extend(
       DfaState fromState,const DfaEdge& withEdge,
       const SharedVal& fromVal,const SharedVal& withVal
@@ -603,7 +603,7 @@ class ConcatListVal : public SemVal {
   bool hasComma=false;
 };
 
-struct Hooks : public GssHooks {
+struct Hooks : public GssAggregator {
   SharedVal extend(
       DfaState fromState,const DfaEdge& withEdge,
       const SharedVal& fromVal,const SharedVal& withVal

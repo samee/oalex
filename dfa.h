@@ -18,7 +18,8 @@
        - CopyEdge must be the only non-LabelEdge going out of a node. This can
          even be an null-string transition.
      * Augment Dfa::labelsMap to support AND and NOT.
-     * Add explicit support for returning errors and warnings from GssHooks.
+     * Add explicit support for returning errors and warnings from
+       GssAggregator.
      * Better error reporting features.
 
   Either:
@@ -102,7 +103,7 @@ struct SemVal {
   virtual ~SemVal() = default;
 };
 
-// Used by the default implementation of GssHooks::makeString.
+// Used by the default implementation of GssAggregator::makeString.
 struct StringVal : SemVal {
   std::string s;
   StringVal(size_t st,size_t en,std::string ss)
@@ -142,13 +143,14 @@ struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 
 using SharedVal=std::shared_ptr<const SemVal>;
 
-// GssHooks do not contain any mutable state by default. But implementations
-// are free to have callback methods modify hook state if they so choose. This
-// could easily be problematic since the same inputs can be repeatedly processed
-// by hooks in undetermined order. Generally, keeping state here is discouraged.
-// If necessary, it should only keep state describing the input string directly,
-// not a particular SemVal or parsed AST, since those can get invalidated later.
-class GssHooks {
+// GssAggregator do not contain any mutable state by default. But
+// implementations are free to have callback methods modify hook state if they
+// so choose. This could easily be problematic since the same inputs can be
+// repeatedly processed by hooks in undetermined order. Generally, keeping
+// state here is discouraged.  If necessary, it should only keep state
+// describing the input string directly, not a particular SemVal or parsed AST,
+// since those can get invalidated later.
+class GssAggregator {
  public:
   virtual SharedVal extend(DfaState fromState,
       const DfaEdge& withEdge,
@@ -166,7 +168,7 @@ class GssHooks {
   // Returning nullptr indicates parsing is invalid. We can discard both.
   virtual SharedVal merge(DfaState en,
       SharedVal v1,SharedVal v2) = 0;
-  virtual ~GssHooks() = default;
+  virtual ~GssAggregator() = default;
 };
 
 namespace internal {
@@ -218,7 +220,7 @@ class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
   const Dfa* dfa_;
-  GssHooks* hooks_;
+  GssAggregator* hooks_;
   friend class GlrCtxTest;
 
   size_t pos() const { return buf_.end_offset(); }
@@ -244,7 +246,7 @@ class GlrCtx {
   bool shiftTerminalEdge(
       char ch,std::variant<DfaState,MidString>& enState) const;
  public:
-  GlrCtx(const Dfa& dfa,GssHooks& hk) : dfa_(&dfa), hooks_(&hk) {}
+  GlrCtx(const Dfa& dfa,GssAggregator& hk) : dfa_(&dfa), hooks_(&hk) {}
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
@@ -275,6 +277,6 @@ class GlrCtx {
     unhindered, though.
 */
 std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
+    const Dfa& dfa,GssAggregator& hk,std::function<int16_t()> getch);
 
 }  // namespace oalex
