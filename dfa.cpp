@@ -257,13 +257,13 @@ optional<GssHead> GlrCtx::reduceValue(const GssEdge& prev,SharedVal v,
   return GssHead{newv,dest(&edge),prev.prev};
 }
 
-// Same as reduceValue, but using hooks_->useValue instead of hooks_->extend.
+// Same as reduceValue, but using hooks_->useVal instead of hooks_->extend.
 optional<GssHead> GlrCtx::changeValue(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(dynamic_cast<const InputViewVal*>(v.get()))
     BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
-              "GssHook::useValue()";
-  SharedVal newv=hooks_->useValue(edge.lbl,std::move(v));
+              "GssHook::useVal()";
+  SharedVal newv=hooks_->useVal(edge.lbl,std::move(v));
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;

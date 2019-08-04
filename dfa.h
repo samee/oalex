@@ -32,7 +32,7 @@
      * Prefix-free checks transitively expand PusheEdge closures.
      * GlrCtx::shift can now push multiple edges.
      * GlrCtx::enqueueAllLabelsInHead can now push multiple edges.
-     * GssReduceLater can call useValue instead of extend if going from
+     * GssReduceLater can call useVal instead of extend if going from
        zero lengths.
      * GssEdge can now have zero lengths (check implicit assumptions).
  */
@@ -162,7 +162,7 @@ class GssHooks {
   }
   // Move or copy a value from val for lbl.
   // nullptr return means parsing invalid.
-  virtual SharedVal useValue(DfaLabel lbl,SharedVal val) = 0;
+  virtual SharedVal useVal(DfaLabel lbl,SharedVal val) = 0;
   // Returning nullptr indicates parsing is invalid. We can discard both.
   virtual SharedVal merge(DfaState en,
       SharedVal v1,SharedVal v2) = 0;
@@ -205,7 +205,7 @@ struct GssPendingReduce {
   size_t length;
   int32_t statePrio;  // dfa.statePrio(destinationState)
   GssHead h;  // A little bit heavyweight.
-  std::shared_ptr<const GssEdge> oldPrev;  // Same as newPrev for useValue.
+  std::shared_ptr<const GssEdge> oldPrev;  // Same as newPrev for useVal.
   const LabelEdge *labeledEdge;
   bool pushAgain;
 };

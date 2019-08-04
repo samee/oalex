@@ -209,7 +209,7 @@ struct Hooks : public GssHooks {
                      ) override {
     BugMe<<"called unexpectedly";
   }
-  SharedVal useValue(DfaLabel,SharedVal val) override {
+  SharedVal useVal(DfaLabel,SharedVal val) override {
     return val;
   }
   SharedVal merge(DfaState  // en
@@ -290,7 +290,7 @@ struct Hooks : public GssHooks {
     // grammar won't be ambiguous.
     return make_shared<StringVal>(v1->stPos,v2->enPos,v1->s+v2->s);
   }
-  SharedVal useValue(DfaLabel,SharedVal val) override {
+  SharedVal useVal(DfaLabel,SharedVal val) override {
     return val;
   }
   SharedVal merge(DfaState  // en
@@ -441,7 +441,7 @@ struct Hooks : public GssHooks {
                          <<" found "<<l.size();
     return l[0];
   }
-  SharedVal useValue(DfaLabel lbl,SharedVal val) override {
+  SharedVal useVal(DfaLabel lbl,SharedVal val) override {
     if(lbl==lblSpace)
       return make_shared<EmptyVal>(val->stPos,val->enPos);
     else if(lbl==lblIdent)
@@ -627,7 +627,7 @@ struct Hooks : public GssHooks {
                <<"} along edge "<<edgeDebug(withEdge);
     return clvCopy;
   }
-  SharedVal useValue(DfaLabel lbl,SharedVal val) override {
+  SharedVal useVal(DfaLabel lbl,SharedVal val) override {
     // This will happen only on DfaState{3}-->DfaState{4}.
     if(lbl==lblList) {
       if(auto sv=dynamic_cast<const StringVal*>(val.get()))
