@@ -28,13 +28,13 @@ namespace oalex {
 // TODO it would be nice to have a version with a source state.
 string edgeDebug(const DfaEdge& e) noexcept {
   if(auto* ce=get_if<CharRangeEdge>(&e))
-    return Str()<<'['<<ce->st<<'-'<<ce->en<<"] to "<<ce->dest.to_int;
+    return Str()<<'['<<ce->st<<'-'<<ce->en<<"] to "<<ce->dest.toInt;
   if(auto* le=get_if<LabelEdge>(&e))
-    return Str()<<"Label "<<le->lbl.to_int<<" to "<<le->dest.to_int;
+    return Str()<<"Label "<<le->lbl.toInt<<" to "<<le->dest.toInt;
   if(auto* pe=get_if<PushEdge>(&e))
-    return Str()<<"Push to "<<pe->dest.to_int;
+    return Str()<<"Push to "<<pe->dest.toInt;
   if(auto* se=get_if<StringEdge>(&e))
-    return Str()<<"String '"<<se->s<<"' to "<<se->dest.to_int;
+    return Str()<<"String '"<<se->s<<"' to "<<se->dest.toInt;
   BugDie()<<"Unknown edge type "<<e.index();
 }
 
@@ -147,7 +147,7 @@ shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
 }
 
 GssHead openNew(shared_ptr<const GssEdge> ge,
-                const DfaEdge& de,shared_value newv) {
+                const DfaEdge& de,SharedVal newv) {
   GssHead rv;
   rv.prev={std::move(ge)};
   rv.v=std::move(newv);
@@ -214,9 +214,9 @@ string Dfa::checkError() const {
     vector<bool> inLabel(n,false),inNonLabel(n,false);
     for(a=0;a<n;++a) for(const DfaEdge& e:adjList[a]) {
       if(holds_alternative<LabelEdge>(e))
-        inLabel[a]=inLabel[dest(&e).to_int]=true;
+        inLabel[a]=inLabel[dest(&e).toInt]=true;
       else if(!holds_alternative<PushEdge>(e))
-        inNonLabel[a]=inNonLabel[dest(&e).to_int]=true;
+        inNonLabel[a]=inNonLabel[dest(&e).toInt]=true;
     }
     for(a=0;a<n;++a) if(inLabel[a]&&inNonLabel[a])
       return Str()<<"Components mix in state "<<a;
@@ -243,27 +243,27 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-shared_value GlrCtx::valFromString(const SemVal* sv) const {
+SharedVal GlrCtx::valFromString(const SemVal* sv) const {
   const InputViewVal* iv=dynamic_cast<const InputViewVal*>(sv);
   return iv&&iv->s.size()!=0
-    ?hooks_->make_string(iv->stPos,pos(),string(iv->s))
+    ?hooks_->makeString(iv->stPos,pos(),string(iv->s))
     :nullptr;
 }
 
-optional<GssHead> GlrCtx::reduceValue(const GssEdge& prev,shared_value v,
+optional<GssHead> GlrCtx::reduceValue(const GssEdge& prev,SharedVal v,
                                    const DfaEdge& edge) {
-  shared_value newv=hooks_->extend(prev.enState,edge,prev.v,std::move(v));
+  SharedVal newv=hooks_->extend(prev.enState,edge,prev.v,std::move(v));
   if(!newv) return nullopt;
   return GssHead{newv,dest(&edge),prev.prev};
 }
 
-// Same as reduceValue, but using hooks_->use_value instead of hooks_->extend.
+// Same as reduceValue, but using hooks_->useValue instead of hooks_->extend.
 optional<GssHead> GlrCtx::changeValue(
-    shared_ptr<const GssEdge> prev,shared_value v,const LabelEdge& edge) {
+    shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(dynamic_cast<const InputViewVal*>(v.get()))
     BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
-              "GssHook::use_value()";
-  shared_value newv=hooks_->use_value(edge.lbl,std::move(v));
+              "GssHook::useValue()";
+  SharedVal newv=hooks_->useValue(edge.lbl,std::move(v));
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
@@ -281,9 +281,9 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   DfaState s1=std::get<DfaState>(h1.enState);
   DfaState s2=std::get<DfaState>(h2.enState);
   if(s1!=s2||h1.stPos()!=h2.stPos())
-    BugDie()<<"Merging incompatible heads. States "<<s1.to_int<<','<<s2.to_int
+    BugDie()<<"Merging incompatible heads. States "<<s1.toInt<<','<<s2.toInt
             <<" stPos "<<h1.stPos()<<','<<h2.stPos();
-  shared_value newv=hooks_->merge(s1,std::move(h1.v),std::move(h2.v));
+  SharedVal newv=hooks_->merge(s1,std::move(h1.v),std::move(h2.v));
   if(!newv) return nullopt;
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
@@ -420,7 +420,7 @@ GssHead GlrCtx::startingHeadAt(DfaState s) {
   return {make_shared<EmptyVal>(0,0),s,{}};
 }
 
-vector<shared_value> GlrCtx::parse(function<int16_t()> getch) {
+vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
   char ch;
@@ -448,7 +448,7 @@ vector<shared_value> GlrCtx::parse(function<int16_t()> getch) {
     }
   }
 
-  vector<shared_value> rv;
+  vector<SharedVal> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
       BugDie()<<"nullptr values should already have been dropped";
@@ -461,7 +461,7 @@ vector<shared_value> GlrCtx::parse(function<int16_t()> getch) {
 
 }  // namespace internal
 
-vector<shared_value> glrParse(
+vector<SharedVal> glrParse(
     const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);

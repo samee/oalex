@@ -32,7 +32,7 @@
      * Prefix-free checks transitively expand PusheEdge closures.
      * GlrCtx::shift can now push multiple edges.
      * GlrCtx::enqueueAllLabelsInHead can now push multiple edges.
-     * GssReduceLater can call use_value instead of extend if going from
+     * GssReduceLater can call useValue instead of extend if going from
        zero lengths.
      * GssEdge can now have zero lengths (check implicit assumptions).
  */
@@ -50,14 +50,14 @@
 
 namespace oalex {
 
-struct DfaState { using int_type=int32_t; int_type to_int; };
-struct DfaLabel { using int_type=int32_t; int_type to_int; };
+struct DfaState { using int_type=int32_t; int_type toInt; };
+struct DfaLabel { using int_type=int32_t; int_type toInt; };
 
-inline bool operator!=(DfaState a,DfaState b) { return a.to_int!=b.to_int; }
-inline bool operator==(DfaState a,DfaState b) { return a.to_int==b.to_int; }
+inline bool operator!=(DfaState a,DfaState b) { return a.toInt!=b.toInt; }
+inline bool operator==(DfaState a,DfaState b) { return a.toInt==b.toInt; }
 
-inline bool operator!=(DfaLabel a,DfaLabel b) { return a.to_int!=b.to_int; }
-inline bool operator==(DfaLabel a,DfaLabel b) { return a.to_int==b.to_int; }
+inline bool operator!=(DfaLabel a,DfaLabel b) { return a.toInt!=b.toInt; }
+inline bool operator==(DfaLabel a,DfaLabel b) { return a.toInt==b.toInt; }
 
 struct CharRangeEdge { uint8_t st,en; DfaState dest; };  // inclusive range.
 struct LabelEdge { DfaLabel lbl; DfaState dest; };
@@ -81,11 +81,11 @@ struct Dfa {
   DfaLabel enLabel;
 
   const std::vector<DfaLabel>& labels(DfaState s) const
-    { return labelsMap.at(s.to_int); }
+    { return labelsMap.at(s.toInt); }
   int32_t statePrio(DfaState s) const
-    { return statePrioMap.at(s.to_int); }
+    { return statePrioMap.at(s.toInt); }
   const std::vector<DfaEdge>& outOf(DfaState s) const
-    { return adjList.at(s.to_int); }
+    { return adjList.at(s.toInt); }
 
   bool isEnState(DfaState s) const {
     for(DfaLabel l:labels(s)) if(l==enLabel) return true;
@@ -102,7 +102,7 @@ struct SemVal {
   virtual ~SemVal() = default;
 };
 
-// Used by the default implementation of GssHooks::make_string.
+// Used by the default implementation of GssHooks::makeString.
 struct StringVal : SemVal {
   std::string s;
   StringVal(size_t st,size_t en,std::string ss)
@@ -140,7 +140,7 @@ struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 // to GssEdges, GssHead represent a path of terminal edges. When they
 // undergo a reduction, they turn into GssEdge.
 
-using shared_value=std::shared_ptr<const SemVal>;
+using SharedVal=std::shared_ptr<const SemVal>;
 
 // GssHooks do not contain any mutable state by default. But implementations
 // are free to have callback methods modify hook state if they so choose. This
@@ -150,22 +150,22 @@ using shared_value=std::shared_ptr<const SemVal>;
 // not a particular SemVal or parsed AST, since those can get invalidated later.
 class GssHooks {
  public:
-  virtual shared_value extend(DfaState fromState,
+  virtual SharedVal extend(DfaState fromState,
       const DfaEdge& withEdge,
-      const shared_value& fromVal,
-      const shared_value& withVal) = 0;
+      const SharedVal& fromVal,
+      const SharedVal& withVal) = 0;
 
   // nullptr return means parsing invalid.
-  virtual shared_value
-    make_string(size_t st,size_t en,std::string s) {
+  virtual SharedVal
+    makeString(size_t st,size_t en,std::string s) {
     return std::make_shared<StringVal>(st,en,std::move(s));
   }
   // Move or copy a value from val for lbl.
   // nullptr return means parsing invalid.
-  virtual shared_value use_value(DfaLabel lbl,shared_value val) = 0;
+  virtual SharedVal useValue(DfaLabel lbl,SharedVal val) = 0;
   // Returning nullptr indicates parsing is invalid. We can discard both.
-  virtual shared_value merge(DfaState en,
-      shared_value v1,shared_value v2) = 0;
+  virtual SharedVal merge(DfaState en,
+      SharedVal v1,SharedVal v2) = 0;
   virtual ~GssHooks() = default;
 };
 
@@ -176,7 +176,7 @@ namespace internal {
 // This means we will never have two GssEdge objects with the same stPos(),
 // enPos, and v.
 struct GssEdge {
-  shared_value v;
+  SharedVal v;
   DfaState enState;
   // Invariant: for all p,q in prev: p->enPos == q->enPos;
   size_t enPos;
@@ -188,7 +188,7 @@ struct GssEdge {
 struct MidString { const StringEdge* se; size_t edgeStart; };
 
 struct GssHead {
-  shared_value v;
+  SharedVal v;
   std::variant<DfaState,MidString> enState;
   std::vector<std::shared_ptr<const GssEdge>> prev;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
@@ -205,7 +205,7 @@ struct GssPendingReduce {
   size_t length;
   int32_t statePrio;  // dfa.statePrio(destinationState)
   GssHead h;  // A little bit heavyweight.
-  std::shared_ptr<const GssEdge> oldPrev;  // Same as newPrev for use_value.
+  std::shared_ptr<const GssEdge> oldPrev;  // Same as newPrev for useValue.
   const LabelEdge *labeledEdge;
   bool pushAgain;
 };
@@ -226,13 +226,13 @@ class GlrCtx {
   void enqueueAllLabelsInHead(const internal::GssHead& h,
                               internal::GssPendingQueue& q,
       const internal::GssPendingReduce& curReduce) const;
-  shared_value valFromString(const SemVal* sv) const;
+  SharedVal valFromString(const SemVal* sv) const;
   std::optional<internal::GssHead>
-    reduceValue(const internal::GssEdge& prev,shared_value v,
+    reduceValue(const internal::GssEdge& prev,SharedVal v,
                 const DfaEdge& edge);
   std::optional<internal::GssHead> changeValue(
       std::shared_ptr<const internal::GssEdge> prev,
-      shared_value v,const LabelEdge& edge);
+      SharedVal v,const LabelEdge& edge);
   std::optional<internal::GssHead> mergeHeads(internal::GssHead h1,
                                               internal::GssHead h2);
   std::optional<internal::GssHead> mergeHeads(
@@ -248,7 +248,7 @@ class GlrCtx {
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
-  std::vector<shared_value> parse(std::function<int16_t()> getch);
+  std::vector<SharedVal> parse(std::function<int16_t()> getch);
 };
 
 }  // namespace internal
@@ -259,7 +259,7 @@ class GlrCtx {
     Args:
       dfa   - The DFA that defines the grammar. It is assumed Dfa::checkError
               passes. Otherwise, behavior is undefined.
-      hk    - Provides recipes for building a shared_value in case of a
+      hk    - Provides recipes for building a SharedVal in case of a
               successful parse.
       getch - The actual input source. It should return -1 on EOF or error.
               Right now we don't distinguish between these two cases.
@@ -267,14 +267,14 @@ class GlrCtx {
     The parse trees are typically represented by some user-defined subclass of
     SemVal, as returned by the various components of hk. In case of parse
     failure, just returns an empty vector. Error reporting may be done by either
-    recording errors in hk or by returning a "valid" shared_value that actually
+    recording errors in hk or by returning a "valid" SharedVal that actually
     represents an error and not a parse tree.
 
     It never throws an exception, but it can BugDie(), either for internal bugs
     or for malformed dfa. Exceptions from hk and getch are all propagated
     unhindered, though.
 */
-std::vector<shared_value> glrParse(
+std::vector<SharedVal> glrParse(
     const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
 
 }  // namespace oalex

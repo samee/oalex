@@ -202,19 +202,19 @@ void test() {
 namespace singleStringParse {
 
 struct Hooks : public GssHooks {
-  shared_value extend(DfaState  // fromState
+  SharedVal extend(DfaState  // fromState
                      ,const DfaEdge&  // withEdge
-                     ,const shared_value&  // fromVal
-                     ,const shared_value&   // withVal
+                     ,const SharedVal&  // fromVal
+                     ,const SharedVal&   // withVal
                      ) override {
     BugMe<<"called unexpectedly";
   }
-  shared_value use_value(DfaLabel,shared_value val) override {
+  SharedVal useValue(DfaLabel,SharedVal val) override {
     return val;
   }
-  shared_value merge(DfaState  // en
-                    ,shared_value  // v1
-                    ,shared_value  // v2
+  SharedVal merge(DfaState  // en
+                    ,SharedVal  // v1
+                    ,SharedVal  // v2
                     ) override {
     BugMe<<"called unexpectedly";
   }
@@ -237,7 +237,7 @@ const Dfa dfa{
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<shared_value> res=glrParse(dfa,hooks,GetFromString("foo"));
+  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
   const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
@@ -273,13 +273,13 @@ const Dfa dfa{
 };
 
 struct Hooks : public GssHooks {
-  shared_value extend(DfaState fromState
+  SharedVal extend(DfaState fromState
                      ,const DfaEdge& withEdge
-                     ,const shared_value& fromVal
-                     ,const shared_value& withVal
+                     ,const SharedVal& fromVal
+                     ,const SharedVal& withVal
                      ) override {
     if(fromState!=DfaState{2})
-      BugMe<<"Extend called from state "<<fromState.to_int<<" != 2";
+      BugMe<<"Extend called from state "<<fromState.toInt<<" != 2";
     if(withEdge!=dfa.outOf(fromState)[0])
       BugMe<<"Extend called with unexpected edge "<<edgeDebug(withEdge);
     auto v1=dynamic_cast<const StringVal*>(fromVal.get());
@@ -290,12 +290,12 @@ struct Hooks : public GssHooks {
     // grammar won't be ambiguous.
     return make_shared<StringVal>(v1->stPos,v2->enPos,v1->s+v2->s);
   }
-  shared_value use_value(DfaLabel,shared_value val) override {
+  SharedVal useValue(DfaLabel,SharedVal val) override {
     return val;
   }
-  shared_value merge(DfaState  // en
-                    ,shared_value  // v1
-                    ,shared_value  // v2
+  SharedVal merge(DfaState  // en
+                    ,SharedVal  // v1
+                    ,SharedVal  // v2
                     ) override {
     BugMe<<"called unexpectedly";
   }
@@ -305,7 +305,7 @@ struct Hooks : public GssHooks {
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<shared_value> res=glrParse(dfa,hooks,GetFromString("foobar"));
+  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foobar"));
 
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
   const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
@@ -408,9 +408,9 @@ shared_ptr<ConsListVal> extendList(shared_ptr<const ConsListVal> list,
 }
 
 struct Hooks : public GssHooks {
-  shared_value extend(
+  SharedVal extend(
       DfaState fromState,const DfaEdge& withEdge,
-      const shared_value& fromVal,const shared_value& withVal
+      const SharedVal& fromVal,const SharedVal& withVal
       ) override {
     const LabelEdge& le=get<LabelEdge>(withEdge);
     if(le.lbl==lblSpace) {
@@ -424,7 +424,7 @@ struct Hooks : public GssHooks {
         auto list=dynamic_pointer_cast<const ConsListVal>(fromVal);
         return extendList(list,ident);
       }else BugMe<<"Wasn't expecting identifier edge out of state "
-                 <<fromState.to_int;
+                 <<fromState.toInt;
     }else if(le.lbl==lblComma) {
       const StringVal& sv=dynamic_cast<const StringVal&>(*withVal);
       if(sv.s!=",") BugMe<<"Non comma string "<<sv.s;
@@ -432,25 +432,25 @@ struct Hooks : public GssHooks {
           dynamic_cast<const ConsListVal&>(*fromVal));
       rv->hasComma=true;
       return rv;
-    }else BugMe<<"Extending with unexpected label "<<le.lbl.to_int;
+    }else BugMe<<"Extending with unexpected label "<<le.lbl.toInt;
     BugMe<<"called unexpectedly";
   }
   DfaLabel onlyLabel(DfaState s) {
     vector<DfaLabel> l=dfa.labels(s);
-    if(l.size()!=1) BugMe<<"Was expecting 1 label at state "<<s.to_int
+    if(l.size()!=1) BugMe<<"Was expecting 1 label at state "<<s.toInt
                          <<" found "<<l.size();
     return l[0];
   }
-  shared_value use_value(DfaLabel lbl,shared_value val) override {
+  SharedVal useValue(DfaLabel lbl,SharedVal val) override {
     if(lbl==lblSpace)
       return make_shared<EmptyVal>(val->stPos,val->enPos);
     else if(lbl==lblIdent)
       return makeSingletonList(dynamic_cast<const StringVal&>(*val));
-    else BugMe<<"Trying to use strange label "<<lbl.to_int;
+    else BugMe<<"Trying to use strange label "<<lbl.toInt;
   }
-  shared_value merge(DfaState  // en
-                    ,shared_value  // v1
-                    ,shared_value  // v2
+  SharedVal merge(DfaState  // en
+                    ,SharedVal  // v1
+                    ,SharedVal  // v2
                     ) override {
     BugMe<<"called unexpectedly";
   }
@@ -477,7 +477,7 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<shared_value> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
+    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
     if(outputs[i].empty()&&dynamic_cast<const EmptyVal*>(res[0].get())!=nullptr)
       continue;
@@ -488,7 +488,7 @@ void test() {
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<shared_value> res
+    vector<SharedVal> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
     if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
   }
@@ -604,9 +604,9 @@ class ConcatListVal : public SemVal {
 };
 
 struct Hooks : public GssHooks {
-  shared_value extend(
+  SharedVal extend(
       DfaState fromState,const DfaEdge& withEdge,
-      const shared_value& fromVal,const shared_value& withVal
+      const SharedVal& fromVal,const SharedVal& withVal
       ) override {
     auto clvCopy=make_shared<ConcatListVal>(
         dynamic_cast<const ConcatListVal&>(*fromVal));
@@ -623,11 +623,11 @@ struct Hooks : public GssHooks {
       else if(auto sv=dynamic_cast<const StringVal*>(withVal.get()))
         clvCopy->recordSecondList(make_shared<ConcatListVal>(*sv));
       else BugMe<<"Weird sublist with typeid "<<shared_typeid(withVal);
-    }else BugMe<<"Unexpected transition from DfaState{"<<fromState.to_int
+    }else BugMe<<"Unexpected transition from DfaState{"<<fromState.toInt
                <<"} along edge "<<edgeDebug(withEdge);
     return clvCopy;
   }
-  shared_value use_value(DfaLabel lbl,shared_value val) override {
+  SharedVal useValue(DfaLabel lbl,SharedVal val) override {
     // This will happen only on DfaState{3}-->DfaState{4}.
     if(lbl==lblList) {
       if(auto sv=dynamic_cast<const StringVal*>(val.get()))
@@ -636,7 +636,7 @@ struct Hooks : public GssHooks {
         return clv;
       else BugMe<<"Cannot use list with unknown typeid "<<shared_typeid(val);
     }
-    else BugMe<<"Trying to use strange label "<<lbl.to_int;
+    else BugMe<<"Trying to use strange label "<<lbl.toInt;
   }
   static int8_t lexiSizeCmp(const ConcatListVal& clv1,
                             const ConcatListVal& clv2){
@@ -648,7 +648,7 @@ struct Hooks : public GssHooks {
     else if(int8_t c=lexiSizeCmp(*clv1.l1,*clv2.l1)) return c;
     else return lexiSizeCmp(*clv1.l2,*clv2.l2);
   }
-  shared_value merge(DfaState en,shared_value v1,shared_value v2) override {
+  SharedVal merge(DfaState en,SharedVal v1,SharedVal v2) override {
     if(auto sp=dynamic_cast<const StringVal*>(v1.get())) {
       if(sp->s!=dynamic_cast<const StringVal&>(*v2).s)
         BugMe<<"Unequal strings";
@@ -662,7 +662,7 @@ struct Hooks : public GssHooks {
       checkSingleton(clv1,"v1 going to DfaState{6}");
       checkSingleton(clv2,"v2 going to DfaState{6}");
     }else if(en==DfaState{4}) { if(clv1.isSingleton()) return v1; }
-    else BugMe<<"Unexpected merge in state "<<en.to_int;
+    else BugMe<<"Unexpected merge in state "<<en.toInt;
     return std::move(lexiSizeCmp(clv1,clv2)<0?v1:v2);
   }
 
@@ -675,7 +675,7 @@ struct Hooks : public GssHooks {
 
 };
 
-vector<string> gather(shared_value v) {
+vector<string> gather(SharedVal v) {
   if(dynamic_cast<const EmptyVal*>(v.get())) return {};
   auto clv=dynamic_cast<const ConcatListVal*>(v.get());
   vector<string> rv;
@@ -701,7 +701,7 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=3;i<n;++i) {
-    vector<shared_value> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
+    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
     vector<string> resg=gather(res[0]);
@@ -711,7 +711,7 @@ void test() {
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<shared_value> res
+    vector<SharedVal> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
     if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
   }
@@ -741,7 +741,7 @@ using Hooks=singleStringParse::Hooks;
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<shared_value> res=glrParse(dfa,hooks,GetFromString("foo"));
+  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
   const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
   if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
