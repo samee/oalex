@@ -74,6 +74,13 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
+// FIXME I am not convinced that we *want* to be always returning a
+// (single-item?) list form glrParse.
+const StringVal& extricateString(const vector<SharedVal>& v) {
+  return dynamic_cast<const StringVal&>(
+           *dynamic_cast<const ListVal&>(*v[0]).last);
+}
+
 namespace checkCheckError {
 
 void expectError(const Dfa& dfa,string_view b) {
@@ -222,11 +229,6 @@ const Dfa dfa{
   1,                                         // enLabel
 };
 
-const StringVal& extricateString(const vector<SharedVal>& v) {
-  return dynamic_cast<const StringVal&>(
-           *dynamic_cast<const ListVal&>(*v[0]).last);
-}
-
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
@@ -265,33 +267,19 @@ const Dfa dfa{
   2,                                    // enLabel
 };
 
-struct Hooks : public GssAggregator {
-  SharedVal extend(DfaState fromState, const LabelEdge& withEdge,
-                   const SharedVal& fromVal, const SharedVal& withVal
-                  ) override {
-    if(fromState!=DfaState{2})
-      BugMe<<"Extend called from state "<<fromState.toInt<<" != 2";
-    if(withEdge!=dfa.outOf(fromState)[0])
-      BugMe<<"Extend called with unexpected edge "<<edgeDebug(withEdge);
-    auto v1=dynamic_cast<const StringVal*>(fromVal.get());
-    auto v2=dynamic_cast<const StringVal*>(withVal.get());
-    if(v1->enPos!=v2->stPos)
-      BugMe<<"String parts are not adjacent. "<<v1->enPos<<" != "<<v2->stPos;
-    // Not a constant-time string-concatenation, but it's okay if this
-    // grammar won't be ambiguous.
-    return make_shared<StringVal>(v1->stPos,v2->enPos,v1->s+v2->s);
-  }
-  SharedVal useVal(DfaLabel,SharedVal val) override {
-    return val;
-  }
-  SharedVal merge(DfaState  // en
-                 ,SharedVal  // v1
-                 ,SharedVal  // v2
-                 ) override {
-    BugMe<<"called unexpectedly";
+struct Hooks : public GssHooks {
+  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+    if(lbl==DfaLabel{1}) {
+      if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
+      // Not a constant-time string-concatenation, but it's okay if this
+      // grammar won't be ambiguous.
+      auto s1=dynamic_cast<const StringVal&>(*lv->get(0));
+      auto s2=dynamic_cast<const StringVal&>(*lv->get(1));
+      return make_shared<StringVal>(lv->stPos,lv->enPos,s1.s+s2.s);
+    }
+    BugMe<<"Unexpected label "<<lbl.toInt;
   }
 };
-
 
 void test() {
   dieIfBad(dfa);
@@ -299,7 +287,7 @@ void test() {
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foobar"));
 
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  const StringVal& sv=extricateString(res);
   if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
 }
 
@@ -727,7 +715,6 @@ const Dfa dfa = {
 };
 
 using Hooks=singleStringParse::Hooks;
-using singleStringParse::extricateString;
 
 void test() {
   dieIfBad(dfa);
