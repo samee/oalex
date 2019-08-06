@@ -363,83 +363,23 @@ const Dfa dfa{
   lblList
 };
 
-struct ConsListVal : SemVal {
-  string ident;
-  shared_ptr<const ConsListVal> prev;
-  bool hasComma=false;
-  ConsListVal(size_t st,size_t en,string ident)
-    : SemVal(st,en), ident(std::move(ident)) {}
-};
-
-shared_ptr<ConsListVal> makeSingletonList(const StringVal& s) {
-  auto l=make_shared<ConsListVal>(s.stPos,s.enPos,s.s);
-  return l;
-}
-
-shared_ptr<ConsListVal> extendList(shared_ptr<const ConsListVal> list,
-                                   StringVal& s) {
-  if(!list->hasComma) return nullptr;
-  auto rv=make_shared<ConsListVal>(list->stPos,s.enPos,s.s);
-  rv->enPos=s.enPos;
-  rv->prev=std::move(list);
-  rv->hasComma=false;
-  return rv;
-}
-
-struct Hooks : public GssAggregator {
-  SharedVal extend(
-      DfaState fromState,const LabelEdge& withEdge,
-      const SharedVal& fromVal,const SharedVal& withVal
-      ) override {
-    if(withEdge.lbl==lblSpace) {
-      if(fromState!=withEdge.dest) BugMe<<"Spaces causing state change";
-      else return fromVal;
-    }else if(withEdge.lbl==lblIdent) {
-      if(fromState==DfaState{0})
-        return makeSingletonList(dynamic_cast<const StringVal&>(*withVal));
-      else if(fromState==DfaState{2}) {
-        auto ident=dynamic_cast<const StringVal&>(*withVal);
-        auto list=dynamic_pointer_cast<const ConsListVal>(fromVal);
-        return extendList(list,ident);
-      }else BugMe<<"Wasn't expecting identifier edge out of state "
-                 <<fromState.toInt;
-    }else if(withEdge.lbl==lblComma) {
-      const StringVal& sv=dynamic_cast<const StringVal&>(*withVal);
-      if(sv.s!=",") BugMe<<"Non comma string "<<sv.s;
-      auto rv=make_shared<ConsListVal>(
-          dynamic_cast<const ConsListVal&>(*fromVal));
-      rv->hasComma=true;
-      return rv;
-    }else BugMe<<"Extending with unexpected label "<<withEdge.lbl.toInt;
-    BugMe<<"called unexpectedly";
+struct Hooks : GssHooks {
+  SharedVal reduceList(DfaLabel,SharedListVal) override {
+    BugMe<<"Wasn't expecting reduceList to be called.";
   }
-  DfaLabel onlyLabel(DfaState s) {
-    vector<DfaLabel> l=dfa.labels(s);
-    if(l.size()!=1) BugMe<<"Was expecting 1 label at state "<<s.toInt
-                         <<" found "<<l.size();
-    return l[0];
-  }
-  SharedVal useVal(DfaLabel lbl,SharedVal val) override {
-    if(lbl==lblSpace)
-      return make_shared<EmptyVal>(val->stPos,val->enPos);
-    else if(lbl==lblIdent)
-      return makeSingletonList(dynamic_cast<const StringVal&>(*val));
-    else BugMe<<"Trying to use strange label "<<lbl.toInt;
-  }
-  SharedVal merge(DfaState  // en
-                 ,SharedVal  // v1
-                 ,SharedVal  // v2
-                 ) override {
-    BugMe<<"called unexpectedly";
+  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+    if(lbl==lblSpace||lbl==lblComma)
+      return make_shared<EmptyVal>(sv->stPos,sv->enPos);
+    else return GssHooks::reduceString(lbl,std::move(sv));
   }
 };
 
-vector<string> gather(const ConsListVal& val) {
+vector<string> gather(const ListVal* lv) {
   vector<string> rv;
-  const ConsListVal* v=&val;
-  while(v) {
-    rv.push_back(v->ident);
-    v=v->prev.get();
+  while(lv) {
+    if(auto *sv=dynamic_cast<const StringVal*>(lv->last.get()))
+      rv.push_back(sv->s);
+    lv=lv->prev.get();
   }
   reverse(rv.begin(),rv.end());
   return rv;
@@ -459,9 +399,7 @@ void test() {
     if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
     if(outputs[i].empty()&&dynamic_cast<const EmptyVal*>(res[0].get())!=nullptr)
       continue;
-    const ConsListVal& clv=dynamic_cast<const ConsListVal&>(*res[0]);
-    vector<string> v=gather(clv);
-    if(v!=outputs[i]) BugMe<<"input["<<i<<"] parsed into "<<v;
+    vector<string> v=gather(dynamic_cast<const ListVal*>(res[0].get()));
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
