@@ -379,6 +379,8 @@ vector<string> gather(const ListVal* lv) {
   while(lv) {
     if(auto *sv=dynamic_cast<const StringVal*>(lv->last.get()))
       rv.push_back(sv->s);
+    else if(dynamic_cast<const EmptyVal*>(lv->last.get())==nullptr)
+      BugMe<<"Got weird SemVal of typeid "<<typeid(*lv->last).name();
     lv=lv->prev.get();
   }
   reverse(rv.begin(),rv.end());
