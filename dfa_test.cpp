@@ -416,8 +416,8 @@ void test() {
 
 namespace slowListParse {
 // TODO test ambiguous merges.
-// First, the DFA is on paper
-// Second, allow PushEdge duplication.
+// First, the DFA is on paper (done)
+// Second, allow PushEdge duplication. (done)
 // Third, refactor code after testing merge.
 // Fourth, better error API as in paper. Test it.
 // Iterate with other future plans, and how they might get used.
@@ -474,137 +474,78 @@ const Dfa dfa{
   lblEndMarker,
 };
 
-string posRange(const SemVal& v) { return Str()<<v.stPos<<'-'<<v.enPos; }
+bool hasLabel(const Dfa& dfa,DfaState s,DfaLabel lbl) {
+  const auto& ls=dfa.labels(s);
+  return find(ls.begin(),ls.end(),lbl)!=ls.end();
+}
 
-// We could have probably used two subclasses or a variant type,
-// but I'm feeling lazy.
-class ConcatListVal : public SemVal {
- public:
-  size_t size;  // Element count, not input string span.
-
-  // ListNe := ListNe "," ListNe
-  shared_ptr<const ConcatListVal> l1;
-  shared_ptr<const ConcatListVal> l2;
-
-  // ListNe := ident
-  optional<string> ident;
-
-  // Singleton, never changes.
-  explicit ConcatListVal(const StringVal& s)
-    : SemVal(s.stPos,s.enPos), size(1), ident(std::move(s.s)) {}
-
-  // Concat operator, with first argument. Expects a second argument later.
-  explicit ConcatListVal(shared_ptr<const ConcatListVal> l1)
-    : SemVal(l1->stPos,l1->enPos), size(l1->size), l1(std::move(l1)) {}
-
-  void recordComma(size_t newEnPos) {
-    if(isSingleton()) BugMe<<"Can't record comma on singleton";
-    if(hasComma) BugMe<<"Duplicate comma";
-    hasComma=true;
-    enPos=newEnPos;
+// TODO s/ListVal::get/ListVal::at/g
+class Hooks : public GssHooks {
+  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+    if(lbl!=lblList) BugMe<<"Reducing on strange DfaLabel{"<<lbl.toInt<<"}";
+    // elt-comma-elt.
+    if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
+    if(dynamic_cast<const EmptyVal*>(lv->get(1).get())==nullptr)
+      BugMe<<"Commas should be empty. Position 1 is not empty: "
+           <<typeid(*lv->get(1)).name();
+    return lv;
   }
-  void recordSecondList(shared_ptr<const ConcatListVal> l2) {
-    if(isSingleton()) BugMe<<"Can't add list onto singleton";
-    if(!hasComma)
-      BugMe<<"Missing comma separator. Extending "
-           <<posRange(*this)<<" with "<<posRange(*l2);
-    if(this->l2) BugMe<<"Already have second list";
-    this->size+=l2->size;
-    enPos=l2->enPos;
-    this->l2=std::move(l2);
+  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+    if(lbl==lblComma) return make_shared<EmptyVal>(sv->stPos,sv->enPos);
+    else return GssHooks::reduceString(lbl,std::move(sv));
   }
-  bool concatDone() const { return l1&&hasComma&&l2; }
-  bool isSingleton() const { return bool(ident); }
-  bool waitingForComma() const { return !hasComma&&l1&&!l2&&!ident; }
-
- private:
-  bool hasComma=false;
+  SharedListVal merge(DfaState en,
+                      SharedListVal lv1,SharedListVal lv2) override {
+    if(lv1->size!=lv2->size)
+      BugMe<<"Can't merge on mismatching sizes: "<<lv1->size<<" != "<<lv2->size;
+    if(lv1->size==1) {
+      auto sv1=dynamic_cast<const StringVal*>(lv1->last.get());
+      auto sv2=dynamic_cast<const StringVal*>(lv2->last.get());
+      if(sv1&&sv2) return lv1;  // Doesn't matter what we return.
+      if(!hasLabel(dfa,en,lblEndMarker))
+        BugMe<<"Merging singleton, but not at end state: at DfaState{"
+             <<en.toInt<<"}";
+      auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
+      auto lu2=dynamic_pointer_cast<const ListVal>(lv2->last);
+      if(!lu1||!lu2)
+        BugMe<<"Caught null: "<<typeid(*lv1->last).name()
+             <<", "<<typeid(*lv2->last).name();
+      return Append(nullptr,merge(en,std::move(lu1),std::move(lu2)));
+    }
+    if(lv1->size!=3)
+      BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3";
+    if(!hasLabel(dfa,en,lblList)&&!hasLabel(dfa,en,lblEndMarker))
+      BugMe<<"We can only merge at the end of lists, not in DfaState{"
+           <<en.toInt<<"}";
+    return lv1->get(0)->enPos>lv2->get(0)->enPos?lv1:lv2;
+  }
 };
 
-struct Hooks : public GssAggregator {
-  SharedVal extend(
-      DfaState fromState,const LabelEdge& withEdge,
-      const SharedVal& fromVal,const SharedVal& withVal
-      ) override {
-    auto clvCopy=make_shared<ConcatListVal>(
-        dynamic_cast<const ConcatListVal&>(*fromVal));
-
-    if(fromState==DfaState{4}&&withEdge==LabelEdge{lblComma,5}) {
-      const string& s=dynamic_cast<const StringVal&>(*withVal).s;
-      if(s!=",") BugMe<<"Weird comma "<<s;
-      if(!clvCopy->waitingForComma())
-        clvCopy=make_shared<ConcatListVal>(clvCopy);
-      clvCopy->recordComma(withVal->enPos);
-    }else if(fromState==DfaState{5}&&withEdge==LabelEdge{lblList,6}) {
-      if(auto clv2=dynamic_pointer_cast<const ConcatListVal>(withVal))
-        clvCopy->recordSecondList(std::move(clv2));
-      else if(auto sv=dynamic_cast<const StringVal*>(withVal.get()))
-        clvCopy->recordSecondList(make_shared<ConcatListVal>(*sv));
-      else BugMe<<"Weird sublist with typeid "<<shared_typeid(withVal);
-    }else BugMe<<"Unexpected transition from DfaState{"<<fromState.toInt
-               <<"} along edge "<<edgeDebug(withEdge);
-    return clvCopy;
+const string& unwrapToString(const SemVal* v) {
+  if(const auto* sv=dynamic_cast<const StringVal*>(v))
+    return sv->s;
+  if(const auto* lv=dynamic_cast<const ListVal*>(v)) {
+    if(lv->size!=1) BugMe<<"This can't be a string. Size "<<lv->size<<" != 1";
+    return unwrapToString(lv->last.get());
   }
-  SharedVal useVal(DfaLabel lbl,SharedVal val) override {
-    // This will happen only on DfaState{3}-->DfaState{4}.
-    if(lbl==lblList) {
-      if(auto sv=dynamic_cast<const StringVal*>(val.get()))
-        return make_shared<ConcatListVal>(*sv);
-      else if(auto clv=dynamic_pointer_cast<const ConcatListVal>(val))
-        return clv;
-      else BugMe<<"Cannot use list with unknown typeid "<<shared_typeid(val);
-    }
-    else BugMe<<"Trying to use strange label "<<lbl.toInt;
-  }
-  static int8_t lexiSizeCmp(const ConcatListVal& clv1,
-                            const ConcatListVal& clv2){
-    if(clv1.size!=clv2.size) BugMe<<"Comparing incompatble concat lists";
-    if(clv1.isSingleton()) return 0;
-    size_t s1=clv1.l1->size;
-    size_t s2=clv2.l1->size;
-    if(s1!=s2) return (s1<s2?-1:1);
-    else if(int8_t c=lexiSizeCmp(*clv1.l1,*clv2.l1)) return c;
-    else return lexiSizeCmp(*clv1.l2,*clv2.l2);
-  }
-  SharedVal merge(DfaState en,SharedVal v1,SharedVal v2) override {
-    if(auto sp=dynamic_cast<const StringVal*>(v1.get())) {
-      if(sp->s!=dynamic_cast<const StringVal&>(*v2).s)
-        BugMe<<"Unequal strings";
-      return v1;
-    }
-    auto clv1=dynamic_cast<const ConcatListVal&>(*v1);
-    auto clv2=dynamic_cast<const ConcatListVal&>(*v2);
-    if(clv1.isSingleton()!=clv2.isSingleton())
-      BugMe<<"One is singleton while the other isn't";
-    if(en==DfaState{6}) {
-      checkSingleton(clv1,"v1 going to DfaState{6}");
-      checkSingleton(clv2,"v2 going to DfaState{6}");
-    }else if(en==DfaState{4}) { if(clv1.isSingleton()) return v1; }
-    else BugMe<<"Unexpected merge in state "<<en.toInt;
-    return std::move(lexiSizeCmp(clv1,clv2)<0?v1:v2);
-  }
-
-  static void checkSingleton(const ConcatListVal& clv,string_view msg) {
-    if(clv.isSingleton())
-        BugMe<<"We have an ambiguous singleton. "<<msg
-             <<" Value: "<<*clv.ident
-             <<", Range: "<<posRange(clv);
-  }
-
-};
+  BugMe<<"unwrapToString got weird type: "<<typeid(*v).name();
+}
 
 vector<string> gather(SharedVal v) {
   if(dynamic_cast<const EmptyVal*>(v.get())) return {};
-  auto clv=dynamic_cast<const ConcatListVal*>(v.get());
   vector<string> rv;
-  while(!clv->isSingleton()) {
-    if(!clv->l1->isSingleton())
-      BugMe<<"l1 should be single after merge. Got size "<<clv->l1->size
-           <<"+"<<clv->l2->size;
-    rv.push_back(*clv->l1->ident);
-    clv=clv->l2.get();
+  v=dynamic_cast<const ListVal&>(*v).last;
+  while(v) {
+    if(auto* lv=dynamic_cast<const ListVal*>(v.get())) {
+      rv.push_back(unwrapToString(lv->last.get()));
+      v=lv->get(0);
+    }else{
+      auto* sv=dynamic_cast<const StringVal*>(v.get());
+      rv.push_back(sv->s);
+      break;
+    }
   }
-  rv.push_back(*clv->ident);
+  reverse(rv.begin(),rv.end());
   return rv;
 }
 
@@ -618,7 +559,7 @@ void test() {
   constexpr size_t n=(sizeof(inputs)/sizeof(*inputs));
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
-  for(size_t i=3;i<n;++i) {
+  for(size_t i=0;i<n;++i) {
     vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
