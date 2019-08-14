@@ -264,10 +264,16 @@ SharedVal GlrCtx::valFromString(const SemVal* sv) const {
     :nullptr;
 }
 
+// TODO define ostream& operator<< for DfaState and DfaLabel.
 optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
-  SharedVal newv=static_cast<GssAggregator*>(hooks_)
-    ->extend(prev.enState,edge,prev.v,std::move(v));
+  SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
+  if(!prevlv)
+    BugDie()<<"GssHooks should always extend from a ListVal. Got "
+            <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState.toInt
+            <<" ---DfaLabel{"<<edge.lbl.toInt<<"}--> "<<edge.dest.toInt;
+  SharedVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
+                                    edge.lbl,std::move(v));
   if(!newv) return nullopt;
   return GssHead{newv,edge.dest,prev.prev};
 }
@@ -484,14 +490,9 @@ SharedListVal GssHooks::merge(DfaState,
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::extend(DfaState fromState,const LabelEdge& withEdge,
-                           const SharedVal& fromVal,const SharedVal& withVal) {
-  SharedListVal fromlv=dynamic_pointer_cast<const ListVal>(fromVal);
-  if(!fromlv)
-    BugDie()<<"GssHooks should always extend from a ListVal. Got "
-            <<typeid(*fromVal).name()<<" instead, on edge "<<fromState.toInt
-            <<" ---DfaLabel{"<<withEdge.lbl.toInt<<"}--> "<<withEdge.dest.toInt;
-  return reduceStringOrList(*this,std::move(fromlv),withEdge.lbl,withVal);
+SharedVal GssHooks::extend(DfaState,const LabelEdge&,
+                           const SharedVal&,const SharedVal&) {
+  BugDie()<<"Unused. Nobody should call "<<__func__;
 }
 
 SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
