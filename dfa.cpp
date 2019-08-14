@@ -250,14 +250,14 @@ SharedVal GlrCtx::valFromString(const SemVal* sv) const {
     :nullptr;
 }
 
-optional<GssHead> GlrCtx::reduceValue(const GssEdge& prev,SharedVal v,
+optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
   SharedVal newv=hooks_->extend(prev.enState,edge,prev.v,std::move(v));
   if(!newv) return nullopt;
   return GssHead{newv,edge.dest,prev.prev};
 }
 
-// Same as reduceValue, but using hooks_->useVal instead of hooks_->extend.
+// Same as extendValue, but using hooks_->useVal instead of hooks_->extend.
 optional<GssHead> GlrCtx::changeValue(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(dynamic_cast<const InputViewVal*>(v.get()))
@@ -435,7 +435,7 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
         cur=q.top(); q.pop();
         if(cur.pushAgain)
           newHead=changeValue(cur.oldPrev,cur.h.v,*cur.labeledEdge);
-        else newHead=reduceValue(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
+        else newHead=extendValue(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
         prevHead=mergeHeads(prevHead,newHead);
         // Keep popping as many as I can merge in.
       } while(!q.empty()&&canMerge(prevHead,q.top()));
@@ -508,8 +508,6 @@ SharedVal GssHooks::merge(DfaState en,SharedVal v1,SharedVal v2) {
             <<en.toInt<<"}";
   return merge(en,std::move(lv1),std::move(lv2));
 }
-
-// TODO rename reduceVal, because it conflicts with reduceList.
 
 vector<SharedVal> glrParse(
     const Dfa& dfa,GssAggregator& hk,function<int16_t()> getch) {
