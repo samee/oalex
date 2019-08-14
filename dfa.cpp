@@ -284,8 +284,7 @@ optional<GssHead> GlrCtx::changeValue(
   if(dynamic_cast<const InputViewVal*>(v.get()))
     BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
               "GssHook::useVal()";
-  SharedVal newv=static_cast<GssAggregator*>(hooks_)
-    ->useVal(edge.lbl,std::move(v));
+  SharedVal newv=reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v));
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
@@ -499,8 +498,8 @@ SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
   return sv;
 }
 
-SharedVal GssHooks::useVal(DfaLabel lbl,SharedVal val) {
-  return reduceStringOrList(*this,nullptr,lbl,std::move(val));
+SharedVal GssHooks::useVal(DfaLabel,SharedVal) {
+  BugDie()<<"Unused. Nobody should call "<<__func__;
 }
 
 SharedVal GssHooks::merge(DfaState en,SharedVal v1,SharedVal v2) {
