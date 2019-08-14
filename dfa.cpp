@@ -304,8 +304,13 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   if(s1!=s2||h1.stPos()!=h2.stPos())
     BugDie()<<"Merging incompatible heads. States "<<s1.toInt<<','<<s2.toInt
             <<" stPos "<<h1.stPos()<<','<<h2.stPos();
-  SharedVal newv=static_cast<GssAggregator*>(hooks_)
-    ->merge(s1,std::move(h1.v),std::move(h2.v));
+  SharedListVal lv1=dynamic_pointer_cast<const ListVal>(std::move(h1.v));
+  SharedListVal lv2=dynamic_pointer_cast<const ListVal>(std::move(h2.v));
+  if(lv1==nullptr||lv2==nullptr)
+    BugDie()<<"GssHooks can only merge lists. Found "
+            <<typeid(*h1.v).name()<<" and "
+            <<typeid(*h2.v).name()<<" at DfaState{"<<s1.toInt<<"}";
+  SharedVal newv=hooks_->merge(s1,std::move(lv1),std::move(lv2));
   if(!newv) return nullopt;
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
@@ -502,14 +507,8 @@ SharedVal GssHooks::useVal(DfaLabel,SharedVal) {
   BugDie()<<"Unused. Nobody should call "<<__func__;
 }
 
-SharedVal GssHooks::merge(DfaState en,SharedVal v1,SharedVal v2) {
-  SharedListVal lv1=dynamic_pointer_cast<const ListVal>(v1);
-  SharedListVal lv2=dynamic_pointer_cast<const ListVal>(v2);
-  if(lv1==nullptr||lv2==nullptr)
-    BugDie()<<"GssHooks can only merge lists. Found "
-            <<typeid(*lv1).name()<<" and "<<typeid(*lv2).name()<<" at DfaState{"
-            <<en.toInt<<"}";
-  return merge(en,std::move(lv1),std::move(lv2));
+SharedVal GssHooks::merge(DfaState,SharedVal,SharedVal) {
+  BugDie()<<"Unused. Nobody should call "<<__func__;
 }
 
 
