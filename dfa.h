@@ -166,6 +166,9 @@ class GssAggregator {
   virtual ~GssAggregator() = default;
 };
 
+// TODO move definition to here.
+class GssHooks;
+
 namespace internal {
 
 // These objects are only created in closeHead, by converting from
@@ -215,7 +218,7 @@ class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
   const Dfa* dfa_;
-  GssAggregator* hooks_;
+  GssHooks* hooks_;
   friend class GlrCtxTest;
 
   size_t pos() const { return buf_.end_offset(); }
@@ -241,7 +244,7 @@ class GlrCtx {
   bool shiftTerminalEdge(
       char ch,std::variant<DfaState,MidString>& enState) const;
  public:
-  GlrCtx(const Dfa& dfa,GssAggregator& hk) : dfa_(&dfa), hooks_(&hk) {}
+  GlrCtx(const Dfa& dfa,GssHooks& hk) : dfa_(&dfa), hooks_(&hk) {}
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
@@ -278,15 +281,13 @@ class GssHooks : private GssAggregator {
   SharedVal useVal(DfaLabel lbl,SharedVal val) override;
   SharedVal merge(DfaState en,SharedVal v1,SharedVal v2) override;
 
-  SharedVal reduceStringOrList(SharedListVal prev,DfaLabel lbl,SharedVal v);
  public:
   virtual SharedListVal merge(DfaState en,
                               SharedListVal lv1,SharedListVal lv2);
   virtual SharedVal reduceString(DfaLabel lbl,
                                  std::shared_ptr<const StringVal> sv);
   virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
-  friend std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
+  friend class oalex::internal::GlrCtx;
 };
 
 /*  glrParse(). Parse an input using GLR algorithm.
@@ -311,11 +312,6 @@ class GssHooks : private GssAggregator {
     unhindered, though.
 */
 std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssAggregator& hk,std::function<int16_t()> getch);
-
-inline std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch) {
-  return glrParse(dfa,static_cast<GssAggregator&>(hk),std::move(getch));
-}
+    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
 
 }  // namespace oalex
