@@ -19,7 +19,7 @@
          even be an null-string transition.
      * Augment Dfa::labelsMap to support AND and NOT.
      * Add explicit support for returning errors and warnings from
-       GssAggregator.
+       GssHooks.
      * Better error reporting features.
 
   Either:
@@ -143,7 +143,28 @@ struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 
 using SharedVal=std::shared_ptr<const SemVal>;
 
-// GssAggregator do not contain any mutable state by default. But
+using SharedListVal=std::shared_ptr<const struct ListVal>;
+
+struct ListVal : public SemVal {
+  SharedListVal prev;
+  SharedVal last;
+  size_t size;
+  SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
+  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
+ private:
+  ListVal(size_t st,size_t en) : SemVal(st,en) {}
+};
+
+// prev can be null, last must not be null. Corollary: size can't be 0.
+inline SharedListVal Append(SharedListVal prev,SharedVal last) {
+  ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
+  lv.size=(prev?prev->size+1:1);
+  lv.prev=std::move(prev);
+  lv.last=std::move(last);
+  return std::make_shared<const ListVal>(std::move(lv));
+}
+
+// GssHooks do not contain any mutable state by default. But
 // implementations are free to have callback methods modify hook state if they
 // so choose. This could easily be problematic since the same inputs can be
 // repeatedly processed by hooks in undetermined order. Generally, keeping
@@ -152,19 +173,16 @@ using SharedVal=std::shared_ptr<const SemVal>;
 // since those can get invalidated later.
 //
 // All of these may return nullptr to indicate invalid parsing.
-class GssAggregator {
- public:
-  virtual SharedVal extend(DfaState fromState,
-      const LabelEdge& withEdge,
-      const SharedVal& fromVal,
-      const SharedVal& withVal) = 0;
 
-  // Move or copy a value from val for lbl.
-  virtual SharedVal useVal(DfaLabel lbl,SharedVal val) = 0;
-  virtual SharedVal merge(DfaState en,
-      SharedVal v1,SharedVal v2) = 0;
-  virtual ~GssAggregator() = default;
+class GssHooks {
+ public:
+  virtual SharedListVal merge(DfaState en,
+                              SharedListVal lv1,SharedListVal lv2);
+  virtual SharedVal reduceString(DfaLabel lbl,
+                                 std::shared_ptr<const StringVal> sv);
+  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
 };
+
 
 namespace internal {
 
@@ -215,7 +233,7 @@ class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
   const Dfa* dfa_;
-  GssAggregator* hooks_;
+  GssHooks* hooks_;
   friend class GlrCtxTest;
 
   size_t pos() const { return buf_.end_offset(); }
@@ -241,7 +259,7 @@ class GlrCtx {
   bool shiftTerminalEdge(
       char ch,std::variant<DfaState,MidString>& enState) const;
  public:
-  GlrCtx(const Dfa& dfa,GssAggregator& hk) : dfa_(&dfa), hooks_(&hk) {}
+  GlrCtx(const Dfa& dfa,GssHooks& hk) : dfa_(&dfa), hooks_(&hk) {}
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
@@ -249,45 +267,6 @@ class GlrCtx {
 };
 
 }  // namespace internal
-
-using SharedListVal=std::shared_ptr<const struct ListVal>;
-
-struct ListVal : public SemVal {
-  SharedListVal prev;
-  SharedVal last;
-  size_t size;
-  SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
-  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
- private:
-  ListVal(size_t st,size_t en) : SemVal(st,en) {}
-};
-
-// prev can be null, last must not be null. Corollary: size can't be 0.
-inline SharedListVal Append(SharedListVal prev,SharedVal last) {
-  ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
-  lv.size=(prev?prev->size+1:1);
-  lv.prev=std::move(prev);
-  lv.last=std::move(last);
-  return std::make_shared<const ListVal>(std::move(lv));
-}
-
-class GssHooks : private GssAggregator {
-  // Privately override the base API, but don't expose it.
-  SharedVal extend(DfaState fromState,const LabelEdge& withEdge,
-                   const SharedVal& fromVal,const SharedVal& withVal) override;
-  SharedVal useVal(DfaLabel lbl,SharedVal val) override;
-  SharedVal merge(DfaState en,SharedVal v1,SharedVal v2) override;
-
-  SharedVal reduceStringOrList(SharedListVal prev,DfaLabel lbl,SharedVal v);
- public:
-  virtual SharedListVal merge(DfaState en,
-                              SharedListVal lv1,SharedListVal lv2);
-  virtual SharedVal reduceString(DfaLabel lbl,
-                                 std::shared_ptr<const StringVal> sv);
-  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
-  friend std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
-};
 
 /*  glrParse(). Parse an input using GLR algorithm.
     Returns a vector of possible parse trees, as built up by the hooks provided.
@@ -311,11 +290,6 @@ class GssHooks : private GssAggregator {
     unhindered, though.
 */
 std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssAggregator& hk,std::function<int16_t()> getch);
-
-inline std::vector<SharedVal> glrParse(
-    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch) {
-  return glrParse(dfa,static_cast<GssAggregator&>(hk),std::move(getch));
-}
+    const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
 
 }  // namespace oalex

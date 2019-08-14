@@ -158,6 +158,20 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
+SharedVal reduceStringOrList(GssHooks& hk,
+    SharedListVal prev,DfaLabel lbl,SharedVal v) {
+  if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
+    SharedVal v2=hk.reduceList(lbl,std::move(lv));
+    return Append(prev,std::move(v2));
+  }else if(auto sv=dynamic_pointer_cast<const StringVal>(v)) {
+    SharedVal v2=hk.reduceString(lbl,std::move(sv));
+    return Append(prev,std::move(v2));
+  }else {
+    BugDie()<<"GssHooks should reduce from String or List. Got "
+            <<typeid(*v).name()<<" instead, on label "<<lbl.toInt;
+  }
+}
+
 
 }  // namespace
 
@@ -250,9 +264,16 @@ SharedVal GlrCtx::valFromString(const SemVal* sv) const {
     :nullptr;
 }
 
+// TODO define ostream& operator<< for DfaState and DfaLabel.
 optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
-  SharedVal newv=hooks_->extend(prev.enState,edge,prev.v,std::move(v));
+  SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
+  if(!prevlv)
+    BugDie()<<"GssHooks should always extend from a ListVal. Got "
+            <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState.toInt
+            <<" ---DfaLabel{"<<edge.lbl.toInt<<"}--> "<<edge.dest.toInt;
+  SharedVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
+                                    edge.lbl,std::move(v));
   if(!newv) return nullopt;
   return GssHead{newv,edge.dest,prev.prev};
 }
@@ -263,7 +284,7 @@ optional<GssHead> GlrCtx::changeValue(
   if(dynamic_cast<const InputViewVal*>(v.get()))
     BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
               "GssHook::useVal()";
-  SharedVal newv=hooks_->useVal(edge.lbl,std::move(v));
+  SharedVal newv=reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v));
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
@@ -283,7 +304,13 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   if(s1!=s2||h1.stPos()!=h2.stPos())
     BugDie()<<"Merging incompatible heads. States "<<s1.toInt<<','<<s2.toInt
             <<" stPos "<<h1.stPos()<<','<<h2.stPos();
-  SharedVal newv=hooks_->merge(s1,std::move(h1.v),std::move(h2.v));
+  SharedListVal lv1=dynamic_pointer_cast<const ListVal>(std::move(h1.v));
+  SharedListVal lv2=dynamic_pointer_cast<const ListVal>(std::move(h2.v));
+  if(lv1==nullptr||lv2==nullptr)
+    BugDie()<<"GssHooks can only merge lists. Found "
+            <<typeid(*h1.v).name()<<" and "
+            <<typeid(*h2.v).name()<<" at DfaState{"<<s1.toInt<<"}";
+  SharedVal newv=hooks_->merge(s1,std::move(lv1),std::move(lv2));
   if(!newv) return nullopt;
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
@@ -467,50 +494,13 @@ SharedListVal GssHooks::merge(DfaState,
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::reduceStringOrList(
-    SharedListVal prev,DfaLabel lbl,SharedVal v) {
-  if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
-    SharedVal v2=reduceList(lbl,std::move(lv));
-    return Append(prev,std::move(v2));
-  }else if(auto sv=dynamic_pointer_cast<const StringVal>(v)) {
-    SharedVal v2=reduceString(lbl,std::move(sv));
-    return Append(prev,std::move(v2));
-  }else {
-    BugDie()<<"GssHooks should reduce from String or List. Got "
-            <<typeid(*v).name()<<" instead, on label "<<lbl.toInt;
-  }
-}
-
-SharedVal GssHooks::extend(DfaState fromState,const LabelEdge& withEdge,
-                           const SharedVal& fromVal,const SharedVal& withVal) {
-  SharedListVal fromlv=dynamic_pointer_cast<const ListVal>(fromVal);
-  if(!fromlv)
-    BugDie()<<"GssHooks should always extend from a ListVal. Got "
-            <<typeid(*fromVal).name()<<" instead, on edge "<<fromState.toInt
-            <<" ---DfaLabel{"<<withEdge.lbl.toInt<<"}--> "<<withEdge.dest.toInt;
-  return reduceStringOrList(std::move(fromlv),withEdge.lbl,withVal);
-}
-
 SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
   return sv;
 }
 
-SharedVal GssHooks::useVal(DfaLabel lbl,SharedVal val) {
-  return reduceStringOrList(nullptr,lbl,std::move(val));
-}
-
-SharedVal GssHooks::merge(DfaState en,SharedVal v1,SharedVal v2) {
-  SharedListVal lv1=dynamic_pointer_cast<const ListVal>(v1);
-  SharedListVal lv2=dynamic_pointer_cast<const ListVal>(v2);
-  if(lv1==nullptr||lv2==nullptr)
-    BugDie()<<"GssHooks can only merge lists. Found "
-            <<typeid(*lv1).name()<<" and "<<typeid(*lv2).name()<<" at DfaState{"
-            <<en.toInt<<"}";
-  return merge(en,std::move(lv1),std::move(lv2));
-}
 
 vector<SharedVal> glrParse(
-    const Dfa& dfa,GssAggregator& hk,function<int16_t()> getch) {
+    const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);
 }
