@@ -256,7 +256,7 @@ struct ListVal : public SemVal {
   SharedListVal prev;
   SharedVal last;
   size_t size;
-  SharedVal get(size_t i) const { return i+1==size?last:prev->get(i); }
+  SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
   friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
  private:
   ListVal(size_t st,size_t en) : SemVal(st,en) {}

@@ -273,8 +273,8 @@ struct Hooks : public GssHooks {
       if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
       // Not a constant-time string-concatenation, but it's okay if this
       // grammar won't be ambiguous.
-      auto s1=dynamic_cast<const StringVal&>(*lv->get(0));
-      auto s2=dynamic_cast<const StringVal&>(*lv->get(1));
+      auto s1=dynamic_cast<const StringVal&>(*lv->at(0));
+      auto s2=dynamic_cast<const StringVal&>(*lv->at(1));
       return make_shared<StringVal>(lv->stPos,lv->enPos,s1.s+s2.s);
     }
     BugMe<<"Unexpected label "<<lbl.toInt;
@@ -479,15 +479,14 @@ bool hasLabel(const Dfa& dfa,DfaState s,DfaLabel lbl) {
   return find(ls.begin(),ls.end(),lbl)!=ls.end();
 }
 
-// TODO s/ListVal::get/ListVal::at/g
 class Hooks : public GssHooks {
   SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Reducing on strange DfaLabel{"<<lbl.toInt<<"}";
     // elt-comma-elt.
     if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
-    if(dynamic_cast<const EmptyVal*>(lv->get(1).get())==nullptr)
+    if(dynamic_cast<const EmptyVal*>(lv->at(1).get())==nullptr)
       BugMe<<"Commas should be empty. Position 1 is not empty: "
-           <<typeid(*lv->get(1)).name();
+           <<typeid(*lv->at(1)).name();
     return lv;
   }
   SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
@@ -517,7 +516,7 @@ class Hooks : public GssHooks {
     if(!hasLabel(dfa,en,lblList)&&!hasLabel(dfa,en,lblEndMarker))
       BugMe<<"We can only merge at the end of lists, not in DfaState{"
            <<en.toInt<<"}";
-    return lv1->get(0)->enPos>lv2->get(0)->enPos?lv1:lv2;
+    return lv1->at(0)->enPos>lv2->at(0)->enPos?lv1:lv2;
   }
 };
 
@@ -538,7 +537,7 @@ vector<string> gather(SharedVal v) {
   while(v) {
     if(auto* lv=dynamic_cast<const ListVal*>(v.get())) {
       rv.push_back(unwrapToString(lv->last.get()));
-      v=lv->get(0);
+      v=lv->at(0);
     }else{
       auto* sv=dynamic_cast<const StringVal*>(v.get());
       rv.push_back(sv->s);
