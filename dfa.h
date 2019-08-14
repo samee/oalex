@@ -143,6 +143,27 @@ struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 
 using SharedVal=std::shared_ptr<const SemVal>;
 
+using SharedListVal=std::shared_ptr<const struct ListVal>;
+
+struct ListVal : public SemVal {
+  SharedListVal prev;
+  SharedVal last;
+  size_t size;
+  SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
+  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
+ private:
+  ListVal(size_t st,size_t en) : SemVal(st,en) {}
+};
+
+// prev can be null, last must not be null. Corollary: size can't be 0.
+inline SharedListVal Append(SharedListVal prev,SharedVal last) {
+  ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
+  lv.size=(prev?prev->size+1:1);
+  lv.prev=std::move(prev);
+  lv.last=std::move(last);
+  return std::make_shared<const ListVal>(std::move(lv));
+}
+
 // GssHooks do not contain any mutable state by default. But
 // implementations are free to have callback methods modify hook state if they
 // so choose. This could easily be problematic since the same inputs can be
@@ -153,8 +174,15 @@ using SharedVal=std::shared_ptr<const SemVal>;
 //
 // All of these may return nullptr to indicate invalid parsing.
 
-// TODO move definition to here.
-class GssHooks;
+class GssHooks {
+ public:
+  virtual SharedListVal merge(DfaState en,
+                              SharedListVal lv1,SharedListVal lv2);
+  virtual SharedVal reduceString(DfaLabel lbl,
+                                 std::shared_ptr<const StringVal> sv);
+  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
+};
+
 
 namespace internal {
 
@@ -239,37 +267,6 @@ class GlrCtx {
 };
 
 }  // namespace internal
-
-using SharedListVal=std::shared_ptr<const struct ListVal>;
-
-struct ListVal : public SemVal {
-  SharedListVal prev;
-  SharedVal last;
-  size_t size;
-  SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
-  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
- private:
-  ListVal(size_t st,size_t en) : SemVal(st,en) {}
-};
-
-// prev can be null, last must not be null. Corollary: size can't be 0.
-inline SharedListVal Append(SharedListVal prev,SharedVal last) {
-  ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
-  lv.size=(prev?prev->size+1:1);
-  lv.prev=std::move(prev);
-  lv.last=std::move(last);
-  return std::make_shared<const ListVal>(std::move(lv));
-}
-
-class GssHooks {
- public:
-  virtual SharedListVal merge(DfaState en,
-                              SharedListVal lv1,SharedListVal lv2);
-  virtual SharedVal reduceString(DfaLabel lbl,
-                                 std::shared_ptr<const StringVal> sv);
-  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
-  friend class oalex::internal::GlrCtx;
-};
 
 /*  glrParse(). Parse an input using GLR algorithm.
     Returns a vector of possible parse trees, as built up by the hooks provided.
