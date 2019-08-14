@@ -494,21 +494,8 @@ SharedListVal GssHooks::merge(DfaState,
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::extend(DfaState,const LabelEdge&,
-                           const SharedVal&,const SharedVal&) {
-  BugDie()<<"Unused. Nobody should call "<<__func__;
-}
-
 SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
   return sv;
-}
-
-SharedVal GssHooks::useVal(DfaLabel,SharedVal) {
-  BugDie()<<"Unused. Nobody should call "<<__func__;
-}
-
-SharedVal GssHooks::merge(DfaState,SharedVal,SharedVal) {
-  BugDie()<<"Unused. Nobody should call "<<__func__;
 }
 
 
