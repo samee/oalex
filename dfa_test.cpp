@@ -210,7 +210,7 @@ namespace singleStringParse {
 
 struct Hooks : public GssHooks {
   SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=DfaLabel{0}) BugMe<<"Unexpected label "<<lbl.toInt;
+    if(lbl!=DfaLabel{0}) BugMe<<"Unexpected "<<lbl;
     else return lv->last;
   }
 };
@@ -277,7 +277,7 @@ struct Hooks : public GssHooks {
       auto s2=dynamic_cast<const StringVal&>(*lv->at(1));
       return make_shared<StringVal>(lv->stPos,lv->enPos,s1.s+s2.s);
     }
-    BugMe<<"Unexpected label "<<lbl.toInt;
+    BugMe<<"Unexpected "<<lbl;
   }
 };
 
@@ -314,7 +314,7 @@ struct Hooks : public GssHooks {
     else return sv;
   }
   SharedVal reduceList(DfaLabel lbl,SharedListVal) override {
-    BugMe<<"Wasn't expecting any reduceList: lbl == "<<lbl.toInt;
+    BugMe<<"Wasn't expecting any reduceList: lbl == "<<lbl;
   }
 };
 
@@ -517,7 +517,7 @@ bool hasLabel(const Dfa& dfa,DfaState s,DfaLabel lbl) {
 
 class Hooks : public GssHooks {
   SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=lblList) BugMe<<"Reducing on strange DfaLabel{"<<lbl.toInt<<"}";
+    if(lbl!=lblList) BugMe<<"Reducing on strange "<<lbl;
     // elt-comma-elt.
     if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
     if(dynamic_cast<const EmptyVal*>(lv->at(1).get())==nullptr)
@@ -539,7 +539,7 @@ class Hooks : public GssHooks {
       if(sv1&&sv2) return lv1;  // Doesn't matter what we return.
       if(!hasLabel(dfa,en,lblEndMarker))
         BugMe<<"Merging singleton, but not at end state: at DfaState{"
-             <<en.toInt<<"}";
+             <<en<<"}";
       auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
       auto lu2=dynamic_pointer_cast<const ListVal>(lv2->last);
       if(!lu1||!lu2)
@@ -551,7 +551,7 @@ class Hooks : public GssHooks {
       BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3";
     if(!hasLabel(dfa,en,lblList)&&!hasLabel(dfa,en,lblEndMarker))
       BugMe<<"We can only merge at the end of lists, not in DfaState{"
-           <<en.toInt<<"}";
+           <<en<<"}";
     return lv1->at(0)->enPos>lv2->at(0)->enPos?lv1:lv2;
   }
 };

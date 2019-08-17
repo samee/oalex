@@ -28,13 +28,13 @@ namespace oalex {
 // TODO it would be nice to have a version with a source state.
 string edgeDebug(const DfaEdge& e) noexcept {
   if(auto* ce=get_if<CharRangeEdge>(&e))
-    return Str()<<'['<<ce->st<<'-'<<ce->en<<"] to "<<ce->dest.toInt;
+    return Str()<<'['<<ce->st<<'-'<<ce->en<<"] to "<<ce->dest;
   if(auto* le=get_if<LabelEdge>(&e))
-    return Str()<<"Label "<<le->lbl.toInt<<" to "<<le->dest.toInt;
+    return Str()<<le->lbl<<" to "<<le->dest;
   if(auto* pe=get_if<PushEdge>(&e))
-    return Str()<<"Push to "<<pe->dest.toInt;
+    return Str()<<"Push to "<<pe->dest;
   if(auto* se=get_if<StringEdge>(&e))
-    return Str()<<"String '"<<se->s<<"' to "<<se->dest.toInt;
+    return Str()<<"String '"<<se->s<<"' to "<<se->dest;
   BugDie()<<"Unknown edge type "<<e.index();
 }
 
@@ -169,7 +169,7 @@ SharedListVal reduceStringOrList(GssHooks& hk,
     return v2?Append(prev,std::move(v2)):nullptr;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
-            <<typeid(*v).name()<<" instead, on label "<<lbl.toInt;
+            <<typeid(*v).name()<<" instead, on label "<<lbl;
   }
 }
 
@@ -258,14 +258,13 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-// TODO define ostream& operator<< for DfaState and DfaLabel.
 optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
   if(!prevlv)
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
-            <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState.toInt
-            <<" ---DfaLabel{"<<edge.lbl.toInt<<"}--> "<<edge.dest.toInt;
+            <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
+            <<" ---"<<edge.lbl<<"--> "<<edge.dest;
   SharedListVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
                                         edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
@@ -294,14 +293,14 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   DfaState s1=std::get<DfaState>(h1.enState);
   DfaState s2=std::get<DfaState>(h2.enState);
   if(s1!=s2||h1.stPos()!=h2.stPos())
-    BugDie()<<"Merging incompatible heads. States "<<s1.toInt<<','<<s2.toInt
+    BugDie()<<"Merging incompatible heads. States "<<s1<<','<<s2
             <<" stPos "<<h1.stPos()<<','<<h2.stPos();
   SharedListVal lv1=dynamic_pointer_cast<const ListVal>(std::move(h1.v));
   SharedListVal lv2=dynamic_pointer_cast<const ListVal>(std::move(h2.v));
   if(lv1==nullptr||lv2==nullptr)
     BugDie()<<"GssHooks can only merge lists. Found "
             <<typeid(*h1.v).name()<<" and "
-            <<typeid(*h2.v).name()<<" at DfaState{"<<s1.toInt<<"}";
+            <<typeid(*h2.v).name()<<" at "<<s1;
   SharedVal newv=hooks_->merge(s1,std::move(lv1),std::move(lv2));
   if(!newv) return nullopt;
   // There shouldn't be any duplicate prevs, since they should already

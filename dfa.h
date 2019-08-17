@@ -40,6 +40,7 @@
 #pragma once
 
 #include<functional>
+#include<iostream>
 #include<list>
 #include<memory>
 #include<queue>
@@ -69,6 +70,14 @@ using DfaEdge=std::variant<CharRangeEdge,LabelEdge,PushEdge,StringEdge>;
 
 bool operator!=(const DfaEdge& e1,const DfaEdge& e2);
 bool operator==(const DfaEdge& e1,const DfaEdge& e2);
+
+// Debugging aids.
+inline std::ostream& operator<<(std::ostream& os,DfaState s) {
+  return os<<"DfaState{"<<s.toInt<<'}';
+}
+inline std::ostream& operator<<(std::ostream& os,DfaLabel s) {
+  return os<<"DfaLabel{"<<s.toInt<<'}';
+}
 
 std::string edgeDebug(const DfaEdge& e) noexcept;
 
