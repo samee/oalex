@@ -158,7 +158,7 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
-SharedVal reduceStringOrList(GssHooks& hk,
+SharedListVal reduceStringOrList(GssHooks& hk,
     SharedListVal prev,DfaLabel lbl,SharedVal v) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
     SharedVal v2=hk.reduceList(lbl,std::move(lv));
@@ -272,8 +272,8 @@ optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState.toInt
             <<" ---DfaLabel{"<<edge.lbl.toInt<<"}--> "<<edge.dest.toInt;
-  SharedVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
-                                    edge.lbl,std::move(v));
+  SharedListVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
+                                        edge.lbl,std::move(v));
   if(!newv) return nullopt;
   return GssHead{newv,edge.dest,prev.prev};
 }
@@ -284,7 +284,7 @@ optional<GssHead> GlrCtx::changeValue(
   if(dynamic_cast<const InputViewVal*>(v.get()))
     BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
               "GssHook::useVal()";
-  SharedVal newv=reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v));
+  SharedListVal newv=reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v));
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;

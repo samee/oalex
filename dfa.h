@@ -202,6 +202,21 @@ struct GssEdge {
 
 struct MidString { const StringEdge* se; size_t edgeStart; };
 
+// v can only be one of:
+//  - nullptr
+//  - InputViewVal - internal type, used inside a string component.
+//  - StringVal - Just before reduceString is called.
+//  - ListVal - All other cases.
+// It is an error for GssHead::v to point to any other type of SharedVal.
+//
+// enState:
+//  - MidString means we are in the middle of a StringEdge. It only exists
+//    because we don't want to represent every character in a string as a
+//    separate state. So for a StringEdge matching "foo", we'll use MidString
+//    if we've seen "f" or "fo". If we haven't seen anything at all, we'll use
+//    DfaState{start}, and if we've seen "foo", we'll use DfaState{end}.
+//    This can only appear inside a string component.
+//  - DfaState: used both for string component or label component.
 struct GssHead {
   SharedVal v;
   std::variant<DfaState,MidString> enState;
