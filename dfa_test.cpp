@@ -293,6 +293,43 @@ void test() {
 
 }  // namespace stringSequenceParse
 
+namespace nullIgnored {
+
+const Dfa dfa {
+  { {PushEdge{1},PushEdge{3}},
+    {LabelEdge{DfaLabel{0},DfaState{2}},LabelEdge{DfaLabel{1},DfaState{2}}},
+    {},
+    {StringEdge{"foo",4}},
+    {},
+  }, // adjList
+  {{},{},{DfaLabel{2}},{},{DfaLabel{0},DfaLabel{1}}},  // labelsMap
+  {0,1,2,3,4},  // statePrioMap
+  0,            // stState
+  2,            // enLabel
+};
+
+struct Hooks : public GssHooks {
+  // TODO s/shared_ptr<StringVal>/SharedStringVal/g
+  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+    if(lbl==DfaLabel{0}) return nullptr;
+    else return sv;
+  }
+  SharedVal reduceList(DfaLabel lbl,SharedListVal) override {
+    BugMe<<"Wasn't expecting any reduceList: lbl == "<<lbl.toInt;
+  }
+};
+
+void test() {
+  dieIfBad(dfa);
+  Hooks hooks;
+  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
+  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
+  const StringVal& sv=extricateString(res);
+  if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
+}
+
+}  // namespace nullIgnored
+
 
 namespace listParse {
 
@@ -620,6 +657,7 @@ int main() {
   singleShifts::test();
   singleStringParse::test();
   stringSequenceParse::test();
+  nullIgnored::test();
   listParse::test();
   slowListParse::test();
   shiftShiftConflict::test();

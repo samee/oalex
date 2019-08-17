@@ -162,10 +162,10 @@ SharedListVal reduceStringOrList(GssHooks& hk,
     SharedListVal prev,DfaLabel lbl,SharedVal v) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
     SharedVal v2=hk.reduceList(lbl,std::move(lv));
-    return Append(prev,std::move(v2));
+    return v2?Append(prev,std::move(v2)):nullptr;
   }else if(auto sv=dynamic_pointer_cast<const StringVal>(v)) {
     SharedVal v2=hk.reduceString(lbl,std::move(sv));
-    return Append(prev,std::move(v2));
+    return v2?Append(prev,std::move(v2)):nullptr;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
             <<typeid(*v).name()<<" instead, on label "<<lbl.toInt;
