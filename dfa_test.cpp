@@ -309,8 +309,7 @@ const Dfa dfa {
 };
 
 struct Hooks : public GssHooks {
-  // TODO s/shared_ptr<StringVal>/SharedStringVal/g
-  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==DfaLabel{0}) return nullptr;
     else return sv;
   }
@@ -404,7 +403,7 @@ struct Hooks : GssHooks {
   SharedVal reduceList(DfaLabel,SharedListVal) override {
     BugMe<<"Wasn't expecting reduceList to be called.";
   }
-  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==lblSpace||lbl==lblComma)
       return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
@@ -526,7 +525,7 @@ class Hooks : public GssHooks {
            <<typeid(*lv->at(1)).name();
     return lv;
   }
-  SharedVal reduceString(DfaLabel lbl,shared_ptr<const StringVal> sv) override {
+  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==lblComma) return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
   }

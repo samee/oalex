@@ -494,7 +494,7 @@ SharedListVal GssHooks::merge(DfaState,
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::reduceString(DfaLabel,shared_ptr<const StringVal> sv) {
+SharedVal GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
   return sv;
 }
 

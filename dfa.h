@@ -109,6 +109,8 @@ struct StringVal : SemVal {
   StringVal(size_t st,size_t en,std::string ss)
     : SemVal(st,en), s(std::move(ss)) {}
 };
+using SharedStringVal=std::shared_ptr<const StringVal>;
+
 struct EmptyVal : SemVal { EmptyVal(size_t st,size_t en):SemVal(st,en){} };
 
 // Gss manages data structure and ownership. Has nothing to do with string
@@ -178,8 +180,7 @@ class GssHooks {
  public:
   virtual SharedListVal merge(DfaState en,
                               SharedListVal lv1,SharedListVal lv2);
-  virtual SharedVal reduceString(DfaLabel lbl,
-                                 std::shared_ptr<const StringVal> sv);
+  virtual SharedVal reduceString(DfaLabel lbl,SharedStringVal sv);
   virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
 };
 
