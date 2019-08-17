@@ -206,8 +206,7 @@ struct MidString { const StringEdge* se; size_t edgeStart; };
 // v can only be one of:
 //  - nullptr
 //  - InputViewVal - internal type, used inside a string component.
-//  - StringVal - Just before reduceString is called.
-//  - ListVal - All other cases.
+//  - ListVal - used in label components.
 // It is an error for GssHead::v to point to any other type of SharedVal.
 //
 // enState:

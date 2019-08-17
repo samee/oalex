@@ -159,12 +159,13 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
 }
 
 SharedListVal reduceStringOrList(GssHooks& hk,
-    SharedListVal prev,DfaLabel lbl,SharedVal v) {
+    SharedListVal prev,DfaLabel lbl,SharedVal v,size_t enPos) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
     SharedVal v2=hk.reduceList(lbl,std::move(lv));
     return v2?Append(prev,std::move(v2)):nullptr;
-  }else if(auto sv=dynamic_pointer_cast<const StringVal>(v)) {
-    SharedVal v2=hk.reduceString(lbl,std::move(sv));
+  }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
+    SharedVal v2=hk.reduceString(lbl,
+        make_shared<StringVal>(iv->stPos,enPos,string(iv->s)));
     return v2?Append(prev,std::move(v2)):nullptr;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
@@ -257,13 +258,6 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-SharedVal GlrCtx::valFromString(const SemVal* sv) const {
-  const InputViewVal* iv=dynamic_cast<const InputViewVal*>(sv);
-  return iv&&iv->s.size()!=0
-    ?make_shared<StringVal>(iv->stPos,pos(),string(iv->s))
-    :nullptr;
-}
-
 // TODO define ostream& operator<< for DfaState and DfaLabel.
 optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
@@ -273,7 +267,7 @@ optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState.toInt
             <<" ---DfaLabel{"<<edge.lbl.toInt<<"}--> "<<edge.dest.toInt;
   SharedListVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
-                                        edge.lbl,std::move(v));
+                                        edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
   return GssHead{newv,edge.dest,prev.prev};
 }
@@ -281,10 +275,8 @@ optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
 // Same as extendValue, but using hooks_->useVal instead of hooks_->extend.
 optional<GssHead> GlrCtx::changeValue(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
-  if(dynamic_cast<const InputViewVal*>(v.get()))
-    BugDie()<<"We shouldn't expose objects of internal type InputViewVal to "
-              "GssHook::useVal()";
-  SharedListVal newv=reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v));
+  SharedListVal newv=
+    reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
@@ -434,9 +426,8 @@ void GlrCtx::enqueueLabeledHeads(GssPendingQueue& q) const {
   for(const GssHead& h:heads_) {
     const auto* hendp=get_if<DfaState>(&h.enState);
     if(!hendp) continue;  // Not pushing from MidString.
-    if(auto iv=dynamic_cast<const InputViewVal*>(h.v.get()))
-      enqueueAllLabelsInHead(GssHead{valFromString(iv),
-                             h.enState,h.prev},q,len0);
+    if(auto iv=dynamic_pointer_cast<const InputViewVal>(h.v))
+      enqueueAllLabelsInHead(GssHead{iv,h.enState,h.prev},q,len0);
     else enqueueAllLabelsInHead(h,q,len0);
   }
 }
