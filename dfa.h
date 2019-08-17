@@ -112,7 +112,7 @@ struct SemVal {
   virtual ~SemVal() = default;
 };
 
-// Used by GlrCtx::valFromString.
+// Used by dfa.cpp:reduceStringOrList.
 struct StringVal : SemVal {
   std::string s;
   StringVal(size_t st,size_t en,std::string ss)
@@ -265,7 +265,6 @@ class GlrCtx {
   void enqueueAllLabelsInHead(const internal::GssHead& h,
                               internal::GssPendingQueue& q,
       const internal::GssPendingReduce& curReduce) const;
-  SharedVal valFromString(const SemVal* sv) const;
   std::optional<internal::GssHead>
     extendValue(const internal::GssEdge& prev,SharedVal v,
                 const LabelEdge& edge);
