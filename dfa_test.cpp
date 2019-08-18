@@ -74,13 +74,6 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
-// FIXME I am not convinced that we *want* to be always returning a
-// (single-item?) list form glrParse.
-const StringVal& extricateString(const vector<SharedVal>& v) {
-  return dynamic_cast<const StringVal&>(
-           *dynamic_cast<const ListVal&>(*v[0]).last);
-}
-
 namespace checkCheckError {
 
 void expectError(const Dfa& dfa,string_view b) {
@@ -217,16 +210,14 @@ struct Hooks : public GssHooks {
 
 const Dfa dfa{
   { // adjList
-    {PushEdge{1},PushEdge{3}},
+    {PushEdge{1}},
     {StringEdge{"foo",2}},
     {},
-    {LabelEdge{DfaLabel{0},DfaState{4}}},
-    {}
   },
-  {{},{},{DfaLabel{0}},{},{DfaLabel{1}}},    // labelsMap
-  {0,1,2,3,4},                               // statePrioMap
-  0,                                         // stState
-  1,                                         // enLabel
+  {{},{},{DfaLabel{0}}},    // labelsMap
+  {0,1,2},                  // statePrioMap
+  0,                        // stState
+  0,                        // enLabel
 };
 
 void test() {
@@ -234,7 +225,7 @@ void test() {
   Hooks hooks;
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=extricateString(res);
+  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -249,7 +240,7 @@ namespace stringSequenceParse {
 //  2 --PushEdge--> 6 --"bar"--> 7
 //  0 --PushEdge--> 8 --lbl1--> 9
 const Dfa dfa{
-  { {PushEdge{1},PushEdge{4},PushEdge{8}},
+  { {PushEdge{1},PushEdge{4}},
     {LabelEdge{DfaLabel{0},DfaState{2}}},
     {LabelEdge{DfaLabel{0},DfaState{3}},PushEdge{6}},
     {},
@@ -257,14 +248,12 @@ const Dfa dfa{
     {},
     {StringEdge{"bar",7}},
     {},
-    {LabelEdge{DfaLabel{1},DfaState{9}}},
-    {},
   },  // adjList
   // labelsMap
-  {{},{},{},{DfaLabel{1}},{},{DfaLabel{0}},{},{DfaLabel{0}},{},{DfaLabel{2}}},
-  {0,1,2,3,4,5,6,7,8,9},                // statePrioMap
-  0,                                    // stState
-  2,                                    // enLabel
+  {{},{},{},{DfaLabel{1}},{},{DfaLabel{0}},{},{DfaLabel{0}}},
+  {0,1,2,3,4,5,6,7},                // statePrioMap
+  0,                                // stState
+  1,                                // enLabel
 };
 
 struct Hooks : public GssHooks {
@@ -287,7 +276,7 @@ void test() {
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foobar"));
 
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=extricateString(res);
+  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
   if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
 }
 
@@ -313,8 +302,11 @@ struct Hooks : public GssHooks {
     if(lbl==DfaLabel{0}) return nullptr;
     else return sv;
   }
-  SharedVal reduceList(DfaLabel lbl,SharedListVal) override {
-    BugMe<<"Wasn't expecting any reduceList: lbl == "<<lbl;
+  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+    if(lbl!=DfaLabel{2}) BugMe<<"Unexpected "<<lbl;
+    if(lv->size!=1)
+      BugMe<<"Was expecting a single string 'foo'. Got size "<<lv->size;
+    return lv->last;
   }
 };
 
@@ -323,7 +315,7 @@ void test() {
   Hooks hooks;
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=extricateString(res);
+  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -400,8 +392,9 @@ const Dfa dfa{
 };
 
 struct Hooks : GssHooks {
-  SharedVal reduceList(DfaLabel,SharedListVal) override {
-    BugMe<<"Wasn't expecting reduceList to be called.";
+  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+    if(lbl!=lblList) BugMe<<"Unexpected "<<lbl<<" != "<<lblList;
+    return lv;
   }
   SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==lblSpace||lbl==lblComma)
@@ -485,7 +478,6 @@ or 4 as well, if there is nothing at state 6.
 
 const DfaLabel lblList{0};
 const DfaLabel lblComma{2};
-const DfaLabel lblEndMarker{3};
 const DfaEdge startComma=PushEdge{7};
 const DfaEdge startIdent=PushEdge{1};
 const DfaEdge startList=PushEdge{3};
@@ -503,19 +495,15 @@ const Dfa dfa{
     {},
   },
   { // labelsMap
-    {lblEndMarker},{},{lblList},{},{lblEndMarker},{},{lblList},{},{lblComma}
+    {},{},{lblList},{},{},{},{lblList},{},{lblComma}
   },
   {0,1,2,6,4,5,3,7,8},  // statePrioMap
   0,                    // stState
-  lblEndMarker,
+  lblList,              // enLabel
 };
 
-bool hasLabel(const Dfa& dfa,DfaState s,DfaLabel lbl) {
-  const auto& ls=dfa.labels(s);
-  return find(ls.begin(),ls.end(),lbl)!=ls.end();
-}
-
 class Hooks : public GssHooks {
+ public:
   SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Reducing on strange "<<lbl;
     // elt-comma-elt.
@@ -537,9 +525,8 @@ class Hooks : public GssHooks {
       auto sv1=dynamic_cast<const StringVal*>(lv1->last.get());
       auto sv2=dynamic_cast<const StringVal*>(lv2->last.get());
       if(sv1&&sv2) return lv1;  // Doesn't matter what we return.
-      if(!hasLabel(dfa,en,lblEndMarker))
-        BugMe<<"Merging singleton, but not at end state: at DfaState{"
-             <<en<<"}";
+      if(en!=DfaState{4})
+        BugMe<<"Merging singleton, but "<<en<<" != DfaState{4}";
       auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
       auto lu2=dynamic_pointer_cast<const ListVal>(lv2->last);
       if(!lu1||!lu2)
@@ -548,10 +535,8 @@ class Hooks : public GssHooks {
       return Append(nullptr,merge(en,std::move(lu1),std::move(lu2)));
     }
     if(lv1->size!=3)
-      BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3";
-    if(!hasLabel(dfa,en,lblList)&&!hasLabel(dfa,en,lblEndMarker))
-      BugMe<<"We can only merge at the end of lists, not in DfaState{"
-           <<en<<"}";
+      BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3 at "<<en;
+    // TODO check if en is the expected state.
     return lv1->at(0)->enPos>lv2->at(0)->enPos?lv1:lv2;
   }
 };
@@ -569,7 +554,6 @@ const string& unwrapToString(const SemVal* v) {
 vector<string> gather(SharedVal v) {
   if(dynamic_cast<const EmptyVal*>(v.get())) return {};
   vector<string> rv;
-  v=dynamic_cast<const ListVal&>(*v).last;
   while(v) {
     if(auto* lv=dynamic_cast<const ListVal*>(v.get())) {
       rv.push_back(unwrapToString(lv->last.get()));
@@ -596,8 +580,11 @@ void test() {
 
   for(size_t i=0;i<n;++i) {
     vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
-    if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
+    for(size_t j=1;j<res.size();++j)
+      res[0]=hooks.merge(DfaState{6},
+          dynamic_pointer_cast<const ListVal>(res[0]),
+          dynamic_pointer_cast<const ListVal>(res[j]));
     vector<string> resg=gather(res[0]);
     if(resg!=outputs[i])
       BugMe<<"input["<<i<<"] parsed into "<<resg;
@@ -617,17 +604,15 @@ void test() {
 namespace shiftShiftConflict {
 const Dfa dfa = {
   { // adjList
-    {PushEdge{1},PushEdge{2},PushEdge{4}},
+    {PushEdge{1},PushEdge{2}},
     {CharRangeEdge{'a','j',1}},
     {StringEdge{"foo",3}},
     {},
-    {LabelEdge{DfaLabel{0},5}},
-    {},
   },
-  {{},{DfaLabel{0}},{},{DfaLabel{0}},{},{DfaLabel{1}}}, // labelsMap
-  {0,1,2,3,4,5},  // statePrioMap
-  0,              // stState
-  1,              // enLabel
+  {{},{DfaLabel{0}},{},{DfaLabel{0}}}, // labelsMap
+  {0,1,2,3},  // statePrioMap
+  0,          // stState
+  0,          // enLabel
 };
 
 using Hooks=singleStringParse::Hooks;
@@ -637,12 +622,12 @@ void test() {
   Hooks hooks;
   vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv1=extricateString(res);
+  const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
   if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
 
   res=glrParse(dfa,hooks,GetFromString("fad"));
   if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv2=extricateString(res);
+  const StringVal& sv2=dynamic_cast<const StringVal&>(*res[0]);
   if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
 
 }

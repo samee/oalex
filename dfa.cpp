@@ -173,7 +173,6 @@ SharedListVal reduceStringOrList(GssHooks& hk,
   }
 }
 
-
 }  // namespace
 
 string Dfa::checkError() const {
@@ -258,6 +257,8 @@ string Dfa::checkError() const {
 
 namespace internal {
 
+// TODO rename these to extendHead and changeHead instead, since they are not
+// used at the end of glrParse.
 optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
                                       const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
@@ -271,14 +272,14 @@ optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
   return GssHead{newv,edge.dest,prev.prev};
 }
 
-// Same as extendValue, but using hooks_->useVal instead of hooks_->extend.
+// Same as extendValue, but starts a new list instead of appending to one.
 optional<GssHead> GlrCtx::changeValue(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
+  if(prev->enPos>pos())
+    BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
   SharedListVal newv=
     reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
-  if(prev->enPos>pos())
-    BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
   return GssHead{newv,edge.dest,{std::move(prev)}};
 }
 
@@ -465,13 +466,21 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     }
   }
 
+  if(pos()==0) return vector<SharedVal>(1,make_shared<EmptyVal>(0,0));
+
+  // End of string merges are not guaranteed.
   vector<SharedVal> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
       BugDie()<<"nullptr values should already have been dropped";
     if(h.stPos()!=0) continue;
-    if(dynamic_cast<const InputViewVal*>(h.v.get())) continue;
-    if(dfa_->isEnState(std::get<DfaState>(h.enState))) rv.push_back(h.v);
+    const DfaState* s=get_if<DfaState>(&h.enState);
+    if(!s||!dfa_->isEnState(*s)) continue;
+    // TODO Wrapping then unwrapping. Maybe reduceStringOrList shouldn't create
+    // the list.
+    SharedListVal newv=
+      reduceStringOrList(*hooks_,nullptr,dfa_->enLabel,h.v,pos());
+    if(newv) rv.push_back(newv->last);
   }
   return std::move(rv);
 }
