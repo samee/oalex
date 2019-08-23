@@ -237,7 +237,7 @@ struct GssHead {
      * legnth and statePrio are used for reduction priority. They determine
        the order of reductions.
      * lbl not sure if anybody will need this. We may remove this later.
-     * The rest are arguments for either extendValue or changeValue, depending
+     * The rest are arguments for either extendHead or changeHead, depending
        on pushAgain.
    */
 struct GssPendingReduce {
@@ -266,9 +266,9 @@ class GlrCtx {
                               internal::GssPendingQueue& q,
       const internal::GssPendingReduce& curReduce) const;
   std::optional<internal::GssHead>
-    extendValue(const internal::GssEdge& prev,SharedVal v,
-                const LabelEdge& edge);
-  std::optional<internal::GssHead> changeValue(
+    extendHead(const internal::GssEdge& prev,SharedVal v,
+               const LabelEdge& edge);
+  std::optional<internal::GssHead> changeHead(
       std::shared_ptr<const internal::GssEdge> prev,
       SharedVal v,const LabelEdge& edge);
   std::optional<internal::GssHead> mergeHeads(internal::GssHead h1,

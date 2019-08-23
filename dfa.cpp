@@ -257,10 +257,8 @@ string Dfa::checkError() const {
 
 namespace internal {
 
-// TODO rename these to extendHead and changeHead instead, since they are not
-// used at the end of glrParse.
-optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
-                                      const LabelEdge& edge) {
+optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
+                                     const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
   if(!prevlv)
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
@@ -272,11 +270,11 @@ optional<GssHead> GlrCtx::extendValue(const GssEdge& prev,SharedVal v,
   return GssHead{newv,edge.dest,prev.prev};
 }
 
-// Same as extendValue, but starts a new list instead of appending to one.
-optional<GssHead> GlrCtx::changeValue(
+// Same as extendHead, but starts a new list instead of appending to one.
+optional<GssHead> GlrCtx::changeHead(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(prev->enPos>pos())
-    BugDie()<<"Problem in changeValue: prev->enPos too large: "<<prev->enPos;
+    BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
   SharedListVal newv=
     reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
@@ -452,8 +450,8 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
       do {
         cur=q.top(); q.pop();
         if(cur.pushAgain)
-          newHead=changeValue(cur.oldPrev,cur.h.v,*cur.labeledEdge);
-        else newHead=extendValue(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
+          newHead=changeHead(cur.oldPrev,cur.h.v,*cur.labeledEdge);
+        else newHead=extendHead(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
         prevHead=mergeHeads(prevHead,newHead);
         // Keep popping as many as I can merge in.
       } while(!q.empty()&&canMerge(prevHead,q.top()));
