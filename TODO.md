@@ -20,7 +20,7 @@ Error reporting support
 We'll support two kinds of diagnostics: recoverable and non-recoverable.
 
 Recoverable diags can be either errors, warnings, or info. We won't make any
-distinction at the Dfa level. They get aggregated into SemVals using
+distinction at the Dfa level. They get aggregated into GssHead/GssEdge using
 `shared_ptr` of `Diag` or `DiagList`, automatically on all non-negated
 reductions (right now we don't support negations anyway). We will provide some
 way of collecting and surfacing these errors out of a given parse tree at the
