@@ -109,6 +109,8 @@ struct Dfa {
 struct SemVal {
   size_t stPos,enPos;
   SemVal(size_t st,size_t en) : stPos(st),enPos(en) {}
+  SemVal(const SemVal&) = delete;
+  SemVal(SemVal&&) = default;
   virtual ~SemVal() = default;
 };
 

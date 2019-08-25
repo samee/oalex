@@ -262,8 +262,8 @@ struct Hooks : public GssHooks {
       if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
       // Not a constant-time string-concatenation, but it's okay if this
       // grammar won't be ambiguous.
-      auto s1=dynamic_cast<const StringVal&>(*lv->at(0));
-      auto s2=dynamic_cast<const StringVal&>(*lv->at(1));
+      auto &s1=dynamic_cast<const StringVal&>(*lv->at(0));
+      auto &s2=dynamic_cast<const StringVal&>(*lv->at(1));
       return make_shared<StringVal>(lv->stPos,lv->enPos,s1.s+s2.s);
     }
     BugMe<<"Unexpected "<<lbl;
