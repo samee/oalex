@@ -16,6 +16,7 @@
 
 #include<algorithm>
 #include<limits>
+#include<stack>
 #include<vector>
 
 #include"util.h"
@@ -253,6 +254,23 @@ string Dfa::checkError() const {
   }catch(invalid_argument& ex) { return ex.what(); }
 
   return "";
+}
+
+set<const Diag*> DiagSet::gather() const {
+  set<const DiagSet*> visited;
+  set<const Diag*> rv;
+  stack<const DiagSet*> stk;
+  stk.push(this);
+  while(!stk.empty()) {
+    const DiagSet* diags=stk.top();
+    stk.pop();
+    if(!diags||visited.count(diags)) continue;
+    visited.insert(diags);
+    for(auto& v:diags->val_) rv.insert(v.get());
+    stk.push(diags->left_.get());
+    stk.push(diags->right_.get());
+  }
+  return rv;
 }
 
 namespace internal {

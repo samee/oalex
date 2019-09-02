@@ -44,6 +44,7 @@
 #include<list>
 #include<memory>
 #include<queue>
+#include<set>
 #include<string_view>
 #include<variant>
 #include<vector>
@@ -175,6 +176,41 @@ inline SharedListVal Append(SharedListVal prev,SharedVal last) {
   lv.prev=std::move(prev);
   lv.last=std::move(last);
   return std::make_shared<const ListVal>(std::move(lv));
+}
+
+struct Diag : public SemVal {
+  std::string msg;
+  Diag(size_t st,size_t en,std::string m)
+    : SemVal(st,en), msg(std::move(m)) {}
+};
+
+using SharedDiagSet=std::shared_ptr<const class DiagSet>;
+
+// "Tree" of Diags, duplicate DiagSet pointers are ignored. You can only add
+// Diags, never remove them.
+class DiagSet {
+ public:
+  template <class Iter> DiagSet(Iter begin,Iter end) {
+    if(begin==end) return;
+    for(auto it=begin;it!=end;++it) val_.push_back(*it);
+    empty_=false;
+  }
+  bool empty() const { return empty_; }
+  std::set<const Diag*> gather() const;
+  friend SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b);
+ private:
+  bool empty_=true;
+  std::vector<std::shared_ptr<const Diag>> val_;
+  SharedDiagSet left_,right_;
+  DiagSet()=default;
+};
+
+inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
+  DiagSet diags;
+  diags.left_=std::move(a);
+  diags.right_=std::move(b);
+  diags.empty_=diags.left_->empty()||diags.right_->empty();
+  return std::make_shared<const DiagSet>(std::move(diags));
 }
 
 // GssHooks do not contain any mutable state by default. But

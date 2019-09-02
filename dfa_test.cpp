@@ -74,6 +74,27 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
+void testDiagSetGather() {
+  vector<string> msg={"msg1","msg2","msg3"};
+
+  vector<shared_ptr<const Diag>> diagitems;
+  for(const string& m:msg)
+    diagitems.push_back(make_shared<const Diag>(0,1,m));
+
+  auto diagbeg=diagitems.begin();
+  auto ds1=make_shared<const DiagSet>(diagbeg,diagbeg+2);
+  auto ds2=make_shared<const DiagSet>(diagbeg+1,diagbeg+3);
+  auto dsroot=concat(ds1,ds2);
+
+  set<const Diag*> dg=dsroot->gather();
+  vector<string> msg_observed;
+  for(const Diag* d:dg) msg_observed.push_back(d->msg);
+  sort(msg_observed.begin(),msg_observed.end());
+  if(msg!=msg_observed)
+    BugMe<<"DiagSet::Gather returned unexpected set: "<<debug(msg_observed)
+         <<" != "<<debug(msg);
+}
+
 namespace checkCheckError {
 
 void expectError(const Dfa& dfa,string_view b) {
@@ -637,6 +658,7 @@ void test() {
 }  // namespace
 
 int main() {
+  testDiagSetGather();
   checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();

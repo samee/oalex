@@ -38,8 +38,9 @@ Non-recoverable errors can be either:
 Since multiple heads are possible, we report errors from the last non-negated
 reduction only for now.
 
-The API we provide shouldn't require users to check for non-recoverables
-separately, at least for the common case of unique parsing tree.
+The API we provide shouldn't require users of glrParse to check for
+non-recoverables separately, at least for the common case of unique parsing
+tree.
 
   A note about `nullptr`. Today it means AbandonedReduction. This means we
   cannot attach any diagnostic message to it. Moreover, EmptyVal now means
