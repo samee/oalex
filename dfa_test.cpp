@@ -74,6 +74,17 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
+vector<string> diagSetMessages(const set<const Diag*>& diagitems) {
+  vector<string> msgs;
+  for(const Diag* d:diagitems) msgs.push_back(d->msg);  // die if d==nullptr
+  sort(msgs.begin(),msgs.end());
+  return msgs;
+}
+
+vector<string> diagSetMessages(SharedDiagSet diags) {
+  return diagSetMessages(diags->gather());
+}
+
 void testDiagSetGather() {
   vector<string> msg={"msg1","msg2","msg3"};
 
@@ -86,13 +97,49 @@ void testDiagSetGather() {
   auto ds2=make_shared<const DiagSet>(diagbeg+1,diagbeg+3);
   auto dsroot=concat(ds1,ds2);
 
-  set<const Diag*> dg=dsroot->gather();
-  vector<string> msg_observed;
-  for(const Diag* d:dg) msg_observed.push_back(d->msg);
-  sort(msg_observed.begin(),msg_observed.end());
-  if(msg!=msg_observed)
+  vector<string> msg_observed=diagSetMessages(dsroot->gather());
+  if(msg!=msg_observed) {
     BugMe<<"DiagSet::Gather returned unexpected set: "<<debug(msg_observed)
          <<" != "<<debug(msg);
+  }
+}
+
+void testNullDiagsIgnored() {
+  vector<string> msg={"msg1","msg2","msg3"};
+
+  vector<shared_ptr<const Diag>> diagitems;
+  for(const string& m:msg)
+    diagitems.push_back(make_shared<const Diag>(0,1,m));
+  diagitems.push_back(nullptr);
+
+  auto d=make_shared<DiagSet>(diagitems.begin(),diagitems.end());
+
+  vector<string> msg_observed=diagSetMessages(d->gather());
+  if(msg!=msg_observed) {
+    BugMe<<"null diags caused problems: "<<debug(msg_observed)<<" != "
+         <<debug(msg);
+  }
+}
+
+void testDiagNullConcat() {
+  if(auto nullcat=concat(SharedDiagSet(),SharedDiagSet())) {
+    BugMe<<"Concat(nullptr,nullptr) returned non-null: "
+         <<debug(diagSetMessages(nullcat));
+  }
+  vector<shared_ptr<const Diag>> diagitems={
+    make_shared<const Diag>(0,1,"msg1"),
+    make_shared<const Diag>(0,1,"msg2")};
+  auto diags=make_shared<const DiagSet>(diagitems.begin(),diagitems.end());
+  auto r1=concat(diags,nullptr);
+  if(r1!=diags) {
+    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r1))
+         <<" != {msg1,msg2}";
+  }
+  auto r2=concat(nullptr,diags);
+  if(r2!=diags) {
+    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r2))
+         <<" != {msg1,msg2}";
+  }
 }
 
 namespace checkCheckError {
@@ -659,6 +706,8 @@ void test() {
 
 int main() {
   testDiagSetGather();
+  testNullDiagsIgnored();
+  testDiagNullConcat();
   checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();

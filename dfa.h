@@ -192,7 +192,7 @@ class DiagSet {
  public:
   template <class Iter> DiagSet(Iter begin,Iter end) {
     if(begin==end) return;
-    for(auto it=begin;it!=end;++it) val_.push_back(*it);
+    for(auto it=begin;it!=end;++it) if(*it) val_.push_back(*it);
     empty_=false;
   }
   bool empty() const { return empty_; }
@@ -206,6 +206,9 @@ class DiagSet {
 };
 
 inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
+  if(!a&&!b) return nullptr;
+  if(!a) return b;
+  if(!b) return a;
   DiagSet diags;
   diags.left_=std::move(a);
   diags.right_=std::move(b);
