@@ -162,11 +162,11 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
 SharedListVal reduceStringOrList(GssHooks& hk,
     SharedListVal prev,DfaLabel lbl,SharedVal v,size_t enPos) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
-    SharedVal v2=hk.reduceList(lbl,std::move(lv));
+    SharedVal v2=hk.reduceList(lbl,std::move(lv)).v;
     return v2?Append(prev,std::move(v2)):nullptr;
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
     SharedVal v2=hk.reduceString(lbl,
-        make_shared<StringVal>(iv->stPos,enPos,string(iv->s)));
+        make_shared<StringVal>(iv->stPos,enPos,string(iv->s))).v;
     return v2?Append(prev,std::move(v2)):nullptr;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
@@ -509,7 +509,7 @@ SharedListVal GssHooks::merge(DfaState,
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
+GssHooksRes GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
   return sv;
 }
 

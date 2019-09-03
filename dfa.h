@@ -216,6 +216,25 @@ inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
   return std::make_shared<const DiagSet>(std::move(diags));
 }
 
+struct GssHooksRes {
+  SharedVal v;
+  std::vector<std::shared_ptr<const Diag>> diags;
+  // Conversion constructors.
+  template <class ValType> GssHooksRes(std::shared_ptr<ValType> v)
+    : v(std::move(v)) {}
+};
+
+template <class DiagType,class ... Args>
+GssHooksRes abandonReduceWith(Args&& ... args) {
+  GssHooksRes res(SharedVal(nullptr));
+  res.diags.push_back(std::make_shared<DiagType>(std::forward<Args>(args)...));
+  return std::move(res);
+}
+
+inline GssHooksRes abandonReduce(size_t stPos,size_t enPos,std::string msg) {
+  return abandonReduceWith<Diag>(stPos,enPos,std::move(msg));
+}
+
 // GssHooks do not contain any mutable state by default. But
 // implementations are free to have callback methods modify hook state if they
 // so choose. This could easily be problematic since the same inputs can be
@@ -224,14 +243,18 @@ inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
 // describing the input string directly, not a particular SemVal or parsed AST,
 // since those can get invalidated later.
 //
+// Right now, merge() cannot report diagnostics.  We can fix that later if
+// needed, e.g. by having GssHooksRes be a template specialization of some other
+// class.
+//
 // All of these may return nullptr to indicate invalid parsing.
 
 class GssHooks {
  public:
   virtual SharedListVal merge(DfaState en,
                               SharedListVal lv1,SharedListVal lv2);
-  virtual SharedVal reduceString(DfaLabel lbl,SharedStringVal sv);
-  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
+  virtual GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv);
+  virtual GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) = 0;
 };
 
 

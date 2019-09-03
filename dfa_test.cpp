@@ -270,7 +270,7 @@ void test() {
 namespace singleStringParse {
 
 struct Hooks : public GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=DfaLabel{0}) BugMe<<"Unexpected "<<lbl;
     else return lv->last;
   }
@@ -325,7 +325,7 @@ const Dfa dfa{
 };
 
 struct Hooks : public GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl==DfaLabel{1}) {
       if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
       // Not a constant-time string-concatenation, but it's okay if this
@@ -366,11 +366,11 @@ const Dfa dfa {
 };
 
 struct Hooks : public GssHooks {
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
-    if(lbl==DfaLabel{0}) return nullptr;
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    if(lbl==DfaLabel{0}) return abandonReduce(sv->stPos,sv->enPos,"no reason");
     else return sv;
   }
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=DfaLabel{2}) BugMe<<"Unexpected "<<lbl;
     if(lv->size!=1)
       BugMe<<"Was expecting a single string 'foo'. Got size "<<lv->size;
@@ -460,11 +460,11 @@ const Dfa dfa{
 };
 
 struct Hooks : GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Unexpected "<<lbl<<" != "<<lblList;
     return lv;
   }
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==lblSpace||lbl==lblComma)
       return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
@@ -572,7 +572,7 @@ const Dfa dfa{
 
 class Hooks : public GssHooks {
  public:
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Reducing on strange "<<lbl;
     // elt-comma-elt.
     if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
@@ -581,8 +581,9 @@ class Hooks : public GssHooks {
            <<typeid(*lv->at(1)).name();
     return lv;
   }
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
-    if(lbl==lblComma) return make_shared<EmptyVal>(sv->stPos,sv->enPos);
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    if(lbl==lblComma)
+      return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
   }
   SharedListVal merge(DfaState en,
