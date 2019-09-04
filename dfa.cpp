@@ -266,7 +266,7 @@ set<const Diag*> DiagSet::gather() const {
     stk.pop();
     if(!diags||visited.count(diags)) continue;
     visited.insert(diags);
-    for(auto& v:diags->val_) rv.insert(v.get());
+    for(auto& v:diags->diagitems_) rv.insert(v.get());
     stk.push(diags->left_.get());
     stk.push(diags->right_.get());
   }

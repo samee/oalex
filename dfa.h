@@ -192,7 +192,7 @@ class DiagSet {
  public:
   template <class Iter> DiagSet(Iter begin,Iter end) {
     if(begin==end) return;
-    for(auto it=begin;it!=end;++it) if(*it) val_.push_back(*it);
+    for(auto it=begin;it!=end;++it) if(*it) diagitems_.push_back(*it);
     empty_=false;
   }
   bool empty() const { return empty_; }
@@ -200,7 +200,7 @@ class DiagSet {
   friend SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b);
  private:
   bool empty_=true;
-  std::vector<std::shared_ptr<const Diag>> val_;
+  std::vector<std::shared_ptr<const Diag>> diagitems_;
   SharedDiagSet left_,right_;
   DiagSet()=default;
 };
