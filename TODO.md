@@ -51,6 +51,8 @@ tree.
 Plan:
 
   1. Add support for DiagList propagation and gathering.
+     - Paused before adding diags to GssHead and GssEdge.
+     - Changing merge() semantics.
   2. Support explicit AbandonedReduction and gathering.
   3. Support unambiguous root convenience gathering.
   4. Wire unexpectedChar and noEnLabel to AbandonedReduction.
