@@ -318,8 +318,8 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
     BugDie()<<"GssHooks can only merge lists. Found "
             <<typeid(*h1.v).name()<<" and "
             <<typeid(*h2.v).name()<<" at "<<s1;
-  SharedVal newv=hooks_->merge(s1,std::move(lv1),std::move(lv2));
-  if(!newv) return nullopt;
+  GssMergeChoice choice=hooks_->merge(s1,lv1,lv2);
+  SharedListVal newv=(choice==GssMergeChoice::pickFirst?lv1:lv2);
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
   vector<shared_ptr<const GssEdge>> mergedPrev=std::move(h1.prev);
@@ -503,8 +503,8 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
 
 }  // namespace internal
 
-SharedListVal GssHooks::merge(DfaState,
-                              SharedListVal lv1,SharedListVal lv2) {
+GssMergeChoice GssHooks::merge(DfaState,
+                               SharedListVal lv1,SharedListVal lv2) {
   BugDie()<<"Unexpectedly encountered ambiguous parsing: ["
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }

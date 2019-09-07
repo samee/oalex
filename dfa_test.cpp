@@ -586,14 +586,15 @@ class Hooks : public GssHooks {
       return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
   }
-  SharedListVal merge(DfaState en,
-                      SharedListVal lv1,SharedListVal lv2) override {
+  GssMergeChoice merge(DfaState en,
+                       SharedListVal lv1,SharedListVal lv2) override {
     if(lv1->size!=lv2->size)
       BugMe<<"Can't merge on mismatching sizes: "<<lv1->size<<" != "<<lv2->size;
     if(lv1->size==1) {
       auto sv1=dynamic_cast<const StringVal*>(lv1->last.get());
       auto sv2=dynamic_cast<const StringVal*>(lv2->last.get());
-      if(sv1&&sv2) return lv1;  // Doesn't matter what we return.
+      if(sv1&&sv2)
+        return GssMergeChoice::pickFirst;  // Doesn't matter what we return.
       if(en!=DfaState{4})
         BugMe<<"Merging singleton, but "<<en<<" != DfaState{4}";
       auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
@@ -601,12 +602,13 @@ class Hooks : public GssHooks {
       if(!lu1||!lu2)
         BugMe<<"Caught null: "<<typeid(*lv1->last).name()
              <<", "<<typeid(*lv2->last).name();
-      return Append(nullptr,merge(en,std::move(lu1),std::move(lu2)));
+      return merge(en,lu1,lu2);
     }
     if(lv1->size!=3)
       BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3 at "<<en;
     // TODO check if en is the expected state.
-    return lv1->at(0)->enPos>lv2->at(0)->enPos?lv1:lv2;
+    return lv1->at(0)->enPos>lv2->at(0)->enPos?GssMergeChoice::pickFirst
+                                              :GssMergeChoice::pickSecond;
   }
 };
 
@@ -650,10 +652,13 @@ void test() {
   for(size_t i=0;i<n;++i) {
     vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
-    for(size_t j=1;j<res.size();++j)
-      res[0]=hooks.merge(DfaState{6},
+    for(size_t j=1;j<res.size();++j) {
+      GssMergeChoice pick=hooks.merge(DfaState{6},
           dynamic_pointer_cast<const ListVal>(res[0]),
           dynamic_pointer_cast<const ListVal>(res[j]));
+      if(pick==GssMergeChoice::pickSecond) res[0]=res[j];
+    }
+
     vector<string> resg=gather(res[0]);
     if(resg!=outputs[i])
       BugMe<<"input["<<i<<"] parsed into "<<resg;

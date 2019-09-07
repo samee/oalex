@@ -249,10 +249,12 @@ inline GssHooksRes abandonReduce(size_t stPos,size_t enPos,std::string msg) {
 //
 // All of these may return nullptr to indicate invalid parsing.
 
+enum class GssMergeChoice { pickFirst,pickSecond };
+
 class GssHooks {
  public:
-  virtual SharedListVal merge(DfaState en,
-                              SharedListVal lv1,SharedListVal lv2);
+  virtual GssMergeChoice merge(DfaState en,
+                               SharedListVal lv1,SharedListVal lv2);
   virtual GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv);
   virtual GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) = 0;
 };
