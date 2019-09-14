@@ -285,7 +285,7 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
   SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
   if(!newv) return nullopt;
-  return GssHead{Append(std::move(prevlv),std::move(newv)),edge.dest,prev.prev};
+  return GssHead{append(std::move(prevlv),std::move(newv)),edge.dest,prev.prev};
 }
 
 // Same as extendHead, but starts a new list instead of appending to one.
@@ -295,7 +295,7 @@ optional<GssHead> GlrCtx::changeHead(
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
   SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
   if(!newv) return nullopt;
-  return GssHead{Append(nullptr,std::move(newv)),edge.dest,{std::move(prev)}};
+  return GssHead{append(nullptr,std::move(newv)),edge.dest,{std::move(prev)}};
 }
 
 optional<GssHead>

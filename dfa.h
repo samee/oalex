@@ -164,13 +164,13 @@ struct ListVal : public SemVal {
   SharedVal last;
   size_t size;
   SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
-  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
+  friend SharedListVal append(SharedListVal prev,SharedVal last);  // factory
  private:
   ListVal(size_t st,size_t en) : SemVal(st,en) {}
 };
 
 // prev can be null, last must not be null. Corollary: size can't be 0.
-inline SharedListVal Append(SharedListVal prev,SharedVal last) {
+inline SharedListVal append(SharedListVal prev,SharedVal last) {
   ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
   lv.size=(prev?prev->size+1:1);
   lv.prev=std::move(prev);
