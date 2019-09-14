@@ -159,13 +159,16 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
-SharedVal reduceStringOrList(GssHooks& hk,
-    DfaLabel lbl,SharedVal v,size_t enPos) {
+SharedVal reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
     return hk.reduceList(lbl,std::move(lv)).v;
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
+    if(iv->stPos!=iv->s.start())
+      BugDie()<<"InputViewVal position tracking messed up: "
+              <<"SemVal starts at "<<iv->stPos<<", while input_view starts at "
+              <<iv->s.start();
     return hk.reduceString(lbl,
-        make_shared<StringVal>(iv->stPos,enPos,string(iv->s))).v;
+        make_shared<StringVal>(iv->s.start(),iv->s.stop(),string(iv->s))).v;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
             <<typeid(*v).name()<<" instead, on label "<<lbl;
@@ -280,7 +283,7 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
-  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v),pos());
+  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
   if(!newv) return nullopt;
   return GssHead{Append(std::move(prevlv),std::move(newv)),edge.dest,prev.prev};
 }
@@ -290,8 +293,7 @@ optional<GssHead> GlrCtx::changeHead(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
-  SharedVal newv=
-    reduceStringOrList(*hooks_,edge.lbl,std::move(v),pos());
+  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
   if(!newv) return nullopt;
   return GssHead{Append(nullptr,std::move(newv)),edge.dest,{std::move(prev)}};
 }
@@ -489,7 +491,7 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
-    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v,pos());
+    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
     if(newv) rv.push_back(newv);
   }
   return std::move(rv);

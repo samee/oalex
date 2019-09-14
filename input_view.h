@@ -100,6 +100,7 @@ class input_view {
   size_t start() const noexcept { return buf->start_at(pos); }
   size_t size() const noexcept
     { return std::min(len,buf->end_offset()-start()); }
+  size_t stop() const noexcept { return start()+size(); }
   void remove_suffix(size_t n) noexcept
     { if(size()>n) len=size()-n; else len=0; }
   bool growing() const noexcept { return len==std::string::npos; }
