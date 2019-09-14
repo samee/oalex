@@ -159,15 +159,13 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
-SharedListVal reduceStringOrList(GssHooks& hk,
-    SharedListVal prev,DfaLabel lbl,SharedVal v,size_t enPos) {
+SharedVal reduceStringOrList(GssHooks& hk,
+    DfaLabel lbl,SharedVal v,size_t enPos) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
-    SharedVal v2=hk.reduceList(lbl,std::move(lv)).v;
-    return v2?Append(prev,std::move(v2)):nullptr;
+    return hk.reduceList(lbl,std::move(lv)).v;
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
-    SharedVal v2=hk.reduceString(lbl,
+    return hk.reduceString(lbl,
         make_shared<StringVal>(iv->stPos,enPos,string(iv->s))).v;
-    return v2?Append(prev,std::move(v2)):nullptr;
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
             <<typeid(*v).name()<<" instead, on label "<<lbl;
@@ -282,10 +280,9 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
-  SharedListVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
-                                        edge.lbl,std::move(v),pos());
+  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
-  return GssHead{newv,edge.dest,prev.prev};
+  return GssHead{Append(std::move(prevlv),std::move(newv)),edge.dest,prev.prev};
 }
 
 // Same as extendHead, but starts a new list instead of appending to one.
@@ -293,10 +290,10 @@ optional<GssHead> GlrCtx::changeHead(
     shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
-  SharedListVal newv=
-    reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v),pos());
+  SharedVal newv=
+    reduceStringOrList(*hooks_,edge.lbl,std::move(v),pos());
   if(!newv) return nullopt;
-  return GssHead{newv,edge.dest,{std::move(prev)}};
+  return GssHead{Append(nullptr,std::move(newv)),edge.dest,{std::move(prev)}};
 }
 
 optional<GssHead>
@@ -492,11 +489,8 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
-    // TODO Wrapping then unwrapping. Maybe reduceStringOrList shouldn't create
-    // the list.
-    SharedListVal newv=
-      reduceStringOrList(*hooks_,nullptr,dfa_->enLabel,h.v,pos());
-    if(newv) rv.push_back(newv->last);
+    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v,pos());
+    if(newv) rv.push_back(newv);
   }
   return std::move(rv);
 }
