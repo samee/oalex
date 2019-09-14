@@ -205,14 +205,17 @@ class DiagSet {
   DiagSet()=default;
 };
 
+inline bool hasDiags(const SharedDiagSet& diags)
+  { return diags!=nullptr&&!diags->empty(); }
+
 inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
-  if(!a&&!b) return nullptr;
-  if(!a) return b;
-  if(!b) return a;
+  if(!hasDiags(a)&&!hasDiags(b)) return nullptr;
+  if(!hasDiags(a)) return b;
+  if(!hasDiags(b)) return a;
   DiagSet diags;
   diags.left_=std::move(a);
   diags.right_=std::move(b);
-  diags.empty_=diags.left_->empty()||diags.right_->empty();
+  diags.empty_=false;
   return std::make_shared<const DiagSet>(std::move(diags));
 }
 
