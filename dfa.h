@@ -274,6 +274,7 @@ struct GssEdge {
   DfaState enState;
   // Invariant: for all p,q in prev: p->enPos == q->enPos;
   size_t enPos;
+  SharedDiagSet diags;
   std::vector<std::shared_ptr<const GssEdge>> prev;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
   size_t size() const { return enPos-stPos(); }
@@ -299,6 +300,7 @@ struct GssHead {
   SharedVal v;
   std::variant<DfaState,MidString> enState;
   std::vector<std::shared_ptr<const GssEdge>> prev;
+  SharedDiagSet diags;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
 };
 
@@ -335,11 +337,11 @@ class GlrCtx {
                               internal::GssPendingQueue& q,
       const internal::GssPendingReduce& curReduce) const;
   std::optional<internal::GssHead>
-    extendHead(const internal::GssEdge& prev,SharedVal v,
+    extendHead(const internal::GssEdge& prev,GssHead h,
                const LabelEdge& edge);
   std::optional<internal::GssHead> changeHead(
       std::shared_ptr<const internal::GssEdge> prev,
-      SharedVal v,const LabelEdge& edge);
+      GssHead h,const LabelEdge& edge);
   std::optional<internal::GssHead> mergeHeads(internal::GssHead h1,
                                               internal::GssHead h2);
   std::optional<internal::GssHead> mergeHeads(

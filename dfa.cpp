@@ -159,16 +159,20 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
-SharedVal reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
+SharedDiagSet diagSet(const GssHooksRes& res) {
+  return make_shared<const DiagSet>(res.diags.begin(),res.diags.end());
+}
+
+GssHooksRes reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
-    return hk.reduceList(lbl,std::move(lv)).v;
+    return hk.reduceList(lbl,std::move(lv));
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
     if(iv->stPos!=iv->s.start())
       BugDie()<<"InputViewVal position tracking messed up: "
               <<"SemVal starts at "<<iv->stPos<<", while input_view starts at "
               <<iv->s.start();
     return hk.reduceString(lbl,
-        make_shared<StringVal>(iv->s.start(),iv->s.stop(),string(iv->s))).v;
+        make_shared<StringVal>(iv->s.start(),iv->s.stop(),string(iv->s)));
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
             <<typeid(*v).name()<<" instead, on label "<<lbl;
@@ -276,26 +280,28 @@ set<const Diag*> DiagSet::gather() const {
 
 namespace internal {
 
-optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
+optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
                                      const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
   if(!prevlv)
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
-  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
-  if(!newv) return nullopt;
-  return GssHead{append(std::move(prevlv),std::move(newv)),edge.dest,prev.prev};
+  GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  if(!res.v) return nullopt;
+  return GssHead{append(std::move(prevlv),std::move(res.v)),edge.dest,prev.prev,
+                 concat(prev.diags,concat(h.diags,diagSet(res)))};
 }
 
 // Same as extendHead, but starts a new list instead of appending to one.
 optional<GssHead> GlrCtx::changeHead(
-    shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
+    shared_ptr<const GssEdge> prev,GssHead h,const LabelEdge& edge) {
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
-  SharedVal newv=reduceStringOrList(*hooks_,edge.lbl,std::move(v));
-  if(!newv) return nullopt;
-  return GssHead{append(nullptr,std::move(newv)),edge.dest,{std::move(prev)}};
+  GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  if(!res.v) return nullopt;
+  return GssHead{append(nullptr,std::move(res.v)),edge.dest,{std::move(prev)},
+                 concat(h.diags,diagSet(res))};
 }
 
 optional<GssHead>
@@ -318,12 +324,13 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
             <<typeid(*h1.v).name()<<" and "
             <<typeid(*h2.v).name()<<" at "<<s1;
   GssMergeChoice choice=hooks_->merge(s1,lv1,lv2);
-  SharedListVal newv=(choice==GssMergeChoice::pickFirst?lv1:lv2);
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
   vector<shared_ptr<const GssEdge>> mergedPrev=std::move(h1.prev);
   for(const auto& p:h2.prev) mergedPrev.push_back(std::move(p));
-  return GssHead{newv,s1,std::move(mergedPrev)};
+  if(choice==GssMergeChoice::pickFirst)
+    return GssHead{lv1,s1,std::move(mergedPrev),std::move(h1.diags)};
+  else return GssHead{lv2,s2,std::move(mergedPrev),std::move(h2.diags)};
 }
 
 // Can move from *it.
@@ -442,7 +449,7 @@ void GlrCtx::enqueueLabeledHeads(GssPendingQueue& q) const {
     const auto* hendp=get_if<DfaState>(&h.enState);
     if(!hendp) continue;  // Not pushing from MidString.
     if(auto iv=dynamic_pointer_cast<const InputViewVal>(h.v))
-      enqueueAllLabelsInHead(GssHead{iv,h.enState,h.prev},q,len0);
+      enqueueAllLabelsInHead(GssHead{iv,h.enState,h.prev,nullptr},q,len0);
     else enqueueAllLabelsInHead(h,q,len0);
   }
 }
@@ -450,7 +457,7 @@ void GlrCtx::enqueueLabeledHeads(GssPendingQueue& q) const {
 // This EmptyVal never gets extended or merged in.
 // But it is returned on empty inputs.
 GssHead GlrCtx::startingHeadAt(DfaState s) {
-  return {make_shared<EmptyVal>(0,0),s,{}};
+  return {make_shared<EmptyVal>(0,0),s,{},nullptr};
 }
 
 vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
@@ -467,8 +474,8 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
       do {
         cur=q.top(); q.pop();
         if(cur.pushAgain)
-          newHead=changeHead(cur.oldPrev,cur.h.v,*cur.labeledEdge);
-        else newHead=extendHead(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
+          newHead=changeHead(cur.oldPrev,cur.h,*cur.labeledEdge);
+        else newHead=extendHead(*cur.oldPrev,cur.h,*cur.labeledEdge);
         prevHead=mergeHeads(prevHead,newHead);
         // Keep popping as many as I can merge in.
       } while(!q.empty()&&canMerge(prevHead,q.top()));
@@ -491,7 +498,7 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
-    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
+    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v).v;
     if(newv) rv.push_back(newv);
   }
   return std::move(rv);
