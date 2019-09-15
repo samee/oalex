@@ -291,9 +291,8 @@ const Dfa dfa{
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -341,10 +340,8 @@ struct Hooks : public GssHooks {
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foobar"));
-
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foobar")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
 }
 
@@ -381,9 +378,8 @@ struct Hooks : public GssHooks {
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -494,18 +490,20 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
-    if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-    if(outputs[i].empty()&&dynamic_cast<const EmptyVal*>(res[0].get())!=nullptr)
+    SharedVal v=glrParseUnique(dfa,hooks,GetFromString(inputs[i])).first;
+    if(outputs[i].empty()&&
+        dynamic_cast<const EmptyVal*>(v.get())!=nullptr)
       continue;
-    vector<string> v=gather(dynamic_cast<const ListVal*>(res[0].get()));
+    vector<string> obs=gather(dynamic_cast<const ListVal*>(v.get()));
+    if(obs!=outputs[i])
+      BugMe<<"listParse mismatch "<<debug(obs)<<" != "<<debug(outputs[i]);
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<SharedVal> res
-      =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
-    if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
+    SharedVal v
+      =glrParseUnique(dfa,hooks,GetFromString(invalid_inputs[i])).first;
+    if(v!=nullptr) BugMe<<"Got "<<typeid(*v).name()<<" was expecting null";
   }
 }
 
@@ -650,23 +648,24 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
+    vector<pair<SharedVal,SharedDiagSet>> res
+      =glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
     for(size_t j=1;j<res.size();++j) {
       GssMergeChoice pick=hooks.merge(DfaState{6},
-          dynamic_pointer_cast<const ListVal>(res[0]),
-          dynamic_pointer_cast<const ListVal>(res[j]));
-      if(pick==GssMergeChoice::pickSecond) res[0]=res[j];
+          dynamic_pointer_cast<const ListVal>(res[0].first),
+          dynamic_pointer_cast<const ListVal>(res[j].first));
+      if(pick==GssMergeChoice::pickSecond) res[0].first=res[j].first;
     }
 
-    vector<string> resg=gather(res[0]);
+    vector<string> resg=gather(res[0].first);
     if(resg!=outputs[i])
       BugMe<<"input["<<i<<"] parsed into "<<resg;
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<SharedVal> res
+    vector<pair<SharedVal,SharedDiagSet>> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
     if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
   }
@@ -694,14 +693,12 @@ using Hooks=singleStringParse::Hooks;
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv1=dynamic_cast<const StringVal&>(*v);
   if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
 
-  res=glrParse(dfa,hooks,GetFromString("fad"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv2=dynamic_cast<const StringVal&>(*res[0]);
+  v=glrParseUnique(dfa,hooks,GetFromString("fad")).first;
+  const StringVal& sv2=dynamic_cast<const StringVal&>(*v);
   if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
 
 }

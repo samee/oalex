@@ -219,6 +219,10 @@ inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
   return std::make_shared<const DiagSet>(std::move(diags));
 }
 
+inline SharedDiagSet diagSingleton(std::shared_ptr<const Diag> d) {
+  return std::make_shared<const DiagSet>(&d,&d+1);
+}
+
 struct GssHooksRes {
   SharedVal v;
   std::vector<std::shared_ptr<const Diag>> diags;
@@ -357,7 +361,8 @@ class GlrCtx {
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
-  std::vector<SharedVal> parse(std::function<int16_t()> getch);
+  std::vector<std::pair<SharedVal,SharedDiagSet>>
+    parse(std::function<int16_t()> getch);
 };
 
 }  // namespace internal
@@ -383,7 +388,10 @@ class GlrCtx {
     or for malformed dfa. Exceptions from hk and getch are all propagated
     unhindered, though.
 */
-std::vector<SharedVal> glrParse(
+std::vector<std::pair<SharedVal,SharedDiagSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
+
+std::pair<SharedVal,SharedDiagSet> glrParseUnique(
+    const Dfa& dfa,GssHooks& hk,std::function<int64_t()> getch);
 
 }  // namespace oalex

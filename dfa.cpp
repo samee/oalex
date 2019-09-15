@@ -460,10 +460,11 @@ GssHead GlrCtx::startingHeadAt(DfaState s) {
   return {make_shared<EmptyVal>(0,0),s,{},nullptr};
 }
 
-vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
+vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
   char ch;
+  SharedDiagSet lastDiags;
   while((ch=getch())>=0) {
     shift(ch);
     GssPendingQueue q(gssReduceLater);
@@ -488,18 +489,20 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     }
   }
 
-  if(pos()==0) return vector<SharedVal>(1,make_shared<EmptyVal>(0,0));
+  if(pos()==0) return {make_pair(make_shared<EmptyVal>(0,0),
+                                 diagSingleton(make_shared<Diag>(
+                                     0,1,"No useful message")))};
 
   // End of string merges are not guaranteed.
-  vector<SharedVal> rv;
+  vector<pair<SharedVal,SharedDiagSet>> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
       BugDie()<<"nullptr values should already have been dropped";
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
-    SharedVal newv=reduceStringOrList(*hooks_,dfa_->enLabel,h.v).v;
-    if(newv) rv.push_back(newv);
+    GssHooksRes res=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
+    if(res.v) rv.push_back(make_pair(res.v,diagSet(res)));
   }
   return std::move(rv);
 }
@@ -517,10 +520,19 @@ GssHooksRes GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
 }
 
 
-vector<SharedVal> glrParse(
+vector<pair<SharedVal,SharedDiagSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);
+}
+
+pair<SharedVal,SharedDiagSet> glrParseUnique(
+    const Dfa& dfa,GssHooks& hk,function<int64_t()> getch) {
+  vector<pair<SharedVal,SharedDiagSet>> res=glrParse(dfa,hk,std::move(getch));
+  if(res.size()>1) BugDie()<<"glrParseUnique doesn't expect ambiguity.";
+  if(res.empty())
+    return {nullptr,diagSingleton(make_shared<Diag>(0,1,"No useful message"))};
+  else return res[0];
 }
 
 }  // namespace oalex
