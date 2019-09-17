@@ -463,7 +463,7 @@ GssHead GlrCtx::startingHeadAt(DfaState s) {
 vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
-  char ch;
+  int16_t ch;
   SharedDiagSet lastDiags;
   while((ch=getch())>=0) {
     shift(ch);
