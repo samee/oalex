@@ -48,6 +48,17 @@ tree.
   will change current uses of nullptr to use AbandonReductions, and then define
   nullptr to be the same as EmptyVal.
 
+  16th Sept 2019: I am having second thoughts about the above. EmptyVal can
+  signify successful parsing without information. nullptr today causes us to
+  abandon parsing. If I want abandonment to be explicit, I should add explicit
+  `bool abandon` to GssHooksRes. But then we need to think about how nullptr
+  SharedVal propagates.
+
+  The whole thing that started this thought process is how to record lastDiags
+  in GlrCtx::parse. For that we need changeHead and extendHead to report diags
+  somehow. The question is do we make a variant for that, or do we reuse
+  GssHooksRes? For that, we ended up revisiting how abandonment is indicated.
+
 Plan:
 
   1. Add support for DiagList propagation and gathering.
