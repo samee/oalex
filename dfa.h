@@ -346,8 +346,7 @@ class GlrCtx {
   std::optional<internal::GssHead> changeHead(
       std::shared_ptr<const internal::GssEdge> prev,
       GssHead h,const LabelEdge& edge);
-  std::optional<internal::GssHead> mergeHeads(internal::GssHead h1,
-                                              internal::GssHead h2);
+  internal::GssHead mergeHeads(internal::GssHead h1,internal::GssHead h2);
   std::optional<internal::GssHead> mergeHeads(
       std::optional<internal::GssHead> h1,
       std::optional<internal::GssHead> h2);

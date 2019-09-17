@@ -311,7 +311,7 @@ GlrCtx::mergeHeads(optional<GssHead> h1,optional<GssHead> h2) {
   else return mergeHeads(std::move(*h1),std::move(*h2));
 }
 
-optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
+GssHead GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   DfaState s1=std::get<DfaState>(h1.enState);
   DfaState s2=std::get<DfaState>(h2.enState);
   if(s1!=s2||h1.stPos()!=h2.stPos())
