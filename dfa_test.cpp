@@ -667,7 +667,9 @@ void test() {
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
     vector<pair<SharedVal,SharedDiagSet>> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
-    if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
+    if(!glrParseFailed(res))
+      BugMe<<"Was expecting parse failure, got "
+           <<res.size()<<" successful parses";
   }
 }
 

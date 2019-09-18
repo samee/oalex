@@ -331,6 +331,7 @@ using GssPendingQueue=std::priority_queue<GssPendingReduce,
 class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
+  SharedDiagSet lastKnownDiags_;
   const Dfa* dfa_;
   GssHooks* hooks_;
   friend class GlrCtxTest;
@@ -392,5 +393,12 @@ std::vector<std::pair<SharedVal,SharedDiagSet>> glrParse(
 
 std::pair<SharedVal,SharedDiagSet> glrParseUnique(
     const Dfa& dfa,GssHooks& hk,std::function<int64_t()> getch);
+
+inline bool glrParseFailed(const std::pair<SharedVal,SharedDiagSet>& parseRes) {
+  return parseRes.first==nullptr;
+}
+
+bool glrParseFailed(
+    const std::vector<std::pair<SharedVal,SharedDiagSet>>& parseRes);
 
 }  // namespace oalex

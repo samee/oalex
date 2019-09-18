@@ -159,6 +159,7 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
+// TODO optimize empty case with make_diags(res);
 SharedDiagSet diagSet(const GssHooksRes& res) {
   return make_shared<const DiagSet>(res.diags.begin(),res.diags.end());
 }
@@ -288,9 +289,11 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  SharedDiagSet diags=diagSet(res);
+  if(hasDiags(diags)) lastKnownDiags_=diags;
   if(!res.v) return nullopt;
   return GssHead{append(std::move(prevlv),std::move(res.v)),edge.dest,prev.prev,
-                 concat(prev.diags,concat(h.diags,diagSet(res)))};
+                 concat(prev.diags,concat(h.diags,diags))};
 }
 
 // Same as extendHead, but starts a new list instead of appending to one.
@@ -299,9 +302,11 @@ optional<GssHead> GlrCtx::changeHead(
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  SharedDiagSet diags=diagSet(res);
+  if(hasDiags(diags)) lastKnownDiags_=diags;
   if(!res.v) return nullopt;
   return GssHead{append(nullptr,std::move(res.v)),edge.dest,{std::move(prev)},
-                 concat(h.diags,diagSet(res))};
+                 concat(h.diags,diags)};
 }
 
 optional<GssHead>
@@ -461,10 +466,10 @@ GssHead GlrCtx::startingHeadAt(DfaState s) {
 }
 
 vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
+  int16_t ch;
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
-  int16_t ch;
-  SharedDiagSet lastDiags;
+  lastKnownDiags_.reset();
   while((ch=getch())>=0) {
     shift(ch);
     GssPendingQueue q(gssReduceLater);
@@ -489,9 +494,12 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
     }
   }
 
-  if(pos()==0) return {make_pair(make_shared<EmptyVal>(0,0),
-                                 diagSingleton(make_shared<Diag>(
-                                     0,1,"No useful message")))};
+  if(pos()==0) {
+    if(dfa_->isEnState(dfa_->stState))
+      return {make_pair(make_shared<EmptyVal>(0,0),nullptr)};
+    else return {make_pair(nullptr,diagSingleton(
+          make_shared<Diag>(0,0,"No input provided")))};
+  }
 
   // End of string merges are not guaranteed.
   vector<pair<SharedVal,SharedDiagSet>> rv;
@@ -504,6 +512,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
     GssHooksRes res=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
     if(res.v) rv.push_back(make_pair(res.v,diagSet(res)));
   }
+  if(rv.empty()) return {make_pair(nullptr,lastKnownDiags_)};
   return std::move(rv);
 }
 
@@ -530,9 +539,15 @@ pair<SharedVal,SharedDiagSet> glrParseUnique(
     const Dfa& dfa,GssHooks& hk,function<int64_t()> getch) {
   vector<pair<SharedVal,SharedDiagSet>> res=glrParse(dfa,hk,std::move(getch));
   if(res.size()>1) BugDie()<<"glrParseUnique doesn't expect ambiguity.";
-  if(res.empty())
-    return {nullptr,diagSingleton(make_shared<Diag>(0,1,"No useful message"))};
+  if(res.empty()) BugDie()<<"glrParse should never return an empty vector";
   else return res[0];
+}
+
+bool glrParseFailed(const vector<pair<SharedVal,SharedDiagSet>>& parseRes) {
+  for(const auto& r:parseRes) if(r.first!=nullptr) return false;
+  if(parseRes.size()!=1)
+    BugDie()<<"Parse failure needs a single element. Got "<<parseRes.size();
+  return true;
 }
 
 }  // namespace oalex
