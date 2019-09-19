@@ -62,11 +62,8 @@ tree.
 Plan:
 
   1. Add support for DiagList propagation and gathering.
-     - Paused before adding diags to GssHead and GssEdge.
-     - Changing merge() semantics.
   2. Support explicit AbandonedReduction and gathering.
-     - Need errors from the no-head case.
-     - dfa_test.cpp:slowListParse needs cleanup.
+     - Need to add Diags on unexpected input characters.
   3. Support unambiguous root convenience gathering.
   4. Wire unexpectedChar and noEnLabel to AbandonedReduction.
   5. Change current uses of nullptr to use AbandonedReduction.

@@ -142,6 +142,7 @@ shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
   ge->v=std::move(head.v);
   ge->prev=std::move(head.prev);
   ge->enPos=breakPos;
+  ge->diags=head.diags;
   if(DfaState* a=get_if<DfaState>(&head.enState)) ge->enState=*a;
   else BugDie()<<"Can't push back from a state in "<<head.enState.index();
   return ge;
@@ -510,7 +511,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
     GssHooksRes res=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
-    if(res.v) rv.push_back(make_pair(res.v,diagSet(res)));
+    if(res.v) rv.push_back(make_pair(res.v,concat(h.diags,diagSet(res))));
   }
   if(rv.empty()) return {make_pair(nullptr,lastKnownDiags_)};
   return std::move(rv);

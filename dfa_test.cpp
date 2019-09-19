@@ -707,6 +707,67 @@ void test() {
 
 }  // namespace shiftShiftConflict
 
+namespace parseReturnsDiags {
+
+using listParse::dfa;
+
+struct Hooks : listParse::Hooks {
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    GssHooksRes res=listParse::Hooks::reduceString(lbl,sv);  // upcall
+    if(auto* sv=dynamic_cast<const StringVal*>(res.v.get())) {
+      res.diags.push_back(make_shared<Diag>(sv->stPos,sv->enPos,"Got "+sv->s));
+    }
+    return res;
+  }
+};
+
+void test() {
+  dieIfBad(dfa);
+  Hooks hooks;
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo,bar,baz"));
+
+  vector<string> expected_diags={"Got bar","Got baz","Got foo"};
+  vector<string> observed_diags=diagSetMessages(diags);
+  if(observed_diags!=expected_diags)
+    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
+         <<debug(observed_diags)<<" != "<<expected_diags;
+}
+
+}  // namespace parseReturnsDiags
+
+namespace emptyStringParsing {
+
+using Hooks=singleStringParse::Hooks;
+
+void test() {
+  Hooks hooks;
+  Dfa dfa1 = {{{}}, {{}}, {0}, 0, 0};
+  dieIfBad(dfa1);
+  auto [v,diags]=glrParseUnique(dfa1,hooks,GetFromString(""));
+  if(v)
+    BugMe<<"Empty string should have returned nullptr. Got typeid == "
+         <<typeid(*v).name();
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"No input provided"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
+         <<debug(observed_diags)<<" != "<<expected_diags;
+
+  // Now let's make empty string a valid input.
+  Dfa dfa2=dfa1;
+  dfa2.labelsMap[0]={DfaLabel{0}};
+  dieIfBad(dfa2);
+  tie(v,diags)=glrParseUnique(dfa2,hooks,GetFromString(""));
+  if(typeid(*v)!=typeid(EmptyVal))
+    BugMe<<"Valid empty string returned strange value: "<<typeid(*v).name()
+         <<" != typeid(EmptyVal)";
+  if(diags)
+    BugMe<<"Was not expecting diagnostics on empty input. Got "
+         <<debug(diagSetMessages(diags));
+}
+
+}  // namespace emptyStringParsing
+
 }  // namespace
 
 int main() {
@@ -721,4 +782,6 @@ int main() {
   listParse::test();
   slowListParse::test();
   shiftShiftConflict::test();
+  parseReturnsDiags::test();
+  emptyStringParsing::test();
 }

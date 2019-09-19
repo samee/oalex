@@ -178,10 +178,11 @@ inline SharedListVal append(SharedListVal prev,SharedVal last) {
   return std::make_shared<const ListVal>(std::move(lv));
 }
 
-struct Diag : public SemVal {
+struct Diag {
+  size_t stPos,enPos;
   std::string msg;
   Diag(size_t st,size_t en,std::string m)
-    : SemVal(st,en), msg(std::move(m)) {}
+    : stPos(st), enPos(en), msg(std::move(m)) {}
 };
 
 using SharedDiagSet=std::shared_ptr<const class DiagSet>;
