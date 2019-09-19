@@ -220,10 +220,6 @@ inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
   return std::make_shared<const DiagSet>(std::move(diags));
 }
 
-inline SharedDiagSet diagSingleton(std::shared_ptr<const Diag> d) {
-  return std::make_shared<const DiagSet>(&d,&d+1);
-}
-
 struct GssHooksRes {
   SharedVal v;
   std::vector<std::shared_ptr<const Diag>> diags;

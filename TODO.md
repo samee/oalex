@@ -63,7 +63,8 @@ Plan:
 
   1. Add support for DiagList propagation and gathering.
   2. Support explicit AbandonedReduction and gathering.
-     - Need to add Diags on unexpected input characters.
+     - Also test lastKnownDiags_ propagation from hooks.
+     - Need to add diags on empty lastKnownDiags_.
   3. Support unambiguous root convenience gathering.
   4. Wire unexpectedChar and noEnLabel to AbandonedReduction.
   5. Change current uses of nullptr to use AbandonedReduction.

@@ -111,6 +111,14 @@ bool isPrefixEdge(const DfaEdge& e1,const DfaEdge& e2) {
   }else BugDie()<<"isPrefixEdge called on wrong edge type";
 }
 
+SharedDiagSet diagSingleton(shared_ptr<const Diag> d) {
+  return make_shared<const DiagSet>(&d,&d+1);
+}
+
+SharedDiagSet diagSingleton(size_t stPos,size_t enPos,string msg) {
+  return diagSingleton(make_shared<Diag>(stPos,enPos,std::move(msg)));
+}
+
 // Pops earlier than everything else.
 const GssPendingReduce len0={0,-1,GssHead{},nullptr,nullptr,true};
 
@@ -408,6 +416,8 @@ void GlrCtx::shift(char ch) {
       }
     }
   }
+  if(heads_.empty())
+    lastKnownDiags_=diagSingleton(pos,pos+1,"Unexpected character "s+ch);
   buf_.push_back(ch);
 }
 
@@ -471,7 +481,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
   lastKnownDiags_.reset();
-  while((ch=getch())>=0) {
+  while((ch=getch())>=0 && !heads_.empty()) {
     shift(ch);
     GssPendingQueue q(gssReduceLater);
     enqueueLabeledHeads(q);
@@ -498,8 +508,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   if(pos()==0) {
     if(dfa_->isEnState(dfa_->stState))
       return {make_pair(make_shared<EmptyVal>(0,0),nullptr)};
-    else return {make_pair(nullptr,diagSingleton(
-          make_shared<Diag>(0,0,"No input provided")))};
+    else return {make_pair(nullptr,diagSingleton(0,0,"No input provided"))};
   }
 
   // End of string merges are not guaranteed.

@@ -768,6 +768,21 @@ void test() {
 
 }  // namespace emptyStringParsing
 
+namespace unexpectedChar {
+
+void test() {
+  singleStringParse::Hooks hooks;
+  Dfa dfa=singleStringParse::dfa;  // Parses "foo"
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foosball"));
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Unexpected character s"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"Unexpected input characters not being properly reported: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+}
+
+}  // namespace unexpectedChar
+
 }  // namespace
 
 int main() {
@@ -784,4 +799,5 @@ int main() {
   shiftShiftConflict::test();
   parseReturnsDiags::test();
   emptyStringParsing::test();
+  unexpectedChar::test();
 }
