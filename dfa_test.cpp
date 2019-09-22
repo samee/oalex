@@ -783,6 +783,42 @@ void test() {
 
 }  // namespace unexpectedChar
 
+namespace lastKnownDiags {
+
+struct Hooks : public GssHooks {
+  GssHooksRes reduceString(DfaLabel,SharedStringVal sv) override {
+    return abandonReduce(sv->stPos,sv->enPos,"Abandoning string "+sv->s);
+  }
+  GssHooksRes reduceList(DfaLabel,SharedListVal) override {
+    BugMe<<"There shouldn't be any list without strings being reduced";
+  }
+};
+
+const Dfa dfa{
+  { // adjList
+    {PushEdge{1},PushEdge{2}},
+    {CharRangeEdge{'a','z',1}},
+    {LabelEdge{DfaLabel{0},DfaState{2}}},
+  },
+  {{},{DfaLabel{0}},{}},   // labelsMap
+  {0,1,2},                 // statePrioMap
+  0,                       // stState
+  0,                       // enLabel
+};
+
+void test() {
+  Hooks hooks;
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
+  if(v) BugMe<<"Was expecting nullptr value on non-reduction";
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Abandoning string foo"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"lastKnownDiags_ returning something unexpected: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+}
+
+}  // namespace lastKnownDiags
+
 }  // namespace
 
 int main() {
@@ -800,4 +836,5 @@ int main() {
   parseReturnsDiags::test();
   emptyStringParsing::test();
   unexpectedChar::test();
+  lastKnownDiags::test();
 }
