@@ -794,7 +794,7 @@ struct Hooks : public GssHooks {
   }
 };
 
-const Dfa dfa{
+const Dfa dfa {
   { // adjList
     {PushEdge{1},PushEdge{2}},
     {CharRangeEdge{'a','z',1}},
@@ -808,6 +808,7 @@ const Dfa dfa{
 
 void test() {
   Hooks hooks;
+  dieIfBad(dfa);
   auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
   if(v) BugMe<<"Was expecting nullptr value on non-reduction";
   vector<string> observed_diags=diagSetMessages(diags);
@@ -818,6 +819,34 @@ void test() {
 }
 
 }  // namespace lastKnownDiags
+
+namespace incompleteInput {
+
+const Dfa dfa {
+  { // adjList
+    {PushEdge{1}},
+    {CharRangeEdge{'a','z',1}},
+  },
+  {{},{}},   // labelsMap
+  {0,1},     // statePrioMap
+  0,         // stState
+  0,         // enLabel
+};
+
+void test() {
+  singleStringParse::Hooks hooks;
+  dieIfBad(dfa);
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
+  if(v) BugMe<<"Was expecting nullptr value on incomplete input";
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Incomplete input"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"lastKnownDiags_ returning something unexpected: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+
+}
+
+}  // namespace incompleteInput
 
 }  // namespace
 
@@ -837,4 +866,5 @@ int main() {
   emptyStringParsing::test();
   unexpectedChar::test();
   lastKnownDiags::test();
+  incompleteInput::test();
 }

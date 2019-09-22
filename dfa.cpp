@@ -522,7 +522,13 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
     GssHooksRes res=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
     if(res.v) rv.push_back(make_pair(res.v,concat(h.diags,diagSet(res))));
   }
-  if(rv.empty()) return {make_pair(nullptr,lastKnownDiags_)};
+  if(rv.empty()) {
+    // TODO if heads_ is non-empty, maybe return any pending label as a
+    // non-string diagnostic.
+    if(hasDiags(lastKnownDiags_)) return {make_pair(nullptr,lastKnownDiags_)};
+    else return {make_pair(nullptr,
+                 diagSingleton(0,this->pos(),"Incomplete input"))};
+  }
   return std::move(rv);
 }
 
