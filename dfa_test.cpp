@@ -74,6 +74,74 @@ ostream& operator<<(ostream& os,const vector<string>& v) {
   return os<<debug(v);
 }
 
+vector<string> diagSetMessages(const set<const Diag*>& diagitems) {
+  vector<string> msgs;
+  for(const Diag* d:diagitems) msgs.push_back(d->msg);  // die if d==nullptr
+  sort(msgs.begin(),msgs.end());
+  return msgs;
+}
+
+vector<string> diagSetMessages(SharedDiagSet diags) {
+  return diagSetMessages(diags->gather());
+}
+
+void testDiagSetGather() {
+  vector<string> msg={"msg1","msg2","msg3"};
+
+  vector<shared_ptr<const Diag>> diagitems;
+  for(const string& m:msg)
+    diagitems.push_back(make_shared<const Diag>(0,1,m));
+
+  auto diagbeg=diagitems.begin();
+  auto ds1=make_shared<const DiagSet>(diagbeg,diagbeg+2);
+  auto ds2=make_shared<const DiagSet>(diagbeg+1,diagbeg+3);
+  auto dsroot=concat(ds1,ds2);
+
+  vector<string> msg_observed=diagSetMessages(dsroot->gather());
+  if(msg!=msg_observed) {
+    BugMe<<"DiagSet::Gather returned unexpected set: "<<debug(msg_observed)
+         <<" != "<<debug(msg);
+  }
+}
+
+void testNullDiagsIgnored() {
+  vector<string> msg={"msg1","msg2","msg3"};
+
+  vector<shared_ptr<const Diag>> diagitems;
+  for(const string& m:msg)
+    diagitems.push_back(make_shared<const Diag>(0,1,m));
+  diagitems.push_back(nullptr);
+
+  auto d=make_shared<DiagSet>(diagitems.begin(),diagitems.end());
+
+  vector<string> msg_observed=diagSetMessages(d->gather());
+  if(msg!=msg_observed) {
+    BugMe<<"null diags caused problems: "<<debug(msg_observed)<<" != "
+         <<debug(msg);
+  }
+}
+
+void testDiagNullConcat() {
+  if(auto nullcat=concat(SharedDiagSet(),SharedDiagSet())) {
+    BugMe<<"Concat(nullptr,nullptr) returned non-null: "
+         <<debug(diagSetMessages(nullcat));
+  }
+  vector<shared_ptr<const Diag>> diagitems={
+    make_shared<const Diag>(0,1,"msg1"),
+    make_shared<const Diag>(0,1,"msg2")};
+  auto diags=make_shared<const DiagSet>(diagitems.begin(),diagitems.end());
+  auto r1=concat(diags,nullptr);
+  if(r1!=diags) {
+    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r1))
+         <<" != {msg1,msg2}";
+  }
+  auto r2=concat(nullptr,diags);
+  if(r2!=diags) {
+    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r2))
+         <<" != {msg1,msg2}";
+  }
+}
+
 namespace checkCheckError {
 
 void expectError(const Dfa& dfa,string_view b) {
@@ -202,7 +270,7 @@ void test() {
 namespace singleStringParse {
 
 struct Hooks : public GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=DfaLabel{0}) BugMe<<"Unexpected "<<lbl;
     else return lv->last;
   }
@@ -223,9 +291,8 @@ const Dfa dfa{
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -257,7 +324,7 @@ const Dfa dfa{
 };
 
 struct Hooks : public GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl==DfaLabel{1}) {
       if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
       // Not a constant-time string-concatenation, but it's okay if this
@@ -273,10 +340,8 @@ struct Hooks : public GssHooks {
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foobar"));
-
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foobar")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
 }
 
@@ -298,11 +363,11 @@ const Dfa dfa {
 };
 
 struct Hooks : public GssHooks {
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
-    if(lbl==DfaLabel{0}) return nullptr;
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    if(lbl==DfaLabel{0}) return abandonReduce(sv->stPos,sv->enPos,"no reason");
     else return sv;
   }
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=DfaLabel{2}) BugMe<<"Unexpected "<<lbl;
     if(lv->size!=1)
       BugMe<<"Was expecting a single string 'foo'. Got size "<<lv->size;
@@ -313,9 +378,8 @@ struct Hooks : public GssHooks {
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv=dynamic_cast<const StringVal&>(*v);
   if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
 }
 
@@ -392,11 +456,11 @@ const Dfa dfa{
 };
 
 struct Hooks : GssHooks {
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Unexpected "<<lbl<<" != "<<lblList;
     return lv;
   }
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
     if(lbl==lblSpace||lbl==lblComma)
       return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
@@ -426,18 +490,20 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
-    if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-    if(outputs[i].empty()&&dynamic_cast<const EmptyVal*>(res[0].get())!=nullptr)
+    SharedVal v=glrParseUnique(dfa,hooks,GetFromString(inputs[i])).first;
+    if(outputs[i].empty()&&
+        dynamic_cast<const EmptyVal*>(v.get())!=nullptr)
       continue;
-    vector<string> v=gather(dynamic_cast<const ListVal*>(res[0].get()));
+    vector<string> obs=gather(dynamic_cast<const ListVal*>(v.get()));
+    if(obs!=outputs[i])
+      BugMe<<"listParse mismatch "<<debug(obs)<<" != "<<debug(outputs[i]);
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<SharedVal> res
-      =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
-    if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
+    SharedVal v
+      =glrParseUnique(dfa,hooks,GetFromString(invalid_inputs[i])).first;
+    if(v!=nullptr) BugMe<<"Got "<<typeid(*v).name()<<" was expecting null";
   }
 }
 
@@ -504,7 +570,7 @@ const Dfa dfa{
 
 class Hooks : public GssHooks {
  public:
-  SharedVal reduceList(DfaLabel lbl,SharedListVal lv) override {
+  GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl!=lblList) BugMe<<"Reducing on strange "<<lbl;
     // elt-comma-elt.
     if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
@@ -513,18 +579,20 @@ class Hooks : public GssHooks {
            <<typeid(*lv->at(1)).name();
     return lv;
   }
-  SharedVal reduceString(DfaLabel lbl,SharedStringVal sv) override {
-    if(lbl==lblComma) return make_shared<EmptyVal>(sv->stPos,sv->enPos);
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    if(lbl==lblComma)
+      return make_shared<EmptyVal>(sv->stPos,sv->enPos);
     else return GssHooks::reduceString(lbl,std::move(sv));
   }
-  SharedListVal merge(DfaState en,
-                      SharedListVal lv1,SharedListVal lv2) override {
+  GssMergeChoice merge(DfaState en,
+                       SharedListVal lv1,SharedListVal lv2) override {
     if(lv1->size!=lv2->size)
       BugMe<<"Can't merge on mismatching sizes: "<<lv1->size<<" != "<<lv2->size;
     if(lv1->size==1) {
       auto sv1=dynamic_cast<const StringVal*>(lv1->last.get());
       auto sv2=dynamic_cast<const StringVal*>(lv2->last.get());
-      if(sv1&&sv2) return lv1;  // Doesn't matter what we return.
+      if(sv1&&sv2)
+        return GssMergeChoice::pickFirst;  // Doesn't matter what we return.
       if(en!=DfaState{4})
         BugMe<<"Merging singleton, but "<<en<<" != DfaState{4}";
       auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
@@ -532,12 +600,13 @@ class Hooks : public GssHooks {
       if(!lu1||!lu2)
         BugMe<<"Caught null: "<<typeid(*lv1->last).name()
              <<", "<<typeid(*lv2->last).name();
-      return Append(nullptr,merge(en,std::move(lu1),std::move(lu2)));
+      return merge(en,lu1,lu2);
     }
     if(lv1->size!=3)
       BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3 at "<<en;
     // TODO check if en is the expected state.
-    return lv1->at(0)->enPos>lv2->at(0)->enPos?lv1:lv2;
+    return lv1->at(0)->enPos>lv2->at(0)->enPos?GssMergeChoice::pickFirst
+                                              :GssMergeChoice::pickSecond;
   }
 };
 
@@ -579,22 +648,28 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<SharedVal> res=glrParse(dfa,hooks,GetFromString(inputs[i]));
+    vector<pair<SharedVal,SharedDiagSet>> res
+      =glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
-    for(size_t j=1;j<res.size();++j)
-      res[0]=hooks.merge(DfaState{6},
-          dynamic_pointer_cast<const ListVal>(res[0]),
-          dynamic_pointer_cast<const ListVal>(res[j]));
-    vector<string> resg=gather(res[0]);
+    for(size_t j=1;j<res.size();++j) {
+      GssMergeChoice pick=hooks.merge(DfaState{6},
+          dynamic_pointer_cast<const ListVal>(res[0].first),
+          dynamic_pointer_cast<const ListVal>(res[j].first));
+      if(pick==GssMergeChoice::pickSecond) res[0].first=res[j].first;
+    }
+
+    vector<string> resg=gather(res[0].first);
     if(resg!=outputs[i])
       BugMe<<"input["<<i<<"] parsed into "<<resg;
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<SharedVal> res
+    vector<pair<SharedVal,SharedDiagSet>> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
-    if(!res.empty()) BugMe<<"res.size == "<<res.size()<<", was expecting empty";
+    if(!glrParseFailed(res))
+      BugMe<<"Was expecting parse failure, got "
+           <<res.size()<<" successful parses";
   }
 }
 
@@ -620,23 +695,165 @@ using Hooks=singleStringParse::Hooks;
 void test() {
   dieIfBad(dfa);
   Hooks hooks;
-  vector<SharedVal> res=glrParse(dfa,hooks,GetFromString("foo"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv1=dynamic_cast<const StringVal&>(*res[0]);
+  SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
+  const StringVal& sv1=dynamic_cast<const StringVal&>(*v);
   if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
 
-  res=glrParse(dfa,hooks,GetFromString("fad"));
-  if(res.size()!=1) BugMe<<"res.size == "<<res.size()<<" != 1";
-  const StringVal& sv2=dynamic_cast<const StringVal&>(*res[0]);
+  v=glrParseUnique(dfa,hooks,GetFromString("fad")).first;
+  const StringVal& sv2=dynamic_cast<const StringVal&>(*v);
   if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
 
 }
 
 }  // namespace shiftShiftConflict
 
+namespace parseReturnsDiags {
+
+using listParse::dfa;
+
+struct Hooks : listParse::Hooks {
+  GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
+    GssHooksRes res=listParse::Hooks::reduceString(lbl,sv);  // upcall
+    if(auto* sv=dynamic_cast<const StringVal*>(res.v.get())) {
+      res.diags.push_back(make_shared<Diag>(sv->stPos,sv->enPos,"Got "+sv->s));
+    }
+    return res;
+  }
+};
+
+void test() {
+  dieIfBad(dfa);
+  Hooks hooks;
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo,bar,baz"));
+
+  vector<string> expected_diags={"Got bar","Got baz","Got foo"};
+  vector<string> observed_diags=diagSetMessages(diags);
+  if(observed_diags!=expected_diags)
+    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
+         <<debug(observed_diags)<<" != "<<expected_diags;
+}
+
+}  // namespace parseReturnsDiags
+
+namespace emptyStringParsing {
+
+using Hooks=singleStringParse::Hooks;
+
+void test() {
+  Hooks hooks;
+  Dfa dfa1 = {{{}}, {{}}, {0}, 0, 0};
+  dieIfBad(dfa1);
+  auto [v,diags]=glrParseUnique(dfa1,hooks,GetFromString(""));
+  if(v)
+    BugMe<<"Empty string should have returned nullptr. Got typeid == "
+         <<typeid(*v).name();
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"No input provided"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
+         <<debug(observed_diags)<<" != "<<expected_diags;
+
+  // Now let's make empty string a valid input.
+  Dfa dfa2=dfa1;
+  dfa2.labelsMap[0]={DfaLabel{0}};
+  dieIfBad(dfa2);
+  tie(v,diags)=glrParseUnique(dfa2,hooks,GetFromString(""));
+  if(typeid(*v)!=typeid(EmptyVal))
+    BugMe<<"Valid empty string returned strange value: "<<typeid(*v).name()
+         <<" != typeid(EmptyVal)";
+  if(diags)
+    BugMe<<"Was not expecting diagnostics on empty input. Got "
+         <<debug(diagSetMessages(diags));
+}
+
+}  // namespace emptyStringParsing
+
+namespace unexpectedChar {
+
+void test() {
+  singleStringParse::Hooks hooks;
+  Dfa dfa=singleStringParse::dfa;  // Parses "foo"
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foosball"));
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Unexpected character s"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"Unexpected input characters not being properly reported: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+}
+
+}  // namespace unexpectedChar
+
+namespace lastKnownDiags {
+
+struct Hooks : public GssHooks {
+  GssHooksRes reduceString(DfaLabel,SharedStringVal sv) override {
+    return abandonReduce(sv->stPos,sv->enPos,"Abandoning string "+sv->s);
+  }
+  GssHooksRes reduceList(DfaLabel,SharedListVal) override {
+    BugMe<<"There shouldn't be any list without strings being reduced";
+  }
+};
+
+const Dfa dfa {
+  { // adjList
+    {PushEdge{1},PushEdge{2}},
+    {CharRangeEdge{'a','z',1}},
+    {LabelEdge{DfaLabel{0},DfaState{2}}},
+  },
+  {{},{DfaLabel{0}},{}},   // labelsMap
+  {0,1,2},                 // statePrioMap
+  0,                       // stState
+  0,                       // enLabel
+};
+
+void test() {
+  Hooks hooks;
+  dieIfBad(dfa);
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
+  if(v) BugMe<<"Was expecting nullptr value on non-reduction";
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Abandoning string foo"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"lastKnownDiags_ returning something unexpected: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+}
+
+}  // namespace lastKnownDiags
+
+namespace incompleteInput {
+
+const Dfa dfa {
+  { // adjList
+    {PushEdge{1}},
+    {CharRangeEdge{'a','z',1}},
+  },
+  {{},{}},   // labelsMap
+  {0,1},     // statePrioMap
+  0,         // stState
+  0,         // enLabel
+};
+
+void test() {
+  singleStringParse::Hooks hooks;
+  dieIfBad(dfa);
+  auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
+  if(v) BugMe<<"Was expecting nullptr value on incomplete input";
+  vector<string> observed_diags=diagSetMessages(diags);
+  vector<string> expected_diags={"Incomplete input"};
+  if(observed_diags!=expected_diags)
+    BugMe<<"lastKnownDiags_ returning something unexpected: "
+         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+
+}
+
+}  // namespace incompleteInput
+
 }  // namespace
 
 int main() {
+  testDiagSetGather();
+  testNullDiagsIgnored();
+  testDiagNullConcat();
   checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();
@@ -645,4 +862,9 @@ int main() {
   listParse::test();
   slowListParse::test();
   shiftShiftConflict::test();
+  parseReturnsDiags::test();
+  emptyStringParsing::test();
+  unexpectedChar::test();
+  lastKnownDiags::test();
+  incompleteInput::test();
 }

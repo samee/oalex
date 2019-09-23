@@ -44,6 +44,7 @@
 #include<list>
 #include<memory>
 #include<queue>
+#include<set>
 #include<string_view>
 #include<variant>
 #include<vector>
@@ -163,18 +164,79 @@ struct ListVal : public SemVal {
   SharedVal last;
   size_t size;
   SharedVal at(size_t i) const { return i+1==size?last:prev->at(i); }
-  friend SharedListVal Append(SharedListVal prev,SharedVal last);  // factory
+  friend SharedListVal append(SharedListVal prev,SharedVal last);  // factory
  private:
   ListVal(size_t st,size_t en) : SemVal(st,en) {}
 };
 
 // prev can be null, last must not be null. Corollary: size can't be 0.
-inline SharedListVal Append(SharedListVal prev,SharedVal last) {
+inline SharedListVal append(SharedListVal prev,SharedVal last) {
   ListVal lv(prev?prev->stPos:last->stPos,last->enPos);
   lv.size=(prev?prev->size+1:1);
   lv.prev=std::move(prev);
   lv.last=std::move(last);
   return std::make_shared<const ListVal>(std::move(lv));
+}
+
+struct Diag {
+  size_t stPos,enPos;
+  std::string msg;
+  Diag(size_t st,size_t en,std::string m)
+    : stPos(st), enPos(en), msg(std::move(m)) {}
+};
+
+using SharedDiagSet=std::shared_ptr<const class DiagSet>;
+
+// "Tree" of Diags, duplicate DiagSet pointers are ignored. You can only add
+// Diags, never remove them.
+class DiagSet {
+ public:
+  template <class Iter> DiagSet(Iter begin,Iter end) {
+    if(begin==end) return;
+    for(auto it=begin;it!=end;++it) if(*it) diagitems_.push_back(*it);
+    empty_=false;
+  }
+  bool empty() const { return empty_; }
+  std::set<const Diag*> gather() const;
+  friend SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b);
+ private:
+  bool empty_=true;
+  std::vector<std::shared_ptr<const Diag>> diagitems_;
+  SharedDiagSet left_,right_;
+  DiagSet()=default;
+};
+
+inline bool hasDiags(const SharedDiagSet& diags)
+  { return diags!=nullptr&&!diags->empty(); }
+
+inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
+  if(!hasDiags(a)&&!hasDiags(b)) return nullptr;
+  if(!hasDiags(a)) return b;
+  if(!hasDiags(b)) return a;
+  DiagSet diags;
+  diags.left_=std::move(a);
+  diags.right_=std::move(b);
+  diags.empty_=false;
+  return std::make_shared<const DiagSet>(std::move(diags));
+}
+
+struct GssHooksRes {
+  SharedVal v;
+  std::vector<std::shared_ptr<const Diag>> diags;
+  // Conversion constructors.
+  template <class ValType> GssHooksRes(std::shared_ptr<ValType> v)
+    : v(std::move(v)) {}
+};
+
+template <class DiagType,class ... Args>
+GssHooksRes abandonReduceWith(Args&& ... args) {
+  GssHooksRes res(SharedVal(nullptr));
+  res.diags.push_back(std::make_shared<DiagType>(std::forward<Args>(args)...));
+  return std::move(res);
+}
+
+inline GssHooksRes abandonReduce(size_t stPos,size_t enPos,std::string msg) {
+  return abandonReduceWith<Diag>(stPos,enPos,std::move(msg));
 }
 
 // GssHooks do not contain any mutable state by default. But
@@ -185,14 +247,20 @@ inline SharedListVal Append(SharedListVal prev,SharedVal last) {
 // describing the input string directly, not a particular SemVal or parsed AST,
 // since those can get invalidated later.
 //
+// Right now, merge() cannot report diagnostics.  We can fix that later if
+// needed, e.g. by having GssHooksRes be a template specialization of some other
+// class.
+//
 // All of these may return nullptr to indicate invalid parsing.
+
+enum class GssMergeChoice { pickFirst,pickSecond };
 
 class GssHooks {
  public:
-  virtual SharedListVal merge(DfaState en,
-                              SharedListVal lv1,SharedListVal lv2);
-  virtual SharedVal reduceString(DfaLabel lbl,SharedStringVal sv);
-  virtual SharedVal reduceList(DfaLabel lbl,SharedListVal lv) = 0;
+  virtual GssMergeChoice merge(DfaState en,
+                               SharedListVal lv1,SharedListVal lv2);
+  virtual GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv);
+  virtual GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) = 0;
 };
 
 
@@ -207,6 +275,7 @@ struct GssEdge {
   DfaState enState;
   // Invariant: for all p,q in prev: p->enPos == q->enPos;
   size_t enPos;
+  SharedDiagSet diags;
   std::vector<std::shared_ptr<const GssEdge>> prev;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
   size_t size() const { return enPos-stPos(); }
@@ -232,6 +301,7 @@ struct GssHead {
   SharedVal v;
   std::variant<DfaState,MidString> enState;
   std::vector<std::shared_ptr<const GssEdge>> prev;
+  SharedDiagSet diags;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
 };
 
@@ -258,6 +328,7 @@ using GssPendingQueue=std::priority_queue<GssPendingReduce,
 class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
+  SharedDiagSet lastKnownDiags_;
   const Dfa* dfa_;
   GssHooks* hooks_;
   friend class GlrCtxTest;
@@ -268,13 +339,12 @@ class GlrCtx {
                               internal::GssPendingQueue& q,
       const internal::GssPendingReduce& curReduce) const;
   std::optional<internal::GssHead>
-    extendHead(const internal::GssEdge& prev,SharedVal v,
+    extendHead(const internal::GssEdge& prev,GssHead h,
                const LabelEdge& edge);
   std::optional<internal::GssHead> changeHead(
       std::shared_ptr<const internal::GssEdge> prev,
-      SharedVal v,const LabelEdge& edge);
-  std::optional<internal::GssHead> mergeHeads(internal::GssHead h1,
-                                              internal::GssHead h2);
+      GssHead h,const LabelEdge& edge);
+  internal::GssHead mergeHeads(internal::GssHead h1,internal::GssHead h2);
   std::optional<internal::GssHead> mergeHeads(
       std::optional<internal::GssHead> h1,
       std::optional<internal::GssHead> h2);
@@ -288,7 +358,8 @@ class GlrCtx {
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
-  std::vector<SharedVal> parse(std::function<int16_t()> getch);
+  std::vector<std::pair<SharedVal,SharedDiagSet>>
+    parse(std::function<int16_t()> getch);
 };
 
 }  // namespace internal
@@ -314,7 +385,17 @@ class GlrCtx {
     or for malformed dfa. Exceptions from hk and getch are all propagated
     unhindered, though.
 */
-std::vector<SharedVal> glrParse(
+std::vector<std::pair<SharedVal,SharedDiagSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
+
+std::pair<SharedVal,SharedDiagSet> glrParseUnique(
+    const Dfa& dfa,GssHooks& hk,std::function<int64_t()> getch);
+
+inline bool glrParseFailed(const std::pair<SharedVal,SharedDiagSet>& parseRes) {
+  return parseRes.first==nullptr;
+}
+
+bool glrParseFailed(
+    const std::vector<std::pair<SharedVal,SharedDiagSet>>& parseRes);
 
 }  // namespace oalex

@@ -16,6 +16,7 @@
 
 #include<algorithm>
 #include<limits>
+#include<stack>
 #include<vector>
 
 #include"util.h"
@@ -110,6 +111,14 @@ bool isPrefixEdge(const DfaEdge& e1,const DfaEdge& e2) {
   }else BugDie()<<"isPrefixEdge called on wrong edge type";
 }
 
+SharedDiagSet diagSingleton(shared_ptr<const Diag> d) {
+  return make_shared<const DiagSet>(&d,&d+1);
+}
+
+SharedDiagSet diagSingleton(size_t stPos,size_t enPos,string msg) {
+  return diagSingleton(make_shared<Diag>(stPos,enPos,std::move(msg)));
+}
+
 // Pops earlier than everything else.
 const GssPendingReduce len0={0,-1,GssHead{},nullptr,nullptr,true};
 
@@ -141,6 +150,7 @@ shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
   ge->v=std::move(head.v);
   ge->prev=std::move(head.prev);
   ge->enPos=breakPos;
+  ge->diags=head.diags;
   if(DfaState* a=get_if<DfaState>(&head.enState)) ge->enState=*a;
   else BugDie()<<"Can't push back from a state in "<<head.enState.index();
   return ge;
@@ -158,15 +168,21 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
   return rv;
 }
 
-SharedListVal reduceStringOrList(GssHooks& hk,
-    SharedListVal prev,DfaLabel lbl,SharedVal v,size_t enPos) {
+// TODO optimize empty case with make_diags(res);
+SharedDiagSet diagSet(const GssHooksRes& res) {
+  return make_shared<const DiagSet>(res.diags.begin(),res.diags.end());
+}
+
+GssHooksRes reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
   if(auto lv=dynamic_pointer_cast<const ListVal>(v)) {
-    SharedVal v2=hk.reduceList(lbl,std::move(lv));
-    return v2?Append(prev,std::move(v2)):nullptr;
+    return hk.reduceList(lbl,std::move(lv));
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
-    SharedVal v2=hk.reduceString(lbl,
-        make_shared<StringVal>(iv->stPos,enPos,string(iv->s)));
-    return v2?Append(prev,std::move(v2)):nullptr;
+    if(iv->stPos!=iv->s.start())
+      BugDie()<<"InputViewVal position tracking messed up: "
+              <<"SemVal starts at "<<iv->stPos<<", while input_view starts at "
+              <<iv->s.start();
+    return hk.reduceString(lbl,
+        make_shared<StringVal>(iv->s.start(),iv->s.stop(),string(iv->s)));
   }else {
     BugDie()<<"GssHooks should reduce from String or List. Got "
             <<typeid(*v).name()<<" instead, on label "<<lbl;
@@ -255,30 +271,51 @@ string Dfa::checkError() const {
   return "";
 }
 
+set<const Diag*> DiagSet::gather() const {
+  set<const DiagSet*> visited;
+  set<const Diag*> rv;
+  stack<const DiagSet*> stk;
+  stk.push(this);
+  while(!stk.empty()) {
+    const DiagSet* diags=stk.top();
+    stk.pop();
+    if(!diags||visited.count(diags)) continue;
+    visited.insert(diags);
+    for(auto& v:diags->diagitems_) rv.insert(v.get());
+    stk.push(diags->left_.get());
+    stk.push(diags->right_.get());
+  }
+  return rv;
+}
+
 namespace internal {
 
-optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,SharedVal v,
+optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
                                      const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
   if(!prevlv)
     BugDie()<<"GssHooks should always extend from a ListVal. Got "
             <<typeid(*prev.v).name()<<" instead, on edge "<<prev.enState
             <<" ---"<<edge.lbl<<"--> "<<edge.dest;
-  SharedListVal newv=reduceStringOrList(*hooks_,std::move(prevlv),
-                                        edge.lbl,std::move(v),pos());
-  if(!newv) return nullopt;
-  return GssHead{newv,edge.dest,prev.prev};
+  GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  SharedDiagSet diags=diagSet(res);
+  if(hasDiags(diags)) lastKnownDiags_=diags;
+  if(!res.v) return nullopt;
+  return GssHead{append(std::move(prevlv),std::move(res.v)),edge.dest,prev.prev,
+                 concat(prev.diags,concat(h.diags,diags))};
 }
 
 // Same as extendHead, but starts a new list instead of appending to one.
 optional<GssHead> GlrCtx::changeHead(
-    shared_ptr<const GssEdge> prev,SharedVal v,const LabelEdge& edge) {
+    shared_ptr<const GssEdge> prev,GssHead h,const LabelEdge& edge) {
   if(prev->enPos>pos())
     BugDie()<<"Problem in changeHead: prev->enPos too large: "<<prev->enPos;
-  SharedListVal newv=
-    reduceStringOrList(*hooks_,nullptr,edge.lbl,std::move(v),pos());
-  if(!newv) return nullopt;
-  return GssHead{newv,edge.dest,{std::move(prev)}};
+  GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
+  SharedDiagSet diags=diagSet(res);
+  if(hasDiags(diags)) lastKnownDiags_=diags;
+  if(!res.v) return nullopt;
+  return GssHead{append(nullptr,std::move(res.v)),edge.dest,{std::move(prev)},
+                 concat(h.diags,diags)};
 }
 
 optional<GssHead>
@@ -288,7 +325,7 @@ GlrCtx::mergeHeads(optional<GssHead> h1,optional<GssHead> h2) {
   else return mergeHeads(std::move(*h1),std::move(*h2));
 }
 
-optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
+GssHead GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   DfaState s1=std::get<DfaState>(h1.enState);
   DfaState s2=std::get<DfaState>(h2.enState);
   if(s1!=s2||h1.stPos()!=h2.stPos())
@@ -300,13 +337,14 @@ optional<GssHead> GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
     BugDie()<<"GssHooks can only merge lists. Found "
             <<typeid(*h1.v).name()<<" and "
             <<typeid(*h2.v).name()<<" at "<<s1;
-  SharedVal newv=hooks_->merge(s1,std::move(lv1),std::move(lv2));
-  if(!newv) return nullopt;
+  GssMergeChoice choice=hooks_->merge(s1,lv1,lv2);
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
   vector<shared_ptr<const GssEdge>> mergedPrev=std::move(h1.prev);
   for(const auto& p:h2.prev) mergedPrev.push_back(std::move(p));
-  return GssHead{newv,s1,std::move(mergedPrev)};
+  if(choice==GssMergeChoice::pickFirst)
+    return GssHead{lv1,s1,std::move(mergedPrev),std::move(h1.diags)};
+  else return GssHead{lv2,s2,std::move(mergedPrev),std::move(h2.diags)};
 }
 
 // Can move from *it.
@@ -378,6 +416,8 @@ void GlrCtx::shift(char ch) {
       }
     }
   }
+  if(heads_.empty())
+    lastKnownDiags_=diagSingleton(pos,pos+1,"Unexpected character "s+ch);
   buf_.push_back(ch);
 }
 
@@ -425,7 +465,7 @@ void GlrCtx::enqueueLabeledHeads(GssPendingQueue& q) const {
     const auto* hendp=get_if<DfaState>(&h.enState);
     if(!hendp) continue;  // Not pushing from MidString.
     if(auto iv=dynamic_pointer_cast<const InputViewVal>(h.v))
-      enqueueAllLabelsInHead(GssHead{iv,h.enState,h.prev},q,len0);
+      enqueueAllLabelsInHead(GssHead{iv,h.enState,h.prev,nullptr},q,len0);
     else enqueueAllLabelsInHead(h,q,len0);
   }
 }
@@ -433,14 +473,15 @@ void GlrCtx::enqueueLabeledHeads(GssPendingQueue& q) const {
 // This EmptyVal never gets extended or merged in.
 // But it is returned on empty inputs.
 GssHead GlrCtx::startingHeadAt(DfaState s) {
-  return {make_shared<EmptyVal>(0,0),s,{}};
+  return {make_shared<EmptyVal>(0,0),s,{},nullptr};
 }
 
-vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
+vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
+  int16_t ch;
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
-  char ch;
-  while((ch=getch())>=0) {
+  lastKnownDiags_.reset();
+  while((ch=getch())>=0 && !heads_.empty()) {
     shift(ch);
     GssPendingQueue q(gssReduceLater);
     enqueueLabeledHeads(q);
@@ -450,8 +491,8 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
       do {
         cur=q.top(); q.pop();
         if(cur.pushAgain)
-          newHead=changeHead(cur.oldPrev,cur.h.v,*cur.labeledEdge);
-        else newHead=extendHead(*cur.oldPrev,cur.h.v,*cur.labeledEdge);
+          newHead=changeHead(cur.oldPrev,cur.h,*cur.labeledEdge);
+        else newHead=extendHead(*cur.oldPrev,cur.h,*cur.labeledEdge);
         prevHead=mergeHeads(prevHead,newHead);
         // Keep popping as many as I can merge in.
       } while(!q.empty()&&canMerge(prevHead,q.top()));
@@ -464,42 +505,65 @@ vector<SharedVal> GlrCtx::parse(function<int16_t()> getch) {
     }
   }
 
-  if(pos()==0) return vector<SharedVal>(1,make_shared<EmptyVal>(0,0));
+  if(pos()==0) {
+    if(dfa_->isEnState(dfa_->stState))
+      return {make_pair(make_shared<EmptyVal>(0,0),nullptr)};
+    else return {make_pair(nullptr,diagSingleton(0,0,"No input provided"))};
+  }
 
   // End of string merges are not guaranteed.
-  vector<SharedVal> rv;
+  vector<pair<SharedVal,SharedDiagSet>> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
       BugDie()<<"nullptr values should already have been dropped";
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
-    // TODO Wrapping then unwrapping. Maybe reduceStringOrList shouldn't create
-    // the list.
-    SharedListVal newv=
-      reduceStringOrList(*hooks_,nullptr,dfa_->enLabel,h.v,pos());
-    if(newv) rv.push_back(newv->last);
+    GssHooksRes res=reduceStringOrList(*hooks_,dfa_->enLabel,h.v);
+    if(res.v) rv.push_back(make_pair(res.v,concat(h.diags,diagSet(res))));
+  }
+  if(rv.empty()) {
+    // TODO if heads_ is non-empty, maybe return any pending label as a
+    // non-string diagnostic.
+    if(hasDiags(lastKnownDiags_)) return {make_pair(nullptr,lastKnownDiags_)};
+    else return {make_pair(nullptr,
+                 diagSingleton(0,this->pos(),"Incomplete input"))};
   }
   return std::move(rv);
 }
 
 }  // namespace internal
 
-SharedListVal GssHooks::merge(DfaState,
-                              SharedListVal lv1,SharedListVal lv2) {
+GssMergeChoice GssHooks::merge(DfaState,
+                               SharedListVal lv1,SharedListVal lv2) {
   BugDie()<<"Unexpectedly encountered ambiguous parsing: ["
           <<lv1->stPos<<','<<lv2->enPos<<')';
 }
 
-SharedVal GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
+GssHooksRes GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
   return sv;
 }
 
 
-vector<SharedVal> glrParse(
+vector<pair<SharedVal,SharedDiagSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);
+}
+
+pair<SharedVal,SharedDiagSet> glrParseUnique(
+    const Dfa& dfa,GssHooks& hk,function<int64_t()> getch) {
+  vector<pair<SharedVal,SharedDiagSet>> res=glrParse(dfa,hk,std::move(getch));
+  if(res.size()>1) BugDie()<<"glrParseUnique doesn't expect ambiguity.";
+  if(res.empty()) BugDie()<<"glrParse should never return an empty vector";
+  else return res[0];
+}
+
+bool glrParseFailed(const vector<pair<SharedVal,SharedDiagSet>>& parseRes) {
+  for(const auto& r:parseRes) if(r.first!=nullptr) return false;
+  if(parseRes.size()!=1)
+    BugDie()<<"Parse failure needs a single element. Got "<<parseRes.size();
+  return true;
 }
 
 }  // namespace oalex
