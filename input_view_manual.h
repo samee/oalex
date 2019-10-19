@@ -1,7 +1,24 @@
+/*  Copyright 2019 Google LLC
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License. */
+
 #pragma once
 #include <functional>
 #include <limits>
 #include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace oalex {
 
@@ -18,20 +35,59 @@ namespace oalex {
 //
 // input.size() will change from npos to the real size as soon as the last
 // character is accessed.
+//
+// Convention: const methods cannot forget, but they can still cause I/O. So
+// you can safely pass a `const Input&` to a method knowing that they won't
+// cause you to lose parts of the input string you still care about.
+
 class Input {
  public:
   static constexpr auto npos = std::numeric_limits<size_t>::max();
+
   explicit Input(std::function<int16_t()> getch)
-    : getch_(getch), pos_(0), size_(npos) { peekMore(); }
-  void forgetBefore(size_t begin);
-  char operator[](size_t sz);
+    : getch_(getch), size_(npos) { peekTo(0); }
+  explicit Input(std::string s)
+    : buf_(std::move(s)), size_(buf_.size()) {}
+  Input(const Input&) = delete;
+  Input(Input&&) = default;
+
+  void forgetBefore(size_t pos);   // Amortized O(1).
+  char operator[](size_t sz) const;  // Amortized O(1).
+  size_t size() const { return size_; }
+
+  // Beginning-of-line index. Characters in this position may already have been
+  // forgotten. But it is still useful for figuring out indentation.
+  // E.g. checking i == bol(i), or isspace(input[bol(i) .. i]).
+  // O(log k), where k is the working window size.
+  size_t bol(size_t i) const;
+
+  // Returns 1-based positions: line number, and offset in that line.
+  // Everything else in this lass is 0-based.
+  // O(log k), where k is the working window size.
+  std::pair<size_t,size_t> rowCol(size_t i) const;
+
+  // Like std::string::substr, except:
+  //   * Throws an out of bound exception if pos has already been forgotten.
+  //   * Also throws if pos >= size().
+  //   * This doesn't have a default parameter. Defaulting count to npos would
+  //     defeat the whole point of this class, since it would have been more
+  //     convenient to use std::string instead.
+  //
+  // Like std::string::substr, if `count` is too large, we silently truncate
+  // the returned string.
+  //
+  // Amortized O(1).
+  std::string_view substr(size_t pos, size_t count) const;
 
  private:
-  std::string buf_;
+  mutable std::string buf_;
   std::function<int16_t()> getch_;
-  size_t pos_,size_;
+  size_t start_pos_=0, start_row_=0, start_col_=0;
+  mutable size_t size_;
+  mutable std::vector<size_t> newlines_;
 
-  void peekMore();
+  void peekTo(size_t last) const;
+  void peekAndBoundCharAt(size_t i) const;
   bool endSeen() const { return size_ < npos; }
 };
 

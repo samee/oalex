@@ -20,6 +20,7 @@
 
 #include <iostream>
 #include <string_view>
+#include "util.h"
 
 // Definition of non-static global variable, not declaration.
 bool someError=false;
@@ -37,7 +38,7 @@ struct TestErrImpl {
 // happen if I worry about accidentally disabling checks. But for now, I am not
 // testing them since dying is never part of the API contract. They are all
 // internal bugs.
-#define BugMe BugDie()<<__func__<<": "
+#define BugMe oalex::BugDie()<<__func__<<": "
 
 // Useful as getch() callbacks in dfa.h and input_view_manual.h.
 class GetFromString {

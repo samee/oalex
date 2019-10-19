@@ -14,3 +14,7 @@ add_executable(input_view_test input_view_test.cpp $<TARGET_OBJECTS:dfa>)
 add_test(input_view_test input_view_test)
 add_executable(dfa_test dfa_test.cpp $<TARGET_OBJECTS:dfa>)
 add_test(dfa_test dfa_test)
+add_library(input_view_manual OBJECT input_view_manual.cpp)
+add_executable(input_view_manual_test
+               input_view_manual_test.cpp input_view_manual.cpp)
+add_test(input_view_manual_test input_view_manual_test)
