@@ -13,14 +13,13 @@
     limitations under the License. */
 
 #include "dfa.h"
+
+#include <string_view>
 #include "util.h"
+#include "test_util.h"
+
 using namespace oalex;
 using namespace std;
-// If I need to check BugDie later, I'll use std::set_terminate(). This can
-// happen if I worry about accidentally disabling checks. But for now, I am not
-// testing them since dying is never part of the API contract. They are all
-// internal bugs.
-#define BugMe BugDie()<<__func__<<": "
 
 // Check cases:
 //   * Shift from multiple
@@ -48,14 +47,6 @@ void dieIfBad(const Dfa& dfa) {
   string checkRes=dfa.checkError();
   if(!checkRes.empty()) BugDie()<<checkRes;
 }
-
-class GetFromString {
-  string_view src;
-  size_t i=0;
- public:
-  explicit GetFromString(string_view src):src(src) {}
-  int operator()() { return i<src.size()?src[i++]:-1; }
-};
 
 template <class X>
 string shared_typeid(const shared_ptr<X>& p)
