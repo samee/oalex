@@ -23,6 +23,7 @@ using std::pair;
 using std::string;
 using std::uniform_int_distribution;
 
+using oalex::GetFromString;
 using oalex::Input;
 
 namespace {

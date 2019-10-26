@@ -52,19 +52,6 @@ template <class X>
 string shared_typeid(const shared_ptr<X>& p)
   { return p?typeid(*p).name():"*nullptr"; }
 
-string debug(const vector<string>& v) {
-  if(v.empty()) return "{}";
-  ostringstream os;
-  os<<'{'<<v[0];
-  for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
-  os<<'}';
-  return os.str();
-}
-
-ostream& operator<<(ostream& os,const vector<string>& v) {
-  return os<<debug(v);
-}
-
 vector<string> diagSetMessages(const set<const Diag*>& diagitems) {
   vector<string> msgs;
   for(const Diag* d:diagitems) msgs.push_back(d->msg);  // die if d==nullptr
@@ -90,8 +77,8 @@ void testDiagSetGather() {
 
   vector<string> msg_observed=diagSetMessages(dsroot->gather());
   if(msg!=msg_observed) {
-    BugMe<<"DiagSet::Gather returned unexpected set: "<<debug(msg_observed)
-         <<" != "<<debug(msg);
+    BugMe<<"DiagSet::Gather returned unexpected set: "<<msg_observed
+         <<" != "<<msg;
   }
 }
 
@@ -107,15 +94,14 @@ void testNullDiagsIgnored() {
 
   vector<string> msg_observed=diagSetMessages(d->gather());
   if(msg!=msg_observed) {
-    BugMe<<"null diags caused problems: "<<debug(msg_observed)<<" != "
-         <<debug(msg);
+    BugMe<<"null diags caused problems: "<<msg_observed<<" != "<<msg;
   }
 }
 
 void testDiagNullConcat() {
   if(auto nullcat=concat(SharedDiagSet(),SharedDiagSet())) {
     BugMe<<"Concat(nullptr,nullptr) returned non-null: "
-         <<debug(diagSetMessages(nullcat));
+         <<diagSetMessages(nullcat);
   }
   vector<shared_ptr<const Diag>> diagitems={
     make_shared<const Diag>(0,1,"msg1"),
@@ -123,12 +109,12 @@ void testDiagNullConcat() {
   auto diags=make_shared<const DiagSet>(diagitems.begin(),diagitems.end());
   auto r1=concat(diags,nullptr);
   if(r1!=diags) {
-    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r1))
+    BugMe<<"Concat(diags,nullptr) produced "<<diagSetMessages(r1)
          <<" != {msg1,msg2}";
   }
   auto r2=concat(nullptr,diags);
   if(r2!=diags) {
-    BugMe<<"Concat(diags,nullptr) produced "<<debug(diagSetMessages(r2))
+    BugMe<<"Concat(diags,nullptr) produced "<<diagSetMessages(r2)
          <<" != {msg1,msg2}";
   }
 }
@@ -487,7 +473,7 @@ void test() {
       continue;
     vector<string> obs=gather(dynamic_cast<const ListVal*>(v.get()));
     if(obs!=outputs[i])
-      BugMe<<"listParse mismatch "<<debug(obs)<<" != "<<debug(outputs[i]);
+      BugMe<<"listParse mismatch "<<obs<<" != "<<outputs[i];
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
@@ -721,7 +707,7 @@ void test() {
   vector<string> observed_diags=diagSetMessages(diags);
   if(observed_diags!=expected_diags)
     BugMe<<"Diag gathering from glrParseUnique is unexpected: "
-         <<debug(observed_diags)<<" != "<<expected_diags;
+         <<observed_diags<<" != "<<expected_diags;
 }
 
 }  // namespace parseReturnsDiags
@@ -742,7 +728,7 @@ void test() {
   vector<string> expected_diags={"No input provided"};
   if(observed_diags!=expected_diags)
     BugMe<<"Diag gathering from glrParseUnique is unexpected: "
-         <<debug(observed_diags)<<" != "<<expected_diags;
+         <<observed_diags<<" != "<<expected_diags;
 
   // Now let's make empty string a valid input.
   Dfa dfa2=dfa1;
@@ -754,7 +740,7 @@ void test() {
          <<" != typeid(EmptyVal)";
   if(diags)
     BugMe<<"Was not expecting diagnostics on empty input. Got "
-         <<debug(diagSetMessages(diags));
+         <<diagSetMessages(diags);
 }
 
 }  // namespace emptyStringParsing
@@ -769,7 +755,7 @@ void test() {
   vector<string> expected_diags={"Unexpected character s"};
   if(observed_diags!=expected_diags)
     BugMe<<"Unexpected input characters not being properly reported: "
-         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+         <<observed_diags<<" != "<<expected_diags;
 }
 
 }  // namespace unexpectedChar
@@ -806,7 +792,7 @@ void test() {
   vector<string> expected_diags={"Abandoning string foo"};
   if(observed_diags!=expected_diags)
     BugMe<<"lastKnownDiags_ returning something unexpected: "
-         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+         <<observed_diags<<" != "<<expected_diags;
 }
 
 }  // namespace lastKnownDiags
@@ -833,7 +819,7 @@ void test() {
   vector<string> expected_diags={"Incomplete input"};
   if(observed_diags!=expected_diags)
     BugMe<<"lastKnownDiags_ returning something unexpected: "
-         <<debug(observed_diags)<<" != "<<debug(expected_diags);
+         <<observed_diags<<" != "<<expected_diags;
 
 }
 

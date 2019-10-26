@@ -22,6 +22,8 @@
 #include <string_view>
 #include "util.h"
 
+namespace oalex {
+
 // Definition of non-static global variable, not declaration.
 bool someError=false;
 struct TestErrImpl {
@@ -49,3 +51,13 @@ class GetFromString {
   int operator()() { return i<src.size()?src[i++]:-1; }
 };
 
+inline std::ostream&
+operator<<(std::ostream& os,const std::vector<std::string>& v) {
+  if(v.empty()) return os<<"{}";
+  os<<'{'<<v[0];
+  for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
+  os<<'}';
+  return os;
+}
+
+}  // namespace oalex
