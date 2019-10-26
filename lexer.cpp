@@ -22,7 +22,7 @@
      * Ignore comments and non-important whitespaces, still preserving indent
        information where necessary.
      * Output tokens:
-         - SectionHeading(string)
+         - SectionHeader(string)
          - alnum words
          - quoted strings, distinguising between quoting styles.
          - regexes
@@ -33,45 +33,192 @@
     is commented. It understands the structure and layout of the code, not
     what it means.
 
-    It's output is thus still tree-structured.
+    It's output is thus still tree-structured, not a token-stream.
 */
 
+#include "lexer.h"
+
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
 
 #include "segment.h"
 #include "input_view_manual.h"
+#include "util.h"
 
 using std::function;
+using std::nullopt;
 using std::numeric_limits;
+using std::optional;
 using std::shared_ptr;
 using std::string;
 using std::string_view;
+using std::tie;
 using std::vector;
 
 namespace oalex::lex {
 
-enum class LexSegmentTag {
-  alnumToken = Segment::lastReservedTag + 1,
-  section,
-  quotedString,
-  bracketed,
-};
+namespace {
 
-struct AlnumToken : Segment {
-  static constexpr auto type_tag = tagint_t(LexSegmentTag::alnumToken);
-  string token;
-  AlnumToken(size_t st,size_t en,string_view token)
-    : Segment{st,en,type_tag}, token(string(token)) {}
-};
+bool isSectionHeaderNonSpace(char ch) {
+  return (ch>='0' && ch<='9')
+      || (ch>='A' && ch<='Z')
+      || (ch>='a' && ch<='z')
+      || ch=='_';
+}
 
-// The main lexer. See top of this file for why we use the term lexer for
-// non-regular language parsing. See dfa.h for getch() convention.
-vector<shared_ptr<Segment>> lex(Input& input) {
-  vector<shared_ptr<Segment>> rv;
-  // ... continue here.
+// Consumes everything from comment marker upto and including the newline.
+bool lexComment(const Input& input, size_t& i) {
+  if(i>=input.size()) return false;
+  if(input[i]!='#') return false;
+  for(; i<input.size() && input[i]!='\n'; ++i);
+  if(i<input.size()) ++i;  // Consume trailing newline if any.
+  return true;
+}
+
+void skipSpaceTab(const Input& input, size_t& i) {
+  for(; i<input.size() && (input[i]==' ' || input[i]=='\t'); ++i);
+}
+
+// I would have loved to require comments about space. Someday I will.
+bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
+  size_t j=i;
+  skipSpaceTab(input,j);
+  if(j>=input.size() || lexComment(input,j)) i=j;
+  else if(input[j]=='\n') i=j+1;  // all blanks, no comment.
+  else return false;
+  return true;
+}
+
+// Blank or comment-only line.
+bool lexBlankLine(const Input& input, size_t& i) {
+  if(i>=input.size() || i!=input.bol(i)) return false;
+  return lexSpaceCommentsToLineEnd(input,i);
+}
+
+optional<AlnumToken> lexHeaderWord(const Input& input, size_t& i) {
+  size_t j=i;
+  while(j<input.size() && isSectionHeaderNonSpace(input[j])) ++j;
+  if(i==j) return nullopt;
+  else {
+    size_t iold=i; i=j;
+    return AlnumToken(iold,j,input);
+  }
+}
+
+// TODO distinguish between hard and soft return false.
+// Return conditions:
+//   * Success: Return has_value(), `i` has been incremented past the end.
+//   * Not recognized: Try parsing it as something else.
+//   * We know enough to raise an error. Note: not all diags are errors.
+//     But errors should prevent lexing from proceeding to parsing.
+//     Fatal errors are just exceptions.
+// From the above, we can now settle on two different kinds of parsing
+// functions:
+//   * Ones that are simple: words, tokens, comments.
+//       - They will never update diagnostics: they have insufficient context.
+//       - Their signature will be: foo(const Input& input,size_t& i);
+//       - Return value either optional or bool.
+//       - On failure, caller will try parsing it as something else.
+//   * Others are invoked from the top-ish level.
+//       - They will parse more complicated structures: e.g. section header.
+//         parenthesized expressions.
+//       - They can produce diagnostics even on successful parsing:
+//         e.g. warnings, info.
+//       - They can consume inputs even on failure. After some processing, they
+//         can decide not to backtrack any more, since it could not have been
+//         anything else.
+//       - Will likely depend on parser-global bools.
+//       - Likely signature: foo(const Lexer&,size_t&);
+
+optional<vector<AlnumToken>>
+lexSectionHeaderContents(const Input& input, size_t& i) {
+  size_t j = i;
+  vector<AlnumToken> rv;
+  while(j < input.size()) {
+    char ch = input[j];
+    if(ch=='\n' || ch=='#') {
+      if(lexSpaceCommentsToLineEnd(input,j)) break;
+      else BugDie()<<"Couldn't lex space-comments at "<<j;
+    }else if(ch==' ' || ch=='\t') skipSpaceTab(input,j);
+    else if(isSectionHeaderNonSpace(ch)) {
+      if(optional<AlnumToken> token = lexHeaderWord(input,j))
+        rv.push_back(*token);
+      else return nullopt;
+    }else return nullopt;
+  }
+  i = j;
+  return rv;
+}
+
+optional<size_t> lexDashLine(const Input& input, size_t& i) {
+  if(i>=input.size()) return nullopt;
+  size_t j=i;
+  skipSpaceTab(input,j);
+  if(j>=input.size() || input[j]!='-') return nullopt;
+  size_t rv=j;
+  while(j<input.size() && input[j]=='-') ++j;
+  if(!lexSpaceCommentsToLineEnd(input,j)) return nullopt;
+  else { i=j; return rv; }
+}
+
+string locationString(const Diag& diag) {
+  if(diag.stLine != diag.enLine) return Str()<<diag.stLine<<'-'<<diag.enLine;
+  else if(diag.stPos != diag.enPos)
+    return Str()<<diag.stLine<<':'<<diag.stPos<<'-'<<diag.enPos;
+  else return Str()<<diag.stLine<<':'<<diag.stPos;
+}
+
+string severityString(Diag::Severity sev) {
+  switch(sev) {
+    case Diag::error: return "error";
+    case Diag::warning: return "warning";
+    case Diag::note: return "note";
+    default: BugDie()<<"Diagnostics has a strange severity: "<<sev;
+  }
+}
+
+}  // namespace
+
+Diag::operator string() const {
+  return locationString(*this) + ": " + severityString(severity) + ": " + msg;
+}
+
+// Changes `i` iff:
+//   * We find a content line followed immediately by a line of just dashes,
+//     with no intervening blank line.
+//   * Any leading or trailing space or tabs are discarded. So are comments.
+// If any of these conditions fail, we promptly return nullopt. A content line
+// is one where the only non-comment characters are in /[0-9A-Za-z_ \t]+/.
+//
+// Additionally, we produce errors if:
+//   * They are indented.
+//   * They are neighboring other non-blank lines.
+// In these two cases, we still return the header tokens.
+// TODO: We should also produce errors if there is an invalid character in
+// an otherwise good section header. The same for some odd character in a line
+// overwhelmed with dashes.
+optional<vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i) {
+  const Input& input=lex.input;
+  size_t j=i;
+
+  while(lexBlankLine(input,j));
+  optional<vector<AlnumToken>> rv = lexSectionHeaderContents(input,j);
+  if(!rv) return nullopt;
+  optional<size_t> stDash=lexDashLine(input,j);
+  if(!stDash) return nullopt;
+  i = j;
+
+  size_t stCont=rv->at(0).stPos;
+  if(!isSectionHeaderNonSpace(input[input.bol(stCont)]))
+    lex.diags.emplace_back(input,input.bol(stCont),stCont,Diag::error,
+        Str() << "Section headers must not be indented");
+  if(input[input.bol(*stDash)] != '-')
+    lex.diags.emplace_back(input,input.bol(*stDash),*stDash,Diag::error,
+        Str() << "Dashes in a section header must not be indented");
+
   return rv;
 }
 
