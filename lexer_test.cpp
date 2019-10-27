@@ -1,10 +1,14 @@
 #include "lexer.h"
+
+#include <string_view>
+
 #include "test_util.h"
 #include "util.h"
 using std::cerr;
 using std::endl;
 using std::optional;
 using std::string;
+using std::string_view;
 using std::vector;
 using oalex::operator<<;
 using oalex::BugDie;
@@ -13,6 +17,7 @@ using oalex::Input;
 using oalex::lex::AlnumToken;
 using oalex::lex::Diag;
 using oalex::lex::Lexer;
+using oalex::lex::QuotedString;
 using oalex::lex::lexSectionHeader;
 
 namespace {
@@ -67,8 +72,17 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   }
 }
 
-bool isSubstr(const string& s, const string& t) {
+bool isSubstr(string_view s, string_view t) {
   return t.find(s) != string::npos;
+}
+
+void assertHasDiagWithSubstr(const char testName[], const vector<Diag>& diags,
+                             string_view expectedDiag) {
+  if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
+  for(const Diag& d : diags) if(isSubstr(expectedDiag, d.msg)) return;
+  cerr<<"Got diags:\n";
+  for(const Diag& d : diags) cerr<<" "<<string(d)<<endl;
+  BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
 }
 
 void headerFailureImpl(const char testInput[], const char testName[],
@@ -78,13 +92,40 @@ void headerFailureImpl(const char testInput[], const char testName[],
   optional<vector<AlnumToken>> res = lexSectionHeader(lex, i);
   if(res && lex.diags.empty())
     BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
-  if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
-  for(const Diag& d : lex.diags) {
-    if(isSubstr(expectedDiag, d.msg)) return;
+  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
+}
+
+const char goodString[] = "\"Hello world\"";
+const char goodStringWithEscapes[] = R"("Hello world \n \" \t \\ \x41")";
+const char stringDoesntEnd[] = "\"Foo";
+const char multiLineString[] = "\"Foo\nBar\"";
+const char incompleteEscape[] = "\"Foo\\";
+const char invalidEscape[] = "\"\\&\"";
+const char incompleteHex[] = R"("Foo\xF)";
+const char invalidHex[] = R"("\xag")";
+
+void stringSuccessImpl(const char testInput[], const char testName[],
+    string_view expected) {
+  Lexer lex{Input(GetFromString(testInput)),{}};
+  size_t i = 0;
+  optional<QuotedString> res = lexQuotedString(lex, i);
+  if(!res || !lex.diags.empty()) {
+    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+    BugDie()<<testName<<" failed";
+  }else {
+    if(expected != res->s)
+      BugDie()<<testName<<": "<<expected<<" != "<<res->s;
   }
-  cerr<<"Got diags:\n";
-  for(const Diag& d : lex.diags) cerr<<"  "<<string(d)<<endl;
-  BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
+}
+
+void stringFailureImpl(const char testInput[], const char testName[],
+    string_view expectedDiag) {
+  Lexer lex{Input(GetFromString(testInput)),{}};
+  size_t i = 0;
+  optional<QuotedString> res = lexQuotedString(lex, i);
+  if(res && lex.diags.empty())
+    BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
+  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
 }
 
 }  // namespace
@@ -92,6 +133,8 @@ void headerFailureImpl(const char testInput[], const char testName[],
 #define headerSuccess(test, expected) headerSuccessImpl(test, #test, expected)
 #define headerFailure(test, expectedDiag) \
   headerFailureImpl(test, #test, expectedDiag)
+#define stringSuccess(test, expected) stringSuccessImpl(test, #test, expected)
+#define stringFailure(test, expected) stringFailureImpl(test, #test, expected)
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -101,4 +144,13 @@ int main() {
   headerFailure(headerIndented, "Section headers must not be indented");
   headerFailure(headerDashIndented,
       "Dashes in a section header must not be indented");
+
+  stringSuccess(goodString, "Hello world");
+  stringSuccess(goodStringWithEscapes, "Hello world \n \" \t \\ A");
+  stringFailure(stringDoesntEnd, "String literal never ends");
+  stringFailure(multiLineString, "Unexpected end of line");
+  stringFailure(incompleteEscape, "Incomplete escape");
+  stringFailure(invalidEscape, "Invalid escape");
+  stringFailure(incompleteHex, "Incomplete hex");
+  stringFailure(invalidHex, "Invalid hex");
 }

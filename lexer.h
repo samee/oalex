@@ -39,12 +39,28 @@ struct AlnumToken : LexSegment {
   const std::string& operator*() const { return token; }
 };
 
+struct QuotedString : LexSegment {
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
+  std::string s;  // escape codes already interpreted.
+  QuotedString(size_t st,size_t en,std::string_view s)
+    : LexSegment(st,en,type_tag), s(s) {}
+};
+
+struct nullopt_t {
+  template <class T> operator std::optional<T>() const { return std::nullopt; }
+};
+
 struct Lexer {
   Input input;
   std::vector<Diag> diags;
-  size_t maxLineLength=5000;
+  size_t maxLineLength = 5000;  // TODO: use this.
+
+  nullopt_t Error(size_t st,size_t en,std::string msg);
+  nullopt_t Warning(size_t st,size_t en,std::string msg);
+  nullopt_t Note(size_t st,size_t en,std::string msg);
 };
 
 std::optional<std::vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i);
+std::optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i);
 
 }  // namespace oalex::lex

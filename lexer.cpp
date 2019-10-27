@@ -53,6 +53,7 @@ using std::nullopt;
 using std::numeric_limits;
 using std::optional;
 using std::shared_ptr;
+using std::stoi;
 using std::string;
 using std::string_view;
 using std::tie;
@@ -180,7 +181,77 @@ string severityString(Diag::Severity sev) {
   }
 }
 
+optional<char> lexHexEscape(Lexer& lex, size_t& i) {
+  const Input& input = lex.input;
+  string_view code = input.substr(i, 2);  // Force read before comparing size.
+  if(code.size() < 2)
+    return lex.Error(i-2,input.size(),"Incomplete hex code");
+  if(!isxdigit(code[0]) || !isxdigit(code[1]))
+    return lex.Error(i,i+2,"Invalid hex code");
+  i += 2;
+  return stoi(string(code),0,16);
+}
+
+optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
+  const Input& input = lex.input;
+  if(i>=input.size()) return lex.Error(i-1,i,"Incomplete escape code");
+  char ch;
+  switch(input[i]) {
+    case '\\': ch = '\\'; break;
+    case 'n': ch = '\n'; break;
+    case 't': ch = '\t'; break;
+    case '"': ch = '"'; break;
+    case 'x': return lexHexEscape(lex, ++i);
+    default: return lex.Error(i-1,i+1,"Invalid escape code");
+  }
+  ++i;
+  return ch;
+}
+
 }  // namespace
+
+nullopt_t Lexer::Error(size_t st, size_t en, string msg) {
+  this->diags.emplace_back(this->input, st, en, Diag::error, std::move(msg));
+  return nullopt_t();
+}
+
+nullopt_t Lexer::Warning(size_t st, size_t en, string msg) {
+  this->diags.emplace_back(this->input, st, en, Diag::warning, std::move(msg));
+  return nullopt_t();
+}
+
+nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
+  this->diags.emplace_back(this->input, st, en, Diag::note, std::move(msg));
+  return nullopt_t();
+}
+
+// TODO Lexer::Error(i,j,msg);
+optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
+  const Input& input = lex.input;
+  if(i>=input.size() || input[i]!='"') return nullopt;
+  size_t j = i;
+  string s;
+  bool error = false;
+  ++j;
+  while(j < input.size()) {
+    if(input[j] == '"') {
+      size_t oldi = i;
+      i = ++j;
+      if(!error) return QuotedString(oldi,j,s);
+      else return nullopt;
+    }
+    else if(input[j] == '\n') {
+      lex.Error(i,j,"Unexpected end of line");
+      i = ++j;
+      return nullopt;
+    }else if(input[j] == '\\') {
+      if(optional<char> escres = lexQuotedEscape(lex, ++j)) s += *escres;
+      else error = true;
+    }else s += input[j++];
+  }
+  lex.Error(i,j,"String literal never ends");
+  return nullopt;
+}
 
 Diag::operator string() const {
   return locationString(*this) + ": " + severityString(severity) + ": " + msg;
@@ -213,10 +284,10 @@ optional<vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i) {
 
   size_t stCont=rv->at(0).stPos;
   if(!isSectionHeaderNonSpace(input[input.bol(stCont)]))
-    lex.diags.emplace_back(input,input.bol(stCont),stCont,Diag::error,
+    lex.Error(input.bol(stCont),stCont,
         Str() << "Section headers must not be indented");
   if(input[input.bol(*stDash)] != '-')
-    lex.diags.emplace_back(input,input.bol(*stDash),*stDash,Diag::error,
+    lex.Error(input.bol(*stDash),*stDash,
         Str() << "Dashes in a section header must not be indented");
 
   return rv;
