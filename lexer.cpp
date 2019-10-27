@@ -225,7 +225,6 @@ nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
   return nullopt_t();
 }
 
-// TODO Lexer::Error(i,j,msg);
 optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
   if(i>=input.size() || input[i]!='"') return nullopt;
