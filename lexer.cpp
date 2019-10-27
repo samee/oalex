@@ -50,6 +50,7 @@
 
 using std::function;
 using std::nullopt;
+using std::nullopt_t;
 using std::numeric_limits;
 using std::optional;
 using std::shared_ptr;
@@ -212,17 +213,17 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
 
 nullopt_t Lexer::Error(size_t st, size_t en, string msg) {
   this->diags.emplace_back(this->input, st, en, Diag::error, std::move(msg));
-  return nullopt_t();
+  return nullopt;
 }
 
 nullopt_t Lexer::Warning(size_t st, size_t en, string msg) {
   this->diags.emplace_back(this->input, st, en, Diag::warning, std::move(msg));
-  return nullopt_t();
+  return nullopt;
 }
 
 nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
   this->diags.emplace_back(this->input, st, en, Diag::note, std::move(msg));
-  return nullopt_t();
+  return nullopt;
 }
 
 optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {

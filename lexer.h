@@ -46,18 +46,14 @@ struct QuotedString : LexSegment {
     : LexSegment(st,en,type_tag), s(s) {}
 };
 
-struct nullopt_t {
-  template <class T> operator std::optional<T>() const { return std::nullopt; }
-};
-
 struct Lexer {
   Input input;
   std::vector<Diag> diags;
   size_t maxLineLength = 5000;  // TODO: use this.
 
-  nullopt_t Error(size_t st,size_t en,std::string msg);
-  nullopt_t Warning(size_t st,size_t en,std::string msg);
-  nullopt_t Note(size_t st,size_t en,std::string msg);
+  std::nullopt_t Error(size_t st,size_t en,std::string msg);
+  std::nullopt_t Warning(size_t st,size_t en,std::string msg);
+  std::nullopt_t Note(size_t st,size_t en,std::string msg);
 };
 
 std::optional<std::vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i);
