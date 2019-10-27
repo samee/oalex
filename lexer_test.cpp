@@ -42,16 +42,16 @@ Not a header             # Followed by blank lines.
 )";
 
 const char headerIndented[] = R"(
-  Not a header   # Each line has a space
+  Not a header   # Content line has a space
 --------------
 )";
 
 const char headerDashIndented[] = R"(
-Not a header   # Each line has a space
-  ------------
+Not a header
+  ------------   # Dash line has a space
 )";
 
-void testSuccessImpl(const char testInput[], const char testName[],
+void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
   Lexer lex{Input(GetFromString(testInput)),{}};
   size_t i = 0;
@@ -71,7 +71,7 @@ bool isSubstr(const string& s, const string& t) {
   return t.find(s) != string::npos;
 }
 
-void testFailureImpl(const char testInput[], const char testName[],
+void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
   Lexer lex{Input(GetFromString(testInput)),{}};
   size_t i = 0;
@@ -89,16 +89,16 @@ void testFailureImpl(const char testInput[], const char testName[],
 
 }  // namespace
 
-#define testSuccess(test, expected) testSuccessImpl(test, #test, expected)
-#define testFailure(test, expectedDiag) \
-  testFailureImpl(test, #test, expectedDiag)
+#define headerSuccess(test, expected) headerSuccessImpl(test, #test, expected)
+#define headerFailure(test, expectedDiag) \
+  headerFailureImpl(test, #test, expectedDiag)
 
 int main() {
-  testSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
-  testSuccess(goodHeader2, (vector<string>{"Header", "in", "the", "middle"}));
-  testFailure(headerWithComma, "");
-  testFailure(headerWithExtraBlank, "");
-  testFailure(headerIndented, "Section headers must not be indented");
-  testFailure(headerDashIndented,
+  headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
+  headerSuccess(goodHeader2, (vector<string>{"Header", "in", "the", "middle"}));
+  headerFailure(headerWithComma, "");
+  headerFailure(headerWithExtraBlank, "");
+  headerFailure(headerIndented, "Section headers must not be indented");
+  headerFailure(headerDashIndented,
       "Dashes in a section header must not be indented");
 }
