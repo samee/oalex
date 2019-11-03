@@ -73,22 +73,22 @@ bool isSectionHeaderNonSpace(char ch) {
 
 // Consumes everything from comment marker upto and including the newline.
 bool lexComment(const Input& input, size_t& i) {
-  if(i>=input.size()) return false;
+  if(!input.endsAfter(i)) return false;
   if(input[i]!='#') return false;
-  for(; i<input.size() && input[i]!='\n'; ++i);
-  if(i<input.size()) ++i;  // Consume trailing newline if any.
+  for(; input.endsAfter(i) && input[i]!='\n'; ++i);
+  if(input.endsAfter(i)) ++i;  // Consume trailing newline if any.
   return true;
 }
 
 void skipSpaceTab(const Input& input, size_t& i) {
-  for(; i<input.size() && (input[i]==' ' || input[i]=='\t'); ++i);
+  for(; input.endsAfter(i) && (input[i]==' ' || input[i]=='\t'); ++i);
 }
 
 // I would have loved to require comments about space. Someday I will.
 bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
   size_t j=i;
   skipSpaceTab(input,j);
-  if(j>=input.size() || lexComment(input,j)) i=j;
+  if(!input.endsAfter(j) || lexComment(input,j)) i=j;
   else if(input[j]=='\n') i=j+1;  // all blanks, no comment.
   else return false;
   return true;
@@ -96,13 +96,13 @@ bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
 
 // Blank or comment-only line.
 bool lexBlankLine(const Input& input, size_t& i) {
-  if(i>=input.size() || i!=input.bol(i)) return false;
+  if(!input.endsAfter(i) || i!=input.bol(i)) return false;
   return lexSpaceCommentsToLineEnd(input,i);
 }
 
 optional<AlnumToken> lexHeaderWord(const Input& input, size_t& i) {
   size_t j=i;
-  while(j<input.size() && isSectionHeaderNonSpace(input[j])) ++j;
+  while(input.endsAfter(j) && isSectionHeaderNonSpace(input[j])) ++j;
   if(i==j) return nullopt;
   else {
     size_t iold=i; i=j;
@@ -139,7 +139,7 @@ optional<vector<AlnumToken>>
 lexSectionHeaderContents(const Input& input, size_t& i) {
   size_t j = i;
   vector<AlnumToken> rv;
-  while(j < input.size()) {
+  while(input.endsAfter(j)) {
     char ch = input[j];
     if(ch=='\n' || ch=='#') {
       if(lexSpaceCommentsToLineEnd(input,j)) break;
@@ -156,12 +156,12 @@ lexSectionHeaderContents(const Input& input, size_t& i) {
 }
 
 optional<size_t> lexDashLine(const Input& input, size_t& i) {
-  if(i>=input.size()) return nullopt;
+  if(!input.endsAfter(i)) return nullopt;
   size_t j=i;
   skipSpaceTab(input,j);
-  if(j>=input.size() || input[j]!='-') return nullopt;
+  if(!input.endsAfter(j) || input[j]!='-') return nullopt;
   size_t rv=j;
-  while(j<input.size() && input[j]=='-') ++j;
+  while(input.endsAfter(j)  && input[j]=='-') ++j;
   if(!lexSpaceCommentsToLineEnd(input,j)) return nullopt;
   else { i=j; return rv; }
 }
@@ -184,18 +184,17 @@ string severityString(Diag::Severity sev) {
 
 optional<char> lexHexEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
-  string_view code = input.substr(i, 2);  // Force read before comparing size.
-  if(code.size() < 2)
-    return lex.Error(i-2,input.size(),"Incomplete hex code");
-  if(!isxdigit(code[0]) || !isxdigit(code[1]))
+  if(!input.endsAfter(i+1))
+    return lex.Error(i-2,i-2,"Incomplete hex code");
+  if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
     return lex.Error(i,i+2,"Invalid hex code");
   i += 2;
-  return stoi(string(code),0,16);
+  return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
 optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
-  if(i>=input.size()) return lex.Error(i-1,i,"Incomplete escape code");
+  if(!input.endsAfter(i)) return lex.Error(i-1,i,"Incomplete escape code");
   char ch;
   switch(input[i]) {
     case '\\': ch = '\\'; break;
@@ -212,7 +211,7 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
 // FIXME Diag ranges are inclusive.
 size_t findEndOfLine(const Lexer& lex, size_t i) {
   size_t eol = i;
-  for(; eol < lex.input.size(); ++eol) {
+  for(; lex.input.endsAfter(eol); ++eol) {
     if(eol-i > lex.maxLineLength) {
       return Input::npos;
     }
@@ -230,7 +229,7 @@ optional<string_view> getline(const Lexer& lex, size_t& i) {
   if(eol == Input::npos) return nullopt;
   string_view rv = lex.input.substr(i, eol-i);
   i += rv.size();
-  if(i < lex.input.size()) {
+  if(lex.input.endsAfter(i)) {
     if(lex.input[i] == '\n') ++i;
     else BugDie()<<"Was expecting a newline in position "<<i;
   }
@@ -256,12 +255,12 @@ nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
 
 optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
-  if(i>=input.size() || input[i]!='"') return nullopt;
+  if(!input.endsAfter(i) || input[i]!='"') return nullopt;
   size_t j = i;
   string s;
   bool error = false;
   ++j;
-  while(j < input.size()) {
+  while(input.endsAfter(j)) {
     if(input[j] == '"') {
       size_t oldi = i;
       i = ++j;
@@ -287,7 +286,7 @@ optional<string> promote_optional(optional<string_view> s) {
 
 optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
   Input& input = lex.input;
-  if(i>=input.size() || i!=input.bol(i) || input.substr(i,3)!="```")
+  if(!input.endsAfter(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   size_t j = i;
   // TODO only allow alphanumeric and space. No comments or punctuation.
@@ -298,7 +297,7 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
   // Valid starting delimiter, so now we are commited to changing i.
   size_t delimStart = i;
   size_t inputStart = i = j;
-  while(i < input.size()) {
+  while(input.endsAfter(i)) {
     size_t lineStart = i;
     optional<string_view> line = getline(lex, i);
     if(line == delim) {
