@@ -76,11 +76,11 @@ char Input::operator[](size_t i) const {
   return buf_[i-start_pos_];
 }
 
-string_view Input::substr(size_t st,size_t count) const {
-  if(st < start_pos_)
-    Bug()<<"Out of bound error, already forgotten "<<st<<'.';
-  peekTo(st+count);
-  return string_view(buf_).substr(st-start_pos_,count);
+string_view Input::substr(size_t pos, size_t count) const {
+  if(pos < start_pos_)
+    Bug()<<"Out of bound error, already forgotten "<<pos<<'.';
+  peekTo(pos+count);
+  return string_view(buf_).substr(pos-start_pos_,count);
 }
 
 size_t Input::bol(size_t i) const {

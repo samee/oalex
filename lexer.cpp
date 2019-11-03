@@ -209,6 +209,34 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   return ch;
 }
 
+// FIXME Diag ranges are inclusive.
+size_t findEndOfLine(const Lexer& lex, size_t i) {
+  size_t eol = i;
+  for(; eol < lex.input.size(); ++eol) {
+    if(eol-i > lex.maxLineLength) {
+      return Input::npos;
+    }
+    if(lex.input[eol] == '\n') return eol;
+  }
+  return eol;  // Sometimes there is no trailing newline.
+}
+
+// Can return nullopt() if the remaining line is longer than lex.maxLineLength.
+// Return value does *not* include trailing newline, if any.  However, i *is*
+// incremented past the newline so we are ready to read the next line if one
+// exists. We never care about whether or not the last line ends with a newline.
+optional<string_view> getline(const Lexer& lex, size_t& i) {
+  size_t eol = findEndOfLine(lex, i);
+  if(eol == Input::npos) return nullopt;
+  string_view rv = lex.input.substr(i, eol-i);
+  i += rv.size();
+  if(i < lex.input.size()) {
+    if(lex.input[i] == '\n') ++i;
+    else BugDie()<<"Was expecting a newline in position "<<i;
+  }
+  return rv;
+}
+
 }  // namespace
 
 nullopt_t Lexer::Error(size_t st, size_t en, string msg) {
@@ -251,6 +279,37 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   }
   lex.Error(i,j,"String literal never ends");
   return nullopt;
+}
+
+optional<string> promote_optional(optional<string_view> s) {
+  return s.has_value()?std::make_optional<string>(*s):nullopt;
+}
+
+optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
+  Input& input = lex.input;
+  if(i>=input.size() || i!=input.bol(i) || input.substr(i,3)!="```")
+    return nullopt;
+  size_t j = i;
+  // TODO only allow alphanumeric and space. No comments or punctuation.
+  // TODO Input::substr should be stable on getch().
+  optional<string> delim = promote_optional(getline(lex, j));
+  if(!delim.has_value()) return lex.Error(i, i, "Line is too long");
+
+  // Valid starting delimiter, so now we are commited to changing i.
+  size_t delimStart = i;
+  size_t inputStart = i = j;
+  while(i < input.size()) {
+    size_t lineStart = i;
+    optional<string_view> line = getline(lex, i);
+    if(line == delim) {
+      QuotedString s(delimStart, i-1,
+                     input.substr(inputStart, lineStart-inputStart));
+      input.forgetBefore(i);
+      return s;
+    }
+    if(!line.has_value()) return lex.Error(i, i, "Line is too long");
+  }
+  return lex.Error(delimStart, i, "Source block ends abruptly");
 }
 
 Diag::operator string() const {

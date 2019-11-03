@@ -128,6 +128,40 @@ void stringFailureImpl(const char testInput[], const char testName[],
   assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
 }
 
+const char delimSourceBlock[] = R"(```
+I can write whatever here I want to. Including
+``` as long as
+it's not on the only thing on the line.
+```)";
+
+const char delimSourceBlockCustom[] = R"(```foo
+Even this
+```
+Doesn't end the string
+```foo)";
+
+size_t delimSize(string_view s) { return s.find('\n'); }
+
+void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
+  // substr() counts the newline after the starting delimitter.
+  size_t dsize = delimSize(testInput);
+  string_view expected = testInput.substr(dsize+1, testInput.size()-2*dsize-1);
+
+  Lexer lex{Input(GetFromString(testInput)),{}};
+  size_t i = 0;
+  optional<QuotedString> res = lexDelimitedSource(lex, i);
+  if(!res || !lex.diags.empty()) {
+    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+    BugDie()<<testName<<" failed";
+  }else {
+    if(expected != res->s) {
+      oalex::Debug()<<expected.size()<<" "<<res->s.size();
+      BugDie()<<testName<<": "<<expected<<" != "<<res->s;
+    }
+  }
+}
+
+
 }  // namespace
 
 #define headerSuccess(test, expected) headerSuccessImpl(test, #test, expected)
@@ -135,6 +169,7 @@ void stringFailureImpl(const char testInput[], const char testName[],
   headerFailureImpl(test, #test, expectedDiag)
 #define stringSuccess(test, expected) stringSuccessImpl(test, #test, expected)
 #define stringFailure(test, expected) stringFailureImpl(test, #test, expected)
+#define delimSourceBlockSuccess(test) delimSourceBlockSuccessImpl(test, #test)
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -153,4 +188,7 @@ int main() {
   stringFailure(invalidEscape, "Invalid escape");
   stringFailure(incompleteHex, "Incomplete hex");
   stringFailure(invalidHex, "Invalid hex");
+
+  delimSourceBlockSuccess(delimSourceBlock);
+  delimSourceBlockSuccess(delimSourceBlockCustom);
 }
