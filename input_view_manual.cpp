@@ -16,7 +16,7 @@
 #include "util.h"
 using std::make_pair;
 using std::pair;
-using std::string_view;
+using std::string;
 
 namespace oalex {
 
@@ -76,11 +76,11 @@ char Input::operator[](size_t i) const {
   return buf_[i-start_pos_];
 }
 
-string_view Input::substr(size_t pos, size_t count) const {
+string Input::substr(size_t pos, size_t count) const {
   if(pos < start_pos_)
     Bug()<<"Out of bound error, already forgotten "<<pos<<'.';
   peekTo(pos+count);
-  return string_view(buf_).substr(pos-start_pos_,count);
+  return buf_.substr(pos-start_pos_,count);
 }
 
 size_t Input::bol(size_t i) const {

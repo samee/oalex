@@ -74,11 +74,8 @@ class Input {
   //     convenient to use std::string instead.
   //
   // Like std::string::substr, if `count` is too large, we silently truncate
-  // the returned string. It may not stay valid after the next getch()
-  // or forgetBefore(). TODO make it stable on getch().
-  //
-  // Amortized O(1).
-  std::string_view substr(size_t pos, size_t count) const;
+  // the returned string.
+  std::string substr(size_t pos, size_t count) const;
 
  private:
   mutable std::string buf_;

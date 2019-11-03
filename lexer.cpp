@@ -224,10 +224,10 @@ size_t findEndOfLine(const Lexer& lex, size_t i) {
 // Return value does *not* include trailing newline, if any.  However, i *is*
 // incremented past the newline so we are ready to read the next line if one
 // exists. We never care about whether or not the last line ends with a newline.
-optional<string_view> getline(const Lexer& lex, size_t& i) {
+optional<string> getline(const Lexer& lex, size_t& i) {
   size_t eol = findEndOfLine(lex, i);
   if(eol == Input::npos) return nullopt;
-  string_view rv = lex.input.substr(i, eol-i);
+  string rv = lex.input.substr(i, eol-i);
   i += rv.size();
   if(lex.input.endsAfter(i)) {
     if(lex.input[i] == '\n') ++i;
@@ -280,10 +280,6 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   return nullopt;
 }
 
-optional<string> promote_optional(optional<string_view> s) {
-  return s.has_value()?std::make_optional<string>(*s):nullopt;
-}
-
 optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
   Input& input = lex.input;
   if(!input.endsAfter(i) || i!=input.bol(i) || input.substr(i,3)!="```")
@@ -291,7 +287,7 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
   size_t j = i;
   // TODO only allow alphanumeric and space. No comments or punctuation.
   // TODO Input::substr should be stable on getch().
-  optional<string> delim = promote_optional(getline(lex, j));
+  optional<string> delim = getline(lex, j);
   if(!delim.has_value()) return lex.Error(i, i, "Line is too long");
 
   // Valid starting delimiter, so now we are commited to changing i.
