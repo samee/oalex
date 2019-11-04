@@ -71,7 +71,7 @@ template <class X> std::ostream& operator<<(BugWarn&&, const X& x) {
   return std::cerr <<"Bug: " << x;
 }
 
-// Usage: std::string s = (Str<<"hello world "<<5);
+// Usage: std::string s = (Str()<<"hello world "<<5);
 struct Str {
   std::ostringstream os;
   operator std::string() const { return os.str(); }

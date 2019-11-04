@@ -19,6 +19,10 @@
 #define TEST_UTIL_H
 
 #include <iostream>
+#include <string_view>
+#include "util.h"
+
+namespace oalex {
 
 // Definition of non-static global variable, not declaration.
 bool someError=false;
@@ -32,3 +36,28 @@ struct TestErrImpl {
 
 #define TestErr TestErrImpl().start(__FILE__,__LINE__)
 
+// If I need to check BugDie later, I'll use std::set_terminate(). This can
+// happen if I worry about accidentally disabling checks. But for now, I am not
+// testing them since dying is never part of the API contract. They are all
+// internal bugs.
+#define BugMe oalex::BugDie()<<__func__<<": "
+
+// Useful as getch() callbacks in dfa.h and input_view_manual.h.
+class GetFromString {
+  std::string_view src;
+  size_t i=0;
+ public:
+  explicit GetFromString(std::string_view src):src(src) {}
+  int operator()() { return i<src.size()?src[i++]:-1; }
+};
+
+inline std::ostream&
+operator<<(std::ostream& os,const std::vector<std::string>& v) {
+  if(v.empty()) return os<<"{}";
+  os<<'{'<<v[0];
+  for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
+  os<<'}';
+  return os;
+}
+
+}  // namespace oalex
