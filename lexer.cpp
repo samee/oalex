@@ -110,7 +110,6 @@ optional<AlnumToken> lexHeaderWord(const Input& input, size_t& i) {
   }
 }
 
-// TODO distinguish between hard and soft return false.
 // Return conditions:
 //   * Success: Return has_value(), `i` has been incremented past the end.
 //   * Not recognized: Try parsing it as something else.
@@ -286,7 +285,6 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
     return nullopt;
   size_t j = i;
   // TODO only allow alphanumeric and space. No comments or punctuation.
-  // TODO Input::substr should be stable on getch().
   optional<string> delim = getline(lex, j);
   if(!delim.has_value()) return lex.Error(i, i, "Line is too long");
 

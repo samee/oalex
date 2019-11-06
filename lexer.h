@@ -49,7 +49,7 @@ struct QuotedString : LexSegment {
 struct Lexer {
   Input input;
   std::vector<Diag> diags;
-  size_t maxLineLength = 5000;  // TODO: use this.
+  size_t maxLineLength = 5000;
 
   std::nullopt_t Error(size_t st,size_t en,std::string msg);
   std::nullopt_t Warning(size_t st,size_t en,std::string msg);
