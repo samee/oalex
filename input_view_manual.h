@@ -75,6 +75,12 @@ class Input {
   //
   // Like std::string::substr, if `count` is too large, we silently truncate
   // the returned string.
+  //
+  // Idea: perhaps use:
+  //   struct string_substr { const string* s; uint32_t st,en; };
+  // Can also use size_t instead, but that risks increasing sizeof().
+  // Unlike std::string_view, it will stay valid even if s is appended to,
+  // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const;
 
  private:
