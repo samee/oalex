@@ -181,19 +181,24 @@ string severityString(Diag::Severity sev) {
   }
 }
 
+// For a "\xhh" code, this function assumes "\x" has been consumed, and now we
+// are just parsing the "hh" part. `i` points to what should be the first hex
+// digit.
 optional<char> lexHexEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.endsAfter(i+1))
     return lex.Error(i-2,i-2,"Incomplete hex code");
   if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
-    return lex.Error(i,i+2,"Invalid hex code");
+    return lex.Error(i-2,i-1,"Invalid hex code");
   i += 2;
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
+// For a backslash code, this function assumes `i` is already at the character
+// just after the backslash, inside a string literal.
 optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
-  if(!input.endsAfter(i)) return lex.Error(i-1,i,"Incomplete escape code");
+  if(!input.endsAfter(i)) return lex.Error(i-1,i-1,"Incomplete escape code");
   char ch;
   switch(input[i]) {
     case '\\': ch = '\\'; break;
@@ -201,13 +206,12 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
     case 'x': return lexHexEscape(lex, ++i);
-    default: return lex.Error(i-1,i+1,"Invalid escape code");
+    default: return lex.Error(i-1,i,"Invalid escape code");
   }
   ++i;
   return ch;
 }
 
-// FIXME Diag ranges are inclusive.
 size_t findEndOfLine(const Lexer& lex, size_t i) {
   size_t eol = i;
   for(; lex.input.endsAfter(eol); ++eol) {
@@ -252,6 +256,11 @@ nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
   return nullopt;
 }
 
+// It returns an error-free nullopt iff lex.input[i] is not a '"', in which case
+// the caller should try parsing something else. In all other cases, it will
+// either return a valid string, or nullopt with errors added to lex.diags. In
+// this case, increment `i` beyond the end of the next unescaped '"', or in case
+// of an unexpected end of line, beyond the next newline.
 optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.endsAfter(i) || input[i]!='"') return nullopt;
@@ -267,7 +276,7 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
       else return nullopt;
     }
     else if(input[j] == '\n') {
-      lex.Error(i,j,"Unexpected end of line");
+      lex.Error(j,j,"Unexpected end of line");
       i = ++j;
       return nullopt;
     }else if(input[j] == '\\') {
@@ -275,7 +284,8 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
       else error = true;
     }else s += input[j++];
   }
-  lex.Error(i,j,"String literal never ends");
+  lex.Error(i,j-1,"String literal never ends");
+  i = j;
   return nullopt;
 }
 
@@ -302,7 +312,7 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
     }
     if(!line.has_value()) return lex.Error(i, i, "Line is too long");
   }
-  return lex.Error(delimStart, i, "Source block ends abruptly");
+  return lex.Error(delimStart, i-1, "Source block ends abruptly");
 }
 
 Diag::operator string() const {
@@ -336,10 +346,10 @@ optional<vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i) {
 
   size_t stCont=rv->at(0).stPos;
   if(!isSectionHeaderNonSpace(input[input.bol(stCont)]))
-    lex.Error(input.bol(stCont),stCont,
+    lex.Error(input.bol(stCont),stCont-1,
         Str() << "Section headers must not be indented");
   if(input[input.bol(*stDash)] != '-')
-    lex.Error(input.bol(*stDash),*stDash,
+    lex.Error(input.bol(*stDash),*stDash-1,
         Str() << "Dashes in a section header must not be indented");
 
   return rv;
