@@ -31,7 +31,7 @@ namespace oalex {
 // It always tries to keep one extra character beyond what was already read with
 // operator[], so that the following loop will work:
 //
-//   for(size_t i=0; input.endsAfter(i); ++i) { process(input[i]); }
+//   for(size_t i=0; input.sizeGt(i); ++i) { process(input[i]); }
 //
 // input.size_ will change from npos to the real size as soon as the last
 // character is accessed.
@@ -53,7 +53,7 @@ class Input {
 
   void forgetBefore(size_t pos);   // Amortized O(1).
   char operator[](size_t sz) const;  // Amortized O(1).
-  bool endsAfter(size_t pos) const { peekTo(pos); return pos<size_; }
+  bool sizeGt(size_t pos) const { peekTo(pos); return pos<size_; }
 
   // Beginning-of-line index. Characters in this position may already have been
   // forgotten. But it is still useful for figuring out indentation.
