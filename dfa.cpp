@@ -529,7 +529,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
     else return {make_pair(nullptr,
                  diagSingleton(0,this->pos(),"Incomplete input"))};
   }
-  return std::move(rv);
+  return rv;
 }
 
 }  // namespace internal

@@ -43,6 +43,8 @@ using oalex::internal::GlrCtxTest;
 
 namespace {
 
+constexpr DfaLabel badLabel{numeric_limits<DfaLabel::int_type>::max()};
+
 void dieIfBad(const Dfa& dfa) {
   string checkRes=dfa.checkError();
   if(!checkRes.empty()) BugDie()<<checkRes;
@@ -132,7 +134,7 @@ const Dfa dfaCanon {
   {{},{}},             // labelsMap
   {0,1},               // statePrioMap
   0,                   // stState
-  -1                   // enLabel, glrParse() not invoked.
+  badLabel,            // enLabel, glrParse() not invoked.
 };
 
 void checksLabelsMapSize() {
@@ -226,7 +228,7 @@ const Dfa dfa{
   {{},{},{},{},{DfaLabel{0}},{},{}},        // labelsMap
   {0,1,2,3,4,5,6},                          // statePrioMap
   0,                                        // stState
-  -1,                                       // enLabel, glrParse() not invoked.
+  badLabel,                                 // enLabel, glrParse() not invoked.
 };
 
 void test() {

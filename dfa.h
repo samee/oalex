@@ -52,8 +52,8 @@
 
 namespace oalex {
 
-struct DfaState { using int_type=int32_t; int_type toInt; };
-struct DfaLabel { using int_type=int32_t; int_type toInt; };
+struct DfaState { using int_type=uint32_t; int_type toInt; };
+struct DfaLabel { using int_type=uint32_t; int_type toInt; };
 
 inline bool operator!=(DfaState a,DfaState b) { return a.toInt!=b.toInt; }
 inline bool operator==(DfaState a,DfaState b) { return a.toInt==b.toInt; }
@@ -86,7 +86,7 @@ std::string edgeDebug(const DfaEdge& e) noexcept;
 struct Dfa {
   std::vector<std::vector<DfaEdge>> adjList;
   std::vector<std::vector<DfaLabel>> labelsMap;
-  std::vector<int32_t> statePrioMap;
+  std::vector<DfaState::int_type> statePrioMap;
   DfaState stState;
   DfaLabel enLabel;
 
@@ -231,7 +231,7 @@ template <class DiagType,class ... Args>
 GssHooksRes abandonReduceWith(Args&& ... args) {
   GssHooksRes res(SharedVal(nullptr));
   res.diags.push_back(std::make_shared<DiagType>(std::forward<Args>(args)...));
-  return std::move(res);
+  return res;
 }
 
 inline GssHooksRes abandonReduce(size_t stPos,size_t enPos,std::string msg) {
