@@ -216,15 +216,15 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   return ch;
 }
 
-// Can return nullopt() if the remaining line is longer than lex.maxLineLength.
+// Can throw UserErrorEx if the remaining line is longer than lex.maxLineLength.
 // Return value does *not* include trailing newline, if any.  However, i *is*
 // incremented past the newline so we are ready to read the next line if one
 // exists. We never care about whether or not the last line ends with a newline.
-optional<string> getline(const Lexer& lex, size_t& i) {
+string getline(Lexer& lex, size_t& i) {
   size_t eol = i;
   bool nlend = false;
   for(; lex.input.sizeGt(eol); ++eol) {
-    if(eol-i > lex.maxLineLength) return nullopt;
+    if(eol-i > lex.maxLineLength) lex.Fatal(i, eol, "Line is too long");
     if(lex.input[eol]=='\n') { nlend = true; break; }
   }
   string rv = lex.input.substr(i, eol-i);
@@ -287,22 +287,20 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
     return nullopt;
   size_t j = i;
   // TODO only allow alphanumeric and space. No comments or punctuation.
-  optional<string> delim = getline(lex, j);
-  if(!delim.has_value()) return lex.Error(i, i, "Line is too long");
+  string delim = getline(lex, j);
 
   // Valid starting delimiter, so now we are commited to changing i.
   size_t delimStart = i;
   size_t inputStart = i = j;
   while(input.sizeGt(i)) {
     size_t lineStart = i;
-    optional<string_view> line = getline(lex, i);
+    string line = getline(lex, i);
     if(line == delim) {
       QuotedString s(delimStart, i-1,
                      input.substr(inputStart, lineStart-inputStart));
       input.forgetBefore(i);
       return s;
     }
-    if(!line.has_value()) return lex.Error(i, i, "Line is too long");
   }
   return lex.Error(delimStart, i-1, "Source block ends abruptly");
 }
