@@ -161,6 +161,27 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   }
 }
 
+const char indentedSourceBlock[] = R"(
+  foo
+  bar:
+    baz
+outside
+)";
+
+const char indentedSourceBlockParsed[] = "\nfoo\nbar:\n  baz\n";
+
+void indentedSourceBlockSuccess() {
+  Lexer lex{Input(GetFromString(indentedSourceBlock)),{}};
+  size_t i = 0;
+  optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
+  if(!res || !lex.diags.empty()) {
+    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+    BugMe<<"failed";
+  }
+  if(res->s != indentedSourceBlockParsed)
+    BugMe<<"'"<<res->s<<"' != '"<<indentedSourceBlockParsed<<"'";
+}
+
 
 }  // namespace
 
@@ -195,4 +216,5 @@ int main() {
 
   delimSourceBlockSuccess(delimSourceBlock);
   delimSourceBlockSuccess(delimSourceBlockCustom);
+  indentedSourceBlockSuccess();
 }

@@ -230,6 +230,45 @@ string getline(Lexer& lex, size_t& i) {
   return rv;
 }
 
+enum class IndentCmp { bad, lt, eq, gt };
+
+IndentCmp indentCmp(string_view indent1, string_view indent2) {
+  size_t i = 0;
+  while(true) {
+    if(i>=indent1.size() && i>=indent2.size()) return IndentCmp::eq;
+    if(i>=indent1.size()) return IndentCmp::lt;
+    if(i>=indent2.size()) return IndentCmp::eq;
+    if(indent1[i]!=indent2[i]) return IndentCmp::bad;
+    ++i;
+  }
+}
+
+optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
+  const Input& input = lex.input;
+  if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
+  size_t j = i;
+  skipSpaceTab(input,j);
+
+  // Whitespaces don't matter for blank lines.
+  if(lexEol(input,j)) { i = j; return ""; }
+
+  IndentCmp cmp = indentCmp(input.substr(i,j-i), parindent);
+
+  // This is likely past the end of this source block.
+  if(cmp == IndentCmp::lt) return nullopt;
+
+  if(cmp == IndentCmp::bad) {
+    lex.Error(i, j, "Indentation mixes tabs and spaces differently "
+                    "from the previous line");
+    getline(lex, i);  // Skip to end of line.
+    return "";        // Don't return any of it.
+  }
+
+  // We have actual content to be returned.
+  i += parindent.size();
+  return getline(lex, i);
+}
+
 }  // namespace
 
 void Lexer::Fatal(size_t st, size_t en, string msg) {
@@ -301,6 +340,27 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
     }
   }
   return lex.Error(delimStart, i-1, "Source block ends abruptly");
+}
+
+// Can return nullopt if it's only blank lines till a non-blank (or non-error)
+// source line, strictly more indented than parindent.
+optional<QuotedString>
+lexIndentedSource(Lexer& lex, size_t& i, string_view parindent) {
+  Input& input = lex.input;
+  string rv;
+  size_t j = i;
+  bool allblank = true;
+  while(input.sizeGt(j)) {
+    optional<string> line = lexSourceLine(lex,j,parindent);
+    if(!line.has_value()) break;
+    if(!line->empty()) allblank = false;
+    rv += *line; rv += '\n';
+    input.forgetBefore(j);
+  }
+  if(allblank) return nullopt;
+  QuotedString qs(i,j,rv);
+  i = j;
+  return qs;
 }
 
 Diag::operator string() const {

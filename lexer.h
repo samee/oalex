@@ -59,5 +59,7 @@ struct Lexer {
 std::optional<std::vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i);
+std::optional<QuotedString> lexIndentedSource(Lexer& lex, size_t& i,
+    std::string_view parindent);
 
 }  // namespace oalex::lex
