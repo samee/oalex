@@ -51,6 +51,7 @@ struct Lexer {
   std::vector<Diag> diags;
   size_t maxLineLength = 5000;
 
+  void Fatal(size_t st,size_t en,std::string msg);  // throws, never returns.
   std::nullopt_t Error(size_t st,size_t en,std::string msg);
   std::nullopt_t Warning(size_t st,size_t en,std::string msg);
   std::nullopt_t Note(size_t st,size_t en,std::string msg);

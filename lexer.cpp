@@ -234,6 +234,10 @@ optional<string> getline(const Lexer& lex, size_t& i) {
 
 }  // namespace
 
+void Lexer::Fatal(size_t st, size_t en, string msg) {
+  UserError()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
+}
+
 nullopt_t Lexer::Error(size_t st, size_t en, string msg) {
   this->diags.emplace_back(this->input, st, en, Diag::error, std::move(msg));
   return nullopt;
