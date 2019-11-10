@@ -84,14 +84,18 @@ void skipSpaceTab(const Input& input, size_t& i) {
   for(; input.sizeGt(i) && (input[i]==' ' || input[i]=='\t'); ++i);
 }
 
+bool lexEol(const Input& input, size_t& i) {
+  if(!input.sizeGt(i)) return true;
+  else if(input[i]=='\n') { ++i; return true; }
+  else return false;
+}
+
 // I would have loved to require comments about space. Someday I will.
 bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
   size_t j=i;
   skipSpaceTab(input,j);
-  if(!input.sizeGt(j) || lexComment(input,j)) i=j;
-  else if(input[j]=='\n') i=j+1;  // all blanks, no comment.
+  if(lexEol(input,j) || lexComment(input,j)) { i=j; return true; }
   else return false;
-  return true;
 }
 
 // Blank or comment-only line.
@@ -212,30 +216,19 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   return ch;
 }
 
-size_t findEndOfLine(const Lexer& lex, size_t i) {
-  size_t eol = i;
-  for(; lex.input.sizeGt(eol); ++eol) {
-    if(eol-i > lex.maxLineLength) {
-      return Input::npos;
-    }
-    if(lex.input[eol] == '\n') return eol;
-  }
-  return eol;  // Sometimes there is no trailing newline.
-}
-
 // Can return nullopt() if the remaining line is longer than lex.maxLineLength.
 // Return value does *not* include trailing newline, if any.  However, i *is*
 // incremented past the newline so we are ready to read the next line if one
 // exists. We never care about whether or not the last line ends with a newline.
 optional<string> getline(const Lexer& lex, size_t& i) {
-  size_t eol = findEndOfLine(lex, i);
-  if(eol == Input::npos) return nullopt;
-  string rv = lex.input.substr(i, eol-i);
-  i += rv.size();
-  if(lex.input.sizeGt(i)) {
-    if(lex.input[i] == '\n') ++i;
-    else BugDie()<<"Was expecting a newline in position "<<i;
+  size_t eol = i;
+  bool nlend = false;
+  for(; lex.input.sizeGt(eol); ++eol) {
+    if(eol-i > lex.maxLineLength) return nullopt;
+    if(lex.input[eol]=='\n') { nlend = true; break; }
   }
+  string rv = lex.input.substr(i, eol-i);
+  i += rv.size() + nlend;
   return rv;
 }
 
@@ -268,23 +261,18 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   string s;
   bool error = false;
   ++j;
-  while(input.sizeGt(j)) {
+  while(!lexEol(input, j)) {
     if(input[j] == '"') {
       size_t oldi = i;
       i = ++j;
       if(!error) return QuotedString(oldi,j,s);
       else return nullopt;
-    }
-    else if(input[j] == '\n') {
-      lex.Error(j,j,"Unexpected end of line");
-      i = ++j;
-      return nullopt;
     }else if(input[j] == '\\') {
       if(optional<char> escres = lexQuotedEscape(lex, ++j)) s += *escres;
       else error = true;
     }else s += input[j++];
   }
-  lex.Error(i,j-1,"String literal never ends");
+  lex.Error(i,j-1,"Unexpected end of line");
   i = j;
   return nullopt;
 }

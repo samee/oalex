@@ -164,12 +164,16 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
 
 }  // namespace
 
-#define headerSuccess(test, expected) headerSuccessImpl(test, #test, expected)
+#define headerSuccess(test, expected) \
+  headerSuccessImpl(test, #test "()", expected)
 #define headerFailure(test, expectedDiag) \
   headerFailureImpl(test, #test, expectedDiag)
-#define stringSuccess(test, expected) stringSuccessImpl(test, #test, expected)
-#define stringFailure(test, expected) stringFailureImpl(test, #test, expected)
-#define delimSourceBlockSuccess(test) delimSourceBlockSuccessImpl(test, #test)
+#define stringSuccess(test, expected) \
+  stringSuccessImpl(test, #test "()", expected)
+#define stringFailure(test, expected) \
+  stringFailureImpl(test, #test "()", expected)
+#define delimSourceBlockSuccess(test) \
+  delimSourceBlockSuccessImpl(test, #test "()")
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -182,7 +186,7 @@ int main() {
 
   stringSuccess(goodString, "Hello world");
   stringSuccess(goodStringWithEscapes, "Hello world \n \" \t \\ A");
-  stringFailure(stringDoesntEnd, "String literal never ends");
+  stringFailure(stringDoesntEnd, "Unexpected end of line");
   stringFailure(multiLineString, "Unexpected end of line");
   stringFailure(incompleteEscape, "Incomplete escape");
   stringFailure(invalidEscape, "Invalid escape");
