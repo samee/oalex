@@ -101,9 +101,24 @@ void testDataMatchesString(const string& s, size_t avgWindowLen) {
   }
 }
 
+void testLineTooLong() {
+  string s(Input::defaultMaxLineLength+1,'-');
+  Input input((GetFromString(s)));
+  try {
+    char ch = input[input.maxLineLength()];
+    BugMe<<"Got input[i] == '"<<ch<<"', was expecting an exception";
+  }catch(oalex::UserErrorEx& ex) {
+    const char expected[] = "Line 1 is too long";
+    if(string(ex.what()).find(expected)==string::npos)
+      BugMe<<"substr mismatch: \""<<expected<<"\" is not in \""
+           <<ex.what()<<"\"";
+  }
+}
+
 }
 
 int main() {
   const size_t linelen=50;
   testDataMatchesString(randomString(linelen,1000), 2*linelen);
+  testLineTooLong();
 }

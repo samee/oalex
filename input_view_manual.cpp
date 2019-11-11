@@ -24,12 +24,18 @@ namespace oalex {
 // Assumes vector<int>::push_back doesn't throw.
 void Input::peekTo(size_t last) const {
   while(!endSeen() && last>=start_pos_+buf_.size()) {
+    size_t pos = start_pos_+buf_.size();
     int16_t ch = getch_();
     if(ch < 0) {
-      size_ = buf_.size()+start_pos_;  // endSeen() is now true.
+      size_ = pos;  // endSeen() is now true.
       return;
     }
-    if(ch == '\n') newlines_.push_back(start_pos_+buf_.size());
+    if(ch == '\n') newlines_.push_back(pos);
+    else {
+      size_t lastBol = newlines_.empty()?0:newlines_.back();
+      if(pos+1-lastBol > maxLineLength_)
+      UserError()<<"Line "<<newlines_.size()+start_row_+1<<" is too long";
+    }
     buf_ += ch;
   }
 }

@@ -83,12 +83,16 @@ class Input {
   // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const;
 
+  static constexpr size_t defaultMaxLineLength = 5000;
+  size_t maxLineLength() const { return maxLineLength_; }
+
  private:
   mutable std::string buf_;
   std::function<int16_t()> getch_;
   size_t start_pos_=0, start_row_=0, start_col_=0;
   mutable size_t size_;
   mutable std::vector<size_t> newlines_;
+  size_t maxLineLength_ = defaultMaxLineLength;
 
   void peekTo(size_t last) const;
   void peekAndBoundCharAt(size_t i) const;
