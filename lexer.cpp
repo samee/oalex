@@ -216,7 +216,6 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   return ch;
 }
 
-// Can throw UserErrorEx if the remaining line is longer than lex.maxLineLength.
 // Return value does *not* include trailing newline, if any.  However, i *is*
 // incremented past the newline so we are ready to read the next line if one
 // exists. We never care about whether or not the last line ends with a newline.
@@ -224,7 +223,6 @@ string getline(Lexer& lex, size_t& i) {
   size_t eol = i;
   bool nlend = false;
   for(; lex.input.sizeGt(eol); ++eol) {
-    if(eol-i > lex.maxLineLength) lex.Fatal(i, eol, "Line is too long");
     if(lex.input[eol]=='\n') { nlend = true; break; }
   }
   string rv = lex.input.substr(i, eol-i);
