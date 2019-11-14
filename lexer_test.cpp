@@ -6,6 +6,7 @@
 #include "util.h"
 using std::cerr;
 using std::endl;
+using std::nullopt;
 using std::optional;
 using std::string;
 using std::string_view;
@@ -161,25 +162,45 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   }
 }
 
-const char indentedSourceBlock[] = R"(
+const char goodIndent[] = R"(
   foo
+
   bar:
     baz
-outside
+ outside
 )";
+const char goodIndentParsed[] = "\nfoo\n\nbar:\n  baz\n";
 
-const char indentedSourceBlockParsed[] = "\nfoo\nbar:\n  baz\n";
+const char allBlank[] = "\n  \n\t\n";
 
-void indentedSourceBlockSuccess() {
-  Lexer lex{Input(GetFromString(indentedSourceBlock)),{}};
+const char noTrailingNewline[] = "  foo";
+const char noTrailingNewlineParsed[] = "foo\n";
+
+void indentedSourceBlockSuccessImpl(
+    const char testInput[], const char testName[],
+    optional<string> expectedResult) {
+  Lexer lex{Input(GetFromString(testInput)),{}};
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
-  if(!res || !lex.diags.empty()) {
+  if(res.has_value() != expectedResult.has_value() || !lex.diags.empty()) {
     for(const auto& d:lex.diags) cerr<<string(d)<<endl;
-    BugMe<<"failed";
+    BugDie()<<testName<<" failed";
   }
-  if(res->s != indentedSourceBlockParsed)
-    BugMe<<"'"<<res->s<<"' != '"<<indentedSourceBlockParsed<<"'";
+  if(res.has_value() && res->s != expectedResult)
+    BugDie()<<testName<<" '"<<res->s<<"' != '"<<*expectedResult<<"'";
+}
+
+const char tabSpaceMix[] = "  foo\n\tbar";
+
+void indentedSourceBlockFailureImpl(
+    const char testInput[], const char testName[],
+    string_view expectedDiag) {
+  Lexer lex{Input(GetFromString(testInput)),{}};
+  size_t i = 0;
+  optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
+  if(res && lex.diags.empty())
+    BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
+  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
 }
 
 
@@ -195,6 +216,10 @@ void indentedSourceBlockSuccess() {
   stringFailureImpl(test, #test "()", expected)
 #define delimSourceBlockSuccess(test) \
   delimSourceBlockSuccessImpl(test, #test "()")
+#define indentedSourceBlockSuccess(test, expected) \
+  indentedSourceBlockSuccessImpl(test, #test, expected)
+#define indentedSourceBlockFailure(test, expected) \
+  indentedSourceBlockFailureImpl(test, #test, expected)
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -216,5 +241,9 @@ int main() {
 
   delimSourceBlockSuccess(delimSourceBlock);
   delimSourceBlockSuccess(delimSourceBlockCustom);
-  indentedSourceBlockSuccess();
+
+  indentedSourceBlockSuccess(goodIndent, goodIndentParsed);
+  indentedSourceBlockSuccess(allBlank, nullopt);
+  indentedSourceBlockSuccess(noTrailingNewline, noTrailingNewlineParsed);
+  indentedSourceBlockFailure(tabSpaceMix, "mixes tabs and spaces");
 }
