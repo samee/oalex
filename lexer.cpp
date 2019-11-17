@@ -271,7 +271,11 @@ optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
 
 }  // namespace
 
-void Lexer::Fatal(size_t st, size_t en, string msg) {
+void Lexer::FatalBug(size_t st, size_t en, string msg) const {
+  BugDie()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
+}
+
+void Lexer::Fatal(size_t st, size_t en, string msg) const {
   UserError()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
 }
 

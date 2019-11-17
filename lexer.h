@@ -50,7 +50,10 @@ struct Lexer {
   Input input;
   std::vector<Diag> diags;
 
-  void Fatal(size_t st,size_t en,std::string msg);  // throws, never returns.
+  // throws, never returns.
+  [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
+  [[noreturn]] void Fatal(size_t st,size_t en,std::string msg) const;
+
   std::nullopt_t Error(size_t st,size_t en,std::string msg);
   std::nullopt_t Warning(size_t st,size_t en,std::string msg);
   std::nullopt_t Note(size_t st,size_t en,std::string msg);
