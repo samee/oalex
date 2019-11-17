@@ -72,7 +72,7 @@ bool isSectionHeaderNonSpace(char ch) {
 }
 
 // Consumes everything from comment marker upto and including the newline.
-bool lexComment(const Input& input, size_t& i) {
+[[nodiscard]] bool lexComment(const Input& input, size_t& i) {
   if(!input.sizeGt(i)) return false;
   if(input[i]!='#') return false;
   for(; input.sizeGt(i) && input[i]!='\n'; ++i);
@@ -84,14 +84,14 @@ void skipSpaceTab(const Input& input, size_t& i) {
   for(; input.sizeGt(i) && (input[i]==' ' || input[i]=='\t'); ++i);
 }
 
-bool lexEol(const Input& input, size_t& i) {
+[[nodiscard]] bool lexEol(const Input& input, size_t& i) {
   if(!input.sizeGt(i)) return true;
   else if(input[i]=='\n') { ++i; return true; }
   else return false;
 }
 
 // I would have loved to require comments about space. Someday I will.
-bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
+[[nodiscard]] bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
   size_t j=i;
   skipSpaceTab(input,j);
   if(lexEol(input,j) || lexComment(input,j)) { i=j; return true; }
@@ -99,7 +99,7 @@ bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
 }
 
 // Blank or comment-only line.
-bool lexBlankLine(const Input& input, size_t& i) {
+[[nodiscard]] bool lexBlankLine(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || i!=input.bol(i)) return false;
   return lexSpaceCommentsToLineEnd(input,i);
 }
