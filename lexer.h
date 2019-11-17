@@ -31,6 +31,7 @@ struct LexSegment : Segment {
     : Segment{st,en,type_tag} {}
 };
 
+// FIXME rename to Lookahead.
 struct AlnumToken : LexSegment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::alnumToken);
   std::string token;
@@ -64,5 +65,8 @@ std::optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexIndentedSource(Lexer& lex, size_t& i,
     std::string_view parindent);
+
+// Returns nullopt on eof. Throws on invalid language character.
+std::optional<AlnumToken> lookahead(const Lexer& lex, size_t i);
 
 }  // namespace oalex::lex

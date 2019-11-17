@@ -1,5 +1,6 @@
 #include "lexer.h"
 
+#include <string>
 #include <string_view>
 
 #include "test_util.h"
@@ -11,10 +12,12 @@ using std::optional;
 using std::string;
 using std::string_view;
 using std::vector;
+using namespace std::string_literals;
 using oalex::operator<<;
 using oalex::BugDie;
 using oalex::GetFromString;
 using oalex::Input;
+using oalex::UserErrorEx;
 using oalex::lex::AlnumToken;
 using oalex::lex::Diag;
 using oalex::lex::Lexer;
@@ -203,6 +206,38 @@ void indentedSourceBlockFailureImpl(
   assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
 }
 
+void lookaheadsSuccess() {
+  string inputs[] = {"   \n foo bar", "x  foo", "  []", "  ..., x", "  :"};
+  string expecteds[] = {"foo","foo","[","...",":"};
+  static_assert(sizeof(inputs)==sizeof(expecteds));
+  for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
+    Lexer lex{Input(GetFromString(inputs[i])),{}};
+    if(optional<AlnumToken> tok = lookahead(lex,1)) {
+      if(tok->token!=expecteds[i])
+        BugMe<<"Test case "<<i<<" failed with \""
+             <<tok->token<<"\" != \""<<expecteds[i]<<'"';
+    }else BugMe<<"Test case "<<i<<" was supposed to succeed";
+  }
+}
+
+void lookaheadNulloptOnEof() {
+  string input = "foo     # hello \n\t\n";
+  Lexer lex{Input(GetFromString(input)),{}};
+  if(optional<AlnumToken> tok = lookahead(lex,3))
+    BugMe<<"Succeeded unexpectedly, got "<<tok->token;
+}
+
+void lookaheadThrowsOnInvalidChar() {
+  string input = "\b";
+  Lexer lex{Input(GetFromString(input)),{}};
+  try {
+    auto tok = lookahead(lex,0);
+    BugMe<<"Succeeded unexpectedly, got "<<(tok?tok->token:"<nullopt>"s);
+  }catch(const UserErrorEx& ex) {
+    if(string(ex.what()).find("Unexpected character") == string::npos)
+      BugMe<<"Not the expected Fatal() error: "<<ex.what();
+  }
+}
 
 }  // namespace
 
@@ -246,4 +281,8 @@ int main() {
   indentedSourceBlockSuccess(allBlank, nullopt);
   indentedSourceBlockSuccess(noTrailingNewline, noTrailingNewlineParsed);
   indentedSourceBlockFailure(tabSpaceMix, "mixes tabs and spaces");
+
+  lookaheadsSuccess();
+  lookaheadNulloptOnEof();
+  lookaheadThrowsOnInvalidChar();
 }

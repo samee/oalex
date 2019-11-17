@@ -24,6 +24,7 @@
      * Output tokens:
          - SectionHeader(string)
          - alnum words
+         - operators ( : , := | ~ ... )
          - quoted strings, distinguising between quoting styles.
          - regexes
          - pair-matching (parenthesis, brackets, so on).
@@ -38,6 +39,7 @@
 
 #include "lexer.h"
 
+#include <cstring>
 #include <memory>
 #include <optional>
 #include <string>
@@ -49,6 +51,7 @@
 #include "util.h"
 
 using std::function;
+using std::hex;
 using std::nullopt;
 using std::nullopt_t;
 using std::numeric_limits;
@@ -269,7 +272,63 @@ optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
   return getline(lex, i);
 }
 
+bool isquote(char ch) { return ch=='"' || ch=='\''; }
+bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
+bool isoperch(char ch) { return strchr(":,=|~.", ch) != NULL; }
+string debugChar(char ch) {
+  if(isprint(ch)) return Str()<<'\''<<ch<<'\'';
+  else return Str()<<"\\x"<<hex<<int(ch);
+}
+
+// Returns false on eof. Throws on invalid language character.
+[[nodiscard]] bool lookaheadStart(const Lexer& lex, size_t& i) {
+  const Input& input = lex.input;
+  size_t j = i;
+  while(input.sizeGt(j)) {
+    if(input[j] == '#') {
+      if(!lexComment(input,j)) lex.FatalBug(j,j+1,"lexComment() is acting up");
+    }
+    else if(input[j]==' ' || input[j]=='\t') skipSpaceTab(input,j);
+    else if(input[j]=='\n') ++j;
+    else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
+            isoperch(input[j])) { i=j; return true; }
+    else lex.Fatal(j,j+1,"Unexpected character " + debugChar(input[j]));
+  }
+  return false;
+}
+
+// Careful on numbers: a -12.34e+55 will be decomposed as
+//   ["-","12", ".", "34", "e", "+", "56"]
+// But that's okay, we won't support floating-point or signed numerals.
+AlnumToken lookaheadWord(const Lexer& lex, size_t i) {
+  const Input& input = lex.input;
+  if(!input.sizeGt(i) || !isalnum(input[i]))
+    lex.FatalBug(i, i+1, "lexWord() called outside a word");
+  size_t oldi = i;
+  while(input.sizeGt(i) && isalnum(input[i])) ++i;
+  return AlnumToken(oldi,i,lex.input);
+}
+
+// TODO throw error on .... or ::=.
+optional<AlnumToken> lookaheadOperator(const Input& input, size_t i) {
+  static const string multichars[] = {":=","..."};
+  if(!input.sizeGt(i)) return nullopt;
+  if(!isquote(input[i]) && !isbracket(input[i]) && !isoperch(input[i]))
+    return nullopt;
+  for(const string& op : multichars) if(input.substr(i,op.size()) == op)
+    return AlnumToken(i,i+op.size(),input);
+  return AlnumToken(i,i+1,input);
+}
+
 }  // namespace
+
+// Returns nullopt on eof. Throws on invalid language character.
+optional<AlnumToken> lookahead(const Lexer& lex, size_t i) {
+  if(!lookaheadStart(lex,i)) return nullopt;
+  if(isalnum(lex.input[i])) return lookaheadWord(lex, i);
+  else if(auto op = lookaheadOperator(lex.input, i)) return op;
+  else lex.Fatal(i, i+1, "Invalid input character");
+}
 
 void Lexer::FatalBug(size_t st, size_t en, string msg) const {
   BugDie()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
