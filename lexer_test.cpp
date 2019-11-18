@@ -18,10 +18,10 @@ using oalex::BugDie;
 using oalex::GetFromString;
 using oalex::Input;
 using oalex::UserErrorEx;
-using oalex::lex::AlnumToken;
 using oalex::lex::Diag;
 using oalex::lex::Lexer;
 using oalex::lex::QuotedString;
+using oalex::lex::UnquotedToken;
 using oalex::lex::lexSectionHeader;
 
 namespace {
@@ -64,13 +64,13 @@ void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
   Lexer lex{Input(GetFromString(testInput)),{}};
   size_t i = 0;
-  optional<vector<AlnumToken>> res = lexSectionHeader(lex, i);
+  optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
   if(!res || !lex.diags.empty()) {
     for(const auto& d:lex.diags) cerr<<string(d)<<endl;
     BugDie()<<testName<<" failed";
   }else {
     vector<string> observed;
-    for(const AlnumToken& t : *res) observed.push_back(*t);
+    for(const UnquotedToken& t : *res) observed.push_back(*t);
     if(expected != observed)
       BugDie()<<testName<<": "<<expected<<" != "<<observed;
   }
@@ -93,7 +93,7 @@ void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
   Lexer lex{Input(GetFromString(testInput)),{}};
   size_t i = 0;
-  optional<vector<AlnumToken>> res = lexSectionHeader(lex, i);
+  optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
   if(res && lex.diags.empty())
     BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
   assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
@@ -212,7 +212,7 @@ void lookaheadsSuccess() {
   static_assert(sizeof(inputs)==sizeof(expecteds));
   for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
     Lexer lex{Input(GetFromString(inputs[i])),{}};
-    if(optional<AlnumToken> tok = lookahead(lex,1)) {
+    if(optional<UnquotedToken> tok = lookahead(lex,1)) {
       if(tok->token!=expecteds[i])
         BugMe<<"Test case "<<i<<" failed with \""
              <<tok->token<<"\" != \""<<expecteds[i]<<'"';
@@ -223,7 +223,7 @@ void lookaheadsSuccess() {
 void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
   Lexer lex{Input(GetFromString(input)),{}};
-  if(optional<AlnumToken> tok = lookahead(lex,3))
+  if(optional<UnquotedToken> tok = lookahead(lex,3))
     BugMe<<"Succeeded unexpectedly, got "<<tok->token;
 }
 

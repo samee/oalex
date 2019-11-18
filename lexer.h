@@ -31,11 +31,10 @@ struct LexSegment : Segment {
     : Segment{st,en,type_tag} {}
 };
 
-// FIXME rename to Lookahead.
-struct AlnumToken : LexSegment {
+struct UnquotedToken : LexSegment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::alnumToken);
   std::string token;
-  AlnumToken(size_t st,size_t en,const Input& input)
+  UnquotedToken(size_t st,size_t en,const Input& input)
     : LexSegment(st,en,type_tag), token(input.substr(st,en-st)) {}
   const std::string& operator*() const { return token; }
 };
@@ -60,13 +59,14 @@ struct Lexer {
   std::nullopt_t Note(size_t st,size_t en,std::string msg);
 };
 
-std::optional<std::vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i);
+std::optional<std::vector<UnquotedToken>>
+  lexSectionHeader(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexIndentedSource(Lexer& lex, size_t& i,
     std::string_view parindent);
 
 // Returns nullopt on eof. Throws on invalid language character.
-std::optional<AlnumToken> lookahead(const Lexer& lex, size_t i);
+std::optional<UnquotedToken> lookahead(const Lexer& lex, size_t i);
 
 }  // namespace oalex::lex

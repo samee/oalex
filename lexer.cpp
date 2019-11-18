@@ -107,13 +107,13 @@ void skipSpaceTab(const Input& input, size_t& i) {
   return lexSpaceCommentsToLineEnd(input,i);
 }
 
-optional<AlnumToken> lexHeaderWord(const Input& input, size_t& i) {
+optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
   size_t j=i;
   while(input.sizeGt(j) && isSectionHeaderNonSpace(input[j])) ++j;
   if(i==j) return nullopt;
   else {
     size_t iold=i; i=j;
-    return AlnumToken(iold,j,input);
+    return UnquotedToken(iold,j,input);
   }
 }
 
@@ -141,10 +141,10 @@ optional<AlnumToken> lexHeaderWord(const Input& input, size_t& i) {
 //       - Will likely depend on parser-global bools.
 //       - Likely signature: foo(const Lexer&,size_t&);
 
-optional<vector<AlnumToken>>
+optional<vector<UnquotedToken>>
 lexSectionHeaderContents(const Input& input, size_t& i) {
   size_t j = i;
-  vector<AlnumToken> rv;
+  vector<UnquotedToken> rv;
   while(input.sizeGt(j)) {
     char ch = input[j];
     if(ch=='\n' || ch=='#') {
@@ -152,7 +152,7 @@ lexSectionHeaderContents(const Input& input, size_t& i) {
       else BugDie()<<"Couldn't lex space-comments at "<<j;
     }else if(ch==' ' || ch=='\t') skipSpaceTab(input,j);
     else if(isSectionHeaderNonSpace(ch)) {
-      if(optional<AlnumToken> token = lexHeaderWord(input,j))
+      if(optional<UnquotedToken> token = lexHeaderWord(input,j))
         rv.push_back(*token);
       else return nullopt;
     }else return nullopt;
@@ -300,30 +300,30 @@ string debugChar(char ch) {
 // Careful on numbers: a -12.34e+55 will be decomposed as
 //   ["-","12", ".", "34", "e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
-AlnumToken lookaheadWord(const Lexer& lex, size_t i) {
+UnquotedToken lookaheadWord(const Lexer& lex, size_t i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i) || !isalnum(input[i]))
     lex.FatalBug(i, i+1, "lexWord() called outside a word");
   size_t oldi = i;
   while(input.sizeGt(i) && isalnum(input[i])) ++i;
-  return AlnumToken(oldi,i,lex.input);
+  return UnquotedToken(oldi,i,lex.input);
 }
 
 // TODO throw error on .... or ::=.
-optional<AlnumToken> lookaheadOperator(const Input& input, size_t i) {
+optional<UnquotedToken> lookaheadOperator(const Input& input, size_t i) {
   static const string multichars[] = {":=","..."};
   if(!input.sizeGt(i)) return nullopt;
   if(!isquote(input[i]) && !isbracket(input[i]) && !isoperch(input[i]))
     return nullopt;
   for(const string& op : multichars) if(input.substr(i,op.size()) == op)
-    return AlnumToken(i,i+op.size(),input);
-  return AlnumToken(i,i+1,input);
+    return UnquotedToken(i,i+op.size(),input);
+  return UnquotedToken(i,i+1,input);
 }
 
 }  // namespace
 
 // Returns nullopt on eof. Throws on invalid language character.
-optional<AlnumToken> lookahead(const Lexer& lex, size_t i) {
+optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
   if(!lookaheadStart(lex,i)) return nullopt;
   if(isalnum(lex.input[i])) return lookaheadWord(lex, i);
   else if(auto op = lookaheadOperator(lex.input, i)) return op;
@@ -444,12 +444,12 @@ Diag::operator string() const {
 // TODO: We should also produce errors if there is an invalid character in
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
-optional<vector<AlnumToken>> lexSectionHeader(Lexer& lex, size_t& i) {
+optional<vector<UnquotedToken>> lexSectionHeader(Lexer& lex, size_t& i) {
   const Input& input=lex.input;
   size_t j=i;
 
   while(lexBlankLine(input,j));
-  optional<vector<AlnumToken>> rv = lexSectionHeaderContents(input,j);
+  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(input,j);
   if(!rv) return nullopt;
   optional<size_t> stDash=lexDashLine(input,j);
   if(!stDash) return nullopt;
