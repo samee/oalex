@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "lexer.h"
+#include "lexer_matcher.h"
 
 #include <string>
 #include <string_view>
@@ -21,8 +22,12 @@
 #include "util.h"
 using std::cerr;
 using std::endl;
+using std::get;
+using std::get_if;
 using std::nullopt;
 using std::optional;
+using std::ostream;
+using std::ostringstream;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -31,12 +36,22 @@ using oalex::operator<<;
 using oalex::BugDie;
 using oalex::GetFromString;
 using oalex::Input;
+using oalex::Str;
 using oalex::UserErrorEx;
+using oalex::lex::BracketGroup;
+using oalex::lex::BracketType;
 using oalex::lex::Diag;
+using oalex::lex::ExprToken;
 using oalex::lex::Lexer;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexSectionHeader;
+using oalex::lex::matcher::braces;
+using oalex::lex::matcher::BracketGroupMatcher;
+using oalex::lex::matcher::parens;
+using oalex::lex::matcher::quoted;
+using oalex::lex::matcher::squareBrackets;
+namespace matcher = oalex::lex::matcher;
 
 namespace {
 
@@ -253,6 +268,84 @@ void lookaheadThrowsOnInvalidChar() {
   }
 }
 
+// Within brackets, we ignore all indentation.
+void bracketGroupSuccess() {
+  const string input = "{A := (B.C word [#comment\n\"hello\" \"world\"])}";
+  const BracketGroupMatcher expected = braces("A", ":=",
+        parens("B", ".", "C", "word",
+               squareBrackets(quoted("hello"), quoted("world"))));
+  Lexer lex{Input(GetFromString(input)),{}};
+  size_t i = 0;
+  optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
+
+  if(bgopt.has_value() && lex.diags.empty()) {
+    if(auto err = matcher::match(expected,*bgopt))
+      BugMe<<"Failed: "<<*err;
+  }else {
+    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+    BugMe<<"Failed";
+  }
+}
+
+string debugMatcher(BracketType bt) {
+  switch(bt) {
+    case BracketType::square: return "squareBrackets";
+    case BracketType::brace: return "braces";
+    case BracketType::paren: return "parens";
+    default: return Str()<<"Unknown BracketType "<<int(bt);
+  }
+}
+
+void debug(ostream& os,const ExprToken& expr) {
+  if(const auto* tok = get_if<UnquotedToken>(&expr)) {
+    os<<tok->token;
+    return;
+  }
+  if(const auto* qs = get_if<QuotedString>(&expr)) {
+    os<<"quoted("<<qs->s<<")";
+    return;
+  }
+  const BracketGroup& bg = get<BracketGroup>(expr);
+  os<<debugMatcher(bg.type)<<'(';
+  bool first_child = true;
+  for(const ExprToken& x : bg.children) {
+    if(!first_child) os<<", ";
+    first_child = false;
+    debug(os, x);
+  }
+}
+
+string debug(const BracketGroup& bg) {
+  ostringstream os;
+  debug(os, bg);
+  return os.str();
+}
+
+void bracketGroupFailureImpl(const char testName[], string input,
+    optional<string> expectedDiag) {
+  Lexer lex{Input(GetFromString(input)),{}};
+  size_t i = 0;
+  optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
+  if(!expectedDiag.has_value()) {
+    if(bgopt.has_value())
+      cerr<<testName<<": Was expecting nullopt, got "<<debug(*bgopt);
+    return;
+  }
+  assertHasDiagWithSubstr(testName, lex.diags, *expectedDiag);
+}
+
+void bracketGroupThrows(string input, string expectedDiag) {
+  Lexer lex{Input(GetFromString(input)),{}};
+  size_t i = 0;
+  try {
+    auto bg = lexBracketGroup(lex,i);
+    BugMe<<"Succeeded unexpectedly, got "<<(bg?debug(*bg):"nullopt");
+  }catch(const UserErrorEx& ex) {
+    if(string(ex.what()).find(expectedDiag) == string::npos)
+      BugMe<<"Not the expected Fatal() error: "<<ex.what();
+  }
+}
+
 }  // namespace
 
 #define headerSuccess(test, expected) \
@@ -269,6 +362,8 @@ void lookaheadThrowsOnInvalidChar() {
   indentedSourceBlockSuccessImpl(test, #test, expected)
 #define indentedSourceBlockFailure(test, expected) \
   indentedSourceBlockFailureImpl(test, #test, expected)
+#define bracketGroupFailure(test, input, expected) \
+  bracketGroupFailureImpl("bracketGroupFailure" #test, input, expected)
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -299,4 +394,12 @@ int main() {
   lookaheadsSuccess();
   lookaheadNulloptOnEof();
   lookaheadThrowsOnInvalidChar();
+
+  bracketGroupSuccess();
+  bracketGroupFailure(Eof,"",nullopt);
+  bracketGroupFailure(NotBracket,"ABC",nullopt);
+  bracketGroupFailure(Unmatched,"[abc","Match not found for '['.");
+  bracketGroupFailure(Mismatched,"[abc)",
+      "Match not found for '[', found ')' instead.");
+  bracketGroupThrows("@","Unexpected character '@'");
 }

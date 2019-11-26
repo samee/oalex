@@ -275,6 +275,24 @@ optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
 bool isquote(char ch) { return ch=='"'; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
 bool isoperch(char ch) { return strchr(":,=|~.", ch) != NULL; }
+
+optional<BracketType> lexOpenBracket(const Input& input, size_t& i) {
+  switch(input[i]) {
+    case '[': ++i; return BracketType::square;
+    case '{': ++i; return BracketType::brace;
+    case '(': ++i; return BracketType::paren;
+    default: return nullopt;
+  }
+}
+optional<BracketType> lexCloseBracket(const Input& input, size_t& i) {
+  switch(input[i]) {
+    case ']': ++i; return BracketType::square;
+    case '}': ++i; return BracketType::brace;
+    case ')': ++i; return BracketType::paren;
+    default: return nullopt;
+  }
+}
+
 string debugChar(char ch) {
   if(isprint(ch)) return Str()<<'\''<<ch<<'\'';
   else return Str()<<"\\x"<<hex<<int(ch);
@@ -321,7 +339,66 @@ optional<UnquotedToken> lexOperator(const Input& input, size_t& i) {
   return UnquotedToken(oldi,++i,input);
 }
 
+char openBracket(BracketType bt) {
+  switch(bt) {
+    case BracketType::square: return '[';
+    case BracketType::brace: return '{';
+    case BracketType::paren: return '(';
+    default: BugDie()<<"Invalid openBracket() type "<<int(bt);
+  }
+}
+
+char closeBracket(BracketType bt) {
+  switch(bt) {
+    case BracketType::square: return ']';
+    case BracketType::brace: return '}';
+    case BracketType::paren: return ')';
+    default: BugDie()<<"Invalid closeBracket() type "<<int(bt);
+  }
+}
+
 }  // namespace
+
+optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i) {
+  const Input& input = lex.input;
+  size_t j = i;
+  if(!lookaheadStart(lex,j)) return nullopt;
+
+  BracketType bt;
+  if(auto btOpt = lexOpenBracket(input,j)) bt=*btOpt;
+  else return nullopt;
+
+  BracketGroup bg(i,Input::npos,bt);
+  while(true) {
+    if(!lookaheadStart(lex,j)) {  // lookaheadStart is false on EOF.
+      lex.Error(i,i+1,Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
+      i = Input::npos;
+      return nullopt;
+    }
+
+    if(auto btOpt = lexCloseBracket(input,j)) {
+      BracketType bt2=*btOpt;
+      if(bt==bt2) { bg.enPos=i=j; return bg; }  // The only success return path.
+      else {
+        size_t oldi = i; i = j+1;
+        return lex.Error(oldi,j,
+          Str()<<"Match not found for '"<<openBracket(bt)<<"', found '"
+               <<closeBracket(bt2)<<"' instead.");
+      }
+    }
+
+    if(auto bgopt = lexBracketGroup(lex,j))
+      bg.children.push_back(std::move(*bgopt));
+    else if(auto sopt = lexQuotedString(lex,j))
+      bg.children.push_back(std::move(*sopt));
+    else if(auto wordopt = lexWord(lex.input,j))
+      bg.children.push_back(std::move(*wordopt));
+    else if(auto operopt = lexOperator(lex.input,j))
+      bg.children.push_back(std::move(*operopt));
+    else lex.FatalBug(j, j+1,
+        "Invalid input character, should have been caught by lookaheadStart().");
+  }
+}
 
 // Returns nullopt on eof. Throws on invalid language character.
 optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
@@ -333,6 +410,7 @@ optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
   else lex.Fatal(i, i+1, "Invalid input character");
 }
 
+// TODO replace all BugDie in this file with this, so they have location.
 void Lexer::FatalBug(size_t st, size_t en, string msg) const {
   BugDie()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
 }

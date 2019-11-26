@@ -14,6 +14,7 @@
 
 #pragma once
 #include <optional>
+#include <variant>
 #include <vector>
 #include "input_view_manual.h"
 #include "segment.h"
@@ -36,7 +37,7 @@ enum class LexSegmentTag {
   unquotedToken = Segment::lastReservedTag + 1,
   section,
   quotedString,
-  bracketed,
+  bracketGroup,
 };
 
 // This class is mostly to document which Segment types belong to the lexer.
@@ -60,6 +61,24 @@ struct QuotedString : LexSegment {
     : LexSegment(st,en,type_tag), s(s) {}
 };
 
+struct BracketGroup;
+
+using ExprToken = std::variant<UnquotedToken, QuotedString, BracketGroup>;
+enum class ExprType { unquotedToken, quotedString, bracketGroup };
+
+enum class BracketType { square, brace, paren, };
+
+struct BracketGroup : LexSegment {
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::bracketGroup);
+  BracketType type;
+  std::vector<ExprToken> children;
+  BracketGroup(size_t st,size_t en,BracketType t)
+    : LexSegment(st,en,type_tag), type(t), children() {}
+};
+
+inline ExprType exprType(const ExprToken& expr)
+  { return ExprType(expr.index()); }
+
 struct Lexer {
   Input input;
   std::vector<Diag> diags;
@@ -79,6 +98,7 @@ std::optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i);
 std::optional<QuotedString> lexIndentedSource(Lexer& lex, size_t& i,
     std::string_view parindent);
+std::optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<UnquotedToken> lookahead(const Lexer& lex, size_t i);
