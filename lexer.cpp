@@ -272,7 +272,7 @@ optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
   return getline(lex, i);
 }
 
-bool isquote(char ch) { return ch=='"' || ch=='\''; }
+bool isquote(char ch) { return ch=='"'; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
 bool isoperch(char ch) { return strchr(":,=|~.", ch) != NULL; }
 string debugChar(char ch) {
