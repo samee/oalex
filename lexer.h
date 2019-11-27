@@ -33,7 +33,7 @@ struct Diag {
 };
 
 enum class LexSegmentTag {
-  alnumToken = Segment::lastReservedTag + 1,
+  unquotedToken = Segment::lastReservedTag + 1,
   section,
   quotedString,
   bracketed,
@@ -46,7 +46,7 @@ struct LexSegment : Segment {
 };
 
 struct UnquotedToken : LexSegment {
-  static constexpr auto type_tag = tagint_t(LexSegmentTag::alnumToken);
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::unquotedToken);
   std::string token;
   UnquotedToken(size_t st,size_t en,const Input& input)
     : LexSegment(st,en,type_tag), token(input.substr(st,en-st)) {}
