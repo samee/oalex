@@ -300,24 +300,25 @@ string debugChar(char ch) {
 // Careful on numbers: a -12.34e+55 will be decomposed as
 //   ["-","12", ".", "34", "e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
-UnquotedToken lookaheadWord(const Lexer& lex, size_t i) {
-  const Input& input = lex.input;
-  if(!input.sizeGt(i) || !isalnum(input[i]))
-    lex.FatalBug(i, i+1, "lexWord() called outside a word");
+optional<UnquotedToken> lexWord(const Input& input, size_t& i) {
+  if(!input.sizeGt(i) || !isalnum(input[i])) return nullopt;
   size_t oldi = i;
   while(input.sizeGt(i) && isalnum(input[i])) ++i;
-  return UnquotedToken(oldi,i,lex.input);
+  return UnquotedToken(oldi,i,input);
 }
 
-// TODO throw error on .... or ::=.
-optional<UnquotedToken> lookaheadOperator(const Input& input, size_t i) {
-  static const string multichars[] = {":=","..."};
-  if(!input.sizeGt(i)) return nullopt;
-  if(!isquote(input[i]) && !isbracket(input[i]) && !isoperch(input[i]))
-    return nullopt;
-  for(const string& op : multichars) if(input.substr(i,op.size()) == op)
-    return UnquotedToken(i,i+op.size(),input);
-  return UnquotedToken(i,i+1,input);
+// TODO throw Fatal on .... or ::=.
+optional<UnquotedToken> lexOperator(const Input& input, size_t& i) {
+  if(!input.sizeGt(i) || !isoperch(input[i])) return nullopt;
+
+  // Now we know it is a valid input character, see if it is multichar.
+  static const char multichars[][4] = {":=","..."};
+  size_t oldi = i;
+  for(const string& op : multichars) if(input.substr(i,op.size()) == op) {
+    i += op.size();
+    return UnquotedToken(oldi,i,input);
+  }
+  return UnquotedToken(oldi,++i,input);
 }
 
 }  // namespace
@@ -325,8 +326,10 @@ optional<UnquotedToken> lookaheadOperator(const Input& input, size_t i) {
 // Returns nullopt on eof. Throws on invalid language character.
 optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
   if(!lookaheadStart(lex,i)) return nullopt;
-  if(isalnum(lex.input[i])) return lookaheadWord(lex, i);
-  else if(auto op = lookaheadOperator(lex.input, i)) return op;
+  if(auto tok = lexWord(lex.input, i)) return tok;
+  else if(isbracket(lex.input[i]) || isquote(lex.input[i]))
+    return UnquotedToken(i,i+1,lex.input);
+  else if(auto op = lexOperator(lex.input, i)) return op;
   else lex.Fatal(i, i+1, "Invalid input character");
 }
 
