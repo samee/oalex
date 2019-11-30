@@ -34,7 +34,7 @@ void Input::peekTo(size_t last) const {
     else {
       size_t lastBol = newlines_.empty()?0:newlines_.back();
       if(pos+1-lastBol > maxLineLength_)
-      UserError()<<"Line "<<newlines_.size()+start_row_+1<<" is too long";
+      UserError()<<"Line "<<newlines_.size()+1<<" is too long";
     }
     buf_ += ch;
   }
@@ -51,22 +51,9 @@ void Input::forgetBefore(const size_t pos) {
   const size_t rmlen = pos-start_pos_;
   if(2*rmlen < buf_.size()) return;  // Too little gain for too much work.
 
-  // Scan for newlines.
-  size_t i, col=start_col_, row=start_row_;
-  for(i=0; i<rmlen; ++i) {
-    if(buf_[i] == '\n') { ++row; col=0; }
-    else ++col;
-  }
-
-  // Forget these bytes. This can still throw.
+  // Actually forget things.
   buf_.erase(buf_.begin(), buf_.begin()+rmlen);
-
-  // Update our database of peeked newlines. No more throwing.
   start_pos_ = pos;
-  start_col_ = col;
-  start_row_ = row;
-  for(i=0; i<newlines_.size(); ++i) if(newlines_[i]>=pos) break;
-  newlines_.erase(newlines_.begin(), newlines_.begin()+i);
 }
 
 void Input::peekAndBoundCharAt(size_t i) const {
@@ -91,7 +78,7 @@ string Input::substr(size_t pos, size_t count) const {
 
 size_t Input::bol(size_t i) const {
   peekAndBoundCharAt(i);
-  if(newlines_.empty() || i<=newlines_[0]) return start_pos_-start_col_;
+  if(newlines_.empty() || i<=newlines_[0]) return start_pos_;
   size_t prev_newline = *--lower_bound(newlines_.begin(), newlines_.end(), i);
   return prev_newline+1;
 }
@@ -99,10 +86,10 @@ size_t Input::bol(size_t i) const {
 pair<size_t,size_t> Input::rowCol(size_t i) const {
   peekAndBoundCharAt(i);
   if(newlines_.empty() || i<=newlines_[0])
-    return make_pair(start_row_+1, start_col_+1+i-start_pos_);
+    return make_pair(1, 1+i-start_pos_);
   size_t prev = lower_bound(newlines_.begin(), newlines_.end(), i)
                 - newlines_.begin() - 1;
-  return make_pair(start_row_+prev+2, i-newlines_[prev]);
+  return make_pair(prev+2, i-newlines_[prev]);
 }
 
 }  // namespace oalex

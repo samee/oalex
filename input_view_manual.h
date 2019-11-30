@@ -89,7 +89,7 @@ class Input {
  private:
   mutable std::string buf_;
   std::function<int16_t()> getch_;
-  size_t start_pos_=0, start_row_=0, start_col_=0;
+  size_t start_pos_=0;
   mutable size_t size_;
   mutable std::vector<size_t> newlines_;
   size_t maxLineLength_ = defaultMaxLineLength;
