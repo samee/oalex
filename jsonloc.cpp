@@ -24,21 +24,22 @@ using oalex::Bug;
 
 namespace oalex {
 
-auto JsonLoc::allPlaceholders() -> PlaceholderMap {
-  PlaceholderMap rv;
-  allPlaceholdersImpl(rv);
-  return rv;
+static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
+                                JsonLoc& json) {
+  if(auto* p = get_if<JsonLoc::Placeholder>(&json.value))
+    rv.insert(make_pair(p->key, &json));
+  else if(holds_alternative<JsonLoc::String>(json.value)) return;
+  else if(auto* v = get_if<JsonLoc::Vector>(&json.value))
+    for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
+  else if(auto* m = get_if<JsonLoc::Map>(&json.value))
+    for(auto& [k,v] : *m) allPlaceholdersImpl(rv,v);
+  else Bug()<<"Strange JsonLoc type with index = "<<json.value.index();
 }
 
-void JsonLoc::allPlaceholdersImpl(PlaceholderMap& rv) {
-  if(auto* p = get_if<Placeholder>(&this->value))
-    rv.insert(make_pair(p->key, this));
-  else if(holds_alternative<String>(this->value)) return;
-  else if(auto* v = get_if<Vector>(&this->value))
-    for(auto& elt : *v) elt.allPlaceholdersImpl(rv);
-  else if(auto* m = get_if<Map>(&this->value))
-    for(auto& [k,v] : *m) v.allPlaceholdersImpl(rv);
-  else Bug()<<"Strange JsonLoc type with index = "<<this->value.index();
+auto JsonLoc::allPlaceholders() -> PlaceholderMap {
+  PlaceholderMap rv;
+  allPlaceholdersImpl(rv,*this);
+  return rv;
 }
 
 size_t JsonLoc::substitute(const PlaceholderMap& pmap, string_view key,

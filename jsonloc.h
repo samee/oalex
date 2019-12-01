@@ -58,8 +58,6 @@ struct JsonLoc {
   // Check if all (stpos==npos) == (enpos==npos).
   // Typically, this should be checked before a substitution is made.
   bool substitutionsOk() const;
- private:
-  void allPlaceholdersImpl(PlaceholderMap& result);
 };
 
 template <class X> X* get_if(JsonLoc* json) {
