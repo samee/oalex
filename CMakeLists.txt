@@ -17,7 +17,7 @@ add_test(dfa_test dfa_test)
 add_executable(input_view_manual_test
                input_view_manual_test.cpp input_view_manual.cpp)
 add_test(input_view_manual_test input_view_manual_test)
-add_library(lexer OBJECT lexer.cpp input_view_manual.cpp)
+add_library(lexer OBJECT lexer.cpp input_view_manual.cpp jsonloc.cpp)
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
                $<TARGET_OBJECTS:lexer>)
 add_test(lexer_test lexer_test)
