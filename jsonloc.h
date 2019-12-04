@@ -26,6 +26,10 @@ namespace oalex {
 // Even though we call it json, we don't in fact support numbers, booleans,
 // or null. It's all strings here, that's the only atomic datatype.
 // stpos and enpos can remain JsonLoc::npos, if they only have hardcoded values.
+// The other difference is that we treat strings as byte-strings, not utf-8.
+// This also causes a difference in our backslash escaping conventions.
+// prettyPrint() also returns something closer to protobufs than json.
+// In other words, this is a complete abuse of the term "json".
 struct JsonLoc {
 
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
@@ -58,6 +62,12 @@ struct JsonLoc {
   // Check if all (stpos==npos) == (enpos==npos).
   // Typically, this should be checked before a substitution is made.
   bool substitutionsOk() const;
+
+  // The first line is never indented. No newline follows the last character.
+  // Corollary: String and Placeholders are never indented,
+  //   and are not newline-terminated.
+  std::string prettyPrint(size_t indent=0) const;
+  std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 };
 
 template <class X> X* get_if(JsonLoc* json) {

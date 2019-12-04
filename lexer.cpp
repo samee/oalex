@@ -207,6 +207,7 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i)) return lex.Error(i-1,"Incomplete escape code");
   char ch;
+  // If this changes, please change jsonloc::pringString() as well.
   switch(input[i]) {
     case '\\': ch = '\\'; break;
     case 'n': ch = '\n'; break;

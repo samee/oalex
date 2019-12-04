@@ -21,3 +21,6 @@ add_library(lexer OBJECT lexer.cpp input_view_manual.cpp jsonloc.cpp)
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
                $<TARGET_OBJECTS:lexer>)
 add_test(lexer_test lexer_test)
+
+add_executable(jsonloc_test jsonloc_test.cpp $<TARGET_OBJECTS:lexer>)
+add_test(jsonloc_test jsonloc_test)

@@ -13,11 +13,15 @@
     limitations under the License. */
 
 #include "jsonloc.h"
+
+#include <iomanip>
+#include <sstream>
 #include "util.h"
 using std::get_if;
 using std::holds_alternative;
 using std::make_pair;
 using std::map;
+using std::ostringstream;
 using std::string;
 using std::string_view;
 using oalex::Bug;
@@ -84,6 +88,61 @@ bool JsonLoc::substitutionsOk() const {
     BugUnknownJsonType(*this);
   }
   return true;
+}
+
+static void printString(ostringstream& os, string_view s) {
+  os<<'"';
+  // If this changes, please change lexQuotedEscape as well.
+  // TODO write test.
+  for(char ch : s) {
+    if(ch=='"') os<<"\\\"";
+    else if(ch=='\\') os<<"\\\\";
+    else if(ch=='\n') os<<"\\n";
+    else if(ch=='\t') os<<"\\t";
+    else if(isprint(ch)) os<<ch;  // check this after '"' and '\\'.
+    else os<<"\\x"<<std::setfill('0')<<std::setw(2)<<std::hex<<int(ch);
+  }
+  os<<'"';
+}
+
+static string_view assertIdent(string_view ctx, string_view s) {
+  if(s.empty()) Bug()<<ctx<<": Identifier can't be null.";
+  if(isdigit(s[0])) Bug()<<ctx<<": Identifier can't start with a digit.";
+  for(size_t i=0; i<s.size(); ++i) if(s[i]!='_' && !isalnum(s[i]))
+    Bug()<<ctx<<": Invalid identifier character at position "<<i;
+  return s;
+}
+
+static void prettyPrint(ostringstream& os, size_t indent, const JsonLoc& json) {
+  if(auto* p = get_if<Placeholder>(&json)) os<<assertIdent(__func__,p->key);
+  else if(auto* s = get_if<String>(&json)) printString(os,*s);
+  else if(auto* v = get_if<Vector>(&json)) {
+    os<<"[\n";
+    bool first = true;
+    for(const JsonLoc& elt : *v) {
+      if(!first) os<<",\n";
+      first = false;
+      os<<string(indent+2,' ');
+      prettyPrint(os,indent+2,elt);
+    }
+    os<<'\n'<<string(indent,' ')<<']';
+  }else if(auto* m = get_if<Map>(&json)) {
+    os<<"{\n";
+    bool first = true;
+    for(auto& [k,v] : *m) {
+      if(!first) os<<",\n";
+      first = false;
+      os<<string(indent+2,' ')<<assertIdent(__func__,k)<<": ";
+      prettyPrint(os,indent+2,v);
+    }
+    os<<"\n"<<string(indent,' ')<<'}';
+  }else BugUnknownJsonType(json);
+}
+
+string JsonLoc::prettyPrint(size_t indent) const {
+  ostringstream os;
+  oalex::prettyPrint(os,indent,*this);
+  return os.str();
 }
 
 }  // namespace oalex
