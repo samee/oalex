@@ -76,8 +76,20 @@ struct BracketGroup : LexSegment {
     : LexSegment(st,en,type_tag), type(t), children() {}
 };
 
+inline const LexSegment& lexSegment(const ExprToken& x) {
+  return *std::visit([](const auto& x) { return (const LexSegment*)(&x); }, x);
+}
+inline size_t stPos(const ExprToken& x) { return lexSegment(x).stPos; }
+inline size_t enPos(const ExprToken& x) { return lexSegment(x).enPos; }
+
 inline ExprType exprType(const ExprToken& expr)
   { return ExprType(expr.index()); }
+
+inline bool isToken(const ExprToken& x, std::string_view s) {
+  if(auto* tok = std::get_if<UnquotedToken>(&x))
+    if(tok->token == s) return true;
+ return false;
+}
 
 struct Lexer {
   Input input;
