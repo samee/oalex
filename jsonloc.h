@@ -61,11 +61,11 @@ struct JsonLoc {
 };
 
 template <class X> X* get_if(JsonLoc* json) {
-  return std::get_if<X>(json->value);
+  return std::get_if<X>(&json->value);
 }
 
 template <class X> const X* get_if(const JsonLoc* json) {
-  return std::get_if<X>(json->value);
+  return std::get_if<X>(&json->value);
 }
 
 }  // namespace oalex

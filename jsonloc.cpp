@@ -24,16 +24,25 @@ using oalex::Bug;
 
 namespace oalex {
 
+using Placeholder = JsonLoc::Placeholder;
+using String = JsonLoc::String;
+using Map = JsonLoc::Map;
+using Vector = JsonLoc::Vector;
+
+[[noreturn]] static void BugUnknownJsonType(const JsonLoc& json) {
+  Bug()<<"Strange JsonLoc type with index = "<<json.value.index();
+}
+
 static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
                                 JsonLoc& json) {
-  if(auto* p = get_if<JsonLoc::Placeholder>(&json.value))
+  if(auto* p = get_if<Placeholder>(&json))
     rv.insert(make_pair(p->key, &json));
-  else if(holds_alternative<JsonLoc::String>(json.value)) return;
-  else if(auto* v = get_if<JsonLoc::Vector>(&json.value))
+  else if(holds_alternative<String>(json.value)) return;
+  else if(auto* v = get_if<Vector>(&json))
     for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
-  else if(auto* m = get_if<JsonLoc::Map>(&json.value))
+  else if(auto* m = get_if<Map>(&json))
     for(auto& [k,v] : *m) allPlaceholdersImpl(rv,v);
-  else Bug()<<"Strange JsonLoc type with index = "<<json.value.index();
+  else BugUnknownJsonType(json);
 }
 
 auto JsonLoc::allPlaceholders() -> PlaceholderMap {
@@ -72,7 +81,7 @@ bool JsonLoc::substitutionsOk() const {
   } else if(auto* m = get_if<Map>(&this->value)) {
     for(auto& [k,v] : *m) if(!childIsGood(*this,v)) return false;
   } else if(!holds_alternative<String>(this->value)) {
-    Bug()<<"Strange JsonLoc type with index = "<<this->value.index();
+    BugUnknownJsonType(*this);
   }
   return true;
 }
