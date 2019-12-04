@@ -194,9 +194,9 @@ string severityString(Diag::Severity sev) {
 optional<char> lexHexEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i+1))
-    return lex.Error(i-2,i-2,"Incomplete hex code");
+    return lex.Error(i-2,"Incomplete hex code");
   if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
-    return lex.Error(i-2,i-1,"Invalid hex code");
+    return lex.Error(i-2,"Invalid hex code");
   i += 2;
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
@@ -205,7 +205,7 @@ optional<char> lexHexEscape(Lexer& lex, size_t& i) {
 // just after the backslash, inside a string literal.
 optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
   const Input& input = lex.input;
-  if(!input.sizeGt(i)) return lex.Error(i-1,i-1,"Incomplete escape code");
+  if(!input.sizeGt(i)) return lex.Error(i-1,"Incomplete escape code");
   char ch;
   switch(input[i]) {
     case '\\': ch = '\\'; break;
@@ -213,7 +213,7 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
     case 'x': return lexHexEscape(lex, ++i);
-    default: return lex.Error(i-1,i,"Invalid escape code");
+    default: return lex.Error(i-1,"Invalid escape code");
   }
   ++i;
   return ch;
@@ -310,7 +310,7 @@ string debugChar(char ch) {
     else if(input[j]=='\n') ++j;
     else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
             isoperch(input[j])) { i=j; return true; }
-    else lex.Fatal(j,j+1,"Unexpected character " + debugChar(input[j]));
+    else lex.Fatal(j,"Unexpected character " + debugChar(input[j]));
   }
   return false;
 }
@@ -371,7 +371,7 @@ optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i) {
   BracketGroup bg(i,Input::npos,bt);
   while(true) {
     if(!lookaheadStart(lex,j)) {  // lookaheadStart is false on EOF.
-      lex.Error(i,i+1,Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
+      lex.Error(i,Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
       i = Input::npos;
       return nullopt;
     }
@@ -395,7 +395,7 @@ optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i) {
       bg.children.push_back(std::move(*wordopt));
     else if(auto operopt = lexOperator(lex.input,j))
       bg.children.push_back(std::move(*operopt));
-    else lex.FatalBug(j, j+1,
+    else lex.FatalBug(j,
         "Invalid input character, should have been caught by lookaheadStart().");
   }
 }
@@ -407,7 +407,7 @@ optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
   else if(isbracket(lex.input[i]) || isquote(lex.input[i]))
     return UnquotedToken(i,i+1,lex.input);
   else if(auto op = lexOperator(lex.input, i)) return op;
-  else lex.Fatal(i, i+1, "Invalid input character");
+  else lex.Fatal(i, "Invalid input character");
 }
 
 // TODO replace all BugDie in this file with this, so they have location.
