@@ -49,6 +49,10 @@ struct JsonLoc {
   JsonLoc(Vector v) : value(v) {}
   JsonLoc(Map m) : value(m) {}
 
+  // Note that allPlaceholders() is a non-const member method, since it returns
+  // non-const JsonLoc pointers to various internal components. Pretty much any
+  // direct mutation to this->value will invalidate these pointers: only
+  // substitute() is safe.
   using PlaceholderMap = std::multimap<std::string, JsonLoc*, std::less<>>;
   PlaceholderMap allPlaceholders();
 
@@ -60,7 +64,7 @@ struct JsonLoc {
   // Check if child intervals are covered by parent intervals (ignoring npos).
   // Check if child has a valid interval, so does parent.
   // Check if all (stpos==npos) == (enpos==npos).
-  // Typically, this should be checked before a substitution is made.
+  // Typically, this should be checked after all substitutions are made.
   bool substitutionsOk() const;
 
   // The first line is never indented. No newline follows the last character.
