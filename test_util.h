@@ -12,11 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#ifdef TEST_UTIL_H
-#error "Do not include more than once." \
- "This should only be included from *_test.cpp with a main()"
-#endif
-#define TEST_UTIL_H
+#pragma once
 
 #include <iostream>
 #include <string_view>
@@ -58,6 +54,10 @@ operator<<(std::ostream& os,const std::vector<std::string>& v) {
   for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
   os<<'}';
   return os;
+}
+
+inline bool isSubstr(std::string_view s, std::string_view t) {
+  return t.find(s) != std::string_view::npos;
 }
 
 }  // namespace oalex

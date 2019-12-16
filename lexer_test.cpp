@@ -105,14 +105,10 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   }
 }
 
-bool isSubstr(string_view s, string_view t) {
-  return t.find(s) != string::npos;
-}
-
 void assertHasDiagWithSubstr(const char testName[], const vector<Diag>& diags,
                              string_view expectedDiag) {
   if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
-  for(const Diag& d : diags) if(isSubstr(expectedDiag, d.msg)) return;
+  for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
   cerr<<"Got diags:\n";
   for(const Diag& d : diags) cerr<<" "<<string(d)<<endl;
   BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
