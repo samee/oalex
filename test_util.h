@@ -15,6 +15,7 @@
 #pragma once
 
 #include <iostream>
+#include <map>
 #include <string_view>
 #include "util.h"
 
@@ -54,6 +55,13 @@ operator<<(std::ostream& os,const std::vector<std::string>& v) {
   for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
   os<<'}';
   return os;
+}
+
+template <class K, class T, class Cmp> std::vector<K>
+uniqueKeys(const std::multimap<K,T,Cmp>& m) {
+  std::vector<K> v;
+  for(const auto& [k,e] : m) if(v.empty()||v.back()!=k) v.push_back(k);
+  return v;
 }
 
 inline bool isSubstr(std::string_view s, std::string_view t) {

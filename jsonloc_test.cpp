@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "diags_test_util.h"
 #include "input_view_manual.h"
 #include "lexer.h"
 #include "test_util.h"
@@ -16,11 +17,14 @@ using std::optional;
 using std::string;
 using std::string_view;
 using std::vector;
+using namespace std::string_literals;
 using oalex::Bug;
+using oalex::BugWarn;
 using oalex::Input;
-using oalex::GetFromString;
 using oalex::JsonLoc;
+using oalex::uniqueKeys;
 using oalex::UserError;
+using oalex::operator<<;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
@@ -60,6 +64,7 @@ optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i) {
   optional<BracketGroup> bg = lexBracketGroup(lex, j);
   if(!bg.has_value()) return nullopt;
   if(bg->type == BracketType::paren) return nullopt;
+  i = j;
   if(bg->type == BracketType::square) return parseVector(lex, bg->children);
   if(bg->type == BracketType::brace) return parseMap(lex, bg->children);
   Bug()<<"Unknown BracketType: "<<int(bg->type);
@@ -94,18 +99,19 @@ optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
       continue;
     }
     if(elt.size()<2 || !isToken(elt[1],":")) {
-      lex.Error(stPos(elt[1]), "Was expecting a colon sign after the key.");
+      lex.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
       continue;
     }
     if(elt.size()<3) {
-      lex.Error(stPos(elt[2]), "Value missing after the colon.");
+      lex.Error(enPos(elt[1]), "Value missing after the colon.");
       continue;
     }
     optional<JsonLoc> parsedElt = parseJsonLoc(lex, elt[2]);
     if(parsedElt) {
       if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
         lex.Error(key->stPos, "Duplicate key " + key->token);
-    }else if(elt.size()>=4)
+    }
+    if(elt.size()>=4)
       lex.Error(stPos(elt[3]), "Was expecting a comma here");
   }
   return JsonLoc(rv);
@@ -157,10 +163,88 @@ void testSimpleSuccess() {
     BugMe<<"Unexpected output:\n"<<output;
 }
 
+void testSubstitution() {
+  const char input[] = R"({
+    input: input,
+    list: ["item 1", input, "item 2"],   # Duplicate keyword nestled somewhere.
+    input2: input2,
+  })";
+  optional<JsonLoc> json = parseJsonLoc(input);
+  JsonLoc::PlaceholderMap blanks = json->allPlaceholders();
+  const vector<string> expected_blanks{"input","input2"};
+  if(uniqueKeys(blanks) != expected_blanks)
+    BugMe<<"Unexpected blank set: ["<<uniqueKeys(blanks)
+         <<"] != ["<<expected_blanks<<"]";
+
+  // Try one substitution.
+  optional<JsonLoc> part1 = parseJsonLoc(R"({key: "value"})");
+  json->substitute(blanks, "input", *part1);
+  if(json->substitutionsOk())
+    BugMe<<"Unexpectedly okay with substitution after only 1 of 2 subs";
+
+  // Try second substitution.
+  json->substitute(blanks, "input2", JsonLoc("hello"));
+  if(!json->substitutionsOk())
+    BugMe<<"Even after all substitutions, still not okay";
+
+  string output = json->prettyPrint(2);
+  const char expected[] = R"({
+    input: {
+      key: "value"
+    },
+    input2: "hello",
+    list: [
+      "item 1",
+      {
+        key: "value"
+      },
+      "item 2"
+    ]
+  })";
+  if(output != expected)
+    BugMe<<"Unexpected output:\n"<<output;
+}
+
+void testJsonLocFailure(const char input[], const char errmsg[]) {
+  Lexer lex = GetFromString(input);
+  size_t i = 0;
+  optional<JsonLoc> res = parseJsonLoc(lex, i);
+  if(res.has_value() && lex.diags.empty())
+    Bug()<<"Was expecting failure with input '"<<input
+         <<"'. Got this instead: "<<res->prettyPrint();
+  assertHasDiagWithSubstr(__func__, lex.diags, errmsg);
+}
+
+void testJsonLocPosition(const char input[], size_t endi) {
+  Lexer lex = GetFromString(input);
+  size_t i = 0;
+  optional<JsonLoc> res = parseJsonLoc(lex, i);
+  if(!lex.diags.empty()) {
+    for(const auto& d : lex.diags) BugWarn()<<string(d);
+    Bug()<<"Got unexpected diags.";
+  }
+  if(i != endi) Bug()<<"For input '"<<input<<"', expected end position was "
+                     <<endi<<" != "<<i;
+}
+
 }  // namespace
 
-// TODO failure tests. Empty braces and other corner cases.
-// TODO substitution tests. Pretty-print tests.
+// Note: none of these check JsonLoc::stpos or enpos of parse results, since we
+// don't quite know how they will actually be used in practice, or what methods
+// are needed to support their use pattern. Avoiding overengineering for now.
 int main() {
   testSimpleSuccess();
+  testSubstitution();
+  testJsonLocPosition("(a,b)", 0);
+  testJsonLocPosition("foo", 0);
+  testJsonLocPosition("[a, b] foo", "[a, b]"s.size());
+  testJsonLocFailure("[a,,b]", "Unexpected comma");
+  testJsonLocFailure("[a,b,,]", "Unexpected comma");
+  testJsonLocFailure("[(a,b)]", "Unexpected parenthesis");
+  testJsonLocFailure("{[]:[]}", "Was expecting a key");
+  testJsonLocFailure("{a}", "Was expecting a colon sign after the key");
+  testJsonLocFailure("{a:}", "Value missing after the colon");
+  testJsonLocFailure("{a:b:c}", "Was expecting a comma here");
+  testJsonLocFailure("{a:b,a:c}", "Duplicate key a");
+  testJsonLocFailure("[a b]", "Was expecting a comma");
 }
