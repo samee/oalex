@@ -14,6 +14,7 @@ using std::map;
 using std::nullopt;
 using std::optional;
 using std::string;
+using std::string_view;
 using std::vector;
 using oalex::Bug;
 using oalex::Input;
@@ -125,14 +126,24 @@ optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
-void testSimpleSuccess() {
+// Testing convenience.
+Lexer GetFromString(string_view s) {
+  return Lexer{Input(oalex::GetFromString(s)),{}};
+}
+
+// Testing convenience.
+optional<JsonLoc> parseJsonLoc(string_view s) {
   size_t i = 0;
+  Lexer lex = GetFromString(s);
+  return parseJsonLoc(lex,i);
+}
+
+void testSimpleSuccess() {
   const char input[] = R"( {
     # We support comments, another divergence from json.org.
     # Includes a trailing comma.
     input: "hello world", output: ["hello", "world",], metadata: metadata } )";
-  Lexer lex{Input(GetFromString(input)),{}};
-  optional<JsonLoc> json = parseJsonLoc(lex,i);
+  optional<JsonLoc> json = parseJsonLoc(input);
   string output = json->prettyPrint(2);
   const char expected[] = R"({
     input: "hello world",
