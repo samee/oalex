@@ -18,6 +18,7 @@
 #include <string>
 #include <string_view>
 
+#include "diags_test_util.h"
 #include "test_util.h"
 #include "util.h"
 using std::cerr;
@@ -103,15 +104,6 @@ void headerSuccessImpl(const char testInput[], const char testName[],
     if(expected != observed)
       BugDie()<<testName<<": "<<expected<<" != "<<observed;
   }
-}
-
-void assertHasDiagWithSubstr(const char testName[], const vector<Diag>& diags,
-                             string_view expectedDiag) {
-  if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
-  for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
-  cerr<<"Got diags:\n";
-  for(const Diag& d : diags) cerr<<" "<<string(d)<<endl;
-  BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
 }
 
 void headerFailureImpl(const char testInput[], const char testName[],
