@@ -31,7 +31,7 @@ using oalex::lex::UnquotedToken;
 namespace {
 
 optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i);
-optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr);  // TODO
+optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr);
 optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts);
 optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts);
 
@@ -42,7 +42,7 @@ optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts);
 // a single empty string.
 vector<vector<ExprToken>>
 splitCommaNoEmpty(Lexer& lex,const vector<ExprToken>& elts) {
-  vector<vector<ExprToken>> rv(1);
+  vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
       if(rv.back().empty()) lex.Error(stPos(elt),"Unexpected comma");
@@ -56,7 +56,7 @@ splitCommaNoEmpty(Lexer& lex,const vector<ExprToken>& elts) {
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i) {
-  size_t j=i;
+  size_t j = i;
   optional<BracketGroup> bg = lexBracketGroup(lex, j);
   if(!bg.has_value()) return nullopt;
   if(bg->type == BracketType::paren) return nullopt;
