@@ -129,18 +129,19 @@ void testSimpleSuccess() {
   size_t i = 0;
   const char input[] = R"( {
     # We support comments, another divergence from json.org.
-    input: "hello world", output: ["hello", "world"], metadata: metadata } )";
+    # Includes a trailing comma.
+    input: "hello world", output: ["hello", "world",], metadata: metadata } )";
   Lexer lex{Input(GetFromString(input)),{}};
   optional<JsonLoc> json = parseJsonLoc(lex,i);
-  string output = json->prettyPrint();
+  string output = json->prettyPrint(2);
   const char expected[] = R"({
-  input: "hello world",
-  metadata: metadata,
-  output: [
-    "hello",
-    "world"
-  ]
-})";
+    input: "hello world",
+    metadata: metadata,
+    output: [
+      "hello",
+      "world"
+    ]
+  })";
   if(output != expected)
     BugMe<<"Unexpected output:\n"<<output;
 }
