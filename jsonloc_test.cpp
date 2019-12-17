@@ -119,19 +119,23 @@ optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
       lex.Error(stPos(elt[0]), "Was expecting a key.");
       continue;
     }
-    if(elt.size()<2 || !isToken(elt[1],":")) {
-      lex.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
-      continue;
-    }
-    if(elt.size()<3) {
-      lex.Error(enPos(elt[1]), "Value missing after the colon.");
-      continue;
-    }
-    optional<JsonLoc> parsedElt = parseJsonLoc(lex, elt[2]);
-    if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
-    if(elt.size()>=4) {
-      lex.Error(stPos(elt[3]), "Was expecting a comma here");
-      continue;
+    optional<JsonLoc> parsedElt;
+    if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->token};
+    else {
+      if(!isToken(elt[1],":")) {
+        lex.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
+        continue;
+      }
+      if(elt.size()<3) {
+        lex.Error(enPos(elt[1]), "Value missing after the colon.");
+        continue;
+      }
+      parsedElt = parseJsonLoc(lex, elt[2]);
+      if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
+      if(elt.size()>=4) {
+        lex.Error(stPos(elt[3]), "Was expecting a comma here");
+        continue;
+      }
     }
 
     if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
@@ -188,9 +192,9 @@ void testSimpleSuccess() {
 
 void testSubstitution() {
   const char input[] = R"({
-    input: input,
+    input,
     list: ["item 1", input, "item 2"],   # Duplicate keyword nestled somewhere.
-    input2: input2,
+    input2,  # Lone keyword.
   })";
   optional<JsonLoc> json = parseJsonLoc(input);
   JsonLoc::PlaceholderMap blanks = json->allPlaceholders();
@@ -265,7 +269,6 @@ int main() {
   testJsonLocFailure("[a,b,,]", "Unexpected comma");
   testJsonLocFailure("[(a,b)]", "Unexpected parenthesis");
   testJsonLocFailure("{[]:[]}", "Was expecting a key");
-  testJsonLocFailure("{a}", "Was expecting a colon sign after the key");
   testJsonLocFailure("{a:}", "Value missing after the colon");
   testJsonLocFailure("{a:b:c}", "Was expecting a comma here");
   testJsonLocFailure("{a:b,a:c}", "Duplicate key a");
