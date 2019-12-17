@@ -1,5 +1,6 @@
 #include "jsonloc.h"
 
+#include <cctype>
 #include <optional>
 #include <map>
 #include <string>
@@ -11,6 +12,8 @@
 #include "test_util.h"
 #include "util.h"
 using std::get_if;
+using std::isalnum;
+using std::isdigit;
 using std::map;
 using std::nullopt;
 using std::optional;
@@ -70,8 +73,26 @@ optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i) {
   Bug()<<"Unknown BracketType: "<<int(bg->type);
 }
 
+bool isIdent(string_view s) {
+  if(s.empty()) return false;
+  if(isdigit(s[0])) return false;
+  for(char ch : s) if(!isalnum(ch) && ch!='_') return false;
+  return true;
+}
+
+optional<UnquotedToken> parseIdent(Lexer& lex, const ExprToken& expr) {
+  auto* token = get_if<UnquotedToken>(&expr);
+  if(!token) return lex.Error(stPos(expr),"Was expecting an identifier");
+  if(!isIdent(token->token)) {
+    lex.Error(token->stPos,
+      "'" + token->token + "' is not a valid identifier.");
+    return UnquotedToken(token->stPos, token->enPos, "invalid_identifier");
+  }
+  return *token;
+}
+
 optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr) {
-  if(auto* token = get_if<UnquotedToken>(&expr))
+  if(auto token = parseIdent(lex,expr))
     return JsonLoc(JsonLoc::Placeholder{token->token});
   if(auto* qs = get_if<QuotedString>(&expr))
     return JsonLoc(qs->s);
@@ -93,7 +114,7 @@ optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
   map<string,JsonLoc> rv;
   for(auto& elt : splitres) {
     if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
-    const UnquotedToken* key = get_if<UnquotedToken>(&elt[0]);
+    optional<UnquotedToken> key = parseIdent(lex, elt[0]);
     if(!key) {
       lex.Error(stPos(elt[0]), "Was expecting a key.");
       continue;
@@ -107,12 +128,14 @@ optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
       continue;
     }
     optional<JsonLoc> parsedElt = parseJsonLoc(lex, elt[2]);
-    if(parsedElt) {
-      if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
-        lex.Error(key->stPos, "Duplicate key " + key->token);
-    }
-    if(elt.size()>=4)
+    if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
+    if(elt.size()>=4) {
       lex.Error(stPos(elt[3]), "Was expecting a comma here");
+      continue;
+    }
+
+    if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
+      lex.Error(key->stPos, "Duplicate key " + key->token);
   }
   return JsonLoc(rv);
 }
@@ -247,4 +270,5 @@ int main() {
   testJsonLocFailure("{a:b:c}", "Was expecting a comma here");
   testJsonLocFailure("{a:b,a:c}", "Duplicate key a");
   testJsonLocFailure("[a b]", "Was expecting a comma");
+  testJsonLocFailure("[123]", "'123' is not a valid identifier");
 }

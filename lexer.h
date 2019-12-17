@@ -51,6 +51,8 @@ struct UnquotedToken : LexSegment {
   std::string token;
   UnquotedToken(size_t st,size_t en,const Input& input)
     : LexSegment(st,en,type_tag), token(input.substr(st,en-st)) {}
+  UnquotedToken(size_t st,size_t en,std::string tok)
+    : LexSegment(st,en,type_tag), token(std::move(tok)) {}
   const std::string& operator*() const { return token; }
 };
 
