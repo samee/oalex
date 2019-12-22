@@ -13,12 +13,12 @@ enable_testing()
 add_executable(input_view_manual_test
                input_view_manual_test.cpp input_view_manual.cpp)
 add_test(input_view_manual_test input_view_manual_test)
-add_library(lexer OBJECT lexer.cpp input_view_manual.cpp jsonloc.cpp)
-add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
-               $<TARGET_OBJECTS:lexer>)
+
+set(LEXER_SOURCES lexer.cpp input_view_manual.cpp)
+add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp ${LEXER_SOURCES})
 add_test(lexer_test lexer_test)
 
-add_executable(jsonloc_test jsonloc_test.cpp $<TARGET_OBJECTS:lexer>)
+add_executable(jsonloc_test jsonloc_test.cpp jsonloc.cpp ${LEXER_SOURCES})
 add_test(jsonloc_test jsonloc_test)
 
 add_subdirectory(archived)
