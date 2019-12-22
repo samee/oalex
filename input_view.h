@@ -13,107 +13,90 @@
     limitations under the License. */
 
 #pragma once
-#include<algorithm>
-#include<string>
-#include<string_view>
-#include<utility>
-#include<vector>
+#include <functional>
+#include <limits>
+#include <string>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 namespace oalex {
 
-// class input_buffer and input_view. Implements a reference-counted
-// string_view of sorts. Not thread-safe. Calls unexpected() on internal bugs.
+// input_view.h seemed too complicated for a simple recursive descent parser.
+// We try an alternative abstraction here, where we access it like a normal
+// string, but it only keeps a smallish substring in memory. Any time we use
+// operator[], it loads new characters into buf_ if necessary. It only forgets
+// parts of it when explicitly asked to.
 //
-// Multiple input_view objects can all share various substrings of a single
-// input_buffer instance that owns the actual bytes. While parsing, this is
-// primarily used to store half-parsed pieces of the input data, before they
-// are converted into something more persistent. In typical use, it is expected
-// to hold relatively small suffixes of the overall input. The internal buffer
-// therefore holds a suffix of the overall input, deallocating unowned prefixes
-// as they get released.
+// It always tries to keep one extra character beyond what was already read with
+// operator[], so that the following loop will work:
 //
-// The other reason for not using std::string_view is that we want it to stay
-// valid even as new characters get appended from the input.
+//   for(size_t i=0; input.sizeGt(i); ++i) { process(input[i]); }
 //
-// Note that there is no way to obtain an arbitrary input_view from the middle
-// of the buffer. It has to start with an acquire_tail call, which can then
-// grow with .push_back() calls.
+// input.size_ will change from npos to the real size as soon as the last
+// character is accessed.
 //
-// acquire_tail returns an opaque handle to an internal position.  This can be
-// used by start_at, release, and acquire_copy.
+// Convention: const methods cannot forget, but they can still cause I/O. So
+// you can safely pass a `const Input&` to a method knowing that they won't
+// cause you to lose parts of the input string you still care about.
 
-class input_buffer {
-  // For invariants, see input_view_test.cpp:input_buffer_test::valid.
-  std::string s_;
-  size_t off_=0, minnz_=0, starts_del_=0;
-  std::vector<std::pair<size_t,size_t>> starts_;  // offset-count pairs.
-  friend class input_view;
-  friend class input_buffer_test;
-
-  // Undefined behavior unless this part has been acquired.
-  // Used only by input_view::operator std::string_view.
-  // Exception: string_view::substr can throw iff st-off_ > s_.size().
-  //   Note that st and off_ are unsigned types.
-  std::string_view substr(size_t st,size_t len) {
-    return std::string_view(s_).substr(st-off_,len);
-  }
+class Input {
  public:
-  class pos_type { size_t to_int; friend class input_buffer; };
+  static constexpr auto npos = std::numeric_limits<size_t>::max();
 
-  input_buffer() = default;
-  input_buffer(const input_buffer&) = delete;
-  void push_back(char x) noexcept;
-  pos_type acquire_tail() noexcept;
-  void acquire_copy(pos_type pos) noexcept;
-  size_t start_at(pos_type pos) const noexcept
-    { return starts_.at(pos.to_int-starts_del_).first; }
-  void release(pos_type pos) noexcept;
+  explicit Input(std::function<int16_t()> getch)
+    : getch_(getch), size_(npos) { peekTo(0); }
+  explicit Input(std::string s)
+    : buf_(std::move(s)), size_(buf_.size()) {}
+  Input(const Input&) = delete;
+  Input(Input&&) = default;
 
-  char at(size_t i) const noexcept { return s_.at(i-off_); }
-  size_t end_offset() const noexcept { return off_+s_.size(); }
+  void forgetBefore(size_t pos);   // Amortized O(1).
+  char operator[](size_t sz) const;  // Amortized O(1).
+  bool sizeGt(size_t pos) const { peekTo(pos); return pos<size_; }
+
+  // Beginning-of-line index. Characters in this position may already have been
+  // forgotten. But it is still useful for figuring out indentation.
+  // E.g. checking i == bol(i), or isspace(input[bol(i) .. i]).
+  // O(log k), where k is the working window size.
+  size_t bol(size_t i) const;
+
+  // Returns 1-based positions: line number, and offset in that line.
+  // Everything else in this lass is 0-based.
+  // O(log k), where k is the working window size.
+  std::pair<size_t,size_t> rowCol(size_t i) const;
+
+  // Like std::string::substr, except:
+  //   * Throws an out of bound exception if pos has already been forgotten.
+  //   * Also throws if pos >= size().
+  //   * This doesn't have a default parameter. Defaulting count to npos would
+  //     defeat the whole point of this class, since it would have been more
+  //     convenient to use std::string instead.
+  //
+  // Like std::string::substr, if `count` is too large, we silently truncate
+  // the returned string.
+  //
+  // Idea: perhaps use:
+  //   struct string_substr { const string* s; uint32_t st,en; };
+  // Can also use size_t instead, but that risks increasing sizeof().
+  // Unlike std::string_view, it will stay valid even if s is appended to,
+  // and undergoes reallocation.
+  std::string substr(size_t pos, size_t count) const;
+
+  static constexpr size_t defaultMaxLineLength = 5000;
+  size_t maxLineLength() const { return maxLineLength_; }
+
+ private:
+  mutable std::string buf_;
+  std::function<int16_t()> getch_;
+  size_t start_pos_=0;
+  mutable size_t size_;
+  mutable std::vector<size_t> newlines_;
+  size_t maxLineLength_ = defaultMaxLineLength;
+
+  void peekTo(size_t last) const;
+  void peekAndBoundCharAt(size_t i) const;
+  bool endSeen() const { return size_ < npos; }
 };
-
-// The only way to construct a non-null object is by using grab_tail.
-// Typical lifetime:
-//   1. grab_tail
-//   2. input_buffer::push_back() grows all unbounded input_view.
-//   3. stop_growing or remove_prefix shrinks it.
-//   4. Eventually released through reset() or dtor.
-// It can get copied or moved around while all this happens. Any
-// std::string_view obtained here can get invalidated as soon as
-// any deallocation or push_back occurs on this->buf. This includes
-// the case of other input_views getting destroyed.
-class input_view {
-  input_buffer* buf;
-  input_buffer::pos_type pos;
-  size_t len;
- public:
-  input_view() noexcept : buf(nullptr) {}
-  input_view(const input_view& that) noexcept { *this=that; }
-  input_view(input_view&& that) noexcept { *this=std::move(that); }
-  input_view& operator=(const input_view& that) noexcept;
-  input_view& operator=(input_view&& that) noexcept;
-  ~input_view() { if(buf) buf->release(pos); }
-  operator bool() const noexcept { return buf; }
-  friend input_view grab_tail(input_buffer& buf) noexcept;
-
-  size_t start() const noexcept { return buf->start_at(pos); }
-  size_t size() const noexcept
-    { return std::min(len,buf->end_offset()-start()); }
-  size_t stop() const noexcept { return start()+size(); }
-  void remove_suffix(size_t n) noexcept
-    { if(size()>n) len=size()-n; else len=0; }
-  bool growing() const noexcept { return len==std::string::npos; }
-  void stop_growing() noexcept { len=size(); }
-  void reset() noexcept { if(buf) { buf->release(pos); buf=nullptr; } }
-  char operator[](size_t i) const noexcept { return buf->at(start()+i); }
-
-  explicit operator std::string_view() const noexcept
-    { return buf ? buf->substr(start(),len) : std::string_view(); }
-  explicit operator std::string() const noexcept
-    { return std::string(std::string_view(*this)); }
-};
-
-input_view grab_tail(input_buffer& buf) noexcept;
 
 }  // namespace oalex

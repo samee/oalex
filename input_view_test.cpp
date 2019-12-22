@@ -12,108 +12,113 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include"input_view.h"
-#include<random>
-#include"test_util.h"
-using namespace std;
-using namespace oalex;
+#include "input_view.h"
+#include <random>
+#include "test_util.h"
+#include "util.h"
+using std::bernoulli_distribution;
+using std::default_random_engine;
+using std::make_pair;
+using std::pair;
+using std::string;
+using std::uniform_int_distribution;
 
-namespace oalex {
+using oalex::GetFromString;
+using oalex::Input;
 
-class input_buffer_test {
- public:
-  static void valid(const input_buffer& buf) {
-    size_t i;
-    const auto& starts=buf.starts_;
-    // .first must be sorted with no duplicates.
-    for(i=1;i<starts.size();++i) {
-      if(starts[i-1].first==starts[i].first)
-        TestErr<<"Duplicate indices found at position "<<i-1<<": "
-               <<starts[i].first;
-      else if(starts[i-1].first>starts[i].first)
-        TestErr<<"Unsorted indices at "<<i-1<<": "
-               <<starts[i-1].first<<" > "<<starts[i].first;
-    }
-    if(buf.minnz_>starts.size())
-      TestErr<<"minnz_ out of bounds: "<<buf.minnz_<<" > "<<starts.size();
-    else {
-      for(i=0;i<buf.minnz_;++i) if(starts[i].second!=0)
-        TestErr<<"minnz is skipping over live elements at "<<i;
-      for(i=buf.minnz_;i<starts.size();++i) {
-        if(starts[i].first<buf.off_)
-          TestErr<<"We are pointing to removed characters: "<<starts[i].first
-                 <<" < "<<buf.off_;
-      }
-      if(buf.minnz_>starts.size()) TestErr<<"Strangely large minnz_";
-      else if(buf.minnz_<starts.size() && starts[buf.minnz_].second==0)
-        TestErr<<"minnz_ could have advanced farther up";
+namespace {
+  // 1. Generate random string with newlines.
+  // 2. We can always make O(n) ground-truth functions.
+  // 3. Pick average line length k. Make string with P('\n') = 1/k.
+  // 4. Scan through it with i, forgetting at j:
+  //      ++i with P(advance) = 1 - 1/l
+  //      j+=delta with P(forget) = 1/l
+  //      where l = 2k.
+  //      delta = i-j with P = 1/2l
+  //            = (i-j)/2 with p = 1/4l
+  //            = (i-j)/2^x with p = 1/(2l*2^x)
+  //      verify one last time before forgetting.
+
+string randomString(size_t avgLineSz,size_t sz) {
+  const char ichars[]="abcdefghijklmnopqrstuvwxyz";
+  string s(sz,' ');
+  default_random_engine engine(42);
+  uniform_int_distribution<size_t> random_index(0,sizeof(ichars)-2);
+  bernoulli_distribution newline_coin(1.0/avgLineSz);
+  for(char& ch:s) {
+    if(newline_coin(engine)) ch='\n';
+    else ch=ichars[random_index(engine)];
+  }
+  return s;
+}
+
+size_t bol(const string& s,size_t i) {
+  if(i == 0) return 0;
+  for(size_t j=i-1;j>0;--j) if(s[j]=='\n') return j+1;
+  return s[0]=='\n';
+}
+
+pair<size_t,size_t> rowCol(const string& s,size_t i) {
+  size_t row=0, col=0;
+  for(size_t j=0;j<i;++j) {
+    if(s[j]=='\n') { ++row; col=0; }
+    else ++col;
+  }
+  return make_pair(row+1,col+1);
+}
+
+size_t forgetLen(default_random_engine& engine, size_t sz) {
+  if(sz == 0) return 0;
+  if(bernoulli_distribution(.5)(engine)) return sz;
+  return forgetLen(engine, sz/2);
+}
+
+void testDataMatchesString(const string& s, size_t avgWindowLen) {
+  default_random_engine engine(42);
+  bernoulli_distribution forget_coin(1.0/avgWindowLen);
+  Input input((GetFromString(s)));
+  size_t i=0,j=0;
+  while(j<s.size()) {
+    if(i >= s.size() || forget_coin(engine)) {
+      size_t rmlen=forgetLen(engine, i-j);
+      if(s.substr(j,rmlen) != input.substr(j,rmlen))
+        BugMe<<"substr mismatch: "<<s.substr(j,rmlen)<<" != "
+             <<input.substr(j,rmlen);
+      j+=rmlen;
+      input.forgetBefore(j);
+    }else {
+      if(s[i] != input[i])
+        BugMe<<"input["<<i<<"] mismatch: "<<s[i]<<" != "<<input[j];
+      if(bol(s,i) != input.bol(i))
+        BugMe<<"bol("<<i<<") mismatch: "<<bol(s,i)<<" != "<<input.bol(i);
+      pair<size_t,size_t> observed = input.rowCol(i), expected = rowCol(s,i);
+      if(observed.first != expected.first)
+        BugMe<<"row mismatch: "<<expected.first<<" != "<<observed.first;
+      if(observed.second != expected.second)
+        BugMe<<"col mismatch: "<<expected.second<<" != "<<observed.second;
+      ++i;
     }
   }
-};
+}
 
-}  // namespace oalex
+void testLineTooLong() {
+  string s(Input::defaultMaxLineLength+1,'-');
+  Input input((GetFromString(s)));
+  try {
+    char ch = input[input.maxLineLength()];
+    BugMe<<"Got input[i] == '"<<ch<<"', was expecting an exception";
+  }catch(oalex::UserErrorEx& ex) {
+    const char expected[] = "Line 1 is too long";
+    if(string(ex.what()).find(expected)==string::npos)
+      BugMe<<"substr mismatch: \""<<expected<<"\" is not in \""
+           <<ex.what()<<"\"";
+  }
+}
+
+}
 
 int main() {
-  input_buffer buf;
-  input_buffer_test::valid(buf);
-  string ref;
-  default_random_engine engine;
-  engine.seed(42);
-  constexpr int ivn=20;
-  input_view iv[ivn];
-  size_t st[ivn]={},len[ivn]={};
-  bool used[ivn]={};
-  int usedc=0;
-  bernoulli_distribution hard_coin(.1);
-  uniform_int_distribution<char> random_char('a','z');
-  uniform_int_distribution<int> random_index(0,ivn-1),
-    use_type(1,3);
-  for(int i=0;i<1000;++i) {
-    char ch=random_char(engine);
-    buf.push_back(ch);
-    ref.push_back(ch);
-    for(int j=0;j<ivn;++j) if(hard_coin(engine)) {
-      int ut=use_type(engine);
-      if(!used[j]) {
-        if(!usedc||ut==1) {
-          len[j]=string::npos;
-          st[j]=ref.size();
-          iv[j]=grab_tail(buf);
-        }else {
-          int j2;
-          do { j2=random_index(engine); } while(!used[j2]);
-          len[j]=len[j2];
-          st[j]=st[j2];
-          if(ut==2) iv[j]=iv[j2];
-          else {
-            iv[j]=std::move(iv[j2]);
-            used[j2]=false;
-            usedc--;
-          }
-        }
-        used[j]=true;
-        usedc++;
-      }else if(len[j]==string::npos) {
-        len[j]=ref.size()-st[j];
-        iv[j].stop_growing();
-      }else if(len[j]>5) {
-        len[j]-=5;
-        iv[j].remove_suffix(5);
-      }else {
-        used[j]=false;
-        usedc--;
-        iv[j].reset();
-      }
-    }
-    input_buffer_test::valid(buf);
-    for(int j=0;j<ivn;++j) {
-      if(!used[j]) continue;
-      if(used[j]&&string_view(iv[j])!=ref.substr(st[j],len[j])) {
-        TestErr<<"i = "<<i<<", "<<"j = "<<j;
-        TestErr<<"Something is wrong: \""
-          <<string_view(iv[j])<<"\" !=\" "<<ref.substr(st[j],len[j])<<'"';
-      }
-    }
-  }
-  return someError;
+  const size_t linelen=50;
+  testDataMatchesString(randomString(linelen,1000), 2*linelen);
+  testLineTooLong();
 }

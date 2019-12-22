@@ -47,7 +47,7 @@
 #include <vector>
 
 #include "segment.h"
-#include "input_view_manual.h"
+#include "input_view.h"
 #include "util.h"
 
 using std::function;

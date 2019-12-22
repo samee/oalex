@@ -7,20 +7,17 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb")
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_EXTENSIONS OFF)
+include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
-add_library(dfa OBJECT dfa.cpp input_view.cpp)
-add_executable(input_view_test input_view_test.cpp $<TARGET_OBJECTS:dfa>)
+add_executable(input_view_test input_view_test.cpp input_view.cpp)
 add_test(input_view_test input_view_test)
-add_executable(dfa_test dfa_test.cpp $<TARGET_OBJECTS:dfa>)
-add_test(dfa_test dfa_test)
-add_executable(input_view_manual_test
-               input_view_manual_test.cpp input_view_manual.cpp)
-add_test(input_view_manual_test input_view_manual_test)
-add_library(lexer OBJECT lexer.cpp input_view_manual.cpp jsonloc.cpp)
-add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
-               $<TARGET_OBJECTS:lexer>)
+
+set(LEXER_SOURCES lexer.cpp input_view.cpp)
+add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp ${LEXER_SOURCES})
 add_test(lexer_test lexer_test)
 
-add_executable(jsonloc_test jsonloc_test.cpp $<TARGET_OBJECTS:lexer>)
+add_executable(jsonloc_test jsonloc_test.cpp jsonloc.cpp ${LEXER_SOURCES})
 add_test(jsonloc_test jsonloc_test)
+
+add_subdirectory(archived)

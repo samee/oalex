@@ -16,7 +16,7 @@
 #include <optional>
 #include <variant>
 #include <vector>
-#include "input_view_manual.h"
+#include "input_view.h"
 #include "segment.h"
 
 namespace oalex::lex {
