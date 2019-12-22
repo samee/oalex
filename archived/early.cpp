@@ -169,8 +169,8 @@ bool checkValid(string input_param, const Grammar& g) {
   if(g.empty()) return false;
   EarlyContext ctx(std::move(input_param),&g);
   ssize_t i,j,a;
-  for(j=0;j<=ctx.input.size();++j) for(i=j;i>=0;--i)
-    for(a=0;a<g.size();++a) tryMatchAndPropagate(ctx,a,i,j);
+  for(j=0;j<=(ssize_t)ctx.input.size();++j) for(i=j;i>=0;--i)
+    for(a=0;a<(ssize_t)g.size();++a) tryMatchAndPropagate(ctx,a,i,j);
   return ctx.subMatches.count(SubMatch{0,ctx.input.size(),g[0].lhs});
 }
 

@@ -24,3 +24,6 @@ add_test(lexer_test lexer_test)
 
 add_executable(jsonloc_test jsonloc_test.cpp $<TARGET_OBJECTS:lexer>)
 add_test(jsonloc_test jsonloc_test)
+
+# Archived things, not used elsewhere.
+add_executable(early archived/early.cpp)
