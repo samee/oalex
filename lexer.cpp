@@ -47,8 +47,8 @@
 #include <vector>
 
 #include "segment.h"
-#include "input_view.h"
 #include "util.h"
+#include "runtime/input_view.h"
 
 using std::function;
 using std::hex;

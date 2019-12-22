@@ -10,10 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
-add_executable(input_view_test input_view_test.cpp input_view.cpp)
-add_test(input_view_test input_view_test)
-
-set(LEXER_SOURCES lexer.cpp input_view.cpp)
+set(LEXER_SOURCES lexer.cpp runtime/input_view.cpp)
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp ${LEXER_SOURCES})
 add_test(lexer_test lexer_test)
 
@@ -21,3 +18,4 @@ add_executable(jsonloc_test jsonloc_test.cpp jsonloc.cpp ${LEXER_SOURCES})
 add_test(jsonloc_test jsonloc_test)
 
 add_subdirectory(archived)
+add_subdirectory(runtime)
