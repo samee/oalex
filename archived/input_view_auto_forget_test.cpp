@@ -12,7 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include"input_view.h"
+#include"input_view_auto_forget.h"
 #include<random>
 #include"test_util.h"
 using namespace std;

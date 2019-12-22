@@ -21,6 +21,11 @@
 
 namespace oalex {
 
+// Note added 22nd Dec 2019: unlike the input_view.* files, this one doesn't
+// require an explicit 'forget()' call for buffer cleanup. Instead, it tries to
+// automate the process by explicitly keeping track of all the pointer objects
+// (i.e. input_view) that are still active.
+
 // class input_buffer and input_view. Implements a reference-counted
 // string_view of sorts. Not thread-safe. Calls unexpected() on internal bugs.
 //

@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "diags_test_util.h"
-#include "input_view_manual.h"
+#include "input_view.h"
 #include "lexer.h"
 #include "test_util.h"
 #include "util.h"

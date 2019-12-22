@@ -12,7 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "input_view_manual.h"
+#include "input_view.h"
 #include "util.h"
 using std::make_pair;
 using std::pair;
