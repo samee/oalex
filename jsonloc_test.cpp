@@ -24,6 +24,7 @@ using namespace std::string_literals;
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Input;
+using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::uniqueKeys;
 using oalex::UserError;
@@ -31,16 +32,16 @@ using oalex::operator<<;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
-using oalex::lex::Lexer;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
+using oalex::lex::lexBracketGroup;
 
 namespace {
 
-optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i);
-optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr);
-optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts);
-optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts);
+optional<JsonLoc> parseJsonLoc(InputDiags& lex, size_t& i);
+optional<JsonLoc> parseJsonLoc(InputDiags& lex, const ExprToken& expr);
+optional<JsonLoc> parseMap(InputDiags& lex, const vector<ExprToken>& elts);
+optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts);
 
 // This is meant for parsing lists. As such, it never returns empty elements.
 // Errors out if it finds one, unless it's the last element. If the last
@@ -48,7 +49,7 @@ optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts);
 // list. Note that this is different from Python's "".split(',') which returns
 // a single empty string.
 vector<vector<ExprToken>>
-splitCommaNoEmpty(Lexer& lex,const vector<ExprToken>& elts) {
+splitCommaNoEmpty(InputDiags& lex,const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
@@ -62,7 +63,7 @@ splitCommaNoEmpty(Lexer& lex,const vector<ExprToken>& elts) {
 }
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
-optional<JsonLoc> parseJsonLoc(Lexer& lex, size_t& i) {
+optional<JsonLoc> parseJsonLoc(InputDiags& lex, size_t& i) {
   size_t j = i;
   optional<BracketGroup> bg = lexBracketGroup(lex, j);
   if(!bg.has_value()) return nullopt;
@@ -80,7 +81,7 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<UnquotedToken> parseIdent(Lexer& lex, const ExprToken& expr) {
+optional<UnquotedToken> parseIdent(InputDiags& lex, const ExprToken& expr) {
   auto* token = get_if<UnquotedToken>(&expr);
   if(!token) return lex.Error(stPos(expr),"Was expecting an identifier");
   if(!isIdent(token->token)) {
@@ -91,7 +92,7 @@ optional<UnquotedToken> parseIdent(Lexer& lex, const ExprToken& expr) {
   return *token;
 }
 
-optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr) {
+optional<JsonLoc> parseJsonLoc(InputDiags& lex, const ExprToken& expr) {
   if(auto token = parseIdent(lex,expr))
     return JsonLoc(JsonLoc::Placeholder{token->token});
   if(auto* qs = get_if<QuotedString>(&expr))
@@ -108,7 +109,7 @@ optional<JsonLoc> parseJsonLoc(Lexer& lex, const ExprToken& expr) {
 
 // TODO diags should throw after 3 or so errors.
 // This is a reasonable example of what error-handling oalex could facilitate.
-optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
+optional<JsonLoc> parseMap(InputDiags& lex, const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(lex, elts);
 
   map<string,JsonLoc> rv;
@@ -144,7 +145,7 @@ optional<JsonLoc> parseMap(Lexer& lex, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
-optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts) {
+optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(lex, elts);
 
   vector<JsonLoc> rv;
@@ -160,14 +161,14 @@ optional<JsonLoc> parseVector(Lexer& lex, const vector<ExprToken>& elts) {
 }
 
 // Testing convenience.
-Lexer GetFromString(string_view s) {
-  return Lexer{Input(oalex::GetFromString(s)),{}};
+InputDiags GetFromString(string_view s) {
+  return InputDiags{Input(oalex::GetFromString(s)),{}};
 }
 
 // Testing convenience.
 optional<JsonLoc> parseJsonLoc(string_view s) {
   size_t i = 0;
-  Lexer lex = GetFromString(s);
+  InputDiags lex = GetFromString(s);
   return parseJsonLoc(lex,i);
 }
 
@@ -233,7 +234,7 @@ void testSubstitution() {
 }
 
 void testJsonLocFailure(const char input[], const char errmsg[]) {
-  Lexer lex = GetFromString(input);
+  InputDiags lex = GetFromString(input);
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(lex, i);
   if(res.has_value() && lex.diags.empty())
@@ -243,7 +244,7 @@ void testJsonLocFailure(const char input[], const char errmsg[]) {
 }
 
 void testJsonLocPosition(const char input[], size_t endi) {
-  Lexer lex = GetFromString(input);
+  InputDiags lex = GetFromString(input);
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(lex, i);
   if(!lex.diags.empty()) {

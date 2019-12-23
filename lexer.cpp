@@ -53,7 +53,6 @@
 using std::function;
 using std::hex;
 using std::nullopt;
-using std::nullopt_t;
 using std::numeric_limits;
 using std::optional;
 using std::shared_ptr;
@@ -139,7 +138,7 @@ optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
 //         can decide not to backtrack any more, since it could not have been
 //         anything else.
 //       - Will likely depend on parser-global bools.
-//       - Likely signature: foo(const Lexer&,size_t&);
+//       - Likely signature: foo(const InputDiags&,size_t&);
 
 optional<vector<UnquotedToken>>
 lexSectionHeaderContents(const Input& input, size_t& i) {
@@ -175,7 +174,7 @@ optional<size_t> lexDashLine(const Input& input, size_t& i) {
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
 // are just parsing the "hh" part. `i` points to what should be the first hex
 // digit.
-optional<char> lexHexEscape(Lexer& lex, size_t& i) {
+optional<char> lexHexEscape(InputDiags& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i+1))
     return lex.Error(i-2,"Incomplete hex code");
@@ -187,7 +186,7 @@ optional<char> lexHexEscape(Lexer& lex, size_t& i) {
 
 // For a backslash code, this function assumes `i` is already at the character
 // just after the backslash, inside a string literal.
-optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
+optional<char> lexQuotedEscape(InputDiags& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i)) return lex.Error(i-1,"Incomplete escape code");
   char ch;
@@ -207,7 +206,7 @@ optional<char> lexQuotedEscape(Lexer& lex, size_t& i) {
 // Return value does *not* include trailing newline, if any.  However, i *is*
 // incremented past the newline so we are ready to read the next line if one
 // exists. We never care about whether or not the last line ends with a newline.
-string getline(Lexer& lex, size_t& i) {
+string getline(InputDiags& lex, size_t& i) {
   size_t eol = i;
   bool nlend = false;
   for(; lex.input.sizeGt(eol); ++eol) {
@@ -231,7 +230,8 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
   }
 }
 
-optional<string> lexSourceLine(Lexer& lex, size_t& i, string_view parindent) {
+optional<string> lexSourceLine(InputDiags& lex, size_t& i,
+                               string_view parindent) {
   const Input& input = lex.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
   size_t j = i;
@@ -284,7 +284,7 @@ string debugChar(char ch) {
 }
 
 // Returns false on eof. Throws on invalid language character.
-[[nodiscard]] bool lookaheadStart(const Lexer& lex, size_t& i) {
+[[nodiscard]] bool lookaheadStart(const InputDiags& lex, size_t& i) {
   const Input& input = lex.input;
   size_t j = i;
   while(input.sizeGt(j)) {
@@ -344,7 +344,7 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
-optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i) {
+optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i) {
   const Input& input = lex.input;
   size_t j = i;
   if(!lookaheadStart(lex,j)) return nullopt;
@@ -386,7 +386,7 @@ optional<BracketGroup> lexBracketGroup(Lexer& lex, size_t& i) {
 }
 
 // Returns nullopt on eof. Throws on invalid language character.
-optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
+optional<UnquotedToken> lookahead(const InputDiags& lex, size_t i) {
   if(!lookaheadStart(lex,i)) return nullopt;
   if(auto tok = lexWord(lex.input, i)) return tok;
   else if(isbracket(lex.input[i]) || isquote(lex.input[i]))
@@ -396,35 +396,12 @@ optional<UnquotedToken> lookahead(const Lexer& lex, size_t i) {
 }
 
 // TODO replace all BugDie in this file with this, so they have location.
-void Lexer::FatalBug(size_t st, size_t en, string msg) const {
-  BugDie()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
-}
-
-void Lexer::Fatal(size_t st, size_t en, string msg) const {
-  UserError()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
-}
-
-nullopt_t Lexer::Error(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::error, std::move(msg));
-  return nullopt;
-}
-
-nullopt_t Lexer::Warning(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::warning, std::move(msg));
-  return nullopt;
-}
-
-nullopt_t Lexer::Note(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::note, std::move(msg));
-  return nullopt;
-}
-
 // It returns an error-free nullopt iff lex.input[i] is not a '"', in which case
 // the caller should try parsing something else. In all other cases, it will
 // either return a valid string, or nullopt with errors added to lex.diags. In
 // this case, increment `i` beyond the end of the next unescaped '"', or in case
 // of an unexpected end of line, beyond the next newline.
-optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
+optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i) {
   const Input& input = lex.input;
   if(!input.sizeGt(i) || input[i]!='"') return nullopt;
   size_t j = i;
@@ -447,7 +424,7 @@ optional<QuotedString> lexQuotedString(Lexer& lex, size_t& i) {
   return nullopt;
 }
 
-optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
+optional<QuotedString> lexDelimitedSource(InputDiags& lex, size_t& i) {
   Input& input = lex.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
@@ -474,7 +451,7 @@ optional<QuotedString> lexDelimitedSource(Lexer& lex, size_t& i) {
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
 // source line, strictly more indented than parindent.
 optional<QuotedString>
-lexIndentedSource(Lexer& lex, size_t& i, string_view parindent) {
+lexIndentedSource(InputDiags& lex, size_t& i, string_view parindent) {
   Input& input = lex.input;
   string rv;
   size_t j = i;
@@ -506,7 +483,7 @@ lexIndentedSource(Lexer& lex, size_t& i, string_view parindent) {
 // TODO: We should also produce errors if there is an invalid character in
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
-optional<vector<UnquotedToken>> lexSectionHeader(Lexer& lex, size_t& i) {
+optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& lex, size_t& i) {
   const Input& input=lex.input;
   size_t j=i;
 

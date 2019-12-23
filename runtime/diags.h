@@ -29,4 +29,28 @@ struct Diag {
   explicit operator std::string() const;
 };
 
+struct InputDiags {
+  Input input;
+  std::vector<Diag> diags;
+
+  // throws, never returns.
+  [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
+  [[noreturn]] void Fatal(size_t st,size_t en,std::string msg) const;
+
+  std::nullopt_t Error(size_t st,size_t en,std::string msg);
+  std::nullopt_t Warning(size_t st,size_t en,std::string msg);
+  std::nullopt_t Note(size_t st,size_t en,std::string msg);
+
+  [[noreturn]] void FatalBug(size_t pos,std::string msg) const
+    { FatalBug(pos, pos+1, std::move(msg)); }
+  [[noreturn]] void Fatal(size_t pos,std::string msg) const
+    { Fatal(pos, pos+1, std::move(msg)); }
+  std::nullopt_t Error(size_t pos,std::string msg)
+    { return Error(pos, pos+1, std::move(msg)); }
+  std::nullopt_t Warning(size_t pos,std::string msg)
+    { return Warning(pos, pos+1, std::move(msg)); }
+  std::nullopt_t Note(size_t pos,std::string msg)
+    { return Note(pos, pos+1, std::move(msg)); }
+};
+
 }  // namespace oalex
