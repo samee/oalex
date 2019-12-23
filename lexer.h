@@ -16,22 +16,11 @@
 #include <optional>
 #include <variant>
 #include <vector>
-#include "runtime/input_view.h"
 #include "segment.h"
+#include "runtime/diags.h"
+#include "runtime/input_view.h"
 
 namespace oalex::lex {
-
-struct Diag {
-  enum Severity { error,warning,note } severity;
-  size_t stLine, stPos, enLine, enPos;  // These ranges are inclusive.
-  std::string msg;
-  Diag(const Input& input, size_t st, size_t en, Severity sev, std::string msg)
-    : severity(sev), msg(msg) {
-    std::tie(stLine,stPos) = input.rowCol(st);
-    std::tie(enLine,enPos) = input.rowCol(--en);
-  }
-  explicit operator std::string() const;
-};
 
 enum class LexSegmentTag {
   unquotedToken = Segment::lastReservedTag + 1,

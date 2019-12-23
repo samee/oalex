@@ -15,8 +15,8 @@
 #include "dfa.h"
 
 #include <string_view>
-#include "util.h"
 #include "test_util.h"
+#include "runtime/util.h"
 
 using namespace oalex;
 using namespace std;

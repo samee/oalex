@@ -47,8 +47,8 @@
 #include <vector>
 
 #include "segment.h"
-#include "util.h"
 #include "runtime/input_view.h"
+#include "runtime/util.h"
 
 using std::function;
 using std::hex;
@@ -170,22 +170,6 @@ optional<size_t> lexDashLine(const Input& input, size_t& i) {
   while(input.sizeGt(j)  && input[j]=='-') ++j;
   if(!lexSpaceCommentsToLineEnd(input,j)) return nullopt;
   else { i=j; return rv; }
-}
-
-string locationString(const Diag& diag) {
-  if(diag.stLine != diag.enLine) return Str()<<diag.stLine<<'-'<<diag.enLine;
-  else if(diag.stPos != diag.enPos)
-    return Str()<<diag.stLine<<':'<<diag.stPos<<'-'<<diag.enPos;
-  else return Str()<<diag.stLine<<':'<<diag.stPos;
-}
-
-string severityString(Diag::Severity sev) {
-  switch(sev) {
-    case Diag::error: return "error";
-    case Diag::warning: return "warning";
-    case Diag::note: return "note";
-    default: BugDie()<<"Diagnostics has a strange severity: "<<sev;
-  }
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -506,10 +490,6 @@ lexIndentedSource(Lexer& lex, size_t& i, string_view parindent) {
   QuotedString qs(i,j,rv);
   i = j;
   return qs;
-}
-
-Diag::operator string() const {
-  return locationString(*this) + ": " + severityString(severity) + ": " + msg;
 }
 
 // Changes `i` iff:

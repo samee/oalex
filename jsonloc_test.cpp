@@ -9,8 +9,8 @@
 #include "diags_test_util.h"
 #include "lexer.h"
 #include "test_util.h"
-#include "util.h"
 #include "runtime/input_view.h"
+#include "runtime/util.h"
 using std::get_if;
 using std::isalnum;
 using std::isdigit;

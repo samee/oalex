@@ -20,7 +20,7 @@
 
 #include "diags_test_util.h"
 #include "test_util.h"
-#include "util.h"
+#include "runtime/util.h"
 using std::cerr;
 using std::endl;
 using std::get;
@@ -35,13 +35,13 @@ using std::vector;
 using namespace std::string_literals;
 using oalex::operator<<;
 using oalex::BugDie;
+using oalex::Diag;
 using oalex::GetFromString;
 using oalex::Input;
 using oalex::Str;
 using oalex::UserErrorEx;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
-using oalex::lex::Diag;
 using oalex::lex::ExprToken;
 using oalex::lex::Lexer;
 using oalex::lex::QuotedString;

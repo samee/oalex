@@ -10,7 +10,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
-set(LEXER_SOURCES lexer.cpp runtime/input_view.cpp)
+set(LEXER_SOURCES lexer.cpp runtime/diags.cpp runtime/input_view.cpp)
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp ${LEXER_SOURCES})
 add_test(lexer_test lexer_test)
 
