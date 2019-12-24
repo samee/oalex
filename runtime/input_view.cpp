@@ -56,8 +56,14 @@ void Input::forgetBefore(const size_t pos) {
   start_pos_ = pos;
 }
 
+[[noreturn]] static void bugLostPos(size_t pos) {
+  Bug()<<"Out of bounds, already forgotten "<<pos<<'.';
+}
+
+// TODO I no longer remember when to use this function, vs directly comparing
+// only i < start_pos_. Figure out a a sane logic.
 void Input::peekAndBoundCharAt(size_t i) const {
-  if(i < start_pos_) Bug()<<"Out of bounds, already forgotten "<<i<<'.';
+  if(i < start_pos_) bugLostPos(i);
   peekTo(i+1);
   if(i-start_pos_ < buf_.size()) return;
   if(!endSeen()) BugDie()<<"peekTo() returned unexpectedly early.";
@@ -70,10 +76,9 @@ char Input::operator[](size_t i) const {
 }
 
 string Input::substr(size_t pos, size_t count) const {
-  if(pos < start_pos_)
-    Bug()<<"Out of bound error, already forgotten "<<pos<<'.';
+  if(pos < start_pos_) bugLostPos(pos);
   peekTo(pos+count);
-  return buf_.substr(pos-start_pos_,count);
+  return buf_.substr(pos-start_pos_, count);
 }
 
 size_t Input::bol(size_t i) const {
