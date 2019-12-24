@@ -14,7 +14,7 @@
 
 #include"input_view_auto_forget.h"
 #include<random>
-#include"test_util.h"
+#include"runtime/test_util.h"
 using namespace std;
 using namespace oalex;
 

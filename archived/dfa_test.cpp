@@ -15,7 +15,7 @@
 #include "dfa.h"
 
 #include <string_view>
-#include "test_util.h"
+#include "runtime/test_util.h"
 #include "runtime/util.h"
 
 using namespace oalex;

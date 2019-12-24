@@ -13,7 +13,7 @@
     limitations under the License. */
 #pragma once
 #include <string_view>
-#include "lexer.h"
+#include "diags.h"
 #include "test_util.h"
 
 inline void assertHasDiagWithSubstr(const char testName[],
@@ -26,4 +26,3 @@ inline void assertHasDiagWithSubstr(const char testName[],
   for(const Diag& d : diags) std::cerr<<" "<<std::string(d)<<std::endl;
   oalex::BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
 }
-

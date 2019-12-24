@@ -18,8 +18,8 @@
 #include <string>
 #include <string_view>
 
-#include "diags_test_util.h"
-#include "test_util.h"
+#include "runtime/diags_test_util.h"
+#include "runtime/test_util.h"
 #include "runtime/util.h"
 using std::cerr;
 using std::endl;
