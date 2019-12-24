@@ -36,7 +36,6 @@ using namespace std::string_literals;
 using oalex::operator<<;
 using oalex::BugDie;
 using oalex::Diag;
-using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::Str;
@@ -97,7 +96,7 @@ Not a header
 
 void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
   if(!res || !lex.diags.empty()) {
@@ -113,7 +112,7 @@ void headerSuccessImpl(const char testInput[], const char testName[],
 
 void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
   if(res && lex.diags.empty())
@@ -132,7 +131,7 @@ const char invalidHex[] = R"("\xag")";
 
 void stringSuccessImpl(const char testInput[], const char testName[],
     string_view expected) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(lex, i);
   if(!res || !lex.diags.empty()) {
@@ -146,7 +145,7 @@ void stringSuccessImpl(const char testInput[], const char testName[],
 
 void stringFailureImpl(const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(lex, i);
   if(res && lex.diags.empty())
@@ -173,7 +172,7 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   size_t dsize = delimSize(testInput);
   string_view expected = testInput.substr(dsize+1, testInput.size()-2*dsize-1);
 
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexDelimitedSource(lex, i);
   if(!res || !lex.diags.empty()) {
@@ -204,7 +203,7 @@ const char noTrailingNewlineParsed[] = "foo\n";
 void indentedSourceBlockSuccessImpl(
     const char testInput[], const char testName[],
     optional<string> expectedResult) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !lex.diags.empty()) {
@@ -220,7 +219,7 @@ const char tabSpaceMix[] = "  foo\n\tbar";
 void indentedSourceBlockFailureImpl(
     const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags lex{Input(GetFromString(testInput)),{}};
+  InputDiags lex{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
   if(res && lex.diags.empty())
@@ -233,7 +232,7 @@ void lookaheadsSuccess() {
   string expecteds[] = {"foo","foo","[","...",":"};
   static_assert(sizeof(inputs)==sizeof(expecteds));
   for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
-    InputDiags lex{Input(GetFromString(inputs[i])),{}};
+    InputDiags lex{testInputDiags(inputs[i])};
     if(optional<UnquotedToken> tok = lookahead(lex,1)) {
       if(tok->token!=expecteds[i])
         BugMe<<"Test case "<<i<<" failed with \""
@@ -244,14 +243,14 @@ void lookaheadsSuccess() {
 
 void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
-  InputDiags lex{Input(GetFromString(input)),{}};
+  InputDiags lex{testInputDiags(input)};
   if(optional<UnquotedToken> tok = lookahead(lex,3))
     BugMe<<"Succeeded unexpectedly, got "<<tok->token;
 }
 
 void lookaheadThrowsOnInvalidChar() {
   string input = "\b";
-  InputDiags lex{Input(GetFromString(input)),{}};
+  InputDiags lex{testInputDiags(input)};
   try {
     auto tok = lookahead(lex,0);
     BugMe<<"Succeeded unexpectedly, got "<<(tok?tok->token:"<nullopt>"s);
@@ -267,7 +266,7 @@ void bracketGroupSuccess() {
   const BracketGroupMatcher expected = braces("A", ":=",
         parens("B", ".", "C", "word",
                squareBrackets(quoted("hello"), quoted("world"))));
-  InputDiags lex{Input(GetFromString(input)),{}};
+  InputDiags lex{testInputDiags(input)};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
 
@@ -316,7 +315,7 @@ string debug(const BracketGroup& bg) {
 
 void bracketGroupFailureImpl(const char testName[], string input,
     optional<string> expectedDiag) {
-  InputDiags lex{Input(GetFromString(input)),{}};
+  InputDiags lex{testInputDiags(input)};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
   if(!expectedDiag.has_value()) {
@@ -328,7 +327,7 @@ void bracketGroupFailureImpl(const char testName[], string input,
 }
 
 void bracketGroupThrows(string input, string expectedDiag) {
-  InputDiags lex{Input(GetFromString(input)),{}};
+  InputDiags lex{testInputDiags(input)};
   size_t i = 0;
   try {
     auto bg = lexBracketGroup(lex,i);
