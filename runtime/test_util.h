@@ -39,7 +39,10 @@ struct TestErrImpl {
 // internal bugs.
 #define BugMe oalex::BugDie()<<__func__<<": "
 
-// Useful as getch() callbacks in dfa.h and input_view_manual.h.
+// Useful as getch() callbacks in dfa.h and input_view.h.
+// Dev note: When reading from files, two things to note:
+//   * This is where "\r\n" -> "\n" conversion happens.
+//   * If the last character is not "\n", append an extra "\n".
 class GetFromString {
   std::string_view src;
   size_t i=0;

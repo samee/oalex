@@ -17,6 +17,7 @@
 using std::make_pair;
 using std::pair;
 using std::string;
+using std::string_view;
 
 namespace oalex {
 
@@ -79,6 +80,18 @@ string Input::substr(size_t pos, size_t count) const {
   if(pos < start_pos_) bugLostPos(pos);
   peekTo(pos+count);
   return buf_.substr(pos-start_pos_, count);
+}
+
+bool Input::hasPrefix(size_t pos, string_view s) const {
+  if(pos < start_pos_) bugLostPos(pos);
+  peekTo(pos+s.size());
+  return buf_.compare(pos-start_pos_, s.size(), s) == 0;
+}
+
+size_t Input::find(char ch, size_t pos) const {
+  if(pos < start_pos_) bugLostPos(pos);
+  for(size_t i=pos; sizeGt(i); ++i) if((*this)[i]==ch) return i;
+  return npos;
 }
 
 size_t Input::bol(size_t i) const {

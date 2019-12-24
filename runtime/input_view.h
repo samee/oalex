@@ -85,6 +85,10 @@ class Input {
   // Unlike std::string_view, it will stay valid even if s is appended to,
   // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const;
+  bool hasPrefix(size_t pos, std::string_view s) const;
+  bool hasPrefix(size_t pos, size_t count, std::string_view s) const
+    { return count >= s.size() && hasPrefix(pos,s); }
+  size_t find(char ch, size_t pos) const;
 
   static constexpr size_t defaultMaxLineLength = 5000;
   size_t maxLineLength() const { return maxLineLength_; }
