@@ -40,6 +40,9 @@ const char ocamlinput[] = "hello (* more (* nested *) stuff *) world\n";
 const Skipper htmlskip{{{"<!--","-->"}}, {}};
 const char htmlinput[] = "hello <!-- comment --> world\n";
 
+const Skipper haskellskip{{{"--","\n"}}, {{"{-","-}"}}};
+const char haskellinput[] = "hello {- a {- b -} c -} world -- stuff\n";
+
 vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
@@ -58,9 +61,9 @@ vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
 }
 
 void testSingleLineSuccess() {
-  const Skipper *skip[] = {&cskip,&pyskip,&ocamlskip,&htmlskip};
-  const char *input[] = {cinput,pyinput,ocamlinput,htmlinput};
-  const char langnames[][7] = {"c","python","ocaml","html"};
+  const Skipper *skip[] = {&cskip,&pyskip,&ocamlskip,&htmlskip,&haskellskip};
+  const char *input[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
+  const char langnames[][7] = {"c","python","ocaml","html","haskell"};
   const size_t n = sizeof(skip)/sizeof(skip[0]);
   for(size_t i=0; i<n; ++i) {
     InputDiags ctx = testInputDiags(input[i]);
