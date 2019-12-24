@@ -26,3 +26,7 @@ inline void assertHasDiagWithSubstr(const char testName[],
   for(const Diag& d : diags) std::cerr<<" "<<std::string(d)<<std::endl;
   oalex::BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
 }
+
+inline oalex::InputDiags testInputDiags(std::string_view s) {
+  return oalex::InputDiags{oalex::Input(oalex::GetFromString(s)),{}};
+}

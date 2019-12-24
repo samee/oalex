@@ -161,14 +161,9 @@ optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts) {
 }
 
 // Testing convenience.
-InputDiags GetFromString(string_view s) {
-  return InputDiags{Input(oalex::GetFromString(s)),{}};
-}
-
-// Testing convenience.
 optional<JsonLoc> parseJsonLoc(string_view s) {
   size_t i = 0;
-  InputDiags lex = GetFromString(s);
+  InputDiags lex = testInputDiags(s);
   return parseJsonLoc(lex,i);
 }
 
@@ -234,7 +229,7 @@ void testSubstitution() {
 }
 
 void testJsonLocFailure(const char input[], const char errmsg[]) {
-  InputDiags lex = GetFromString(input);
+  InputDiags lex = testInputDiags(input);
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(lex, i);
   if(res.has_value() && lex.diags.empty())
@@ -244,7 +239,7 @@ void testJsonLocFailure(const char input[], const char errmsg[]) {
 }
 
 void testJsonLocPosition(const char input[], size_t endi) {
-  InputDiags lex = GetFromString(input);
+  InputDiags lex = testInputDiags(input);
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(lex, i);
   if(!lex.diags.empty()) {
