@@ -22,14 +22,14 @@
 
 namespace oalex {
 
-// input_view.h seemed too complicated for a simple recursive descent parser.
-// We try an alternative abstraction here, where we access it like a normal
-// string, but it only keeps a smallish substring in memory. Any time we use
-// operator[], it loads new characters into buf_ if necessary. It only forgets
-// parts of it when explicitly asked to.
+// input_view_auto_forget.h seemed too complicated for a simple recursive
+// descent parser.  We try an alternative abstraction here, where we access it
+// like a normal string, but it only keeps a smallish substring in memory. Any
+// time we use operator[], it loads new characters into buf_ if necessary. It
+// only forgets parts of it when explicitly asked to.
 //
-// It always tries to keep one extra character beyond what was already read with
-// operator[], so that the following loop will work:
+// It always tries to keep one extra character beyond what was already read
+// with operator[], so that the following loop will work:
 //
 //   for(size_t i=0; input.sizeGt(i); ++i) { process(input[i]); }
 //
@@ -55,10 +55,13 @@ class Input {
   char operator[](size_t sz) const;  // Amortized O(1).
   bool sizeGt(size_t pos) const { peekTo(pos); return pos<size_; }
 
-  // Beginning-of-line index. Characters in this position may already have been
-  // forgotten. But it is still useful for figuring out indentation.
+  // Beginning-of-line index. It is okay if characters at position i has
+  // already been forgotten. It is still useful for figuring out indentation.
   // E.g. checking i == bol(i), or isspace(input[bol(i) .. i]).
-  // O(log k), where k is the working window size.
+  // If i is beyond eof, it will still lead us to the point right after the
+  // last newline in input.
+  //
+  // O(log k), where k is the number of lines seen so far.
   size_t bol(size_t i) const;
 
   // Returns 1-based positions: line number, and offset in that line.

@@ -115,10 +115,21 @@ void testLineTooLong() {
   }
 }
 
+void testForgottenBol() {
+  string s(100,'-');
+  Input input{GetFromString(s)};
+  input.forgetBefore(80);
+  if(input.bol(90)!=0)
+    BugMe<<"first-line bol() is wrong after amnesia. 0 != "<<input.bol(90);
+  if(input.bol(50)!=0)
+    BugMe<<"Can't find bol() for forgotten index. 0 != "<<input.bol(50);
+}
+
 }
 
 int main() {
   const size_t linelen=50;
   testDataMatchesString(randomString(linelen,1000), 2*linelen);
   testLineTooLong();
+  testForgottenBol();
 }

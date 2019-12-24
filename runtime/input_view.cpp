@@ -77,16 +77,15 @@ string Input::substr(size_t pos, size_t count) const {
 }
 
 size_t Input::bol(size_t i) const {
-  peekAndBoundCharAt(i);
-  if(newlines_.empty() || i<=newlines_[0]) return start_pos_;
+  peekTo(i+1);
+  if(newlines_.empty() || i<=newlines_[0]) return 0;
   size_t prev_newline = *--lower_bound(newlines_.begin(), newlines_.end(), i);
   return prev_newline+1;
 }
 
 pair<size_t,size_t> Input::rowCol(size_t i) const {
-  peekAndBoundCharAt(i);
-  if(newlines_.empty() || i<=newlines_[0])
-    return make_pair(1, 1+i-start_pos_);
+  peekTo(i+1);
+  if(newlines_.empty() || i<=newlines_[0]) return make_pair(1, 1+i);
   size_t prev = lower_bound(newlines_.begin(), newlines_.end(), i)
                 - newlines_.begin() - 1;
   return make_pair(prev+2, i-newlines_[prev]);
