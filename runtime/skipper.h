@@ -70,6 +70,9 @@ struct Skipper {
   It is assumed that Input will terminate each line with a '\n', including the
   last line. That's why we expect a '\n' comment end-delimiter to match eof,
   even though we don't have any special-handling for that here.
+
+  If a crlf translation layer becomes important, move Unixify from
+  skipper_test.cpp to this header.
   */
   bool acrossBlankLines = true;
   size_t acrossLines(InputDiags& ctx, size_t pos) const;
@@ -106,6 +109,9 @@ struct Skipper {
   rely on Input terminating all lines with '\n', even the last one. So it is
   okay if we are expecting a newline-terminated comment, but the end-user ends
   input before that: we should still see a newline here in Skipper.
+
+  If a crlf translation layer becomes important, move Unixify from
+  skipper_test.cpp to this header.
 
   Dev notes: it is possible that this method is never useful, since input.bol()
     always has enough information to provide the same facilities even with
