@@ -22,7 +22,9 @@ namespace oalex {
 // where spaces are significant (e.g. inside string literals).
 //
 // We allow only a single pair of nestedComment delimiters for now, since we
-// don't want to support mismatched pairs in user languages.
+// don't have a clear precedent on what to do in case of mismatched pairs,
+// like "[ ( ] )". It is unclear if this is even a desirable construct in
+// language design, or if it should be encouraged.
 //
 // Usage: Right after we have ended a token, this is used to find the the start
 //   of the next one. It does not decide what a token is, since we don't want
