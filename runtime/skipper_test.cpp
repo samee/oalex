@@ -140,7 +140,7 @@ void testSingleLineSuccess() {
 }
 
 void testLineEndsAtNewline() {
-  string input = "hello world";
+  const string input = "hello world";
   InputDiags ctx = unixifiedTestInputDiags(input + "  \n  ");
   size_t pos1 = input.size();
   size_t pos2 = cskip.withinLine(ctx, pos1);
@@ -152,10 +152,19 @@ void testLineEndsAtNewline() {
     BugMe<<"We did not stop right after a newline. pos = "<<pos2;
 }
 
+void testTabsSkipped() {
+  const string input = "\thello \t  /* stuff */\tworld";
+  InputDiags ctx = unixifiedTestInputDiags(input);
+  vector<string> words = getWords(ctx, cskip);
+  if(words != vector<string>{"hello", "world"})
+    BugMe<<"{hello, world} != "<<words;
+}
+
 }  // namespace
 
 int main() {
   unixifyTests();
   testSingleLineSuccess();
   testLineEndsAtNewline();
+  testTabsSkipped();
 }
