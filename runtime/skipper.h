@@ -40,6 +40,7 @@ struct Skipper {
   std::optional<std::pair<std::string,std::string>> nestedComment;
   // Checks prefix-freeness, and non-empty strings. Checks that '\n' only
   // appears at the end of a delimitter.
+  // Check delimiters don't start with a ' ' or '\t'.
   // Nested: start cannot be a prefix of end or vice versa.
   bool valid() const;
 

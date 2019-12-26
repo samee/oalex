@@ -88,6 +88,10 @@ void unixifyTests() {
   testUnixify("foo", "foo\n");
 }
 
+InputDiags unixifiedTestInputDiags(string_view s) {
+  return InputDiags{Input(Unixify{GetFromString(s)}), {}};
+}
+
 // TODO failure tests.
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
 const char cinput[] = "hello /* comment */ world // more stuff";
@@ -127,7 +131,7 @@ void testSingleLineSuccess() {
   const char langnames[][8] = {"c","python","ocaml","html","haskell"};
   const size_t n = sizeof(skip)/sizeof(skip[0]);
   for(size_t i=0; i<n; ++i) {
-    InputDiags ctx{Input(Unixify{GetFromString(input[i])}), {}};
+    InputDiags ctx = unixifiedTestInputDiags(input[i]);
     vector<string> words = getWords(ctx,*skip[i]);
     if(words != vector<string>{"hello", "world"})
       BugMe<<"Had problems with parsing "<<langnames[i]<<". "<<words
@@ -135,9 +139,23 @@ void testSingleLineSuccess() {
   }
 }
 
+void testLineEndsAtNewline() {
+  string input = "hello world";
+  InputDiags ctx = unixifiedTestInputDiags(input + "  \n  ");
+  size_t pos1 = input.size();
+  size_t pos2 = cskip.withinLine(ctx, pos1);
+  if(pos2 <= pos1)
+    BugMe<<"Skipper::withinLine() is not moving to the next line. pos = "<<pos2;
+  if(!ctx.input.sizeGt(pos2))
+    BugMe<<"We kept on skippin on the following line. pos = "<<pos2;
+  if(ctx.input[pos2-1] != '\n')
+    BugMe<<"We did not stop right after a newline. pos = "<<pos2;
+}
+
 }  // namespace
 
 int main() {
   unixifyTests();
   testSingleLineSuccess();
+  testLineEndsAtNewline();
 }

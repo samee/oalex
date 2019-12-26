@@ -73,7 +73,7 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
   while(true) {
   keepSkipping:
     // Check if we still have room to skip.
-    if(!input.sizeGt(i) || i>=end) return string::npos;
+    if(!input.sizeGt(i) || i>=end) return end;
     else if(isin(input[i]," \t")) ++i;
     else if(nestedComment && input.hasPrefix(i,end-i,nestedComment->first))
       i = skipPastNestedComment(*nestedComment,ctx,i,end);
@@ -84,7 +84,7 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
         i = i2;
         goto keepSkipping;
       }
-      return i;
+      return input[i]=='\n' ? i+1 : i;
     }
   }
 }
