@@ -15,13 +15,59 @@
 #include "skipper.h"
 #include <string_view>
 #include <utility>
+#include <vector>
 #include "util.h"
 using std::pair;
+using std::nullopt;
+using std::optional;
 using std::string;
 using std::string_view;
+using std::vector;
 using namespace std::literals::string_view_literals;
 
 namespace oalex {
+
+static bool isin(char ch,string_view s) {
+  return s.find(ch) != string_view::npos;
+}
+
+// To be replaced with C++20 std::string_view::starts_with.
+static bool starts_with(string_view a, string_view b) {
+  return a.substr(0,b.size()) == b;
+}
+
+static optional<string> validPair(string_view st, string_view en) {
+    if(st.empty() || en.empty()) return "Comment delimiters cannot be empty";
+    if(isin(st[0], " \t\n"))
+      return "Whitespace at the start of comments will be skipped over";
+    if(st.find("\n") != st.npos ||
+       en.substr(0,en.size()-1).find("\n") != en.npos)
+      return "skip.withinLine() works poorly with delimiters requiring newline";
+    return nullopt;
+}
+
+optional<string> Skipper::valid() const {
+  for(const auto& [st,en] : unnestedComments)
+    if(auto err = validPair(st,en)) return err;
+  if(nestedComment.has_value()) {
+    if(auto err = validPair(nestedComment->first, nestedComment->second))
+      return err;
+    if(starts_with(nestedComment->first, nestedComment->second) ||
+       starts_with(nestedComment->second, nestedComment->first))
+      return "Nested comment delimiter pair can be confused for each other";
+  }
+
+  // Check prefix-freeness.
+  vector<string> starts;
+  for(const auto& [st,en] : unnestedComments) starts.push_back(st);
+  if(nestedComment.has_value()) starts.push_back(nestedComment->first);
+  for(size_t i=0; i<starts.size(); ++i)
+    for(size_t j=0; j<starts.size(); ++j)
+      if(i != j && starts_with(starts[i], starts[j]))
+        return Str()<<"Comment delimiters cannot be prefixes of each other: "
+                    <<starts[i]<<", "<<starts[j];
+  return nullopt;
+}
 
 static size_t skipEnd(const Input& input, size_t pos, bool endsBeforeNextLine) {
   size_t end = endsBeforeNextLine ? input.find('\n',pos) : string::npos;
@@ -60,10 +106,6 @@ skipPastNext(const string& s, const Input& input, size_t pos, size_t end) {
   for(size_t i=pos; input.sizeGt(i) && i+s.size()<=end; ++i)
     if(input.hasPrefix(i,s)) return i+s.size();
   return string::npos;
-}
-
-static bool isin(char ch,string_view s) {
-  return s.find(ch) != string_view::npos;
 }
 
 size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {

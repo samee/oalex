@@ -38,11 +38,26 @@ struct Skipper {
   // Single-line comments use "\n" as the end marker, unnested.
   std::vector<std::pair<std::string,std::string>> unnestedComments;
   std::optional<std::pair<std::string,std::string>> nestedComment;
-  // Checks prefix-freeness, and non-empty strings. Checks that '\n' only
-  // appears at the end of a delimitter.
-  // Check delimiters don't start with a ' ' or '\t'.
-  // Nested: start cannot be a prefix of end or vice versa.
-  bool valid() const;
+
+  /*
+  Returns an error message if something is wrong with member values.
+  std::nullopt means everything is okay, and it is safe to use the other
+  methods here.
+
+  It is really meant for debugging, not user output. E.g. the messages may
+  have method names in them.  So if members are set based on user inputs,
+  we need to provide an separate layer of validation with contextual
+  messages.
+
+  Curent checks:
+    * None of the delimiters must be empty.
+    * All the start delimiters must be prefix-free.
+    * Nested start and end delimiters must not be prefixes of each other.
+    * They must not start with ' ' or '\t'.
+    * A '\n' is only allowed as the last or only character in an end
+      delimiter.
+  */
+  std::optional<std::string> valid() const;
 
   /*
   It finds the next non-space, non-comment character in ctx.input, within the

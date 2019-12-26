@@ -20,6 +20,7 @@
 #include "diags_test_util.h"
 #include "test_util.h"
 using std::function;
+using std::optional;
 using std::vector;
 using std::string;
 using std::string_view;
@@ -108,6 +109,11 @@ const char htmlinput[] = "hello <!-- comment --> world";
 const Skipper haskellskip{{{"--","\n"}}, {{"{-","-}"}}};
 const char haskellinput[] = "hello {- a {- b -} c -} world -- stuff";
 
+const Skipper *langskip[] = {&cskip,&pyskip,&ocamlskip,&htmlskip,&haskellskip};
+const char *langinput[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
+const char langnames[][8] = {"c","python","ocaml","html","haskell"};
+const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
+
 vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
@@ -126,13 +132,9 @@ vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
 }
 
 void testSingleLineSuccess() {
-  const Skipper *skip[] = {&cskip,&pyskip,&ocamlskip,&htmlskip,&haskellskip};
-  const char *input[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
-  const char langnames[][8] = {"c","python","ocaml","html","haskell"};
-  const size_t n = sizeof(skip)/sizeof(skip[0]);
-  for(size_t i=0; i<n; ++i) {
-    InputDiags ctx = unixifiedTestInputDiags(input[i]);
-    vector<string> words = getWords(ctx,*skip[i]);
+  for(size_t i=0; i<lang_n; ++i) {
+    InputDiags ctx = unixifiedTestInputDiags(langinput[i]);
+    vector<string> words = getWords(ctx,*langskip[i]);
     if(words != vector<string>{"hello", "world"})
       BugMe<<"Had problems with parsing "<<langnames[i]<<". "<<words
            <<" != {hello, world}";
@@ -185,6 +187,45 @@ void testCommentNeverEnds() {
   if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";
 }
 
+void assertValidCallReturnsSubstring(string_view testname, const Skipper& skip,
+    string_view expected_error) {
+  optional<string> err = skip.valid();
+  if(!err) Bug()<<testname<<" unexpectedly succeeded";
+  if(err->find(expected_error) == err->npos)
+    Bug()<<testname<<" didn't find the expected error. '"<<*err
+         <<"' does not contain '"<<expected_error<<"'";
+}
+
+void testValid() {
+  for(size_t i=0; i<lang_n; ++i) if(auto err = langskip[i]->valid())
+    Bug()<<langnames[i]<<" skipper has problems: "<<*err;
+  const Skipper noComments{{}, {}};
+  if(auto err = noComments.valid())
+    Bug()<<"Language with no comments has problems: "<<*err;
+  assertValidCallReturnsSubstring("empty unnested start delim",
+      Skipper{{{"", "*/"}}, {}}, "delimiters cannot be empty");
+  assertValidCallReturnsSubstring("empty unnested end delim",
+      Skipper{{{"/*", ""}}, {}}, "delimiters cannot be empty");
+  assertValidCallReturnsSubstring("empty nested start delim",
+      Skipper{{}, {{"", "*/"}}}, "delimiters cannot be empty");
+  assertValidCallReturnsSubstring("empty nested end delim",
+      Skipper{{}, {{"/*", ""}}}, "delimiters cannot be empty");
+  assertValidCallReturnsSubstring("delims start with space",
+      Skipper{{{" /*", "*/"}}, {}}, "Whitespace at the start");
+  assertValidCallReturnsSubstring("start delim with newline",
+      Skipper{{{"/*\n", "*/"}}, {}}, "delimiters requiring newline");
+  assertValidCallReturnsSubstring("end delim with newline",
+      Skipper{{{"/*", "\n*/"}}, {}}, "delimiters requiring newline");
+  assertValidCallReturnsSubstring("prefixed nested delim forward",
+      Skipper{{}, {{"''", "'''"}}}, "can be confused for each other");
+  assertValidCallReturnsSubstring("prefixed nested delim forward",
+      Skipper{{}, {{"'''", "''"}}}, "can be confused for each other");
+  assertValidCallReturnsSubstring("prefixed nested delim equal",
+      Skipper{{}, {{"'''", "'''"}}}, "can be confused for each other");
+  assertValidCallReturnsSubstring("not prefix-free",
+      Skipper{{{"---", "\n"}}, {{"--", "->"}}}, "cannot be prefixes");
+}
+
 }  // namespace
 
 int main() {
@@ -193,4 +234,5 @@ int main() {
   testLineEndsAtNewline();
   testTabsSkipped();
   testCommentNeverEnds();
+  testValid();
 }
