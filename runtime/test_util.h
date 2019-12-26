@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <map>
+#include <string>
 #include <string_view>
 #include "util.h"
 
@@ -44,7 +45,7 @@ struct TestErrImpl {
 //   * This is where "\r\n" -> "\n" conversion happens.
 //   * If the last character is not "\n", append an extra "\n".
 class GetFromString {
-  std::string_view src;
+  std::string src;
   size_t i=0;
  public:
   explicit GetFromString(std::string_view src):src(src) {}
