@@ -24,6 +24,7 @@ using std::vector;
 using std::string;
 using std::string_view;
 using oalex::Bug;
+using oalex::BugWarn;
 using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
@@ -92,9 +93,8 @@ InputDiags unixifiedTestInputDiags(string_view s) {
   return InputDiags{Input(Unixify{GetFromString(s)}), {}};
 }
 
-// TODO failure tests.
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
-const char cinput[] = "hello /* comment */ world // more stuff";
+const char cinput[] = "hello /* /* comment */ world // more stuff";
 
 const Skipper pyskip{ {{"#","\n"},{"'''","'''"},{"\"\"\"","\"\"\""}}, {}};
 const char pyinput[] = "hello '''comment'''\"\"\"comment\"\"\" world # stuff";
@@ -160,6 +160,31 @@ void testTabsSkipped() {
     BugMe<<"{hello, world} != "<<words;
 }
 
+void testCommentNeverEnds() {
+  const string input = "hello world";
+  InputDiags ctx = unixifiedTestInputDiags(input + " /* ");
+  size_t pos = cskip.withinLine(ctx, input.size());
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  // This check is typically used as a loop termination condition.
+  if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";
+
+  // Test that we are not accidentally nesting it.
+  ctx = unixifiedTestInputDiags(input + " /* /* */");
+  pos = cskip.withinLine(ctx, input.size());
+  if(!ctx.diags.empty()) {
+    BugWarn()<<"diags:";
+    for(const auto& d : ctx.diags) BugWarn()<<string(d);
+    BugMe<<"Wasn't expecting problems with properly closed comments";
+  }
+  if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";
+
+  // Test again for nested comments.
+  ctx = unixifiedTestInputDiags(input + " {- {- -} ");
+  pos = haskellskip.withinLine(ctx, input.size());
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";
+}
+
 }  // namespace
 
 int main() {
@@ -167,4 +192,5 @@ int main() {
   testSingleLineSuccess();
   testLineEndsAtNewline();
   testTabsSkipped();
+  testCommentNeverEnds();
 }

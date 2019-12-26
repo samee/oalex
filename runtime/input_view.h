@@ -50,6 +50,8 @@ class Input {
     : buf_(std::move(s)), size_(buf_.size()) {}
   Input(const Input&) = delete;
   Input(Input&&) = default;
+  Input& operator=(const Input&) = delete;
+  Input& operator=(Input&&) = default;
 
   void forgetBefore(size_t pos);   // Amortized O(1).
   char operator[](size_t sz) const;  // Amortized O(1).

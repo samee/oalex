@@ -33,6 +33,9 @@ struct InputDiags {
   Input input;
   std::vector<Diag> diags;
 
+  InputDiags(InputDiags&&) = default;
+  InputDiags& operator=(InputDiags&&) = default;
+
   // throws, never returns.
   [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
   [[noreturn]] void Fatal(size_t st,size_t en,std::string msg) const;
