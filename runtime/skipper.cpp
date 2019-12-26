@@ -71,21 +71,20 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
   const size_t end = skipEnd(input,pos,true);
   size_t i = pos;
   while(true) {
+  keepSkipping:
     // Check if we still have room to skip.
     if(!input.sizeGt(i) || i>=end) return string::npos;
     else if(isin(input[i]," \t")) ++i;
     else if(nestedComment && input.hasPrefix(i,end-i,nestedComment->first))
       i = skipPastNestedComment(*nestedComment,ctx,i,end);
     else {
-      bool skipped = false;
       for(const auto& [st,en] : unnestedComments) if(input.hasPrefix(i,st)) {
         size_t i2 = skipPastNext(en,input,i+st.size(),end);
         if(i2==string::npos) ctx.Error(i,i+st.size(),"Comment never ends");
         i = i2;
-        skipped = true;
-        break;
+        goto keepSkipping;
       }
-      if(!skipped) return i;
+      return i;
     }
   }
 }
