@@ -76,10 +76,11 @@ static size_t skipEnd(const Input& input, size_t pos, bool endsBeforeNextLine) {
 }
 
 // Assumes ctx.input.hasPrefix(pos, end-pos, delims.first).
+// Returns npos if comment never ends.
+// Returns the exact eof position if comment ends exactly at eof.
 static size_t skipPastNestedComment(
     const pair<string,string>& delims,
-    InputDiags& ctx, size_t pos, size_t end) {
-  const Input& input = ctx.input;
+    const Input& input, size_t pos, size_t end) {
   size_t depth=0, i=pos;
   const auto& [stdelim,endelim] = delims;
 
@@ -97,7 +98,6 @@ static size_t skipPastNestedComment(
       if(depth == 0) return i;
     }else ++i;
   }
-  ctx.Error(pos, pos+stdelim.size(), "Comment never ends");
   return Input::npos;
 }
 
@@ -117,8 +117,11 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
     // Check if we still have room to skip.
     if(!input.sizeGt(i) || i>=end) return end;
     else if(isin(input[i]," \t")) ++i;
-    else if(nestedComment && input.hasPrefix(i,end-i,nestedComment->first))
-      i = skipPastNestedComment(*nestedComment,ctx,i,end);
+    else if(nestedComment && input.hasPrefix(i,end-i,nestedComment->first)) {
+      size_t i2 = skipPastNestedComment(*nestedComment,ctx.input,i,end);
+      if(i2 == input.npos) ctx.Error(i,i+1,"Comment never ends");
+      i = i2;
+    }
     else {
       for(const auto& [st,en] : unnestedComments) if(input.hasPrefix(i,st)) {
         size_t i2 = skipPastNext(en,input,i+st.size(),end);
