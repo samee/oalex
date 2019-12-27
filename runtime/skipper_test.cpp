@@ -114,6 +114,16 @@ const char *langinput[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
 const char langnames[][8] = {"c","python","ocaml","html","haskell"};
 const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
 
+// Assumes i is a valid index. "\n" is a word. Increments i to end of word.
+string parseWord(const Input& input, size_t& i) {
+  if(input[i] != '\n' && !isalpha(input[i]))
+    Bug()<<"Found unexpected test character at input["<<i<<"]";
+  if(input[i] == '\n') { ++i; return input.substr(i-1,1); }
+  size_t j = i;
+  while(input.sizeGt(i) && isalpha(input[i])) ++i;
+  return input.substr(j, i-j);
+}
+
 vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
@@ -121,12 +131,7 @@ vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
       input.bol(i) == 0; i = skip.withinLine(ctx,i)) {
     if(!input.sizeGt(i)) Bug()<<"Input isn't producing a trailing newline";
     if(input[i] == '\n') break;
-    if(!isalpha(input[i]))
-      Bug()<<"Found unexpected test character at input["<<i<<"]";
-    size_t j;
-    for(j=i; input.sizeGt(j) && isalpha(input[j]); ++j);
-    rv.push_back(input.substr(i,j-i));
-    i=j;
+    rv.push_back(parseWord(input, i));
   }
   return rv;
 }
