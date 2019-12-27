@@ -108,29 +108,37 @@ skipPastNext(const string& s, const Input& input, size_t pos, size_t end) {
   return Input::npos;
 }
 
+// Returns true if something was skipped. Modifies st to past the end of it.
+// If we skipped all the way to en and didn't find the end of a comment,
+// returns true but sets st to Input::npos.
+// For all other values at input[st], returns false and leaves st unchanged.
+// Corollary: st is always incremented by some amount if return value is true.
+static bool skipComments(const Skipper& skip, const Input& input,
+    size_t& st, size_t en) {
+  if(skip.nestedComment &&
+     input.hasPrefix(st,st-en,skip.nestedComment->first)) {
+    st = skipPastNestedComment(*skip.nestedComment,input,st,en);
+    return true;
+  }
+  for(const auto& [cst,cen] : skip.unnestedComments)
+    if(input.hasPrefix(st,cst)) {
+      st = skipPastNext(cen,input,st+cst.size(),en);
+      return true;
+    }
+  return false;
+}
+
 size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
   const Input& input = ctx.input;
   const size_t end = skipEnd(input,pos,true);
   size_t i = pos;
   while(true) {
-  keepSkipping:
     // Check if we still have room to skip.
     if(!input.sizeGt(i) || i>=end) return end;
-    else if(isin(input[i]," \t")) ++i;
-    else if(nestedComment && input.hasPrefix(i,end-i,nestedComment->first)) {
-      size_t i2 = skipPastNestedComment(*nestedComment,ctx.input,i,end);
-      if(i2 == input.npos) ctx.Error(i,i+1,"Comment never ends");
-      i = i2;
-    }
-    else {
-      for(const auto& [st,en] : unnestedComments) if(input.hasPrefix(i,st)) {
-        size_t i2 = skipPastNext(en,input,i+st.size(),end);
-        if(i2 == Input::npos) ctx.Error(i,i+st.size(),"Comment never ends");
-        i = i2;
-        goto keepSkipping;
-      }
-      return input[i]=='\n' ? i+1 : i;
-    }
+    else if(isin(input[i], " \t\n")) ++i;
+    else if(skipComments(*this, input, i, end)) {
+      if(i == Input::npos) ctx.Error(i, i+1, "Comment never ends");
+    }else return i;
   }
 }
 
