@@ -136,6 +136,17 @@ vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
   return rv;
 }
 
+vector<string> getAllWords(InputDiags& ctx, const Skipper& skip) {
+  const Input& input = ctx.input;
+  vector<string> rv;
+  for(size_t i = skip.acrossLines(ctx,0);
+      i != input.npos; i = skip.acrossLines(ctx,i)) {
+    if(!input.sizeGt(i)) Bug()<<"Input isn't producing a trailing newline";
+    rv.push_back(parseWord(input, i));
+  }
+  return rv;
+}
+
 void testSingleLineSuccess() {
   for(size_t i=0; i<lang_n; ++i) {
     InputDiags ctx = unixifiedTestInputDiags(langinput[i]);
@@ -143,7 +154,56 @@ void testSingleLineSuccess() {
     if(words != vector<string>{"hello", "world"})
       BugMe<<"Had problems with parsing "<<langnames[i]<<". "<<words
            <<" != {hello, world}";
+    words = getAllWords(ctx, *langskip[i]);
+    if(words != vector<string>{"hello", "world"})
+      BugMe<<"skip.acrossLines() failed parsing "<<langnames[i]<<". "<<words
+           <<" != {hello, world}";
   }
+}
+
+void testMultilineSuccess() {
+  const char cmultiline[] = R"(  hello // comment
+    world /* foo
+    bar  */ again )";
+  InputDiags ctx = unixifiedTestInputDiags(cmultiline);
+  vector<string> words = getAllWords(ctx, cskip);
+  if(words != vector<string>{"hello", "world", "again"})
+    BugMe<<"Problem parsing multiline comment "<<words
+         <<" != {hello, world, again}";
+}
+
+void testBlankLinesMatter() {
+  const Skipper mdskipper{{}, {}, true};
+  const char mdinput[] = R"( hello world
+
+
+    goodbye world)";
+  InputDiags ctx = unixifiedTestInputDiags(mdinput);
+  vector<string> words = getAllWords(ctx, mdskipper);
+  vector<string> expected{"hello", "world", "\n", "goodbye", "world"};
+  if(words != expected)
+    BugMe<<"Markdown parsing problem: "<<words<<" != "<<expected;
+
+  const Skipper ltxskipper{{{"%","\n"}}, {}, true};
+  const char ltxinput1[] = R"(hello
+    % comment
+    world
+
+    % comment
+
+    % more comment
+
+    goodbye world)";
+  ctx = unixifiedTestInputDiags(ltxinput1);
+  words = getAllWords(ctx, ltxskipper);
+  if(words != expected)
+    BugMe<<"LaTeX parsing problem: "<<words<<" != "<<expected;
+
+  const char ltxinput2[] = "hello\n%\nworld";
+  ctx = unixifiedTestInputDiags(ltxinput2);
+  words = getAllWords(ctx, ltxskipper);
+  if(words != vector<string>{"hello", "world"})
+    BugMe<<"LaTeX parsing problem: "<<words<<" != {hello, world}";
 }
 
 void testLineEndsAtNewline() {
@@ -189,6 +249,23 @@ void testCommentNeverEnds() {
   pos = haskellskip.withinLine(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
   if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";
+
+  // Multiline tests.
+  ctx = unixifiedTestInputDiags(input + "\n /*");
+  pos = cskip.acrossLines(ctx, input.size());
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(ctx.input.sizeGt(pos)) BugMe<<"Leaves characters unconsumed";
+
+  ctx = unixifiedTestInputDiags(input + " /* \n /* */");
+  pos = cskip.acrossLines(ctx, input.size());
+  if(!ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    BugMe<<"Wasn't expecting problems with properly closed multiline comments";
+  }
+  ctx = unixifiedTestInputDiags(input + " {- {- \n  -} ");
+  pos = haskellskip.acrossLines(ctx, input.size());
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(ctx.input.sizeGt(pos)) BugMe<<"Leaves characters unconsumed";
 }
 
 void assertValidCallReturnsSubstring(string_view testname, const Skipper& skip,
@@ -239,4 +316,6 @@ int main() {
   testTabsSkipped();
   testCommentNeverEnds();
   testValid();
+  testMultilineSuccess();
+  testBlankLinesMatter();
 }

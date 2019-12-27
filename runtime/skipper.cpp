@@ -142,4 +142,27 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
   }
 }
 
+size_t Skipper::acrossLines(InputDiags& ctx, size_t pos) const {
+  Input& input = ctx.input;
+  size_t i = pos;
+  bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
+  while(true) {
+    if(!input.sizeGt(i)) return Input::npos;
+    else if(isin(input[i], " \t")) ++i;
+    else if(skipComments(*this, input, i, Input::npos)) {
+      if(i == Input::npos) ctx.Error(i, i+1, "Comment never ends");
+      lineBlank = false;
+    }else if(input[i] == '\n') {
+      if(lineBlank) anyLineBlank = true;
+      lineBlank = true;
+      input.forgetBefore(i);
+      ++i;
+    }else {
+      // subtracting 1 is guaranteed safe, because the preceding char is '\n'.
+      if(anyLineBlank && this->indicateBlankLines) return input.bol(i)-1;
+      else return i;
+    }
+  }
+}
+
 }  // namespace oalex
