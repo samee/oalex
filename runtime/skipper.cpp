@@ -40,8 +40,8 @@ static optional<string> validPair(string_view st, string_view en) {
     if(st.empty() || en.empty()) return "Comment delimiters cannot be empty";
     if(isin(st[0], " \t\n"))
       return "Whitespace at the start of comments will be skipped over";
-    if(st.find("\n") != st.npos ||
-       en.substr(0,en.size()-1).find("\n") != en.npos)
+    if(st.find("\n") != string_view::npos ||
+       en.substr(0,en.size()-1).find("\n") != string_view::npos)
       return "skip.withinLine() works poorly with delimiters requiring newline";
     return nullopt;
 }
@@ -70,8 +70,8 @@ optional<string> Skipper::valid() const {
 }
 
 static size_t skipEnd(const Input& input, size_t pos, bool endsBeforeNextLine) {
-  size_t end = endsBeforeNextLine ? input.find('\n',pos) : string::npos;
-  if(end != string::npos) ++end;  // Careful not to overflow npos.
+  size_t end = endsBeforeNextLine ? input.find('\n',pos) : Input::npos;
+  if(end != Input::npos) ++end;  // Careful not to overflow npos.
   return end;
 }
 
@@ -98,14 +98,14 @@ static size_t skipPastNestedComment(
     }else ++i;
   }
   ctx.Error(pos, pos+stdelim.size(), "Comment never ends");
-  return string::npos;
+  return Input::npos;
 }
 
 static size_t
 skipPastNext(const string& s, const Input& input, size_t pos, size_t end) {
   for(size_t i=pos; input.sizeGt(i) && i+s.size()<=end; ++i)
     if(input.hasPrefix(i,s)) return i+s.size();
-  return string::npos;
+  return Input::npos;
 }
 
 size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
@@ -122,7 +122,7 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
     else {
       for(const auto& [st,en] : unnestedComments) if(input.hasPrefix(i,st)) {
         size_t i2 = skipPastNext(en,input,i+st.size(),end);
-        if(i2==string::npos) ctx.Error(i,i+st.size(),"Comment never ends");
+        if(i2 == Input::npos) ctx.Error(i,i+st.size(),"Comment never ends");
         i = i2;
         goto keepSkipping;
       }

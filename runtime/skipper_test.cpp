@@ -191,7 +191,7 @@ void assertValidCallReturnsSubstring(string_view testname, const Skipper& skip,
     string_view expected_error) {
   optional<string> err = skip.valid();
   if(!err) Bug()<<testname<<" unexpectedly succeeded";
-  if(err->find(expected_error) == err->npos)
+  if(err->find(expected_error) == string::npos)
     Bug()<<testname<<" didn't find the expected error. '"<<*err
          <<"' does not contain '"<<expected_error<<"'";
 }
