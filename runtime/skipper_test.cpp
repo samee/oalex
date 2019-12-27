@@ -174,8 +174,7 @@ void testCommentNeverEnds() {
   ctx = unixifiedTestInputDiags(input + " /* /* */");
   pos = cskip.withinLine(ctx, input.size());
   if(!ctx.diags.empty()) {
-    BugWarn()<<"diags:";
-    for(const auto& d : ctx.diags) BugWarn()<<string(d);
+    showDiags(ctx.diags);
     BugMe<<"Wasn't expecting problems with properly closed comments";
   }
   if(ctx.input.bol(pos) == 0) BugMe<<"Leaves characters unconsumed";

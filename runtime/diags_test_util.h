@@ -16,14 +16,18 @@
 #include "diags.h"
 #include "test_util.h"
 
+inline void showDiags(const std::vector<oalex::Diag>& diags) {
+  oalex::BugWarn()<<"diags:";
+  for(const auto& d : diags) oalex::BugWarn()<<"  "<<std::string(d);
+}
+
 inline void assertHasDiagWithSubstr(const char testName[],
                                     const std::vector<oalex::Diag>& diags,
                                     std::string_view expectedDiag) {
   using oalex::Diag;
   if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
   for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
-  std::cerr<<"Got diags:\n";
-  for(const Diag& d : diags) std::cerr<<" "<<std::string(d)<<std::endl;
+  showDiags(diags);
   oalex::BugDie()<<testName<<" didn't get the expected diag: "<<expectedDiag;
 }
 
