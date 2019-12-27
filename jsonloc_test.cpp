@@ -38,10 +38,10 @@ using oalex::lex::lexBracketGroup;
 
 namespace {
 
-optional<JsonLoc> parseJsonLoc(InputDiags& lex, size_t& i);
-optional<JsonLoc> parseJsonLoc(InputDiags& lex, const ExprToken& expr);
-optional<JsonLoc> parseMap(InputDiags& lex, const vector<ExprToken>& elts);
-optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts);
+optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
+optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr);
+optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts);
+optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts);
 
 // This is meant for parsing lists. As such, it never returns empty elements.
 // Errors out if it finds one, unless it's the last element. If the last
@@ -49,11 +49,11 @@ optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts);
 // list. Note that this is different from Python's "".split(',') which returns
 // a single empty string.
 vector<vector<ExprToken>>
-splitCommaNoEmpty(InputDiags& lex,const vector<ExprToken>& elts) {
+splitCommaNoEmpty(InputDiags& ctx,const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
-      if(rv.back().empty()) lex.Error(stPos(elt),"Unexpected comma");
+      if(rv.back().empty()) ctx.Error(stPos(elt),"Unexpected comma");
       else rv.emplace_back();
     }
     else rv.back().push_back(elt);
@@ -63,14 +63,14 @@ splitCommaNoEmpty(InputDiags& lex,const vector<ExprToken>& elts) {
 }
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
-optional<JsonLoc> parseJsonLoc(InputDiags& lex, size_t& i) {
+optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
   size_t j = i;
-  optional<BracketGroup> bg = lexBracketGroup(lex, j);
+  optional<BracketGroup> bg = lexBracketGroup(ctx, j);
   if(!bg.has_value()) return nullopt;
   if(bg->type == BracketType::paren) return nullopt;
   i = j;
-  if(bg->type == BracketType::square) return parseVector(lex, bg->children);
-  if(bg->type == BracketType::brace) return parseMap(lex, bg->children);
+  if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
+  if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
   Bug()<<"Unknown BracketType: "<<int(bg->type);
 }
 
@@ -81,27 +81,27 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<UnquotedToken> parseIdent(InputDiags& lex, const ExprToken& expr) {
+optional<UnquotedToken> parseIdent(InputDiags& ctx, const ExprToken& expr) {
   auto* token = get_if<UnquotedToken>(&expr);
-  if(!token) return lex.Error(stPos(expr),"Was expecting an identifier");
+  if(!token) return ctx.Error(stPos(expr),"Was expecting an identifier");
   if(!isIdent(token->token)) {
-    lex.Error(token->stPos,
+    ctx.Error(token->stPos,
       "'" + token->token + "' is not a valid identifier.");
     return UnquotedToken(token->stPos, token->enPos, "invalid_identifier");
   }
   return *token;
 }
 
-optional<JsonLoc> parseJsonLoc(InputDiags& lex, const ExprToken& expr) {
-  if(auto token = parseIdent(lex,expr))
+optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
+  if(auto token = parseIdent(ctx,expr))
     return JsonLoc(JsonLoc::Placeholder{token->token});
   if(auto* qs = get_if<QuotedString>(&expr))
     return JsonLoc(qs->s);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
-    if(bg->type == BracketType::brace) return parseMap(lex, bg->children);
-    if(bg->type == BracketType::square) return parseVector(lex, bg->children);
+    if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
+    if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
     if(bg->type == BracketType::paren)
-      return lex.Error(bg->stPos, "Unexpected parenthesis");
+      return ctx.Error(bg->stPos, "Unexpected parenthesis");
     Bug()<<"Unknown BracketType: "<<int(bg->type);
   }
   Bug()<<"Unknown ExprType with index: "<<expr.index();
@@ -109,51 +109,51 @@ optional<JsonLoc> parseJsonLoc(InputDiags& lex, const ExprToken& expr) {
 
 // TODO diags should throw after 3 or so errors.
 // This is a reasonable example of what error-handling oalex could facilitate.
-optional<JsonLoc> parseMap(InputDiags& lex, const vector<ExprToken>& elts) {
-  vector<vector<ExprToken>> splitres = splitCommaNoEmpty(lex, elts);
+optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
+  vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, elts);
 
   map<string,JsonLoc> rv;
   for(auto& elt : splitres) {
     if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
-    optional<UnquotedToken> key = parseIdent(lex, elt[0]);
+    optional<UnquotedToken> key = parseIdent(ctx, elt[0]);
     if(!key) {
-      lex.Error(stPos(elt[0]), "Was expecting a key.");
+      ctx.Error(stPos(elt[0]), "Was expecting a key.");
       continue;
     }
     optional<JsonLoc> parsedElt;
     if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->token};
     else {
       if(!isToken(elt[1],":")) {
-        lex.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
+        ctx.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
         continue;
       }
       if(elt.size()<3) {
-        lex.Error(enPos(elt[1]), "Value missing after the colon.");
+        ctx.Error(enPos(elt[1]), "Value missing after the colon.");
         continue;
       }
-      parsedElt = parseJsonLoc(lex, elt[2]);
+      parsedElt = parseJsonLoc(ctx, elt[2]);
       if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
       if(elt.size()>=4) {
-        lex.Error(stPos(elt[3]), "Was expecting a comma here");
+        ctx.Error(stPos(elt[3]), "Was expecting a comma here");
         continue;
       }
     }
 
     if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
-      lex.Error(key->stPos, "Duplicate key " + key->token);
+      ctx.Error(key->stPos, "Duplicate key " + key->token);
   }
   return JsonLoc(rv);
 }
 
-optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts) {
-  vector<vector<ExprToken>> splitres = splitCommaNoEmpty(lex, elts);
+optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
+  vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, elts);
 
   vector<JsonLoc> rv;
   for(auto& elt : splitres) {
     if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
-    if(elt.size()!=1) lex.Error(stPos(elt[1]), "Was expecting a comma here");
+    if(elt.size()!=1) ctx.Error(stPos(elt[1]), "Was expecting a comma here");
     else {
-      optional<JsonLoc> parsedElt = parseJsonLoc(lex, elt[0]);
+      optional<JsonLoc> parsedElt = parseJsonLoc(ctx, elt[0]);
       if(parsedElt) rv.push_back(*parsedElt);
     }
   }
@@ -163,8 +163,8 @@ optional<JsonLoc> parseVector(InputDiags& lex, const vector<ExprToken>& elts) {
 // Testing convenience.
 optional<JsonLoc> parseJsonLoc(string_view s) {
   size_t i = 0;
-  InputDiags lex = testInputDiags(s);
-  return parseJsonLoc(lex,i);
+  InputDiags ctx = testInputDiags(s);
+  return parseJsonLoc(ctx,i);
 }
 
 void testSimpleSuccess() {
@@ -229,21 +229,21 @@ void testSubstitution() {
 }
 
 void testJsonLocFailure(const char input[], const char errmsg[]) {
-  InputDiags lex = testInputDiags(input);
+  InputDiags ctx = testInputDiags(input);
   size_t i = 0;
-  optional<JsonLoc> res = parseJsonLoc(lex, i);
-  if(res.has_value() && lex.diags.empty())
+  optional<JsonLoc> res = parseJsonLoc(ctx, i);
+  if(res.has_value() && ctx.diags.empty())
     Bug()<<"Was expecting failure with input '"<<input
          <<"'. Got this instead: "<<res->prettyPrint();
-  assertHasDiagWithSubstr(__func__, lex.diags, errmsg);
+  assertHasDiagWithSubstr(__func__, ctx.diags, errmsg);
 }
 
 void testJsonLocPosition(const char input[], size_t endi) {
-  InputDiags lex = testInputDiags(input);
+  InputDiags ctx = testInputDiags(input);
   size_t i = 0;
-  optional<JsonLoc> res = parseJsonLoc(lex, i);
-  if(!lex.diags.empty()) {
-    for(const auto& d : lex.diags) BugWarn()<<string(d);
+  optional<JsonLoc> res = parseJsonLoc(ctx, i);
+  if(!ctx.diags.empty()) {
+    for(const auto& d : ctx.diags) BugWarn()<<string(d);
     Bug()<<"Got unexpected diags.";
   }
   if(i != endi) Bug()<<"For input '"<<input<<"', expected end position was "
