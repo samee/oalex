@@ -114,7 +114,7 @@ const char *langinput[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
 const char langnames[][8] = {"c","python","ocaml","html","haskell"};
 const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
 
-vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
+vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
   for(size_t i = skip.withinLine(ctx,0);
@@ -134,7 +134,7 @@ vector<string> getWords(InputDiags& ctx, const Skipper& skip) {
 void testSingleLineSuccess() {
   for(size_t i=0; i<lang_n; ++i) {
     InputDiags ctx = unixifiedTestInputDiags(langinput[i]);
-    vector<string> words = getWords(ctx,*langskip[i]);
+    vector<string> words = getLineWords(ctx, *langskip[i]);
     if(words != vector<string>{"hello", "world"})
       BugMe<<"Had problems with parsing "<<langnames[i]<<". "<<words
            <<" != {hello, world}";
@@ -157,7 +157,7 @@ void testLineEndsAtNewline() {
 void testTabsSkipped() {
   const string input = "\thello \t  /* stuff */\tworld";
   InputDiags ctx = unixifiedTestInputDiags(input);
-  vector<string> words = getWords(ctx, cskip);
+  vector<string> words = getLineWords(ctx, cskip);
   if(words != vector<string>{"hello", "world"})
     BugMe<<"{hello, world} != "<<words;
 }
