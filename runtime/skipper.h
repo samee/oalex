@@ -75,12 +75,12 @@ struct Skipper {
       i = tok.enPos;
     }
 
-  If skip.acrossBlankLines == false, this will also stop at the '\n' just
-  before the next blank line. A line is blank if it only has spaces, tabs,
-  and comments. In that case, skip.blankLines() will take us past a
-  contiguous block of blank lines, to the next ctx.input.bol().
+  If indicateBlankLines == true, this will also stop at some arbitrary '\n'
+  character to indicate the presence of blank lines *without* any comments.
+  This mostly for languages like LaTeX or Markdown that treats uncommented
+  blank lines as paragraph breaks, but collapses multiple lines into one.
 
-  If skip.acrossBlankLines == true, it never stops at any whitespace.
+  If indicateBlankLines = false,  it never stops at any whitespace.
 
   If unfinished comments are found, it records an error in ctx.diags.
   It is assumed that Input will terminate each line with a '\n', including the
@@ -90,9 +90,8 @@ struct Skipper {
   If a crlf translation layer becomes important, move Unixify from
   skipper_test.cpp to this header.
   */
-  bool acrossBlankLines = true;
+  bool indicateBlankLines = false;
   size_t acrossLines(InputDiags& ctx, size_t pos) const;
-  size_t blankLines(InputDiags& ctx, size_t pos) const;
 
   /*
   It finds the next non-space, non-comment character in ctx.input, within a
@@ -132,7 +131,7 @@ struct Skipper {
   Dev notes: it is possible that this method is never useful, since input.bol()
     always has enough information to provide the same facilities even with
     acrossLines(). I will keep writing this anyway, since it's just easier to
-    implement without having to think about acrossBlankLines.
+    implement without having to think about blank line exceptions.
   */
   size_t withinLine(InputDiags& ctx, size_t pos) const;
 };
