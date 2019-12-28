@@ -19,6 +19,7 @@
 #include "segment.h"
 #include "runtime/diags.h"
 #include "runtime/input_view.h"
+#include "runtime/skipper.h"
 
 namespace oalex::lex {
 
@@ -82,6 +83,9 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
  return false;
 }
 
+inline Skipper skip{{{"#","\n"}}, {}};
+inline Skipper wskip{};
+
 std::optional<std::vector<UnquotedToken>>
   lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i);
@@ -91,6 +95,6 @@ std::optional<QuotedString> lexIndentedSource(InputDiags& lex, size_t& i,
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
-std::optional<UnquotedToken> lookahead(const InputDiags& lex, size_t i);
+std::optional<UnquotedToken> lookahead(InputDiags& lex, size_t i);
 
 }  // namespace oalex::lex

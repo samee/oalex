@@ -31,7 +31,6 @@ namespace oalex {
 //   it to understand string quote escaping. It can't find the end of a token,
 //   only the start.
 //
-// TODO Change lexer.cpp to use this instead of custom skippers.
 // TODO figure out how parameters here affect template-to-grammar conversion.
 struct Skipper {
   // Begin and end pairs.

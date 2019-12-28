@@ -62,7 +62,8 @@ namespace {
 
 const char goodHeader1[] =
 R"(Header at top  # comments
-----------   # comments)";
+----------   # comments
+)";
 
 const char goodHeader2[] = R"(
 # comment
@@ -96,11 +97,11 @@ Not a header
 
 void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
-  if(!res || !lex.diags.empty()) {
-    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+  optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
+  if(!res || !ctx.diags.empty()) {
+    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     BugDie()<<testName<<" failed";
   }else {
     vector<string> observed;
@@ -112,12 +113,12 @@ void headerSuccessImpl(const char testInput[], const char testName[],
 
 void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<UnquotedToken>> res = lexSectionHeader(lex, i);
-  if(res && lex.diags.empty())
+  optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
+  if(res && ctx.diags.empty())
     BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
-  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
+  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 const char goodString[] = "\"Hello world\"";
@@ -131,11 +132,11 @@ const char invalidHex[] = R"("\xag")";
 
 void stringSuccessImpl(const char testInput[], const char testName[],
     string_view expected) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexQuotedString(lex, i);
-  if(!res || !lex.diags.empty()) {
-    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+  optional<QuotedString> res = lexQuotedString(ctx, i);
+  if(!res || !ctx.diags.empty()) {
+    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     BugDie()<<testName<<" failed";
   }else {
     if(expected != res->s)
@@ -145,12 +146,12 @@ void stringSuccessImpl(const char testInput[], const char testName[],
 
 void stringFailureImpl(const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexQuotedString(lex, i);
-  if(res && lex.diags.empty())
+  optional<QuotedString> res = lexQuotedString(ctx, i);
+  if(res && ctx.diags.empty())
     BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
-  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
+  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 const char delimSourceBlock[] = R"(```
@@ -172,11 +173,11 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   size_t dsize = delimSize(testInput);
   string_view expected = testInput.substr(dsize+1, testInput.size()-2*dsize-1);
 
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexDelimitedSource(lex, i);
-  if(!res || !lex.diags.empty()) {
-    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+  optional<QuotedString> res = lexDelimitedSource(ctx, i);
+  if(!res || !ctx.diags.empty()) {
+    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     BugDie()<<testName<<" failed";
   }else {
     if(expected != res->s) {
@@ -203,11 +204,11 @@ const char noTrailingNewlineParsed[] = "foo\n";
 void indentedSourceBlockSuccessImpl(
     const char testInput[], const char testName[],
     optional<string> expectedResult) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
-  if(res.has_value() != expectedResult.has_value() || !lex.diags.empty()) {
-    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+  optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
+  if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
+    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     BugDie()<<testName<<" failed";
   }
   if(res.has_value() && res->s != expectedResult)
@@ -219,12 +220,12 @@ const char tabSpaceMix[] = "  foo\n\tbar";
 void indentedSourceBlockFailureImpl(
     const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags lex{testInputDiags(testInput)};
+  InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexIndentedSource(lex, i, "  ");
-  if(res && lex.diags.empty())
+  optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
+  if(res && ctx.diags.empty())
     BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
-  assertHasDiagWithSubstr(testName, lex.diags, expectedDiag);
+  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 void lookaheadsSuccess() {
@@ -232,8 +233,8 @@ void lookaheadsSuccess() {
   string expecteds[] = {"foo","foo","[","...",":"};
   static_assert(sizeof(inputs)==sizeof(expecteds));
   for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
-    InputDiags lex{testInputDiags(inputs[i])};
-    if(optional<UnquotedToken> tok = lookahead(lex,1)) {
+    InputDiags ctx{testInputDiags(inputs[i])};
+    if(optional<UnquotedToken> tok = lookahead(ctx,1)) {
       if(tok->token!=expecteds[i])
         BugMe<<"Test case "<<i<<" failed with \""
              <<tok->token<<"\" != \""<<expecteds[i]<<'"';
@@ -243,16 +244,16 @@ void lookaheadsSuccess() {
 
 void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
-  InputDiags lex{testInputDiags(input)};
-  if(optional<UnquotedToken> tok = lookahead(lex,3))
+  InputDiags ctx{testInputDiags(input)};
+  if(optional<UnquotedToken> tok = lookahead(ctx,3))
     BugMe<<"Succeeded unexpectedly, got "<<tok->token;
 }
 
 void lookaheadThrowsOnInvalidChar() {
   string input = "\b";
-  InputDiags lex{testInputDiags(input)};
+  InputDiags ctx{testInputDiags(input)};
   try {
-    auto tok = lookahead(lex,0);
+    auto tok = lookahead(ctx,0);
     BugMe<<"Succeeded unexpectedly, got "<<(tok?tok->token:"<nullopt>"s);
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find("Unexpected character") == string::npos)
@@ -266,15 +267,15 @@ void bracketGroupSuccess() {
   const BracketGroupMatcher expected = braces("A", ":=",
         parens("B", ".", "C", "word",
                squareBrackets(quoted("hello"), quoted("world"))));
-  InputDiags lex{testInputDiags(input)};
+  InputDiags ctx{testInputDiags(input)};
   size_t i = 0;
-  optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
+  optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
 
-  if(bgopt.has_value() && lex.diags.empty()) {
+  if(bgopt.has_value() && ctx.diags.empty()) {
     if(auto err = matcher::match(expected,*bgopt))
       BugMe<<"Failed: "<<*err;
   }else {
-    for(const auto& d:lex.diags) cerr<<string(d)<<endl;
+    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     BugMe<<"Failed";
   }
 }
@@ -315,22 +316,22 @@ string debug(const BracketGroup& bg) {
 
 void bracketGroupFailureImpl(const char testName[], string input,
     optional<string> expectedDiag) {
-  InputDiags lex{testInputDiags(input)};
+  InputDiags ctx{testInputDiags(input)};
   size_t i = 0;
-  optional<BracketGroup> bgopt = lexBracketGroup(lex,i);
+  optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
   if(!expectedDiag.has_value()) {
     if(bgopt.has_value())
       cerr<<testName<<": Was expecting nullopt, got "<<debug(*bgopt);
     return;
   }
-  assertHasDiagWithSubstr(testName, lex.diags, *expectedDiag);
+  assertHasDiagWithSubstr(testName, ctx.diags, *expectedDiag);
 }
 
 void bracketGroupThrows(string input, string expectedDiag) {
-  InputDiags lex{testInputDiags(input)};
+  InputDiags ctx{testInputDiags(input)};
   size_t i = 0;
   try {
-    auto bg = lexBracketGroup(lex,i);
+    auto bg = lexBracketGroup(ctx,i);
     BugMe<<"Succeeded unexpectedly, got "<<(bg?debug(*bg):"nullopt");
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find(expectedDiag) == string::npos)
