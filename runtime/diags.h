@@ -80,6 +80,7 @@ class Resetter {
     : oldi_(i), targeti_(&i), ctx_(&ctx) {}
   ~Resetter() { if(targeti_) *targeti_ = oldi_; }
   void markUsed(size_t en) { ctx_->markUsed(oldi_, en); targeti_ = nullptr; }
+  size_t start() const { return oldi_; }
 };
 
 }  // namespace oalex

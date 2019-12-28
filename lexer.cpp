@@ -81,13 +81,14 @@ skipBlankLine(InputDiags& ctx, size_t i) {
 }
 
 // TODO use generic word-lexer based on a char set.
-optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
-  size_t j=i;
-  while(input.sizeGt(j) && isSectionHeaderNonSpace(input[j])) ++j;
-  if(i==j) return nullopt;
+optional<UnquotedToken> lexHeaderWord(InputDiags& ctx, size_t& i) {
+  const Input& input = ctx.input;
+  Resetter rst(ctx, i);
+  while(input.sizeGt(i) && isSectionHeaderNonSpace(input[i])) ++i;
+  if(i == rst.start()) return nullopt;
   else {
-    size_t iold=i; i=j;
-    return UnquotedToken(iold,j,input);
+    rst.markUsed(i);
+    return UnquotedToken(rst.start(),i,input);
   }
 }
 
@@ -120,19 +121,19 @@ optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
 optional<vector<UnquotedToken>>
 lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  size_t j = i;
+  Resetter rst(ctx, i);
   vector<UnquotedToken> rv;
   // TODO reduce bsearch overhead.
-  for(j = skip.withinLine(ctx, i);
-      input.bol(i) == input.bol(j);
-      j = skip.withinLine(ctx, j)) {
-    if(isSectionHeaderNonSpace(input[j])) {
-      if(optional<UnquotedToken> token = lexHeaderWord(input,j))
+  for(i = skip.withinLine(ctx, i);
+      input.bol(i) == input.bol(rst.start());
+      i = skip.withinLine(ctx, i)) {
+    if(isSectionHeaderNonSpace(input[i])) {
+      if(optional<UnquotedToken> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
       else return nullopt;
     }else return nullopt;
   }
-  i = j;
+  rst.markUsed(i);
   return rv;
 }
 
@@ -143,14 +144,14 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
 optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
-  size_t j=i;
-  j = skip.withinLine(ctx, j);
-  if(input.bol(j) != input.bol(i) || input[j]!='-') return nullopt;
-  size_t dashStart = j;
-  while(input.sizeGt(j) && input[j]=='-') ++j;
-  j = skip.withinLine(ctx, j);
-  if(input.bol(j) == input.bol(i)) return nullopt;
-  else { i=j; return dashStart; }
+  Resetter rst(ctx, i);
+  i = skip.withinLine(ctx, i);
+  if(input.bol(i) != input.bol(rst.start()) || input[i]!='-') return nullopt;
+  size_t dashStart = i;
+  while(input.sizeGt(i) && input[i]=='-') ++i;
+  i = skip.withinLine(ctx, i);
+  if(input.bol(i) == input.bol(rst.start())) return nullopt;
+  else { rst.markUsed(i); return dashStart; }
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -322,42 +323,43 @@ char closeBracket(BracketType bt) {
 
 optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  size_t j = i;
-  if(!lookaheadStart(ctx,j)) return nullopt;
+  Resetter rst(ctx, i);
+  if(!lookaheadStart(ctx,i)) return nullopt;
 
   BracketType bt;
-  if(auto btOpt = lexOpenBracket(input,j)) bt=*btOpt;
+  if(auto btOpt = lexOpenBracket(input,i)) bt=*btOpt;
   else return nullopt;
 
   BracketGroup bg(i,Input::npos,bt);
   while(true) {
-    if(!lookaheadStart(ctx,j)) {  // lookaheadStart is false on EOF.
+    if(!lookaheadStart(ctx,i)) {  // lookaheadStart is false on EOF.
       ctx.Error(i,Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
       i = Input::npos;
       return nullopt;
     }
 
-    if(auto btOpt = lexCloseBracket(input,j)) {
+    if(auto btOpt = lexCloseBracket(input,i)) {
       BracketType bt2=*btOpt;
-      if(bt==bt2) { bg.enPos=i=j; return bg; }  // The only success return path.
+      // The only success return path.
+      if(bt==bt2) { bg.enPos=i; rst.markUsed(i); return bg; }
       else {
-        size_t oldi = i; i = j+1;
-        return ctx.Error(oldi,j,
+        rst.markUsed(i+1);
+        return ctx.Error(rst.start(),i,
           Str()<<"Match not found for '"<<openBracket(bt)<<"', found '"
                <<closeBracket(bt2)<<"' instead.");
       }
     }
 
-    if(auto bgopt = lexBracketGroup(ctx,j))
+    if(auto bgopt = lexBracketGroup(ctx,i))
       bg.children.push_back(std::move(*bgopt));
-    else if(auto sopt = lexQuotedString(ctx,j))
+    else if(auto sopt = lexQuotedString(ctx,i))
       bg.children.push_back(std::move(*sopt));
-    else if(auto wordopt = lexWord(input,j))
+    else if(auto wordopt = lexWord(input,i))
       bg.children.push_back(std::move(*wordopt));
-    else if(auto operopt = lexOperator(input,j))
+    else if(auto operopt = lexOperator(input,i))
       bg.children.push_back(std::move(*operopt));
-    else ctx.FatalBug(j,
-        "Invalid input character, should have been caught by lookaheadStart().");
+    else ctx.FatalBug(i, "Invalid input character, "
+                         "should have been caught by lookaheadStart().");
   }
 }
 
@@ -380,23 +382,22 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
 optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || input[i]!='"') return nullopt;
-  size_t j = i;
+  Resetter rst(ctx, i);
   string s;
   bool error = false;
-  ++j;
-  while(input.sizeGt(j) && input[j] != '\n') {
-    if(input[j] == '"') {
-      size_t oldi = i;
-      i = ++j;
-      if(!error) return QuotedString(oldi,j,s);
+  ++i;
+  while(input.sizeGt(i) && input[i] != '\n') {
+    if(input[i] == '"') {
+      rst.markUsed(++i);
+      if(!error) return QuotedString(rst.start(),i,s);
       else return nullopt;
-    }else if(input[j] == '\\') {
-      if(optional<char> escres = lexQuotedEscape(ctx, ++j)) s += *escres;
+    }else if(input[i] == '\\') {
+      if(optional<char> escres = lexQuotedEscape(ctx, ++i)) s += *escres;
       else error = true;
-    }else s += input[j++];
+    }else s += input[i++];
   }
-  ctx.Error(i,j,"Unexpected end of line");
-  i = j+1;
+  ctx.Error(rst.start(),i,"Unexpected end of line");
+  rst.markUsed(++i);
   return nullopt;
 }
 
@@ -404,23 +405,29 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
-  size_t j = i;
+  Resetter rst(ctx, i);
   // TODO only allow alphanumeric and space. No comments or punctuation.
-  string delim = getline(ctx, j);
+  string delim = getline(ctx, i);
 
   // Valid starting delimiter, so now we are commited to changing i.
-  size_t delimStart = i;
-  size_t inputStart = i = j;
+  size_t delimStart = rst.start();
+  size_t inputStart = i;
+  rst.markUsed(i);
   while(input.sizeGt(i)) {
     size_t lineStart = i;
     string line = getline(ctx, i);
     if(line == delim) {
       QuotedString s(delimStart, i-1,
                      input.substr(inputStart, lineStart-inputStart));
-      input.forgetBefore(i);
+      rst.markUsed(i);
       return s;
     }
   }
+  // FIXME: There is now a possibility that we can "leak" (i.e. not forget any
+  // string from this point on) because we forgot the second markUsed(). I.e.
+  // if i changes after the first markused(), we should keep forgetting
+  // perhaps.
+  rst.markUsed(i);
   return ctx.Error(delimStart, i-1, "Source block ends abruptly");
 }
 
@@ -430,18 +437,18 @@ optional<QuotedString>
 lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
   string rv;
-  size_t j = i;
+  Resetter rst(ctx,i);
   bool allblank = true;
-  while(input.sizeGt(j)) {
-    optional<string> line = lexSourceLine(ctx,j,parindent);
+  while(input.sizeGt(i)) {
+    optional<string> line = lexSourceLine(ctx,i,parindent);
     if(!line.has_value()) break;
     if(!line->empty()) allblank = false;
     rv += *line; rv += '\n';
-    input.forgetBefore(j);
+    input.forgetBefore(i);
   }
   if(allblank) return nullopt;
-  QuotedString qs(i,j,rv);
-  i = j;
+  QuotedString qs(rst.start(),i,rv);
+  rst.markUsed(i);
   return qs;
 }
 
@@ -460,22 +467,22 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
 optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
-  size_t j=i;
-
   if(i != ctx.input.bol(i)) return nullopt;
-  while(auto j2 = skipBlankLine(ctx,j)) j = *j2;
-  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(ctx,j);
+
+  Resetter rst(ctx, i);
+  while(auto j = skipBlankLine(ctx,i)) i = *j;
+  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(ctx,i);
   if(!rv) return nullopt;
-  optional<size_t> stDash=lexDashLine(ctx,j);
+  optional<size_t> stDash=lexDashLine(ctx,i);
   if(!stDash) return nullopt;
-  i = j;
+  rst.markUsed(i);
 
   size_t stCont=rv->at(0).stPos;
   const Input& input=ctx.input;
-  if(!isSectionHeaderNonSpace(input[input.bol(stCont)]))
+  if(input.bol(stCont) != stCont)
     ctx.Error(input.bol(stCont),stCont-1,
         Str() << "Section headers must not be indented");
-  if(input[input.bol(*stDash)] != '-')
+  if(input.bol(*stDash) != *stDash)
     ctx.Error(input.bol(*stDash),*stDash-1,
         Str() << "Dashes in a section header must not be indented");
 
