@@ -26,6 +26,7 @@ using oalex::BugWarn;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::Resetter;
 using oalex::uniqueKeys;
 using oalex::UserError;
 using oalex::operator<<;
@@ -64,11 +65,11 @@ splitCommaNoEmpty(InputDiags& ctx,const vector<ExprToken>& elts) {
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
-  size_t j = i;
-  optional<BracketGroup> bg = lexBracketGroup(ctx, j);
+  Resetter rst(ctx,i);
+  optional<BracketGroup> bg = lexBracketGroup(ctx, i);
   if(!bg.has_value()) return nullopt;
   if(bg->type == BracketType::paren) return nullopt;
-  i = j;
+  rst.markUsed(i);
   if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
   if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
   Bug()<<"Unknown BracketType: "<<int(bg->type);
