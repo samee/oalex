@@ -33,8 +33,11 @@ struct InputDiags {
   Input input;
   std::vector<Diag> diags;
 
+  InputDiags(Input input, std::vector<Diag> diags)
+    : input(std::move(input)), diags(std::move(diags)) {}
   InputDiags(InputDiags&&) = default;
   InputDiags& operator=(InputDiags&&) = default;
+  void markUsed(size_t st, size_t en);
 
   // throws, never returns.
   [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
@@ -54,6 +57,29 @@ struct InputDiags {
     { return Warning(pos, pos+1, std::move(msg)); }
   std::nullopt_t Note(size_t pos,std::string msg)
     { return Note(pos, pos+1, std::move(msg)); }
+
+ private:
+  size_t lastForgotten_ = 0;
+};
+
+// Helper for Input::forgetBefore().
+// We almost never want to *unconditionally* call forgetBefore().
+// TODO remove all explicit forgetBefore() calls.
+inline void InputDiags::markUsed(size_t st, size_t en) {
+  if(st <= lastForgotten_) {
+    input.forgetBefore(en);
+    lastForgotten_ = en;
+  }
+}
+
+class Resetter {
+  size_t oldi_, *targeti_;
+  InputDiags *ctx_;
+ public:
+  explicit Resetter(InputDiags& ctx, size_t& i)
+    : oldi_(i), targeti_(&i), ctx_(&ctx) {}
+  ~Resetter() { if(targeti_) *targeti_ = oldi_; }
+  void markUsed(size_t en) { ctx_->markUsed(oldi_, en); targeti_ = nullptr; }
 };
 
 }  // namespace oalex
