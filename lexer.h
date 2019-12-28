@@ -91,6 +91,6 @@ std::optional<QuotedString> lexIndentedSource(InputDiags& lex, size_t& i,
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
-std::optional<UnquotedToken> lookahead(const InputDiags& lex, size_t i);
+std::optional<UnquotedToken> lookahead(InputDiags& lex, size_t i);
 
 }  // namespace oalex::lex

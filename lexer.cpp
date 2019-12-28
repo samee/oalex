@@ -138,7 +138,7 @@ optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
 //         can decide not to backtrack any more, since it could not have been
 //         anything else.
 //       - Will likely depend on parser-global bools.
-//       - Likely signature: foo(const InputDiags&,size_t&);
+//       - Likely signature: foo(InputDiags&,size_t&);
 
 optional<vector<UnquotedToken>>
 lexSectionHeaderContents(const Input& input, size_t& i) {
@@ -284,7 +284,7 @@ string debugChar(char ch) {
 }
 
 // Returns false on eof. Throws on invalid language character.
-[[nodiscard]] bool lookaheadStart(const InputDiags& ctx, size_t& i) {
+[[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   size_t j = i;
   while(input.sizeGt(j)) {
@@ -376,9 +376,9 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       bg.children.push_back(std::move(*bgopt));
     else if(auto sopt = lexQuotedString(ctx,j))
       bg.children.push_back(std::move(*sopt));
-    else if(auto wordopt = lexWord(ctx.input,j))
+    else if(auto wordopt = lexWord(input,j))
       bg.children.push_back(std::move(*wordopt));
-    else if(auto operopt = lexOperator(ctx.input,j))
+    else if(auto operopt = lexOperator(input,j))
       bg.children.push_back(std::move(*operopt));
     else ctx.FatalBug(j,
         "Invalid input character, should have been caught by lookaheadStart().");
@@ -386,7 +386,7 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
 }
 
 // Returns nullopt on eof. Throws on invalid language character.
-optional<UnquotedToken> lookahead(const InputDiags& ctx, size_t i) {
+optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
   if(!lookaheadStart(ctx,i)) return nullopt;
   if(auto tok = lexWord(ctx.input, i)) return tok;
   else if(isbracket(ctx.input[i]) || isquote(ctx.input[i]))
