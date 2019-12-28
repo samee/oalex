@@ -73,39 +73,14 @@ bool isSectionHeaderNonSpace(char ch) {
       || ch=='_';
 }
 
-// Consumes everything from comment marker upto and including the newline.
-[[nodiscard]] bool lexComment(const Input& input, size_t& i) {
-  if(!input.sizeGt(i)) return false;
-  if(input[i]!='#') return false;
-  for(; input.sizeGt(i) && input[i]!='\n'; ++i);
-  if(input.sizeGt(i)) ++i;  // Consume trailing newline if any.
-  return true;
+optional<size_t>
+skipBlankLine(InputDiags& ctx, size_t i) {
+  size_t j = skip.withinLine(ctx, i);
+  if(ctx.input.bol(i) == ctx.input.bol(j)) return nullopt;
+  else return j;
 }
 
-void skipSpaceTab(const Input& input, size_t& i) {
-  for(; input.sizeGt(i) && (input[i]==' ' || input[i]=='\t'); ++i);
-}
-
-[[nodiscard]] bool lexEol(const Input& input, size_t& i) {
-  if(!input.sizeGt(i)) return true;
-  else if(input[i]=='\n') { ++i; return true; }
-  else return false;
-}
-
-// I would have loved to require comments about space. Someday I will.
-[[nodiscard]] bool lexSpaceCommentsToLineEnd(const Input& input, size_t& i) {
-  size_t j=i;
-  skipSpaceTab(input,j);
-  if(lexEol(input,j) || lexComment(input,j)) { i=j; return true; }
-  else return false;
-}
-
-// Blank or comment-only line.
-[[nodiscard]] bool lexBlankLine(const Input& input, size_t& i) {
-  if(!input.sizeGt(i) || i!=input.bol(i)) return false;
-  return lexSpaceCommentsToLineEnd(input,i);
-}
-
+// TODO use generic word-lexer based on a char set.
 optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
   size_t j=i;
   while(input.sizeGt(j) && isSectionHeaderNonSpace(input[j])) ++j;
@@ -122,6 +97,8 @@ optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
 //   * We know enough to raise an error. Note: not all diags are errors.
 //     But errors should prevent lexing from proceeding to parsing.
 //     Fatal errors are just exceptions.
+// Never invokes forgetBefore() or skip.acrossLines().
+//
 // From the above, we can now settle on two different kinds of parsing
 // functions:
 //   * Ones that are simple: words, tokens, comments.
@@ -141,16 +118,15 @@ optional<UnquotedToken> lexHeaderWord(const Input& input, size_t& i) {
 //       - Likely signature: foo(InputDiags&,size_t&);
 
 optional<vector<UnquotedToken>>
-lexSectionHeaderContents(const Input& input, size_t& i) {
+lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
+  const Input& input = ctx.input;
   size_t j = i;
   vector<UnquotedToken> rv;
-  while(input.sizeGt(j)) {
-    char ch = input[j];
-    if(ch=='\n' || ch=='#') {
-      if(lexSpaceCommentsToLineEnd(input,j)) break;
-      else BugDie()<<"Couldn't ctx space-comments at "<<j;
-    }else if(ch==' ' || ch=='\t') skipSpaceTab(input,j);
-    else if(isSectionHeaderNonSpace(ch)) {
+  // TODO reduce bsearch overhead.
+  for(j = skip.withinLine(ctx, i);
+      input.bol(i) == input.bol(j);
+      j = skip.withinLine(ctx, j)) {
+    if(isSectionHeaderNonSpace(input[j])) {
       if(optional<UnquotedToken> token = lexHeaderWord(input,j))
         rv.push_back(*token);
       else return nullopt;
@@ -160,15 +136,21 @@ lexSectionHeaderContents(const Input& input, size_t& i) {
   return rv;
 }
 
-optional<size_t> lexDashLine(const Input& input, size_t& i) {
+// Consume it even if the line is indented, so the caller can raise an error.
+// On success:
+//   Returns the *start* of dashes so caller can in fact check indentation.
+//   Modifies i to the beginning of the next line.
+optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
+  const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   size_t j=i;
-  skipSpaceTab(input,j);
-  if(!input.sizeGt(j) || input[j]!='-') return nullopt;
-  size_t rv=j;
-  while(input.sizeGt(j)  && input[j]=='-') ++j;
-  if(!lexSpaceCommentsToLineEnd(input,j)) return nullopt;
-  else { i=j; return rv; }
+  j = skip.withinLine(ctx, j);
+  if(input.bol(j) != input.bol(i) || input[j]!='-') return nullopt;
+  size_t dashStart = j;
+  while(input.sizeGt(j) && input[j]=='-') ++j;
+  j = skip.withinLine(ctx, j);
+  if(input.bol(j) == input.bol(i)) return nullopt;
+  else { i=j; return dashStart; }
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -234,11 +216,10 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
-  size_t j = i;
-  skipSpaceTab(input,j);
+  size_t j = wskip.withinLine(ctx, i);
 
   // Whitespaces don't matter for blank lines.
-  if(lexEol(input,j)) { i = j; return ""; }
+  if(input.bol(j) != input.bol(i)) { i = j; return ""; }
 
   IndentCmp cmp = indentCmp(input.substr(i,j-i), parindent);
 
@@ -284,25 +265,20 @@ string debugChar(char ch) {
 }
 
 // Returns false on eof. Throws on invalid language character.
+// TODO think more about how acrossLines() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  size_t j = i;
-  while(input.sizeGt(j)) {
-    if(input[j] == '#') {
-      if(!lexComment(input,j)) ctx.FatalBug(j,j+1,"lexComment() is acting up");
-    }
-    else if(input[j]==' ' || input[j]=='\t') skipSpaceTab(input,j);
-    else if(input[j]=='\n') ++j;
-    else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
-            isoperch(input[j])) { i=j; return true; }
-    else ctx.Fatal(j,"Unexpected character " + debugChar(input[j]));
-  }
-  return false;
+  size_t j = skip.acrossLines(ctx, i);
+  if(!input.sizeGt(j)) return false;
+  else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
+          isoperch(input[j])) { i=j; return true; }
+  else ctx.Fatal(j,"Unexpected character " + debugChar(input[j]));
 }
 
 // Careful on numbers: a -12.34e+55 will be decomposed as
 //   ["-","12", ".", "34", "e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
+// TODO use generic word-lexing features.
 optional<UnquotedToken> lexWord(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || !isalnum(input[i])) return nullopt;
   size_t oldi = i;
@@ -408,7 +384,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   string s;
   bool error = false;
   ++j;
-  while(!lexEol(input, j)) {
+  while(input.sizeGt(j) && input[j] != '\n') {
     if(input[j] == '"') {
       size_t oldi = i;
       i = ++j;
@@ -419,8 +395,8 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
       else error = true;
     }else s += input[j++];
   }
-  ctx.Error(i,j-1,"Unexpected end of line");
-  i = j;
+  ctx.Error(i,j,"Unexpected end of line");
+  i = j+1;
   return nullopt;
 }
 
@@ -484,17 +460,18 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
 optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
-  const Input& input=ctx.input;
   size_t j=i;
 
-  while(lexBlankLine(input,j));
-  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(input,j);
+  if(i != ctx.input.bol(i)) return nullopt;
+  while(auto j2 = skipBlankLine(ctx,j)) j = *j2;
+  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(ctx,j);
   if(!rv) return nullopt;
-  optional<size_t> stDash=lexDashLine(input,j);
+  optional<size_t> stDash=lexDashLine(ctx,j);
   if(!stDash) return nullopt;
   i = j;
 
   size_t stCont=rv->at(0).stPos;
+  const Input& input=ctx.input;
   if(!isSectionHeaderNonSpace(input[input.bol(stCont)]))
     ctx.Error(input.bol(stCont),stCont-1,
         Str() << "Section headers must not be indented");

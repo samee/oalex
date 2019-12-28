@@ -62,7 +62,8 @@ namespace {
 
 const char goodHeader1[] =
 R"(Header at top  # comments
-----------   # comments)";
+----------   # comments
+)";
 
 const char goodHeader2[] = R"(
 # comment

@@ -19,6 +19,7 @@
 #include "segment.h"
 #include "runtime/diags.h"
 #include "runtime/input_view.h"
+#include "runtime/skipper.h"
 
 namespace oalex::lex {
 
@@ -81,6 +82,9 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
     if(tok->token == s) return true;
  return false;
 }
+
+inline Skipper skip{{{"#","\n"}}, {}};
+inline Skipper wskip{};
 
 std::optional<std::vector<UnquotedToken>>
   lexSectionHeader(InputDiags& lex, size_t& i);
