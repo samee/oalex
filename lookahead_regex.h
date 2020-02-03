@@ -84,7 +84,7 @@ Enforce usual rules about not allowing empty non-terminals being included.
 namespace oalex::regex {
 
 // Regex primitives. Likely to change if we ever switch to matching JsonLoc.
-struct CharRange { char from, to; }; 
+struct CharRange { unsigned char from, to; };
 
 using Regex = std::variant<
   CharRange,
@@ -103,7 +103,7 @@ struct OrList { std::vector<Regex> parts; };
 struct Negate { Regex part; };
 
 // TODO these two.
-// Likely to need custom escape sets.
+// prettyPrint is likely to need custom escape sets.
 auto prettyPrint(const Regex& regex) -> std::string;
 auto parse(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
 
