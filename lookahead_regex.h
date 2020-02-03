@@ -37,31 +37,74 @@ about how far they match. Only that they do.
 
 Might parameterize primitives, if we ever use it directly on JsonLoc.
 
-data RegexPrimitive = Char | CharRange
+  data RegexPrimitive = Char | CharRange
 
-data Regex = Primitive RegexPrimitive
-           | Concat [Regex]
-           | Repeat Regex
-           | Optional Regex
-           | OrList [Regex]
-           | Negate Regex
+  data Regex = Primitive RegexPrimitive
+             | Concat [Regex]
+             | Repeat Regex
+             | Optional Regex
+             | OrList [Regex]
+             | Negate Regex
 
--- Add escaping parameters.
-prettyPrint Primitive (Char ch) = ch
-prettyPrint Primitive (CharRange from to) = from ++ "-" ++ to
+No anchors for now, since it's lookahead. Might add them later. I can always
+look ahead and see if the next char is what we expect. And we almost never
+lookahead to check for eof.
 
-prettyPrint Concat [pieces] = concatmap prettyPrint pieces
+  -- Add escaping parameters.
+  prettyPrint Primitive (Char ch) = ch
+  prettyPrint Primitive (CharRange from to) = from ++ "-" ++ to
 
--- consider eliminating grouping
-prettyPrint Repeat regex = "(" ++ prettyPrint regex ++ ")..."
+  prettyPrint Concat [pieces] = concatmap prettyPrint pieces
 
-prettyPrint Optional regex = "[" ++ prettyPrint regex ++ "]"
+  -- consider eliminating grouping
+  prettyPrint Repeat regex = "(" ++ prettyPrint regex ++ ")..."
+
+  prettyPrint Optional regex = "[" ++ prettyPrint regex ++ "]"
 
 
 Okay, todo then:
   parse regex
+    - Don't allow repeats in a way that makes precedence ambiguous.
+    - Allow '*', '?', or '+' only after a single token, '[]' set,
+      or a '()' group. Not after binary operators like concat or disjunction.
   prettyPrint regex
   startsWith(input_view, regex) -> bool
   prefixesBoth(regex1, regex2) -> optional<string>
 
+Enforce usual rules about not allowing empty non-terminals being included.
    */
+#pragma once
+#include <string_view>
+#include <memory>
+#include <variant>
+#include <vector>
+
+#include "runtime/diags.h"
+
+namespace oalex::regex {
+
+// Regex primitives. Likely to change if we ever switch to matching JsonLoc.
+struct CharRange { char from, to; }; 
+
+using Regex = std::variant<
+  CharRange,
+  std::string,
+  std::unique_ptr<struct Concat>,
+  std::unique_ptr<struct Repeat>,
+  std::unique_ptr<struct Optional>,
+  std::unique_ptr<struct OrList>,
+  std::unique_ptr<struct Negate>
+>;
+
+struct Concat { std::vector<Regex> parts; };
+struct Repeat { Regex part; };
+struct Optional { Regex part; };
+struct OrList { std::vector<Regex> parts; };
+struct Negate { Regex part; };
+
+// TODO these two.
+// Likely to need custom escape sets.
+auto prettyPrint(const Regex& regex) -> std::string;
+auto parse(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
+
+}  // namespace oalex::regex
