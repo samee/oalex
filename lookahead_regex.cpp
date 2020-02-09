@@ -43,16 +43,34 @@ bool isPlainRange(unsigned char from, unsigned char to) {
          (islower(from) && islower(to));
 }
 
+// Used to make sure '^' does not get printed like a negation.
+// E.g. [\^#@] and not [^#@]. For any object `CaretEscaper fixCaret;`
+// fixCaret('^') == "\\^" if this is the first fixCaret call. All other inputs
+// are returned unchanged (other than a char->string conversion).
+class CaretEscaper {
+  bool first = true;
+ public:
+  string operator()(char ch) {
+    if(first && ch=='^') return "\\^";
+    first = false;
+    return string(1,ch);
+  }
+  string operator()(string s) {
+    return s.size()==1?(*this)(s[0]):s;
+  }
+};
+
 string prettyPrintSet(const CharSet& set) {
   ostringstream os;
-  os<<"[";
+  CaretEscaper fixCaret;
+  os<<'[';
   for(auto r : set.ranges) {
     if(r.from > r.to) Bug()<<"Invalid regex range";
-    else if(r.from == r.to) os<<escapedForSet(r.from);
-    else if(isPlainRange(r.from, r.to)) os<<r.from<<'-'<<r.to;
-    else Bug()<<"Complicated range found: "<<r.from<<" "<<r.to;
+    else if(r.from == r.to) os<<fixCaret(escapedForSet(r.from));
+    else if(isPlainRange(r.from, r.to)) os<<fixCaret(r.from)<<'-'<<r.to;
+    else Bug()<<"Complicated range found: "<<fixCaret(r.from)<<" to "<<r.to;
   }
-  os<<"]";
+  os<<']';
   return os.str();
 }
 
