@@ -21,15 +21,15 @@ char hexdigit(uint8_t ch) {
 }
 
 auto needsEscaping(char ch) -> optional<char> {
-  const static char escaped_from[]="\t" "\n" "\\" "/";
-  const static char escaped_to[]  ="t"  "n"  "\\" "/";
+  const static char escaped_from[]="\t" "\n" "\\" "/" "]";
+  const static char escaped_to[]  ="t"  "n"  "\\" "/" "]";
   static_assert(sizeof(escaped_from) == sizeof(escaped_to));
   const char* p = strchr(escaped_from, ch);
   if(p) return escaped_to[p-escaped_from];
   else return nullopt;
 }
 
-string escaped(char ch) {
+string escapedForSet(char ch) {
   char s[5]="\\x55";
   if(optional<char> opt = needsEscaping(ch)) { s[1]=*opt; s[2]='\0'; }
   else if(isprint(ch)) { s[0]=ch; s[1]='\0'; }
@@ -43,16 +43,17 @@ bool isPlainRange(unsigned char from, unsigned char to) {
          (islower(from) && islower(to));
 }
 
-string plainRange(const CharRange& range) {
-  return Str()<<"["<<range.from<<'-'<<range.to<<"]";
-}
-
-string disjunctedRange(const CharRange& range) {
-  ostringstream str;
-  str<<"("<<escaped(range.from);
-  for(size_t i=range.from+1; i<=range.to; ++i) str<<"|"<<escaped(i);
-  str<<")";
-  return str.str();
+string prettyPrintSet(const CharSet& set) {
+  ostringstream os;
+  os<<"[";
+  for(auto r : set.ranges) {
+    if(r.from > r.to) Bug()<<"Invalid regex range";
+    else if(r.from == r.to) os<<escapedForSet(r.from);
+    else if(isPlainRange(r.from, r.to)) os<<r.from<<'-'<<r.to;
+    else Bug()<<"Complicated range found: "<<r.from<<" "<<r.to;
+  }
+  os<<"]";
+  return os.str();
 }
 
 }  // namespace
@@ -77,12 +78,8 @@ string disjunctedRange(const CharRange& range) {
   */
 
 auto prettyPrint(const Regex& regex) -> string {
-  if(const auto* range = get_if<CharRange>(&regex)) {
-    if(range->from > range->to) Bug()<<"Invalid regex range";
-    else if(range->from == range->to) return escaped(range->from);
-    else if(isPlainRange(range->from, range->to)) return plainRange(*range);
-    else return disjunctedRange(*range);
-  }else Bug()<<"prettyPrint(regex) Unimplemented for variant "<<regex.index();
+  if(const auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
+  else Bug()<<"prettyPrint(regex) Unimplemented for variant "<<regex.index();
 }
 
 }  // namespace oalex::regex
