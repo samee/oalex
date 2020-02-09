@@ -20,55 +20,50 @@ char hexdigit(uint8_t ch) {
   else Bug()<<"hexdigit() input is not a hex digit.";
 }
 
-auto needsEscaping(char ch) -> optional<char> {
-  const static char escaped_from[]="\t" "\n" "\\" "/" "]";
-  const static char escaped_to[]  ="t"  "n"  "\\" "/" "]";
+auto needsEscaping(char ch, size_t pos, size_t count) -> optional<char> {
+  const static char escaped_from[]="\t" "\n" "\\" "/";
+  const static char escaped_to[]  ="t"  "n"  "\\" "/";
   static_assert(sizeof(escaped_from) == sizeof(escaped_to));
+
+  bool is_first = (pos==0), is_last = (pos+1==count);
+  if(ch == '-' && !(is_first||is_last)) return '-';
+  if(ch == ']' && !is_first) return ']';
   const char* p = strchr(escaped_from, ch);
   if(p) return escaped_to[p-escaped_from];
   else return nullopt;
 }
 
-string escapedForSet(char ch) {
+// Caret '^' is handled specially, outside of this function, since it also
+// requires knowing whether the set was negated.
+string escapedForSet(char ch, size_t pos, size_t count) {
   char s[5]="\\x55";
-  if(optional<char> opt = needsEscaping(ch)) { s[1]=*opt; s[2]='\0'; }
-  else if(isprint(ch)) { s[0]=ch; s[1]='\0'; }
+  if(optional<char> opt = needsEscaping(ch,pos,count)) {
+    s[1]=*opt;
+    s[2]='\0';
+  }else if(isprint(ch)) { s[0]=ch; s[1]='\0'; }
   else { s[2]=hexdigit(ch/16); s[3]=hexdigit(ch%16); }
   return s;
 }
 
+// This allows us to not handle some corner cases, e.g. "[--x]".
 bool isPlainRange(unsigned char from, unsigned char to) {
   return (isdigit(from) && isdigit(to)) ||
          (isupper(from) && isupper(to)) ||
          (islower(from) && islower(to));
 }
 
-// Used to make sure '^' does not get printed like a negation.
-// E.g. [\^#@] and not [^#@]. For any object `CaretEscaper fixCaret;`
-// fixCaret('^') == "\\^" if this is the first fixCaret call. All other inputs
-// are returned unchanged (other than a char->string conversion).
-class CaretEscaper {
-  bool first = true;
- public:
-  string operator()(char ch) {
-    if(first && ch=='^') return "\\^";
-    first = false;
-    return string(1,ch);
-  }
-  string operator()(string s) {
-    return s.size()==1?(*this)(s[0]):s;
-  }
-};
-
 string prettyPrintSet(const CharSet& set) {
+  size_t n = set.ranges.size();
   ostringstream os;
-  CaretEscaper fixCaret;
   os<<'[';
-  for(auto r : set.ranges) {
+  for(size_t i=0; i<n; ++i) {
+    auto& r = set.ranges[i];
     if(r.from > r.to) Bug()<<"Invalid regex range";
-    else if(r.from == r.to) os<<fixCaret(escapedForSet(r.from));
-    else if(isPlainRange(r.from, r.to)) os<<fixCaret(r.from)<<'-'<<r.to;
-    else Bug()<<"Complicated range found: "<<fixCaret(r.from)<<" to "<<r.to;
+    else if(r.from == r.to) {
+      if(r.from == '^' && i == 0) os<<"\\^";
+      else os<<escapedForSet(r.from, i, n);
+    }else if(isPlainRange(r.from, r.to)) os<<r.from<<'-'<<r.to;
+    else Bug()<<"Complicated range found: "<<r.from<<" to "<<r.to;
   }
   os<<']';
   return os.str();

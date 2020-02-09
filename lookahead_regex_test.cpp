@@ -23,6 +23,15 @@ int main() {
     {CharSet{{CharRange{'!','!'},
               CharRange{'^','^'},
               CharRange{':',':'}}}, "[!^:]"},
+    {CharSet{{CharRange{']',']'},
+              CharRange{'x','x'},
+              CharRange{'-','-'}}}, "[]x-]"},
+    {CharSet{{CharRange{'x','x'},
+              CharRange{'-','-'},
+              CharRange{']',']'}}}, "[x\\-\\]]"},
+    {CharSet{{CharRange{'a','a'},
+              CharRange{'-','-'},
+              CharRange{'z','z'}}}, "[a\\-z]"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
