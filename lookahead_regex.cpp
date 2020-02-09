@@ -55,12 +55,15 @@ bool isPlainRange(unsigned char from, unsigned char to) {
 string prettyPrintSet(const CharSet& set) {
   size_t n = set.ranges.size();
   ostringstream os;
-  os<<'[';
+
+  if(set.negated) os<<"[^";
+  else os<<'[';
+
   for(size_t i=0; i<n; ++i) {
     auto& r = set.ranges[i];
     if(r.from > r.to) Bug()<<"Invalid regex range";
     else if(r.from == r.to) {
-      if(r.from == '^' && i == 0) os<<"\\^";
+      if(r.from == '^' && i == 0 && !set.negated) os<<"\\^";
       else os<<escapedForSet(r.from, i, n);
     }else if(isPlainRange(r.from, r.to)) os<<r.from<<'-'<<r.to;
     else Bug()<<"Complicated range found: "<<r.from<<" to "<<r.to;

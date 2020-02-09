@@ -85,7 +85,7 @@ namespace oalex::regex {
 
 // Regex primitives. Likely to change if we ever switch to matching JsonLoc.
 struct CharRange { unsigned char from, to; };
-struct CharSet { std::vector<CharRange> ranges; };
+struct CharSet { std::vector<CharRange> ranges; bool negated = false; };
 
 using Regex = std::variant<
   CharSet,

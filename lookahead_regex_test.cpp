@@ -5,6 +5,15 @@ using oalex::regex::CharSet;
 using oalex::regex::Regex;
 using std::string;
 
+namespace {
+
+CharSet negatedSet(CharSet cs) {
+  cs.negated=true;
+  return cs;
+}
+
+}  // namespace
+
 int main() {
   std::pair<Regex,string> testVectors[] = {
     {CharSet{{CharRange{'0','9'}}}, "[0-9]"},
@@ -32,6 +41,8 @@ int main() {
     {CharSet{{CharRange{'a','a'},
               CharRange{'-','-'},
               CharRange{'z','z'}}}, "[a\\-z]"},
+    {negatedSet({{CharRange{'a','z'},CharRange{'@','@'}}}),"[^a-z@]"},
+    {negatedSet({{CharRange{'^','^'},CharRange{'a','z'}}}),"[^^a-z]"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
