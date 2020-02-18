@@ -9,6 +9,7 @@ using std::optional;
 using std::ostringstream;
 using std::strchr;
 using std::string;
+using oalex::InputDiags;
 
 namespace oalex::regex {
 
@@ -72,8 +73,6 @@ string prettyPrintSet(const CharSet& set) {
   return os.str();
 }
 
-}  // namespace
-
   /*
   using Regex = std::variant<
     CharRange,
@@ -93,9 +92,15 @@ string prettyPrintSet(const CharSet& set) {
 
   */
 
-auto prettyPrint(const Regex& regex) -> string {
+auto prettyPrintRec(const Regex& regex) -> string {
   if(const auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
   else Bug()<<"prettyPrint(regex) Unimplemented for variant "<<regex.index();
+}
+
+}  // namespace
+
+auto prettyPrint(const Regex& regex) -> string {
+  return "/" + prettyPrintRec(regex) + "/";
 }
 
 }  // namespace oalex::regex
