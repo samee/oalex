@@ -53,6 +53,10 @@ bool isPlainRange(unsigned char from, unsigned char to) {
          (islower(from) && islower(to));
 }
 
+bool isPlainRange(const CharRange& range) {
+  return isPlainRange(range.from, range.to);
+}
+
 string prettyPrintSet(const CharSet& set) {
   size_t n = set.ranges.size();
   ostringstream os;
@@ -113,7 +117,13 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '\\') Bug()<<"Parsing escape codes not yet implemented";
-  return input[i++];
+  char ch = input[i];
+  if(!isprint(ch)) {
+    ctx.Error(i, i+1, "Invalid character");
+    return nullopt;
+  }
+  ++i;
+  return ch;
 }
 
 auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
@@ -142,6 +152,9 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
     // Parse out the end character.
     if(auto en = parseCharSetElt(ctx, j)) cset.ranges.back().to = *en;
     else { ++j; continue; }
+
+    if(!isPlainRange(cset.ranges.back()))
+      ctx.Error(i, j, "Ranges can only span 0-9, A-Z, or a-z.");
   } while(!hasChar(input,j,']'));
   i = j+1;
   return cset;
