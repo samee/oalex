@@ -21,12 +21,11 @@ char hexdigit(uint8_t ch) {
   else Bug()<<"hexdigit() input is not a hex digit.";
 }
 
-auto needsEscaping(char ch, size_t pos, size_t count) -> optional<char> {
+auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
   const static char escaped_from[]="\t" "\n" "\\" "/";
   const static char escaped_to[]  ="t"  "n"  "\\" "/";
   static_assert(sizeof(escaped_from) == sizeof(escaped_to));
 
-  bool is_first = (pos==0), is_last = (pos+1==count);
   if(ch == '-' && !(is_first||is_last)) return '-';
   if(ch == ']' && !is_first) return ']';
   const char* p = strchr(escaped_from, ch);
@@ -38,7 +37,7 @@ auto needsEscaping(char ch, size_t pos, size_t count) -> optional<char> {
 // requires knowing whether the set was negated.
 string escapedForSet(char ch, size_t pos, size_t count) {
   char s[5]="\\x55";
-  if(optional<char> opt = needsEscaping(ch,pos,count)) {
+  if(optional<char> opt = needsEscaping(ch, pos==0, pos+1==count)) {
     s[1]=*opt;
     s[2]='\0';
   }else if(isprint(ch)) { s[0]=ch; s[1]='\0'; }
@@ -116,7 +115,8 @@ bool parseCharSetNegation(const Input& input, size_t& i) {
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
-  if(input[i] == '\\') Bug()<<"Parsing escape codes not yet implemented";
+  if(input[i] == '\\' || input[i] == '/')
+    Bug()<<"Parsing escape codes not yet implemented";
   char ch = input[i];
   if(!isprint(ch)) {
     ctx.Error(i, i+1, "Invalid character");
@@ -142,7 +142,7 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
     if(auto st = parseCharSetElt(ctx, j)) cset.ranges.push_back({*st,*st});
     else { ++j; continue; }
 
-    // We have more to do only if this might be part of a range.
+    // We have more to do if we are starting a range.
     if(!hasChar(input,j,'-')) continue;
 
     // Treat the '-' literally if this is the last character.
@@ -150,11 +150,22 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
     ++j;
 
     // Parse out the end character.
-    if(auto en = parseCharSetElt(ctx, j)) cset.ranges.back().to = *en;
+    auto& new_range = cset.ranges.back();
+    if(auto en = parseCharSetElt(ctx, j)) new_range.to = *en;
     else { ++j; continue; }
 
-    if(!isPlainRange(cset.ranges.back()))
+    // TODO remove this check. It exists only to help fuzzing.
+    if(new_range.from == new_range.to)
+      ctx.Error(i, j, "Redundant range. Use a single character.");
+
+    if(new_range.from > new_range.to)
+      ctx.Error(i, j, "Invalid range going backwards.");
+
+    if(!isPlainRange(new_range))
       ctx.Error(i, j, "Ranges can only span 0-9, A-Z, or a-z.");
+
+    if(hasChar(input,j,'-') && !hasChar(input,j+1,']'))
+      ctx.Error(j, j+1, "Character range has no start");
   } while(!hasChar(input,j,']'));
   i = j+1;
   return cset;
@@ -168,15 +179,12 @@ auto prettyPrint(const Regex& regex) -> string {
 
 auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
-  if(input.sizeGt(i)) Debug()<<", input[i] = "<<input[i];
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;
   optional<Regex> rv;
 
   if(hasChar(input,j,'[')) {
-    Debug()<<"Lookahead indicates character set";
     rv = parseCharSet(ctx, j);
-    Debug()<<"has_value() = "<<rv.has_value();
     if(!rv.has_value()) return nullopt;
   }else Bug()<<"regex::parse() only implements a single character set.";
 
