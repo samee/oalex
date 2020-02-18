@@ -262,6 +262,8 @@ void testCommentNeverEnds() {
     showDiags(ctx.diags);
     BugMe<<"Wasn't expecting problems with properly closed multiline comments";
   }
+  if(ctx.input.sizeGt(pos)) BugMe<<"Leaves characters unconsumed";
+
   ctx = unixifiedTestInputDiags(input + " {- {- \n  -} ");
   pos = haskellskip.acrossLines(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
