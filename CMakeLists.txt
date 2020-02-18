@@ -18,7 +18,6 @@ add_executable(jsonloc_test lexer.cpp jsonloc_test.cpp jsonloc.cpp)
 target_link_libraries(jsonloc_test oalex)
 add_test(jsonloc_test jsonloc_test)
 
-# TODO lookahead_regex_test.
 add_executable(lookahead_regex_test
                lookahead_regex.cpp lookahead_regex_test.cpp)
 target_link_libraries(lookahead_regex_test oalex)
