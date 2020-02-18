@@ -97,10 +97,80 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else Bug()<<"prettyPrint(regex) Unimplemented for variant "<<regex.index();
 }
 
+// Regex and string literals are among the few places that don't ignore spaces
+// before checking for a specific character.
+bool hasChar(const Input& input, size_t pos, char ch) {
+  return input.sizeGt(pos) && input[pos]==ch;
+}
+
+bool parseCharSetNegation(const Input& input, size_t& i) {
+  if(!hasChar(input,i,'^')) return false;
+  ++i;
+  return true;
+}
+
+auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
+  const Input& input = ctx.input;
+  if(!input.sizeGt(i)) return nullopt;
+  if(input[i] == '\\') Bug()<<"Parsing escape codes not yet implemented";
+  return input[i++];
+}
+
+auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
+  const Input& input = ctx.input;
+  if(!hasChar(input,i,'['))
+    Bug()<<"parseCharSet called at invalid location "<<i;
+  CharSet cset;
+  size_t j = i+1;
+
+  cset.negated = parseCharSetNegation(input, j);
+
+  // One or more set elements, not zero or more.
+  // Allow ']' as the first set element. It does not close the set.
+  do {
+    if(!input.sizeGt(j)) ctx.Fatal(i, i+1, "Unmatched '['");
+    if(auto st = parseCharSetElt(ctx, j)) cset.ranges.push_back({*st,*st});
+    else { ++j; continue; }
+
+    // We have more to do only if this might be part of a range.
+    if(!hasChar(input,j,'-')) continue;
+
+    // Treat the '-' literally if this is the last character.
+    if(hasChar(input,j+1,']')) continue;
+    ++j;
+
+    // Parse out the end character.
+    if(auto en = parseCharSetElt(ctx, j)) cset.ranges.back().to = *en;
+    else { ++j; continue; }
+  } while(!hasChar(input,j,']'));
+  i = j+1;
+  return cset;
+}
+
 }  // namespace
 
 auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
+}
+
+auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
+  const Input& input = ctx.input;
+  if(input.sizeGt(i)) Debug()<<", input[i] = "<<input[i];
+  if(!hasChar(input,i,'/')) return nullopt;
+  size_t j = i+1;
+  optional<Regex> rv;
+
+  if(hasChar(input,j,'[')) {
+    Debug()<<"Lookahead indicates character set";
+    rv = parseCharSet(ctx, j);
+    Debug()<<"has_value() = "<<rv.has_value();
+    if(!rv.has_value()) return nullopt;
+  }else Bug()<<"regex::parse() only implements a single character set.";
+
+  if(!hasChar(input,j,'/'))
+    Bug()<<"Was expecting '/' since nothing else is implemented.";
+  i = j+1;
+  return rv;
 }
 
 }  // namespace oalex::regex

@@ -1,9 +1,23 @@
 #include "lookahead_regex.h"
+#include <iostream>
+#include <string_view>
+#include <vector>
 #include "runtime/test_util.h"
+using oalex::BugDie;
+using oalex::Diag;
+using oalex::Input;
+using oalex::InputDiags;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Regex;
+using std::cerr;
+using std::endl;
+using std::optional;
 using std::string;
+using std::string_view;
+using std::vector;
+
+namespace regex = oalex::regex;
 
 namespace {
 
@@ -12,9 +26,7 @@ CharSet negatedSet(CharSet cs) {
   return cs;
 }
 
-}  // namespace
-
-int main() {
+void testPrettyPrint() {
   std::pair<Regex,string> testVectors[] = {
     {CharSet{{CharRange{'0','9'}}}, "/[0-9]/"},
     {CharSet{{CharRange{'A','Z'}}}, "/[A-Z]/"},
@@ -51,4 +63,36 @@ int main() {
       BugMe<<"Regex prettyPrint failed: "<<observed
            <<" != "<<testVectors[i].second;
   }
+}
+
+void abortScreaming(string_view testName, const vector<Diag>& diags) {
+  for(const auto& d:diags) cerr<<string(d)<<endl;
+  BugDie()<<testName<<" had unexpected errors";
+}
+
+// If direct string comparison ever becomes too simple, try AST comparison
+// after a parse-print-parse cycle.
+void testParseAndPrint() {
+  const vector<string> inputs {
+    "/[abc]/", "/[a-z123]/", "/[^a-z@]/", "/[^^a-z]/",
+    "/[-abc-]/", "/[]]/", "/[^]]/",
+  };
+  for(auto& input : inputs) {
+    InputDiags ctx{Input{input}, {}};
+    size_t i = 0;
+    optional<Regex> parseResult = regex::parse(ctx, i);
+    if(!ctx.diags.empty()) abortScreaming(__func__, ctx.diags);
+    if(!parseResult) BugMe<<"Regex "<<input<<" silently failed to parse.";
+    string output = regex::prettyPrint(*parseResult);
+    if(input != output)
+      BugMe<<"Regex has changed after pretty-printing: "
+           <<input<<" became "<<output;
+  }
+}
+
+}  // namespace
+
+int main() {
+  testPrettyPrint();
+  testParseAndPrint();
 }
