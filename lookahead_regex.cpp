@@ -97,7 +97,7 @@ string prettyPrintSet(const CharSet& set) {
 
 auto prettyPrintRec(const Regex& regex) -> string {
   if(const auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
-  else Bug()<<"prettyPrint(regex) Unimplemented for variant "<<regex.index();
+  else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 
 // Regex and string literals are among the few places that don't ignore spaces
@@ -116,7 +116,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '\\' || input[i] == '/')
-    Bug()<<"Parsing escape codes not yet implemented";
+    Unimplemented()<<"Parsing escape codes";
   char ch = input[i];
   if(!isprint(ch)) {
     ctx.Error(i, i+1, "Invalid character");
@@ -186,10 +186,11 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   if(hasChar(input,j,'[')) {
     rv = parseCharSet(ctx, j);
     if(!rv.has_value()) return nullopt;
-  }else Bug()<<"regex::parse() only implements a single character set.";
+  }else
+    Unimplemented()<<"regex::parse() features beyond a single character set.";
 
   if(!hasChar(input,j,'/'))
-    Bug()<<"Was expecting '/' since nothing else is implemented.";
+    Unimplemented()<<"patterns that don't end here. Was expecting '/'.";
   i = j+1;
   return rv;
 }

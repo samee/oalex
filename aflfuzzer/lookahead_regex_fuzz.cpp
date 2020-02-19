@@ -49,9 +49,9 @@ auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
   }
   // Silently discard invalid inputs.
   catch(oalex::UserErrorEx&) { return nullopt; }
-  // TODO stop catching bugs once all the "Unimplemented" throws
+  // TODO stop catching these once all the "Unimplemented" throws
   // have been removed.
-  catch(oalex::BugEx&) { return nullopt; }
+  catch(oalex::UnimplementedEx&) { return nullopt; }
   if(!res && !hasDiags) BugMe<<"Regex "<<input<<" silently failed to parse.";
   if(hasDiags) return nullopt;
   return res;

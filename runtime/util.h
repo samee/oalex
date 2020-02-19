@@ -25,6 +25,8 @@ namespace oalex {
 //   if(weird) BugWarn() << "Tell me more about " << x;
 //   if(weird) UserError() << "Tell the user to behave";
 //   Debug() << "More message";  // Never in checked-in code.
+//
+// TODO: adopt std::format() whenever it becomes available and stable.
 struct BugEx : std::logic_error {
   BugEx(const std::string& s) : std::logic_error(s) {}
 };
@@ -44,6 +46,19 @@ struct BugDie {
 };
 template <class X> std::ostream& operator<<(BugDie&&, const X& x) {
   return std::cerr << "Bug: " << x;
+}
+
+struct UnimplementedEx : BugEx {
+  UnimplementedEx(const std::string& msg) : BugEx(msg) {}
+};
+struct Unimplemented {
+  std::ostringstream os;
+  [[noreturn]] ~Unimplemented() noexcept(false) {
+    throw UnimplementedEx(os.str());
+  }
+};
+template <class X> std::ostream& operator<<(Unimplemented&& b, const X& x) {
+  return b.os << "Unimplemented: " << x;
 }
 
 struct Debug {
