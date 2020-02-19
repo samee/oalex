@@ -115,6 +115,10 @@ bool parseCharSetNegation(const Input& input, size_t& i) {
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
+  if(input[i] == '/') {
+    ctx.Fatal(i, i+1, "Expected closing ']'");
+    return nullopt;
+  }
   if(input[i] == '\\' || input[i] == '/')
     Unimplemented()<<"Parsing escape codes";
   char ch = input[i];

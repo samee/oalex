@@ -8,6 +8,7 @@ using oalex::BugDie;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::UserErrorEx;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Regex;
@@ -99,11 +100,16 @@ void testParseDiags() {
     {"/[x-x]/", "Redundant range"},
     {"/[z-a]/", "Invalid range going backwards"},
     {"/[a-b-c]/", "Character range has no start"},
+    {"/[/", "Expected closing ']'"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};
     size_t i = 0;
-    optional<Regex> parseResult = regex::parse(ctx, i);
+    try {
+      optional<Regex> parseResult = regex::parse(ctx, i);
+    }catch(UserErrorEx& ex) {
+      ctx.Error(0,0,ex.what());  // demote Fatal() error to non-fatal.
+    }
     assertHasDiagWithSubstr(__func__, ctx.diags, msg);
   }
 }
