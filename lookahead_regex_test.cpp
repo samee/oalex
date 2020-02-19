@@ -2,6 +2,7 @@
 #include <iostream>
 #include <string_view>
 #include <vector>
+#include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 using oalex::BugDie;
 using oalex::Diag;
@@ -13,6 +14,7 @@ using oalex::regex::Regex;
 using std::cerr;
 using std::endl;
 using std::optional;
+using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -90,9 +92,26 @@ void testParseAndPrint() {
   }
 }
 
+void testParseDiags() {
+  const vector<pair<string,string>> testVectors{
+    {"/[\b]/", "Invalid character"},
+    {"/[A-z]/", "Ranges can only span"},
+    {"/[x-x]/", "Redundant range"},
+    {"/[z-a]/", "Invalid range going backwards"},
+    {"/[a-b-c]/", "Character range has no start"},
+  };
+  for(auto& [input, msg] : testVectors) {
+    InputDiags ctx{Input{input}, {}};
+    size_t i = 0;
+    optional<Regex> parseResult = regex::parse(ctx, i);
+    assertHasDiagWithSubstr(__func__, ctx.diags, msg);
+  }
+}
+
 }  // namespace
 
 int main() {
   testPrettyPrint();
   testParseAndPrint();
+  testParseDiags();
 }
