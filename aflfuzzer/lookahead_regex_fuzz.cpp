@@ -24,6 +24,7 @@ using std::cin;
 using std::endl;
 using std::nullopt;
 using std::optional;
+using std::stoi;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -39,7 +40,7 @@ void abortScreaming(string_view testName, const vector<Diag>& diags) {
 
 auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
   // Caller of regex::parse() is expected to ensure input starts with '/'.
-  if(input.empty() || input[0] != '/') return nullopt;
+  if(input.empty() || input[i] != '/') return nullopt;
   optional<Regex> res;
   bool hasDiags;
   try {
@@ -57,6 +58,37 @@ auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
   return res;
 }
 
+auto parseHex(const string& s, size_t& i) -> optional<char> {
+  if(s.size() < i+4) return nullopt;
+  if(s.compare(i, 2, "\\x") != 0) return nullopt;
+  i += 4;
+  // We can expect conversion to succeed since this is used after
+  // regex::parse() succeeds.
+  return stoi(string(s.substr(i-2,2)),nullptr,16);
+}
+
+auto parseEsc(const string& s, size_t& i) -> optional<char> {
+  if(s[i] != '\\') return nullopt;
+  if(auto ch = parseHex(s, i)) return ch;
+  if(s.compare(i, 2, "\\]") == 0) { i+=2; return ']'; }
+  if(s.compare(i, 2, "\\-") == 0) { i+=2; return '-'; }
+  if(s.compare(i, 2, "\\^") == 0) { i+=2; return '^'; }
+  if(s.compare(i, 2, "\\\\") == 0) { i+=2; return '\\'; }
+  return nullopt;
+}
+
+// This might go a little overboard in allowing equivalence where it shouldn't.
+bool regexEqual(const string& a, const string& b) {
+  size_t i=0, j=0;
+  while(i<a.size() && j<b.size()) {
+    char ai, bj;
+    if(auto ch=parseEsc(a,i)) ai=*ch; else ai=a[i++];
+    if(auto ch=parseEsc(b,j)) bj=*ch; else bj=b[j++];
+    if(ai != bj) return false;
+  }
+  return i==a.size() && j==b.size();
+}
+
 }  // namespace
 
 int main() {
@@ -67,7 +99,7 @@ int main() {
   if(!parseResult) return 0;
   string output = regex::prettyPrint(*parseResult);
   input.resize(i);  // fuzzer might provide trailing garbage.
-  if(input != output)
+  if(!regexEqual(input, output))
     BugMe<<"Regex has changed after pretty-printing: "
          <<input<<" became "<<output;
 }
