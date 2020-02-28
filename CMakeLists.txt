@@ -19,7 +19,7 @@ target_link_libraries(jsonloc_test oalex)
 add_test(jsonloc_test jsonloc_test)
 
 add_executable(lookahead_regex_test
-               lookahead_regex.cpp lookahead_regex_test.cpp)
+               lookahead_regex.cpp lookahead_regex_test.cpp lexer.cpp)
 target_link_libraries(lookahead_regex_test oalex)
 add_test(lookahead_regex_test lookahead_regex_test)
 

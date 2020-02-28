@@ -1,6 +1,6 @@
 // With all the sudo, I couldn't integrate this into cmake. Manual fuzzing:
 // ~/src/afl/afl-g++ -O3 --std=c++17 ../lookahead_regex.cpp \
-     lookahead_regex_fuzz.cpp -I.. -L../build/runtime -loalex
+     lookahead_regex_fuzz.cpp ../lexer.cpp -I.. -L../build/runtime -loalex
 // echo core | sudo tee /proc/sys/kernel/core_pattern
 // echo performance | sudo tee \
      /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor

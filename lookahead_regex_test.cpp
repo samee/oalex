@@ -79,6 +79,8 @@ void testParseAndPrint() {
   const vector<string> inputs {
     "/[abc]/", "/[a-z123]/", "/[^a-z@]/", "/[^^a-z]/",
     "/[-abc-]/", "/[]]/", "/[^]]/",
+    "/[abc\\x03\\-\\t\\n\\]\\/]/",
+    "/[\\xdb]/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -94,6 +96,7 @@ void testParseAndPrint() {
 }
 
 void testParseDiags() {
+  using namespace std::literals;
   const vector<pair<string,string>> testVectors{
     {"/[\b]/", "Invalid character"},
     {"/[A-z]/", "Ranges can only span"},
@@ -101,6 +104,10 @@ void testParseDiags() {
     {"/[z-a]/", "Invalid range going backwards"},
     {"/[a-b-c]/", "Character range has no start"},
     {"/[/", "Expected closing ']'"},
+    {"/[\\", "Incomplete escape"},
+    {"/[\\w]/", "Unknown escape"},
+    {"/[\\xwq]/", "Invalid hex code"},
+    {"/[\\\0x\\-]/"s, "Unknown escape"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};

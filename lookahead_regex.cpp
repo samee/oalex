@@ -1,6 +1,7 @@
 #include "lookahead_regex.h"
 #include <cctype>
 #include <cstring>
+#include "lexer.h"
 #include "runtime/util.h"
 using std::get_if;
 using std::isprint;
@@ -18,7 +19,7 @@ namespace {
 char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
   else if(ch <= 15) return ch-10+'a';
-  else Bug()<<"hexdigit() input is not a hex digit.";
+  else Bug()<<"hexdigit("<<int(ch)<<") input is not a hex digit.";
 }
 
 auto xlat(const char* from, const char* to, char ch) -> optional<char> {
@@ -40,7 +41,7 @@ auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
 
 // Caret '^' is handled specially, outside of this function, since it also
 // requires knowing whether the set was negated.
-string escapedForSet(char ch, size_t pos, size_t count) {
+string escapedForSet(unsigned char ch, size_t pos, size_t count) {
   char s[5]="\\x55";
   if(optional<char> opt = needsEscaping(ch, pos==0, pos+1==count)) {
     s[1]=*opt;
@@ -117,6 +118,29 @@ bool parseCharSetNegation(const Input& input, size_t& i) {
   return true;
 }
 
+auto unescaped(char ch) -> optional<unsigned char> {
+  const static char escaped_from[]="\t" "\n" "\\" "/" "-" "]";
+  const static char escaped_to[]  ="t"  "n"  "\\" "/" "-" "]";
+  static_assert(sizeof(escaped_from) == sizeof(escaped_to));
+  return xlat(escaped_to, escaped_from, ch);
+}
+
+// Assumes caller has already checked for "\x" prefix.
+auto parseHexCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
+  size_t j = i+2;  // skip over "\x"
+  if(auto res = oalex::lex::lexHexCode(ctx, j)) { i = j; return res; }
+  else return ctx.Error(i, i+4, "Invalid hex code");
+}
+
+auto parseEscapeCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
+  const Input& input = ctx.input;
+  if(!hasChar(input,i,'\\')) return nullopt;
+  if(!input.sizeGt(i+1)) ctx.Fatal(i, i+1, "Incomplete escape code");
+  if(input[i+1] == 'x') return parseHexCode(ctx, i);
+  if(auto res = unescaped(input[i+1])) { i=i+2; return res; }
+  else { i += 2; return ctx.Error(i-2, i, "Unknown escape code"); }
+}
+
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
@@ -124,8 +148,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
     ctx.Fatal(i, i+1, "Expected closing ']'");
     return nullopt;
   }
-  if(input[i] == '\\' || input[i] == '/')
-    Unimplemented()<<"Parsing escape codes";
+  if(input[i] == '\\') return parseEscapeCode(ctx, i);
   char ch = input[i];
   if(!isprint(ch)) {
     ctx.Error(i, i+1, "Invalid character");
