@@ -21,6 +21,13 @@ char hexdigit(uint8_t ch) {
   else Bug()<<"hexdigit() input is not a hex digit.";
 }
 
+auto xlat(const char* from, const char* to, char ch) -> optional<char> {
+  if(!ch) return nullopt;
+  const char* p = strchr(from, ch);
+  if(p) return to[p-from];
+  else return nullopt;
+}
+
 auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
   const static char escaped_from[]="\t" "\n" "\\" "/";
   const static char escaped_to[]  ="t"  "n"  "\\" "/";
@@ -28,9 +35,7 @@ auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
 
   if(ch == '-' && !(is_first||is_last)) return '-';
   if(ch == ']' && !is_first) return ']';
-  const char* p = strchr(escaped_from, ch);
-  if(p) return escaped_to[p-escaped_from];
-  else return nullopt;
+  return xlat(escaped_from, escaped_to, ch);
 }
 
 // Caret '^' is handled specially, outside of this function, since it also
