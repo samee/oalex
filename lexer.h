@@ -86,6 +86,7 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
 inline Skipper skip{{{"#","\n"}}, {}};
 inline Skipper wskip{};
 
+std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
 std::optional<std::vector<UnquotedToken>>
   lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i);
