@@ -86,12 +86,39 @@ string prettyPrintSet(const CharSet& set) {
   return os.str();
 }
 
+template <class T>
+struct is_variant { static constexpr bool value = false; };
+template <class ... Ts>
+struct is_variant<std::variant<Ts...>> { static constexpr bool value = true; };
+template <class T> inline constexpr
+bool is_variant_v = is_variant<T>::value;
+
+template <class ... Ts> struct holds_one_of_helper;  // undefined
+
+template <>
+struct holds_one_of_helper<> {
+  template <class V> static bool check(const V&) { return false; }
+};
+
+template <class T, class ... Ts>
+struct holds_one_of_helper<T, Ts...> {
+  template <class V> static bool check(const V& v) {
+    static_assert(is_variant_v<V>);
+    return holds_alternative<T>(v) || holds_one_of_helper<Ts...>::check(v);
+  }
+};
+
+template <class ... Ts, class V> bool holds_one_of(const V& v) {
+  return holds_one_of_helper<Ts...>::check(v);
+}
+template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
+  return holds_one_of<unique_ptr<Ts>...>(v);
+}
+
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    if(holds_alternative<unique_ptr<Concat>>(part) ||
-       holds_alternative<unique_ptr<OrList>>(part) ||
-       holds_alternative<unique_ptr<Negate>>(part))
+    if(holds_one_of_unique<Concat, OrList, Negate>(part))
       os<<'('<<prettyPrintRec(part)<<')';
     else os<<prettyPrintRec(part);
   }
