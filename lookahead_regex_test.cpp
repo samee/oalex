@@ -40,7 +40,7 @@ void concat_helper(unique_ptr<Concat>&) {}
 template <class T, class ... Ts>
 void concat_helper(unique_ptr<Concat>& out, T t, Ts ... ts) {
   out->parts.push_back(std::move(t));
-  concat_helper(out, ts...);
+  concat_helper(out, std::move(ts)...);
 }
 
 template <class ... Ts>
@@ -80,6 +80,8 @@ void testPrettyPrint() {
     {negatedSet({{CharRange{'a','z'},CharRange{'@','@'}}}),"/[^a-z@]/"},
     {negatedSet({{CharRange{'^','^'},CharRange{'a','z'}}}),"/[^^a-z]/"},
     {concat(charSingle('a'), charSingle('b'), charSingle('c')), "/[a][b][c]/"},
+    {concat(charSingle('a'), concat(charSingle('b'), charSingle('c'))),
+      "/[a]([b][c])/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
