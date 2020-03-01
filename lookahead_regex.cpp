@@ -263,6 +263,12 @@ auto parseGroup(InputDiags& ctx, size_t& i) -> optional<Regex> {
   return res;
 }
 
+// Temporary function to detect unimplemented feature.
+bool startsRepeat(char ch) {
+  const char* c = strchr("+*?{", ch);
+  return c && *c;
+}
+
 auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
@@ -276,7 +282,9 @@ auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
       i = j;
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
-    }else
+    }else if(startsRepeat(input[i]))
+      Unimplemented()<<"repetition isn't implemented yet";
+    else
       Unimplemented()<<"regex::parse() features beyond character sets.";
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
