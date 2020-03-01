@@ -11,13 +11,16 @@ using oalex::InputDiags;
 using oalex::UserErrorEx;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
+using oalex::regex::Concat;
 using oalex::regex::Regex;
 using std::cerr;
 using std::endl;
+using std::make_unique;
 using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 
 namespace regex = oalex::regex;
@@ -27,6 +30,24 @@ namespace {
 CharSet negatedSet(CharSet cs) {
   cs.negated=true;
   return cs;
+}
+CharSet charSingle(unsigned char ch) {
+  return CharSet{{CharRange{ch,ch}}};
+}
+
+void concat_helper(unique_ptr<Concat>&) {}
+
+template <class T, class ... Ts>
+void concat_helper(unique_ptr<Concat>& out, T t, Ts ... ts) {
+  out->parts.push_back(std::move(t));
+  concat_helper(out, ts...);
+}
+
+template <class ... Ts>
+auto concat(Ts ... ts) -> unique_ptr<Concat> {
+  auto rv = make_unique<Concat>();
+  concat_helper(rv, std::move(ts)...);
+  return rv;
 }
 
 void testPrettyPrint() {
@@ -58,6 +79,7 @@ void testPrettyPrint() {
               CharRange{'z','z'}}}, "/[a\\-z]/"},
     {negatedSet({{CharRange{'a','z'},CharRange{'@','@'}}}),"/[^a-z@]/"},
     {negatedSet({{CharRange{'^','^'},CharRange{'a','z'}}}),"/[^^a-z]/"},
+    {concat(charSingle('a'), charSingle('b'), charSingle('c')), "/[a][b][c]/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {

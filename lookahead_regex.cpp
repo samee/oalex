@@ -4,12 +4,14 @@
 #include "lexer.h"
 #include "runtime/util.h"
 using std::get_if;
+using std::holds_alternative;
 using std::isprint;
 using std::nullopt;
 using std::optional;
 using std::ostringstream;
 using std::strchr;
 using std::string;
+using std::unique_ptr;
 using oalex::InputDiags;
 
 namespace oalex::regex {
@@ -62,6 +64,8 @@ bool isPlainRange(const CharRange& range) {
   return isPlainRange(range.from, range.to);
 }
 
+auto prettyPrintRec(const Regex& regex) -> string;
+
 string prettyPrintSet(const CharSet& set) {
   size_t n = set.ranges.size();
   ostringstream os;
@@ -79,6 +83,18 @@ string prettyPrintSet(const CharSet& set) {
     else Bug()<<"Complicated range found: "<<r.from<<" to "<<r.to;
   }
   os<<']';
+  return os.str();
+}
+
+string prettyPrintSeq(const Concat& seq) {
+  ostringstream os;
+  for(auto& part : seq.parts) {
+    if(holds_alternative<unique_ptr<Concat>>(part) ||
+       holds_alternative<unique_ptr<OrList>>(part) ||
+       holds_alternative<unique_ptr<Negate>>(part))
+      os<<'('<<prettyPrintRec(part)<<')';
+    else os<<prettyPrintRec(part);
+  }
   return os.str();
 }
 
@@ -103,6 +119,7 @@ string prettyPrintSet(const CharSet& set) {
 
 auto prettyPrintRec(const Regex& regex) -> string {
   if(const auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
+  else if(const auto* seq = get_if<unique_ptr<Concat>>(&regex)) return prettyPrintSeq(**seq);
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 
@@ -220,11 +237,11 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
     if(!rv.has_value()) return nullopt;
   }else
     Unimplemented()<<"regex::parse() features beyond a single character set.";
-
   if(!hasChar(input,j,'/'))
     Unimplemented()<<"patterns that don't end here. Was expecting '/'.";
   i = j+1;
   return rv;
+
 }
 
 }  // namespace oalex::regex
