@@ -26,9 +26,8 @@ char hexdigit(uint8_t ch) {
 }
 
 auto xlat(const char* from, const char* to, char ch) -> optional<char> {
-  if(!ch) return nullopt;
   const char* p = strchr(from, ch);
-  if(p) return to[p-from];
+  if(p && *p) return to[p-from];
   else return nullopt;
 }
 
