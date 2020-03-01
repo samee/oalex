@@ -255,11 +255,9 @@ auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
 
-// Current state: only parses concatenation of character sets.
-auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
+auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
-  if(!hasChar(input,i,'/')) return nullopt;
-  size_t j = i+1;
+  size_t j = i;
   regex::Concat concat;
 
   while(input.sizeGt(j)) {
@@ -268,7 +266,7 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
       if(!cset) return nullopt;
       concat.parts.push_back(std::move(*cset));
     }else if(input[j] == '/') {  // end pattern.
-      i = j+1;
+      i = j;
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
     }else
@@ -278,6 +276,17 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   ctx.Error(i, j, "Unterminated regex, expected '/'");
   i = j;
   return nullopt;
+}
+
+// Current state: only parses concatenation of character sets.
+auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
+  const Input& input = ctx.input;
+  if(!hasChar(input,i,'/')) return nullopt;
+  size_t j = i+1;
+  auto rv = parseRec(ctx, j);
+  if(!rv || !hasChar(input,j,'/')) return nullopt;
+  i = j+1;
+  return rv;
 }
 
 }  // namespace oalex::regex
