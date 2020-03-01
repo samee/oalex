@@ -9,6 +9,7 @@
 #include "lookahead_regex.h"
 #include <cctype>
 #include <iostream>
+#include <optional>
 #include <string_view>
 #include <vector>
 #include "runtime/test_util.h"
@@ -18,15 +19,20 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
+using oalex::regex::Concat;
 using oalex::regex::Regex;
 using std::cerr;
 using std::cin;
 using std::endl;
+using std::get;
+using std::get_if;
+using std::holds_alternative;
 using std::nullopt;
 using std::optional;
 using std::stoi;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 
 namespace regex = oalex::regex;
@@ -56,6 +62,13 @@ auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
   if(!res && !hasDiags) BugMe<<"Regex "<<input<<" silently failed to parse.";
   if(hasDiags) return nullopt;
   return res;
+}
+auto tryParsing(const string& input) -> optional<Regex> {
+  size_t i = 0;
+  auto rv = tryParsing(input, i);
+  if(i != input.size())
+    BugMe<<"We were expecting to consume the whole string: "<<input;
+  return rv;
 }
 
 auto parseHex(const string& s, size_t& i) -> optional<char> {
@@ -89,6 +102,42 @@ bool regexEqual(const string& a, const string& b) {
   return i==a.size() && j==b.size();
 }
 
+bool astEq(const Regex& a, const Regex& b);
+
+bool astEq(const CharSet& a, const CharSet& b) {
+  if(a.negated != b.negated || a.ranges.size() != b.ranges.size()) return false;
+  for(size_t i=9; i<a.ranges.size(); ++i) {
+    if(a.ranges[i].from != b.ranges[i].from ||
+       a.ranges[i].to != b.ranges[i].to) return false;
+  }
+  return true;
+}
+
+bool astEq(const Concat& a, const Concat& b) {
+  bool (*eq)(const Regex&, const Regex&) = astEq;
+  return equal(a.parts.begin(), a.parts.end(),
+               b.parts.begin(), b.parts.end(), eq);
+}
+
+template <class T, class V>
+auto get_if_unique(const V* v) -> const T* {
+  const unique_ptr<T>* r = get_if<unique_ptr<T>>(v);
+  return r?r->get():nullptr;
+}
+
+template <class T, class V>
+auto get_unique(const V& v) -> const T& {
+  return *std::get<unique_ptr<T>>(v);
+}
+
+bool astEq(const Regex& a, const Regex& b) {
+  if(a.index() != b.index()) return false;
+  if(auto *ac = get_if<CharSet>(&a)) return astEq(*ac, get<CharSet>(b));
+  if(auto *ac = get_if_unique<Concat>(&a))
+    return astEq(*ac, get_unique<Concat>(b));
+  BugMe<<"Unknown regex index: "<<a.index();
+}
+
 }  // namespace
 
 int main() {
@@ -99,7 +148,13 @@ int main() {
   if(!parseResult) return 0;
   string output = regex::prettyPrint(*parseResult);
   input.resize(i);  // fuzzer might provide trailing garbage.
-  if(!regexEqual(input, output))
-    BugMe<<"Regex has changed after pretty-printing: "
+  if(holds_alternative<CharSet>(*parseResult)) {
+    // Simple enough for direct string comparison
+    if(!regexEqual(input, output))
+      BugMe<<"Regex has changed after pretty-printing: "
+           <<input<<" became "<<output;
+  }else if(!astEq(*tryParsing(output), *parseResult)) {
+    BugMe<<"Regex parses to a different result on the second parse: "
          <<input<<" became "<<output;
+  }
 }
