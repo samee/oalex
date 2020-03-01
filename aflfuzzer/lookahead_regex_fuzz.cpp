@@ -21,6 +21,8 @@ using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
 using oalex::regex::Regex;
+using oalex::regex::get_if_unique;
+using oalex::regex::get_unique;
 using std::cerr;
 using std::cin;
 using std::endl;
@@ -117,17 +119,6 @@ bool astEq(const Concat& a, const Concat& b) {
   bool (*eq)(const Regex&, const Regex&) = astEq;
   return equal(a.parts.begin(), a.parts.end(),
                b.parts.begin(), b.parts.end(), eq);
-}
-
-template <class T, class V>
-auto get_if_unique(const V* v) -> const T* {
-  const unique_ptr<T>* r = get_if<unique_ptr<T>>(v);
-  return r?r->get():nullptr;
-}
-
-template <class T, class V>
-auto get_unique(const V& v) -> const T& {
-  return *std::get<unique_ptr<T>>(v);
 }
 
 bool astEq(const Regex& a, const Regex& b) {

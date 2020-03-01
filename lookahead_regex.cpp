@@ -147,8 +147,8 @@ string prettyPrintSeq(const Concat& seq) {
 
 auto prettyPrintRec(const Regex& regex) -> string {
   if(const auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
-  else if(const auto* seq = get_if<unique_ptr<Concat>>(&regex))
-    return prettyPrintSeq(**seq);
+  else if(const auto* seq = get_if_unique<Concat>(&regex))
+    return prettyPrintSeq(*seq);
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 

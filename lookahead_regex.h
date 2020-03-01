@@ -108,4 +108,15 @@ struct Negate { Regex part; };
 auto prettyPrint(const Regex& regex) -> std::string;
 auto parse(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
 
+template <class T, class V>
+auto get_if_unique(const V* v) -> const T* {
+  const std::unique_ptr<T>* r = std::get_if<std::unique_ptr<T>>(v);
+  return r?r->get():nullptr;
+}
+
+template <class T, class V>
+auto get_unique(const V& v) -> const T& {
+  return *std::get<std::unique_ptr<T>>(v);
+}
+
 }  // namespace oalex::regex
