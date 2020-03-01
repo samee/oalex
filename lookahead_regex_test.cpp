@@ -82,6 +82,7 @@ void testPrettyPrint() {
     {concat(charSingle('a'), charSingle('b'), charSingle('c')), "/[a][b][c]/"},
     {concat(charSingle('a'), concat(charSingle('b'), charSingle('c'))),
       "/[a]([b][c])/"},
+    {concat("hello", charSingle('u')), "/hello[u]/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
