@@ -105,7 +105,7 @@ void testParseAndPrint() {
     "/[-abc-]/", "/[]]/", "/[^]]/",
     "/[abc\\x03\\-\\t\\n\\]\\/]/",
     "/[\\xdb]/",
-    "/[abc][def][ghi]/",
+    "/[abc][def][ghi]/", "/[a]([b][c])/"
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -133,6 +133,8 @@ void testParseDiags() {
     {"/[\\w]/", "Unknown escape"},
     {"/[\\xwq]/", "Invalid hex code"},
     {"/[\\\0x\\-]/"s, "Unknown escape"},
+    {"/)", "Unmatched ')'"},
+    {"/(/", "Unmatched '('"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};

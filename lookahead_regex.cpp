@@ -265,7 +265,14 @@ auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
       optional<CharSet> cset = parseCharSet(ctx, j);
       if(!cset) return nullopt;
       concat.parts.push_back(std::move(*cset));
-    }else if(input[j] == '/') {  // end pattern.
+    }else if(input[j] == '(') {
+      size_t k = j;
+      optional<Regex> res = parseRec(ctx, ++j);
+      if(!res) return nullopt;
+      if(!hasChar(input,j,')')) return ctx.Error(k, j, "Unmatched '('");
+      ++j;
+      concat.parts.push_back(std::move(*res));
+    }else if(input[j] == '/' || input[j] == ')') {  // end pattern.
       i = j;
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
@@ -284,7 +291,10 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;
   auto rv = parseRec(ctx, j);
-  if(!rv || !hasChar(input,j,'/')) return nullopt;
+  if(!rv) return rv;
+  else if(hasChar(input,j,')')) return ctx.Error(j, j+1, "Unmatched ')'");
+  else if(!hasChar(input,j,'/'))
+    ctx.FatalBug(j, j+1, "Pattern parsing ended unexpectedly without '/'");
   i = j+1;
   return rv;
 }
