@@ -153,6 +153,8 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 
+auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex>;
+
 // Regex and string literals are among the few places that don't ignore spaces
 // before checking for a specific character.
 bool hasChar(const Input& input, size_t pos, char ch) {
@@ -250,40 +252,46 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
   return cset;
 }
 
-}  // namespace
-
-auto prettyPrint(const Regex& regex) -> string {
-  return "/" + prettyPrintRec(regex) + "/";
+auto parseGroup(InputDiags& ctx, size_t& i) -> optional<Regex> {
+  const Input& input = ctx.input;
+  size_t j = i;
+  if(!hasChar(input,i,'('))
+    ctx.FatalBug(i, i+1, "parseGroup() must start with '('");
+  optional<Regex> res = parseRec(ctx, ++j);
+  if(!res) return nullopt;
+  if(!hasChar(input,j,')')) return ctx.Error(i, j, "Unmatched '('");
+  i = j+1;
+  return res;
 }
 
 auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
   regex::Concat concat;
+  optional<Regex> subres;
 
   while(input.sizeGt(j)) {
-    if(input[j] == '[') {
-      optional<CharSet> cset = parseCharSet(ctx, j);
-      if(!cset) return nullopt;
-      concat.parts.push_back(std::move(*cset));
-    }else if(input[j] == '(') {
-      size_t k = j;
-      optional<Regex> res = parseRec(ctx, ++j);
-      if(!res) return nullopt;
-      if(!hasChar(input,j,')')) return ctx.Error(k, j, "Unmatched '('");
-      ++j;
-      concat.parts.push_back(std::move(*res));
-    }else if(input[j] == '/' || input[j] == ')') {  // end pattern.
+    if(input[j] == '[') subres = parseCharSet(ctx, j);
+    else if(input[j] == '(') subres = parseGroup(ctx, j);
+    else if(input[j] == '/' || input[j] == ')') {  // end pattern.
       i = j;
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
     }else
       Unimplemented()<<"regex::parse() features beyond character sets.";
+    if(!subres) return nullopt;
+    concat.parts.push_back(std::move(*subres));
   }
 
   ctx.Error(i, j, "Unterminated regex, expected '/'");
   i = j;
   return nullopt;
+}
+
+}  // namespace
+
+auto prettyPrint(const Regex& regex) -> string {
+  return "/" + prettyPrintRec(regex) + "/";
 }
 
 // Current state: only parses concatenation of character sets.
