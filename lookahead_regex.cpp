@@ -6,6 +6,7 @@
 using std::get_if;
 using std::holds_alternative;
 using std::isprint;
+using std::make_unique;
 using std::nullopt;
 using std::optional;
 using std::ostringstream;
@@ -254,22 +255,29 @@ auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
 
+// Current state: only parses concatenation of character sets.
 auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;
-  optional<Regex> rv;
+  regex::Concat concat;
 
-  if(hasChar(input,j,'[')) {
-    rv = parseCharSet(ctx, j);
-    if(!rv.has_value()) return nullopt;
-  }else
-    Unimplemented()<<"regex::parse() features beyond a single character set.";
-  if(!hasChar(input,j,'/'))
-    Unimplemented()<<"patterns that don't end here. Was expecting '/'.";
-  i = j+1;
-  return rv;
+  while(input.sizeGt(j)) {
+    if(input[j] == '[') {
+      optional<CharSet> cset = parseCharSet(ctx, j);
+      if(!cset) return nullopt;
+      concat.parts.push_back(std::move(*cset));
+    }else if(input[j] == '/') {  // end pattern.
+      i = j+1;
+      if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
+      else return Regex{make_unique<Concat>(std::move(concat))};
+    }else
+      Unimplemented()<<"regex::parse() features beyond character sets.";
+  }
 
+  ctx.Error(i, j, "Unterminated regex, expected '/'");
+  i = j;
+  return nullopt;
 }
 
 }  // namespace oalex::regex

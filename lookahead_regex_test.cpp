@@ -105,6 +105,7 @@ void testParseAndPrint() {
     "/[-abc-]/", "/[]]/", "/[^]]/",
     "/[abc\\x03\\-\\t\\n\\]\\/]/",
     "/[\\xdb]/",
+    "/[abc][def][ghi]/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
