@@ -152,7 +152,8 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 
-auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex>;
+constexpr uint8_t kMaxDepth = 255;
+auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex>;
 
 // Regex and string literals are among the few places that don't ignore spaces
 // before checking for a specific character.
@@ -251,12 +252,13 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
   return cset;
 }
 
-auto parseGroup(InputDiags& ctx, size_t& i) -> optional<Regex> {
+auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
+  if(depth == kMaxDepth) ctx.Fatal(i, i+1, "Parentheses nested too deep");
   const Input& input = ctx.input;
   size_t j = i;
   if(!hasChar(input,i,'('))
     ctx.FatalBug(i, i+1, "parseGroup() must start with '('");
-  optional<Regex> res = parseRec(ctx, ++j);
+  optional<Regex> res = parseRec(ctx, ++j, depth+1);
   if(!res) return nullopt;
   if(!hasChar(input,j,')')) return ctx.Error(i, j, "Unmatched '('");
   i = j+1;
@@ -289,7 +291,7 @@ auto contractStrings(Concat concat) -> Concat {
   return rv;
 }
 
-auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
+auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
   regex::Concat concat;
@@ -297,7 +299,7 @@ auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
 
   while(input.sizeGt(j)) {
     if(input[j] == '[') subres = parseCharSet(ctx, j);
-    else if(input[j] == '(') subres = parseGroup(ctx, j);
+    else if(input[j] == '(') subres = parseGroup(ctx, j, depth);
     else if(input[j] == '/' || input[j] == ')') {  // end pattern.
       i = j;
       concat = contractStrings(std::move(concat));
@@ -326,7 +328,7 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;
-  auto rv = parseRec(ctx, j);
+  auto rv = parseRec(ctx, j, 0);
   if(!rv) return rv;
   else if(hasChar(input,j,')')) return ctx.Error(j, j+1, "Unmatched ')'");
   else if(!hasChar(input,j,'/'))

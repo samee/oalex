@@ -137,6 +137,7 @@ void testParseDiags() {
     {"/[\\\0x\\-]/"s, "Unknown escape"},
     {"/)", "Unmatched ')'"},
     {"/(/", "Unmatched '('"},
+    {"/"+string(256,'('), "nested too deep"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};
