@@ -34,6 +34,7 @@ using oalex::InputDiags;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
+using oalex::regex::OrList;
 using oalex::regex::Regex;
 using oalex::regex::get_if_unique;
 using oalex::regex::get_unique;
@@ -135,6 +136,12 @@ bool astEq(const Concat& a, const Concat& b) {
                b.parts.begin(), b.parts.end(), eq);
 }
 
+bool astEq(const OrList& a, const OrList& b) {
+  bool (*eq)(const Regex&, const Regex&) = astEq;
+  return equal(a.parts.begin(), a.parts.end(),
+               b.parts.begin(), b.parts.end(), eq);
+}
+
 bool astEq(const string& a, const string& b) {
   return a == b;
 }
@@ -144,6 +151,8 @@ bool astEq(const Regex& a, const Regex& b) {
   if(auto *ac = get_if<CharSet>(&a)) return astEq(*ac, get<CharSet>(b));
   if(auto *ac = get_if_unique<Concat>(&a))
     return astEq(*ac, get_unique<Concat>(b));
+  if(auto *ac = get_if_unique<OrList>(&a))
+    return astEq(*ac, get_unique<OrList>(b));
   if(auto *ac = get_if<string>(&a))
     return astEq(*ac, std::get<string>(b));
   BugMe<<"Unknown regex index: "<<a.index();

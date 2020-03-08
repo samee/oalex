@@ -325,11 +325,13 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   return res;
 }
 
-// Temporary function to detect unimplemented feature.
-bool startsRepeat(char ch) {
-  const char* c = strchr("+*?{", ch);
+bool is_in(char ch, const char s[]) {
+  const char* c = strchr(s, ch);
   return c && *c;
 }
+
+// Temporary function to detect unimplemented feature.
+bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
 auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<string> {
   char ch = ctx.input[i];
@@ -373,7 +375,14 @@ bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
   return true;
 }
 
-auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
+// Used with T being one of Concat or OrList.
+template <class T>
+Regex unpackSingleton(T t) {
+  if(t.parts.size() == 1) return Regex{std::move(t.parts[0])};
+  else return Regex{make_unique<T>(std::move(t))};
+}
+
+auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
   regex::Concat concat;
@@ -382,11 +391,9 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   while(input.sizeGt(j)) {
     if(input[j] == '[') subres = parseCharSet(ctx, j);
     else if(input[j] == '(') subres = parseGroup(ctx, j, depth);
-    else if(input[j] == '/' || input[j] == ')') {  // end pattern.
+    else if(is_in(input[j], ")/|")) {  // end pattern.
       i = j;
-      concat = contractStrings(std::move(concat));
-      if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
-      else return Regex{make_unique<Concat>(std::move(concat))};
+      return unpackSingleton(contractStrings(std::move(concat)));
     }else if(startsRepeat(input[i])) {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
@@ -395,6 +402,29 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
+  }
+
+  ctx.Error(i, j, "Unterminated regex, expected '/'");
+  i = j;
+  return nullopt;
+}
+
+auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
+  const Input& input = ctx.input;
+  size_t j = i;
+  regex::OrList ors;
+  optional<Regex> subres;
+
+  while(input.sizeGt(j)) {
+    subres = parseBranch(ctx, j, depth);
+    if(!subres) return nullopt;
+    ors.parts.push_back(std::move(*subres));
+    if(!input.sizeGt(j)) break;
+    if(is_in(input[j], ")/")) {
+      i = j;
+      return unpackSingleton(std::move(ors));
+    }else if(input[j] == '|') ++j;
+    else ctx.FatalBug(j, j+1, "Branch parsing finished unexpectedly");
   }
 
   ctx.Error(i, j, "Unterminated regex, expected '/'");

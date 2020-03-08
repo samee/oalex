@@ -153,6 +153,8 @@ void testParseAndPrint() {
     "/[abc][def][ghi]/", "/[a]([b][c])/",
     "/abc/", "/abc[def]/",
     "/hello?/", "/hello*/", "/hello+/",
+    "//", "/hello|world/", "/(hello|world)|goodbye/",
+    "/(hello|world|)there/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -184,6 +186,8 @@ void testParseDiags() {
     {"/(/", "Unmatched '('"},
     {"/"+string(256,'('), "nested too deep"},
     {"/+/", "Nothing to repeat"},
+    {"/hello", "Unterminated regex"},
+    {"/hello|", "Unterminated regex"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};
