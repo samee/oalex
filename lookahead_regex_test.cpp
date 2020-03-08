@@ -12,6 +12,7 @@ using oalex::UserErrorEx;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
+using oalex::regex::makeUniqueRegex;
 using oalex::regex::Optional;
 using oalex::regex::Regex;
 using oalex::regex::Repeat;
@@ -50,12 +51,6 @@ auto concat(Ts ... ts) -> unique_ptr<Concat> {
   auto rv = make_unique<Concat>();
   concat_helper(rv, std::move(ts)...);
   return rv;
-}
-
-// Enables brace-initialization for variants without naming the type twice.
-template <class T>
-auto makeUniqueRegex(T t) -> Regex {
-  return make_unique<T>(std::move(t));
 }
 
 Regex repeat(Regex part, char ch) {
@@ -132,6 +127,7 @@ void testParseAndPrint() {
     "/[\\xdb]/",
     "/[abc][def][ghi]/", "/[a]([b][c])/",
     "/abc/", "/abc[def]/",
+    "/hello?/", "/hello*/", "/hello+/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -162,6 +158,7 @@ void testParseDiags() {
     {"/)", "Unmatched ')'"},
     {"/(/", "Unmatched '('"},
     {"/"+string(256,'('), "nested too deep"},
+    {"/+/", "Nothing to repeat"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};

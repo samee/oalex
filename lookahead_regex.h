@@ -119,4 +119,10 @@ auto get_unique(const V& v) -> const T& {
   return *std::get<std::unique_ptr<T>>(v);
 }
 
+// Enables brace-initialization for variants without naming the type twice.
+template <class T>
+auto makeUniqueRegex(T t) -> Regex {
+  return std::make_unique<T>(std::move(t));
+}
+
 }  // namespace oalex::regex

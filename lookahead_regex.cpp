@@ -320,6 +320,28 @@ auto contractStrings(Concat concat) -> Concat {
   return rv;
 }
 
+// op is assumed to be one of [+*?].
+Regex repeatWith(Regex regex, char op) {
+  switch(op) {
+    case '+': return makeUniqueRegex<Repeat>({std::move(regex)});
+    case '?': return makeUniqueRegex<Optional>({std::move(regex)});
+    case '*': return makeUniqueRegex<Optional>({
+                       makeUniqueRegex<Repeat>({std::move(regex)})
+                     });
+    default: Bug()<<"repeatWith called with invalid op: "<<op;
+  }
+}
+
+// Assumes startsRepeat(ctx.input[i]) == true.
+bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
+  char ch = ctx.input[i];
+  ++i;
+  if(ch == '{') Unimplemented()<<"'{}'";
+  if(concat.parts.empty()) return ctx.Error(i-1, i, "Nothing to repeat"), false;
+  concat.parts.back() = repeatWith(std::move(concat.parts.back()), ch);
+  return true;
+}
+
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
@@ -334,9 +356,12 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       concat = contractStrings(std::move(concat));
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
-    }else if(startsRepeat(input[i]))
-      Unimplemented()<<"repetition isn't implemented yet";
+    }else if(startsRepeat(input[i])) {
+      if(!repeatBack(ctx, j, concat)) return nullopt;
+      else continue;  // Skip checking subres.
+    }
     else subres = parseSingleChar(ctx, j);
+
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
   }
