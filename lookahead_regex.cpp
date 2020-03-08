@@ -129,12 +129,28 @@ template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
   return holds_one_of<unique_ptr<Ts>...>(v);
 }
 
+template <class ... Ts>
+void surroundIfUnique(ostringstream& os, const Regex& regex) {
+  if(holds_one_of_unique<Ts...>(regex)) os<<'('<<prettyPrintRec(regex)<<')';
+  else os<<prettyPrintRec(regex);
+}
+
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    if(holds_one_of_unique<Concat, OrList, Negate>(part))
-      os<<'('<<prettyPrintRec(part)<<')';
-    else os<<prettyPrintRec(part);
+    surroundIfUnique<Concat, OrList, Negate>(os, part);
+  }
+  return os.str();
+}
+
+string prettyPrintOrs(const OrList& ors) {
+  if(ors.parts.empty()) return "";
+  ostringstream os;
+
+  surroundIfUnique<OrList>(os, ors.parts[0]);
+  for(size_t i=1; i<ors.parts.size(); ++i) {
+    os<<'|';
+    surroundIfUnique<OrList>(os, ors.parts[i]);
   }
   return os.str();
 }
@@ -192,6 +208,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else if(auto* s = get_if<string>(&regex)) return *s;
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
+  else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 
