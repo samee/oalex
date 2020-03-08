@@ -125,6 +125,33 @@ string prettyPrintSeq(const Concat& seq) {
   return os.str();
 }
 
+string surround(string s) { return "(" + s + ")"; }
+
+// `op` can be one of [?+*{], where '{' indicates numeric repeat.
+string prettyPrintRepeatPart(const Regex& part, char op) {
+  string op_s(1, op);
+  if(holds_alternative<unique_ptr<Negate>>(part))
+    Bug()<<"There is no syntax for repeating negated clause.";
+  else if(auto* s = get_if<string>(&part)) {
+    if(s->size() == 1) return prettyPrintRec(part) + op_s;
+    else return surround(prettyPrintRec(part)) + op_s;
+  }
+  else if(holds_one_of_unique<Concat,OrList>(part))
+    return surround(prettyPrintRec(part)) + op_s;
+  else return prettyPrintRec(part) + op_s;
+}
+
+string prettyPrintOpt(const Optional& opt) {
+  // Collapse /(...)+?/ into /(...)*/
+  if(auto* rep = get_if_unique<Repeat>(&opt.part))
+    return prettyPrintRepeatPart(rep->part, '*');
+  else return prettyPrintRepeatPart(opt.part, '?');
+}
+
+string prettyPrintRep(const Repeat& rep) {
+  return prettyPrintRepeatPart(rep.part, '+');
+}
+
   /*
   using Regex = std::variant<
     CharRange,
@@ -149,6 +176,8 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return prettyPrintSeq(*seq);
   else if(auto* s = get_if<string>(&regex)) return *s;
+  else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
+  else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
 }
 

@@ -12,7 +12,9 @@ using oalex::UserErrorEx;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
+using oalex::regex::Optional;
 using oalex::regex::Regex;
+using oalex::regex::Repeat;
 using std::cerr;
 using std::endl;
 using std::make_unique;
@@ -50,6 +52,21 @@ auto concat(Ts ... ts) -> unique_ptr<Concat> {
   return rv;
 }
 
+// Enables brace-initialization for variants without naming the type twice.
+template <class T>
+auto makeUniqueRegex(T t) -> Regex {
+  return make_unique<T>(std::move(t));
+}
+
+Regex repeat(Regex part, char ch) {
+  if(ch == '+') return makeUniqueRegex<Repeat>({std::move(part)});
+  if(ch == '*') return makeUniqueRegex<Optional>({
+                         makeUniqueRegex<Repeat>({std::move(part)})
+                       });
+  if(ch == '?') return makeUniqueRegex<Optional>({std::move(part)});
+  BugDie()<<"Don't know how to construct repeats of type "<<ch;
+}
+
 void testPrettyPrint() {
   std::pair<Regex,string> testVectors[] = {
     {CharSet{{CharRange{'0','9'}}}, "/[0-9]/"},
@@ -83,6 +100,13 @@ void testPrettyPrint() {
     {concat(charSingle('a'), concat(charSingle('b'), charSingle('c'))),
       "/[a]([b][c])/"},
     {concat("hello", charSingle('u')), "/hello[u]/"},
+    {repeat("hello", '?'), "/(hello)?/"},
+    {repeat("hello", '+'), "/(hello)+/"},
+    {repeat("hello", '*'), "/(hello)*/"},
+    {concat("hell", repeat("o", '?')), "/hello?/"},
+    {repeat(CharSet{{CharRange{'0','9'}}}, '+'), "/[0-9]+/"},
+    {repeat(concat(charSingle('a'), charSingle('b'), charSingle('c')), '+'),
+      "/([a][b][c])+/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
