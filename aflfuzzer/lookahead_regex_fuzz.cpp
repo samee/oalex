@@ -121,11 +121,17 @@ bool astEq(const Concat& a, const Concat& b) {
                b.parts.begin(), b.parts.end(), eq);
 }
 
+bool astEq(const string& a, const string& b) {
+  return a == b;
+}
+
 bool astEq(const Regex& a, const Regex& b) {
   if(a.index() != b.index()) return false;
   if(auto *ac = get_if<CharSet>(&a)) return astEq(*ac, get<CharSet>(b));
   if(auto *ac = get_if_unique<Concat>(&a))
     return astEq(*ac, get_unique<Concat>(b));
+  if(auto *ac = get_if<string>(&a))
+    return astEq(*ac, std::get<string>(b));
   BugMe<<"Unknown regex index: "<<a.index();
 }
 

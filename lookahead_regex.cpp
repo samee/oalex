@@ -269,6 +269,26 @@ bool startsRepeat(char ch) {
   return c && *c;
 }
 
+auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<string> {
+  char ch = ctx.input[i];
+  if(ch == '\\') Unimplemented()<<"Bare escape codes";
+  else if(ch == '^' || ch == '$') Unimplemented()<<"Anchors";
+  else return string(1, ctx.input[i++]);
+}
+
+// Consequtive string parts get joined into a single string.
+auto contractStrings(Concat concat) -> Concat {
+  Concat rv;
+  for(Regex& part: concat.parts) {
+    string* s = get_if<string>(&part);
+    string* t = rv.parts.empty() ? nullptr
+                                 : get_if<string>(&rv.parts.back());
+    if(!s || !t) rv.parts.push_back(std::move(part));
+    else t->append(std::move(*s));
+  }
+  return rv;
+}
+
 auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
@@ -280,12 +300,12 @@ auto parseRec(InputDiags& ctx, size_t& i) -> optional<Regex> {
     else if(input[j] == '(') subres = parseGroup(ctx, j);
     else if(input[j] == '/' || input[j] == ')') {  // end pattern.
       i = j;
+      concat = contractStrings(std::move(concat));
       if(concat.parts.size() == 1) return Regex{std::move(concat.parts[0])};
       else return Regex{make_unique<Concat>(std::move(concat))};
     }else if(startsRepeat(input[i]))
       Unimplemented()<<"repetition isn't implemented yet";
-    else
-      Unimplemented()<<"regex::parse() features beyond character sets.";
+    else subres = parseSingleChar(ctx, j);
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
   }
