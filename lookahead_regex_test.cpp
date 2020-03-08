@@ -28,6 +28,7 @@ using oalex::regex::CharSet;
 using oalex::regex::Concat;
 using oalex::regex::makeUniqueRegex;
 using oalex::regex::Optional;
+using oalex::regex::OrList;
 using oalex::regex::Regex;
 using oalex::regex::Repeat;
 using std::cerr;
@@ -52,18 +53,25 @@ CharSet charSingle(unsigned char ch) {
   return CharSet{{CharRange{ch,ch}}};
 }
 
-void concat_helper(unique_ptr<Concat>&) {}
+void vector_helper(vector<Regex>&) {}
 
 template <class T, class ... Ts>
-void concat_helper(unique_ptr<Concat>& out, T t, Ts ... ts) {
-  out->parts.push_back(std::move(t));
-  concat_helper(out, std::move(ts)...);
+void vector_helper(vector<Regex>& out, T t, Ts ... ts) {
+  out.push_back(std::move(t));
+  vector_helper(out, std::move(ts)...);
 }
 
 template <class ... Ts>
 auto concat(Ts ... ts) -> unique_ptr<Concat> {
   auto rv = make_unique<Concat>();
-  concat_helper(rv, std::move(ts)...);
+  vector_helper(rv->parts, std::move(ts)...);
+  return rv;
+}
+
+template <class ... Ts>
+auto orlist(Ts ... ts) -> unique_ptr<OrList> {
+  auto rv = make_unique<OrList>();
+  vector_helper(rv->parts, std::move(ts)...);
   return rv;
 }
 
@@ -116,6 +124,9 @@ void testPrettyPrint() {
     {repeat(CharSet{{CharRange{'0','9'}}}, '+'), "/[0-9]+/"},
     {repeat(concat(charSingle('a'), charSingle('b'), charSingle('c')), '+'),
       "/([a][b][c])+/"},
+    {orlist(), "//"},
+    {orlist("hello", "world"), "/hello|world/"},
+    {orlist(orlist("hello", "world"), "goodbye"), "/(hello|world)|goodbye/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
@@ -142,6 +153,8 @@ void testParseAndPrint() {
     "/[abc][def][ghi]/", "/[a]([b][c])/",
     "/abc/", "/abc[def]/",
     "/hello?/", "/hello*/", "/hello+/",
+    "//", "/hello|world/", "/(hello|world)|goodbye/",
+    "/(hello|world|)there/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -173,6 +186,8 @@ void testParseDiags() {
     {"/(/", "Unmatched '('"},
     {"/"+string(256,'('), "nested too deep"},
     {"/+/", "Nothing to repeat"},
+    {"/hello", "Unterminated regex"},
+    {"/hello|", "Unterminated regex"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};
