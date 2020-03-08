@@ -154,19 +154,6 @@ optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
   else { rst.markUsed(i); return dashStart; }
 }
 
-// For a "\xhh" code, this function assumes "\x" has been consumed, and now we
-// are just parsing the "hh" part. `i` points to what should be the first hex
-// digit.
-optional<char> lexHexEscape(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
-  if(!input.sizeGt(i+1))
-    return ctx.Error(i-2,"Incomplete hex code");
-  if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
-    return ctx.Error(i-2,"Invalid hex code");
-  i += 2;
-  return stoi(string(input.substr(i-2,2)),nullptr,16);
-}
-
 // For a backslash code, this function assumes `i` is already at the character
 // just after the backslash, inside a string literal.
 optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
@@ -179,7 +166,7 @@ optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
     case 'n': ch = '\n'; break;
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
-    case 'x': return lexHexEscape(ctx, ++i);
+    case 'x': return lexHexCode(ctx, ++i);
     default: return ctx.Error(i-1,"Invalid escape code");
   }
   ++i;
@@ -320,6 +307,19 @@ char closeBracket(BracketType bt) {
 }
 
 }  // namespace
+
+// For a "\xhh" code, this function assumes "\x" has been consumed, and now we
+// are just parsing the "hh" part. `i` points to what should be the first hex
+// digit.
+optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
+  const Input& input = ctx.input;
+  if(!input.sizeGt(i+1))
+    return ctx.Error(i-2,"Incomplete hex code");
+  if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
+    return ctx.Error(i-2,"Invalid hex code");
+  i += 2;
+  return stoi(string(input.substr(i-2,2)),nullptr,16);
+}
 
 optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
