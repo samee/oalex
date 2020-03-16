@@ -154,8 +154,8 @@ bool astEq(const Regex& a, const Regex& b) {
     return astEq(*ac, get_unique<Concat>(b));
   if(auto *ac = get_if_unique<OrList>(&a))
     return astEq(*ac, get_unique<OrList>(b));
-  if(auto *ac = get_if<string>(&a))
-    return astEq(*ac, std::get<string>(b));
+  if(auto *ac = get_if_unique<string>(&a))
+    return astEq(*ac, get_unique<string>(b));
   BugMe<<"Unknown regex index: "<<a.index();
 }
 

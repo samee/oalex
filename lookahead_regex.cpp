@@ -165,7 +165,7 @@ string surround(string s) { return "(" + s + ")"; }
 // `op` can be one of [?+*{], where '{' indicates numeric repeat.
 string prettyPrintRepeatPart(const Regex& part, char op) {
   string op_s(1, op);
-  if(auto* s = get_if<string>(&part)) {
+  if(auto* s = get_if_unique<string>(&part)) {
     if(s->size() == 1) return prettyPrintRec(part) + op_s;
     else return surround(prettyPrintRec(part)) + op_s;
   }
@@ -206,7 +206,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   if(auto* set = get_if_unique<CharSet>(&regex)) return prettyPrintSet(*set);
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return prettyPrintSeq(*seq);
-  else if(auto* s = get_if<string>(&regex)) return *s;
+  else if(auto* s = get_if_unique<string>(&regex)) return *s;
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
@@ -334,20 +334,20 @@ bool is_in(char ch, const char s[]) {
 // Temporary function to detect unimplemented feature.
 bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
-auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<string> {
+auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
   char ch = ctx.input[i];
   if(ch == '\\') Unimplemented()<<"Bare escape codes";
   else if(ch == '^' || ch == '$') Unimplemented()<<"Anchors";
-  else return string(1, ctx.input[i++]);
+  else return makeUniqueRegex(string(1, ctx.input[i++]));
 }
 
 // Consequtive string parts get joined into a single string.
 auto contractStrings(Concat concat) -> Concat {
   Concat rv;
   for(Regex& part: concat.parts) {
-    string* s = get_if<string>(&part);
+    string* s = get_if_unique<string>(&part);
     string* t = rv.parts.empty() ? nullptr
-                                 : get_if<string>(&rv.parts.back());
+                                 : get_if_unique<string>(&rv.parts.back());
     if(!s || !t) rv.parts.push_back(std::move(part));
     else t->append(std::move(*s));
   }

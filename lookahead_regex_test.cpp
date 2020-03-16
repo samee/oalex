@@ -57,6 +57,8 @@ auto charSingle(unsigned char ch) -> unique_ptr<CharSet> {
   return charSet({{ch,ch}});
 }
 
+auto charString(string s) { return make_unique<string>(std::move(s)); }
+
 void vector_helper(vector<Regex>&) {}
 
 template <class T, class ... Ts>
@@ -121,17 +123,18 @@ void testPrettyPrint() {
     {concat(charSingle('a'), charSingle('b'), charSingle('c')), "/[a][b][c]/"},
     {concat(charSingle('a'), concat(charSingle('b'), charSingle('c'))),
       "/[a]([b][c])/"},
-    {concat("hello", charSingle('u')), "/hello[u]/"},
-    {repeat("hello", '?'), "/(hello)?/"},
-    {repeat("hello", '+'), "/(hello)+/"},
-    {repeat("hello", '*'), "/(hello)*/"},
-    {concat("hell", repeat("o", '?')), "/hello?/"},
+    {concat(charString("hello"), charSingle('u')), "/hello[u]/"},
+    {repeat(charString("hello"), '?'), "/(hello)?/"},
+    {repeat(charString("hello"), '+'), "/(hello)+/"},
+    {repeat(charString("hello"), '*'), "/(hello)*/"},
+    {concat(charString("hell"), repeat(charString("o"), '?')), "/hello?/"},
     {repeat(charSet({CharRange{'0','9'}}), '+'), "/[0-9]+/"},
     {repeat(concat(charSingle('a'), charSingle('b'), charSingle('c')), '+'),
       "/([a][b][c])+/"},
     {orlist(), "//"},
-    {orlist("hello", "world"), "/hello|world/"},
-    {orlist(orlist("hello", "world"), "goodbye"), "/(hello|world)|goodbye/"},
+    {orlist(charString("hello"), charString("world")), "/hello|world/"},
+    {orlist(orlist(charString("hello"), charString("world")),
+            charString("goodbye")), "/(hello|world)|goodbye/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
