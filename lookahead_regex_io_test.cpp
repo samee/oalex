@@ -12,7 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "lookahead_regex.h"
+#include "lookahead_regex_io.h"
 #include <iostream>
 #include <string_view>
 #include <vector>
