@@ -82,18 +82,18 @@ Enforce usual rules about not allowing empty non-terminals being included.
 
 namespace oalex::regex {
 
-// Regex primitives. Likely to change if we ever switch to matching JsonLoc.
-struct CharRange { unsigned char from, to; };
-struct CharSet { std::vector<CharRange> ranges; bool negated = false; };
-
 using Regex = std::variant<
-  CharSet,
+  std::unique_ptr<struct CharSet>,
   std::string,
   std::unique_ptr<struct Concat>,
   std::unique_ptr<struct Repeat>,
   std::unique_ptr<struct Optional>,
   std::unique_ptr<struct OrList>
 >;
+
+// Regex primitives. Likely to change if we ever switch to matching JsonLoc.
+struct CharRange { unsigned char from, to; };
+struct CharSet { std::vector<CharRange> ranges; bool negated = false; };
 
 struct Concat { std::vector<Regex> parts; };
 struct Repeat { Regex part; };

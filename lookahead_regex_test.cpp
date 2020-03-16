@@ -45,12 +45,16 @@ namespace regex = oalex::regex;
 
 namespace {
 
-CharSet negatedSet(CharSet cs) {
-  cs.negated=true;
-  return cs;
+auto charSet(vector<CharRange> ranges) -> unique_ptr<CharSet> {
+  return make_unique<CharSet>(CharSet{std::move(ranges), false});
 }
-CharSet charSingle(unsigned char ch) {
-  return CharSet{{CharRange{ch,ch}}};
+
+auto negatedSet(vector<CharRange> ranges) -> unique_ptr<CharSet> {
+  return make_unique<CharSet>(CharSet{std::move(ranges), true});
+}
+
+auto charSingle(unsigned char ch) -> unique_ptr<CharSet> {
+  return charSet({{ch,ch}});
 }
 
 void vector_helper(vector<Regex>&) {}
@@ -86,31 +90,31 @@ Regex repeat(Regex part, char ch) {
 
 void testPrettyPrint() {
   std::pair<Regex,string> testVectors[] = {
-    {CharSet{{CharRange{'0','9'}}}, "/[0-9]/"},
-    {CharSet{{CharRange{'A','Z'}}}, "/[A-Z]/"},
-    {CharSet{{CharRange{'a','z'}}}, "/[a-z]/"},
-    {CharSet{{CharRange{'c','c'}}}, "/[c]/"},
-    {CharSet{{CharRange{'\n','\n'}}}, "/[\\n]/"},
-    {CharSet{{CharRange{'\\','\\'}}}, "/[\\\\]/"},
-    {CharSet{{CharRange{'/','/'}}}, "/[\\/]/"},
-    {CharSet{{CharRange{'0','8'},
+    {charSet({CharRange{'0','9'}}), "/[0-9]/"},
+    {charSet({CharRange{'A','Z'}}), "/[A-Z]/"},
+    {charSet({CharRange{'a','z'}}), "/[a-z]/"},
+    {charSet({CharRange{'c','c'}}), "/[c]/"},
+    {charSet({CharRange{'\n','\n'}}), "/[\\n]/"},
+    {charSet({CharRange{'\\','\\'}}), "/[\\\\]/"},
+    {charSet({CharRange{'/','/'}}), "/[\\/]/"},
+    {charSet({CharRange{'0','8'},
               CharRange{']',']'},
-              CharRange{'A','Z'}}},"/[0-8\\]A-Z]/"},
-    {CharSet{{CharRange{'^','^'},
+              CharRange{'A','Z'}}),"/[0-8\\]A-Z]/"},
+    {charSet({CharRange{'^','^'},
               CharRange{'!','!'},
-              CharRange{':',':'}}}, "/[\\^!:]/"},
-    {CharSet{{CharRange{'!','!'},
+              CharRange{':',':'}}), "/[\\^!:]/"},
+    {charSet({CharRange{'!','!'},
               CharRange{'^','^'},
-              CharRange{':',':'}}}, "/[!^:]/"},
-    {CharSet{{CharRange{']',']'},
+              CharRange{':',':'}}), "/[!^:]/"},
+    {charSet({CharRange{']',']'},
               CharRange{'x','x'},
-              CharRange{'-','-'}}}, "/[]x-]/"},
-    {CharSet{{CharRange{'x','x'},
+              CharRange{'-','-'}}), "/[]x-]/"},
+    {charSet({CharRange{'x','x'},
               CharRange{'-','-'},
-              CharRange{']',']'}}}, "/[x\\-\\]]/"},
-    {CharSet{{CharRange{'a','a'},
+              CharRange{']',']'}}), "/[x\\-\\]]/"},
+    {charSet({CharRange{'a','a'},
               CharRange{'-','-'},
-              CharRange{'z','z'}}}, "/[a\\-z]/"},
+              CharRange{'z','z'}}), "/[a\\-z]/"},
     {negatedSet({}), "/./"},
     {negatedSet({{CharRange{'a','z'},CharRange{'@','@'}}}),"/[^a-z@]/"},
     {negatedSet({{CharRange{'^','^'},CharRange{'a','z'}}}),"/[^^a-z]/"},
@@ -122,7 +126,7 @@ void testPrettyPrint() {
     {repeat("hello", '+'), "/(hello)+/"},
     {repeat("hello", '*'), "/(hello)*/"},
     {concat("hell", repeat("o", '?')), "/hello?/"},
-    {repeat(CharSet{{CharRange{'0','9'}}}, '+'), "/[0-9]+/"},
+    {repeat(charSet({CharRange{'0','9'}}), '+'), "/[0-9]+/"},
     {repeat(concat(charSingle('a'), charSingle('b'), charSingle('c')), '+'),
       "/([a][b][c])+/"},
     {orlist(), "//"},

@@ -148,7 +148,8 @@ bool astEq(const string& a, const string& b) {
 
 bool astEq(const Regex& a, const Regex& b) {
   if(a.index() != b.index()) return false;
-  if(auto *ac = get_if<CharSet>(&a)) return astEq(*ac, get<CharSet>(b));
+  if(auto *ac = get_if_unique<CharSet>(&a))
+    return astEq(*ac, get_unique<CharSet>(b));
   if(auto *ac = get_if_unique<Concat>(&a))
     return astEq(*ac, get_unique<Concat>(b));
   if(auto *ac = get_if_unique<OrList>(&a))
@@ -168,7 +169,7 @@ int main() {
   if(!parseResult) return 0;
   string output = regex::prettyPrint(*parseResult);
   input.resize(i);  // fuzzer might provide trailing garbage.
-  if(holds_alternative<CharSet>(*parseResult) && input[1] != '(') {
+  if(holds_alternative<unique_ptr<CharSet>>(*parseResult) && input[1] != '(') {
     // Simple enough for direct string comparison
     if(!regexEqual(input, output))
       BugMe<<"Regex has changed after pretty-printing: "

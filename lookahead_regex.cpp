@@ -203,7 +203,7 @@ string prettyPrintRep(const Repeat& rep) {
   */
 
 auto prettyPrintRec(const Regex& regex) -> string {
-  if(auto* set = get_if<CharSet>(&regex)) return prettyPrintSet(*set);
+  if(auto* set = get_if_unique<CharSet>(&regex)) return prettyPrintSet(*set);
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return prettyPrintSeq(*seq);
   else if(auto* s = get_if<string>(&regex)) return *s;
@@ -268,7 +268,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   return ch;
 }
 
-auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
+auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'['))
     Bug()<<"parseCharSet called at invalid location "<<i;
@@ -310,7 +310,7 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<CharSet> {
       ctx.Error(j, j+1, "Character range has no start");
   } while(!hasChar(input,j,']'));
   i = j+1;
-  return cset;
+  return makeUniqueRegex(std::move(cset));
 }
 
 auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
@@ -398,8 +398,10 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
     }else if(startsRepeat(input[i])) {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
-    }else if(input[j] == '.') { subres = CharSet{{}, true}; ++j; }
-    else subres = parseSingleChar(ctx, j);
+    }else if(input[j] == '.') {
+      subres = makeUniqueRegex<CharSet>({{}, true});
+      ++j;
+    }else subres = parseSingleChar(ctx, j);
 
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
