@@ -168,7 +168,7 @@ int main() {
   if(!parseResult) return 0;
   string output = regex::prettyPrint(*parseResult);
   input.resize(i);  // fuzzer might provide trailing garbage.
-  if(holds_alternative<CharSet>(*parseResult)) {
+  if(holds_alternative<CharSet>(*parseResult) && input[1] != '(') {
     // Simple enough for direct string comparison
     if(!regexEqual(input, output))
       BugMe<<"Regex has changed after pretty-printing: "
