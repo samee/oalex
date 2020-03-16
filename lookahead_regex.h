@@ -62,13 +62,9 @@ lookahead to check for eof.
 
 
 Okay, todo then:
-  parse regex
-    - Don't allow repeats in a way that makes precedence ambiguous.
-    - Allow '*', '?', or '+' only after a single token, '[]' set,
-      or a '()' group. Not after binary operators like concat or disjunction.
-  prettyPrint regex
   startsWith(input_view, regex) -> bool
-  prefixesBoth(regex1, regex2) -> optional<string>
+  unmatchedString(regex1, ..., regexn) -> optional<string>
+  matchesNull(regex) -> bool
 
 Enforce usual rules about not allowing empty non-terminals being included.
    */
