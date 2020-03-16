@@ -111,6 +111,7 @@ void testPrettyPrint() {
     {CharSet{{CharRange{'a','a'},
               CharRange{'-','-'},
               CharRange{'z','z'}}}, "/[a\\-z]/"},
+    {negatedSet({}), "/./"},
     {negatedSet({{CharRange{'a','z'},CharRange{'@','@'}}}),"/[^a-z@]/"},
     {negatedSet({{CharRange{'^','^'},CharRange{'a','z'}}}),"/[^^a-z]/"},
     {concat(charSingle('a'), charSingle('b'), charSingle('c')), "/[a][b][c]/"},
@@ -155,6 +156,7 @@ void testParseAndPrint() {
     "/hello?/", "/hello*/", "/hello+/",
     "//", "/hello|world/", "/(hello|world)|goodbye/",
     "/(hello|world|)there/",
+    "/a.*a/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};

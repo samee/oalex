@@ -80,7 +80,12 @@ bool isPlainRange(const CharRange& range) {
 
 auto prettyPrintRec(const Regex& regex) -> string;
 
+bool hasAllChars(const CharSet& set) {
+  return set.negated && set.ranges.empty();
+}
+
 string prettyPrintSet(const CharSet& set) {
+  if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
   ostringstream os;
 
@@ -397,7 +402,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
     }else if(startsRepeat(input[i])) {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
-    }
+    }else if(input[j] == '.') { subres = CharSet{{}, true}; ++j; }
     else subres = parseSingleChar(ctx, j);
 
     if(!subres) return nullopt;
