@@ -201,10 +201,28 @@ void testParseDiags() {
   }
 }
 
+void testStripOuterParens() {
+  const vector<string> testVectors{"foo", "[a-z]"};
+  for(auto& part: testVectors) {
+    string expected = "/"+part+"/";
+    string input = "/("+part+")/";
+    InputDiags ctx{Input{input}, {}};
+    size_t i = 0;
+    optional<Regex> parseResult = regex::parse(ctx, i);
+    if(!ctx.diags.empty()) abortScreaming(__func__, ctx.diags);
+    if(!parseResult) BugMe<<"Regex "<<input<<" silently failed to parse.";
+    string output = regex::prettyPrint(*parseResult);
+    if(expected != output)
+      BugMe<<"Regex is not just sans-parenthesis after printing: "
+           <<input<<" became "<<output;
+  }
+}
+
 }  // namespace
 
 int main() {
   testPrettyPrint();
   testParseAndPrint();
   testParseDiags();
+  testStripOuterParens();
 }
