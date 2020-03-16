@@ -2,3 +2,5 @@ build/
 scan-build/
 scratchpad/
 .**.swp
+aflfuzzer/a.out
+aflfuzzer/findings
