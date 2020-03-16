@@ -143,7 +143,7 @@ void surroundIfUnique(ostringstream& os, const Regex& regex) {
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    surroundIfUnique<Concat, OrList, Negate>(os, part);
+    surroundIfUnique<Concat, OrList>(os, part);
   }
   return os.str();
 }
@@ -165,9 +165,7 @@ string surround(string s) { return "(" + s + ")"; }
 // `op` can be one of [?+*{], where '{' indicates numeric repeat.
 string prettyPrintRepeatPart(const Regex& part, char op) {
   string op_s(1, op);
-  if(holds_alternative<unique_ptr<Negate>>(part))
-    Bug()<<"There is no syntax for repeating negated clause.";
-  else if(auto* s = get_if<string>(&part)) {
+  if(auto* s = get_if<string>(&part)) {
     if(s->size() == 1) return prettyPrintRec(part) + op_s;
     else return surround(prettyPrintRec(part)) + op_s;
   }
@@ -195,14 +193,12 @@ string prettyPrintRep(const Repeat& rep) {
     std::unique_ptr<struct Repeat>,
     std::unique_ptr<struct Optional>,
     std::unique_ptr<struct OrList>,
-    std::unique_ptr<struct Negate>
   >;
 
   struct Concat { std::vector<Regex> parts; };
   struct Repeat { Regex part; };
   struct Optional { Regex part; };
   struct OrList { std::vector<Regex> parts; };
-  struct Negate { Regex part; };
 
   */
 

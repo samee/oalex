@@ -44,7 +44,6 @@ Might parameterize primitives, if we ever use it directly on JsonLoc.
              | Repeat Regex
              | Optional Regex
              | OrList [Regex]
-             | Negate Regex
 
 No anchors for now, since it's lookahead. Might add them later. I can always
 look ahead and see if the next char is what we expect. And we almost never
@@ -93,15 +92,13 @@ using Regex = std::variant<
   std::unique_ptr<struct Concat>,
   std::unique_ptr<struct Repeat>,
   std::unique_ptr<struct Optional>,
-  std::unique_ptr<struct OrList>,
-  std::unique_ptr<struct Negate>
+  std::unique_ptr<struct OrList>
 >;
 
 struct Concat { std::vector<Regex> parts; };
 struct Repeat { Regex part; };
 struct Optional { Regex part; };
 struct OrList { std::vector<Regex> parts; };
-struct Negate { Regex part; };
 
 // TODO these two.
 // prettyPrint is likely to need custom escape sets.
