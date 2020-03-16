@@ -135,15 +135,15 @@ template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
 }
 
 template <class ... Ts>
-void surroundIfUnique(ostringstream& os, const Regex& regex) {
-  if(holds_one_of_unique<Ts...>(regex)) os<<'('<<prettyPrintRec(regex)<<')';
+void surroundUnless(ostringstream& os, const Regex& regex) {
+  if(!holds_one_of_unique<Ts...>(regex)) os<<'('<<prettyPrintRec(regex)<<')';
   else os<<prettyPrintRec(regex);
 }
 
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    surroundIfUnique<Concat, OrList>(os, part);
+    surroundUnless<CharSet, string, Repeat, Optional>(os, part);
   }
   return os.str();
 }
@@ -152,10 +152,10 @@ string prettyPrintOrs(const OrList& ors) {
   if(ors.parts.empty()) return "";
   ostringstream os;
 
-  surroundIfUnique<OrList>(os, ors.parts[0]);
+  surroundUnless<CharSet, string, Concat, Repeat, Optional>(os, ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
     os<<'|';
-    surroundIfUnique<OrList>(os, ors.parts[i]);
+    surroundUnless<CharSet, string, Concat, Repeat, Optional>(os, ors.parts[i]);
   }
   return os.str();
 }
