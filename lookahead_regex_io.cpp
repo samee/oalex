@@ -39,13 +39,19 @@ char hexdigit(uint8_t ch) {
   else Bug()<<"hexdigit("<<int(ch)<<") input is not a hex digit.";
 }
 
+bool is_in(char ch, const char s[]) {
+  const char* c = strchr(s, ch);
+  return c && *c;
+}
+
 auto xlat(const char* from, const char* to, char ch) -> optional<char> {
   const char* p = strchr(from, ch);
   if(p && *p) return to[p-from];
   else return nullopt;
 }
 
-auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
+auto needsEscapingForSet(char ch, bool is_first, bool is_last)
+  -> optional<char> {
   const static char escaped_from[]="\t" "\n" "\\" "/";
   const static char escaped_to[]  ="t"  "n"  "\\" "/";
   static_assert(sizeof(escaped_from) == sizeof(escaped_to));
@@ -59,12 +65,25 @@ auto needsEscaping(char ch, bool is_first, bool is_last) -> optional<char> {
 // requires knowing whether the set was negated.
 string escapedForSet(unsigned char ch, size_t pos, size_t count) {
   char s[5]="\\x55";
-  if(optional<char> opt = needsEscaping(ch, pos==0, pos+1==count)) {
+  if(optional<char> opt = needsEscapingForSet(ch, pos==0, pos+1==count)) {
     s[1]=*opt;
     s[2]='\0';
   }else if(isprint(ch)) { s[0]=ch; s[1]='\0'; }
   else { s[2]=hexdigit(ch/16); s[3]=hexdigit(ch%16); }
   return s;
+}
+
+bool needsEscapingForString(char ch) {
+  return is_in(ch, "\\.[]{}^$|+*?");
+}
+
+string escapedForString(const string& s) {
+  string rv;
+  for(char ch : s) {
+    if(needsEscapingForString(ch)) rv += '\\';
+    rv += ch;
+  }
+  return rv;
 }
 
 // This allows us to not handle some corner cases, e.g. "[--x]".
@@ -206,7 +225,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   if(auto* set = get_if_unique<CharSet>(&regex)) return prettyPrintSet(*set);
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return prettyPrintSeq(*seq);
-  else if(auto* s = get_if_unique<string>(&regex)) return *s;
+  else if(auto* s = get_if_unique<string>(&regex)) return escapedForString(*s);
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
@@ -326,11 +345,6 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   return res;
 }
 
-bool is_in(char ch, const char s[]) {
-  const char* c = strchr(s, ch);
-  return c && *c;
-}
-
 // Temporary function to detect unimplemented feature.
 bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
@@ -395,7 +409,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
     else if(is_in(input[j], ")/|")) {  // end pattern.
       i = j;
       return unpackSingleton(contractStrings(std::move(concat)));
-    }else if(startsRepeat(input[i])) {
+    }else if(startsRepeat(input[j])) {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {

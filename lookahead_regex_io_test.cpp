@@ -135,6 +135,7 @@ void testPrettyPrint() {
     {orlist(charString("hello"), charString("world")), "/hello|world/"},
     {orlist(orlist(charString("hello"), charString("world")),
             charString("goodbye")), "/(hello|world)|goodbye/"},
+    {charString("hello?"), "/hello\\?/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
