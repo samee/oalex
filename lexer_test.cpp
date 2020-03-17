@@ -181,7 +181,6 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
     BugDie()<<testName<<" failed";
   }else {
     if(expected != res->s) {
-      oalex::Debug()<<expected.size()<<" "<<res->s.size();
       BugDie()<<testName<<": "<<expected<<" != "<<res->s;
     }
   }
