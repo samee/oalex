@@ -52,15 +52,32 @@ auto get_if_unique(const V* v) -> const T* {
   return r?r->get():nullptr;
 }
 
+template <class T, class V, class = std::enable_if_t<!std::is_const_v<V>>>
+auto get_unique(V& v) -> T& {
+  if(auto& up = std::get<std::unique_ptr<T>>(v)) return *up;
+  else throw std::bad_variant_access();
+}
+
 template <class T, class V>
 auto get_unique(const V& v) -> const T& {
-  return *std::get<std::unique_ptr<T>>(v);
+  if(auto& up = std::get<std::unique_ptr<T>>(v)) return *up;
+  else throw std::bad_variant_access();
 }
 
 // Enables brace-initialization for variants without naming the type twice.
+// TODO: replace with unique_braces.
 template <class T>
 auto makeUniqueRegex(T t) -> Regex {
   return std::make_unique<T>(std::move(t));
 }
+
+template<typename T, typename ... Args>
+auto unique_braces(Args&& ... args) -> std::unique_ptr<T>
+{
+    return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
+}
+
+// Used for lookaheads
+bool startsWith(const Input& input, size_t i, const Regex& regex);
 
 }  // namespace oalex::regex

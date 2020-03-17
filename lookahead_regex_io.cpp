@@ -393,7 +393,8 @@ bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
 // Used with T being one of Concat or OrList.
 template <class T>
 Regex unpackSingleton(T t) {
-  if(t.parts.size() == 1) return Regex{std::move(t.parts[0])};
+  if(t.parts.size() == 0) return make_unique<string>();
+  else if(t.parts.size() == 1) return Regex{std::move(t.parts[0])};
   else return Regex{make_unique<T>(std::move(t))};
 }
 

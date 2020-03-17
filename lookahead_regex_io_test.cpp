@@ -228,6 +228,36 @@ void testStripOuterParens() {
   }
 }
 
+void testRegexStartsWith() {
+  const vector<pair<string,string>> testVectors{
+    {"//", "foo"},
+    {"/fo[ox]/", "fox"},
+    {"/foo?/", "fox"},
+    {"/(ab?c)+|.[xyz]+/", "abcacacabcfoo"},
+    {"/(ab?c)+|.[xyz]+/", "wx"},
+  };
+  for(auto& [pattern, inputstr] : testVectors) {
+    InputDiags regex_input{Input{pattern}, {}};
+    size_t i = 0;
+    Regex regex = *regex::parse(regex_input, i);
+    Input input{inputstr};
+    if(!startsWith(input, 0, regex))
+      BugMe<<'"'<<inputstr<<"\" was expected to startWith() "<<pattern;
+  }
+  const vector<pair<string,string>> failVectors{
+    {"/(ab?c)+|.[xyz]+/", "!abcacacabcfoo"},
+    {"/(ab?c)+|.[xyz]+/", "!wx"},
+  };
+  for(auto& [pattern, inputstr] : failVectors) {
+    InputDiags regex_input{Input{pattern}, {}};
+    size_t i = 0;
+    Regex regex = *regex::parse(regex_input, i);
+    Input input{inputstr};
+    if(startsWith(input, 0, regex))
+      BugMe<<'"'<<inputstr<<"\" was not expected to startWith() "<<pattern;
+  };
+}
+
 }  // namespace
 
 int main() {
@@ -235,4 +265,5 @@ int main() {
   testParseAndPrint();
   testParseDiags();
   testStripOuterParens();
+  testRegexStartsWith();
 }
