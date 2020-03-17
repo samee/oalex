@@ -136,6 +136,9 @@ void testPrettyPrint() {
     {orlist(orlist(charString("hello"), charString("world")),
             charString("goodbye")), "/(hello|world)|goodbye/"},
     {charString("hello?"), "/hello\\?/"},
+    {charString("hello\n"), "/hello\\n/"},
+    {charString("{in}/[brackets]"), "/\\{in}\\/\\[brackets]/"},
+    {charString("\\slashes/"), "/\\\\slashes\\//"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
@@ -164,7 +167,7 @@ void testParseAndPrint() {
     "/hello?/", "/hello*/", "/hello+/",
     "//", "/hello|world/", "/(hello|world)|goodbye/",
     "/(hello|world|)there/",
-    "/a.*a/",
+    "/a.*a/", "/hello\\nworld/", "/\\{in}\\/\\[brackets]/", "/\\\\slashes\\//"
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};

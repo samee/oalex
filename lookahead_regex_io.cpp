@@ -73,15 +73,20 @@ string escapedForSet(unsigned char ch, size_t pos, size_t count) {
   return s;
 }
 
-bool needsEscapingForString(char ch) {
-  return is_in(ch, "\\.[]{}^$|+*?");
+auto escaped(char ch, const char meta[]) -> optional<char> {
+  if(is_in(ch, meta)) return ch;
+  if(ch == '\n') return 'n';
+  if(ch == '\t') return 't';
+  return nullopt;
 }
+
+const char stringMeta[] = "\\/.[{()^$|+*?";
 
 string escapedForString(const string& s) {
   string rv;
   for(char ch : s) {
-    if(needsEscapingForString(ch)) rv += '\\';
-    rv += ch;
+    if(auto esc = escaped(ch, stringMeta)) rv += string(1,'\\') + *esc;
+    else rv += ch;
   }
   return rv;
 }
@@ -247,11 +252,11 @@ bool parseCharSetNegation(const Input& input, size_t& i) {
   return true;
 }
 
-auto unescaped(char ch) -> optional<unsigned char> {
-  const static char escaped_from[]="\t" "\n" "\\" "/" "-" "]";
-  const static char escaped_to[]  ="t"  "n"  "\\" "/" "-" "]";
-  static_assert(sizeof(escaped_from) == sizeof(escaped_to));
-  return xlat(escaped_to, escaped_from, ch);
+auto unescaped(char ch, const char meta[]) -> optional<unsigned char> {
+  if(ch == 't') return '\t';
+  else if(ch == 'n') return '\n';
+  else if(is_in(ch, meta)) return ch;
+  else return nullopt;
 }
 
 // Assumes caller has already checked for "\x" prefix.
@@ -261,12 +266,13 @@ auto parseHexCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   else return ctx.Error(i, i+4, "Invalid hex code");
 }
 
-auto parseEscapeCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
+auto parseEscapeCode(InputDiags& ctx, size_t& i, const char meta[]) ->
+optional<unsigned char> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'\\')) return nullopt;
   if(!input.sizeGt(i+1)) ctx.Fatal(i, i+1, "Incomplete escape code");
   if(input[i+1] == 'x') return parseHexCode(ctx, i);
-  if(auto res = unescaped(input[i+1])) { i=i+2; return res; }
+  if(auto res = unescaped(input[i+1], meta)) { i=i+2; return res; }
   else { i += 2; return ctx.Error(i-2, i, "Unknown escape code"); }
 }
 
@@ -277,7 +283,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
     ctx.Fatal(i, i+1, "Expected closing ']'");
     return nullopt;
   }
-  if(input[i] == '\\') return parseEscapeCode(ctx, i);
+  if(input[i] == '\\') return parseEscapeCode(ctx, i, "^\\/-]");
   char ch = input[i];
   if(!isprint(ch)) {
     ctx.Error(i, i+1, "Invalid character");
@@ -350,7 +356,11 @@ bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
 auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
   char ch = ctx.input[i];
-  if(ch == '\\') Unimplemented()<<"Bare escape codes";
+  if(ch == '\\') {
+    if(auto opt = parseEscapeCode(ctx, i, stringMeta))
+      return makeUniqueRegex(string(1, *opt));
+    else return nullopt;
+  }
   else if(ch == '^' || ch == '$') Unimplemented()<<"Anchors";
   else return makeUniqueRegex(string(1, ctx.input[i++]));
 }
