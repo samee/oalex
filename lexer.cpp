@@ -200,6 +200,14 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
   }
 }
 
+// If ctx.input[i] starts a blank line, return "".
+// If the indentation is less than parindent, return nullopt.
+// Else, return the source line with parindent stripped out.
+//
+// If indentation is incompatible with parindent, we still consume the current
+// line, but then add a ctx.Error() and return "". This allows us a form of
+// error recovery: we can still parsing the subsequent lines (since caller ends
+// source block on nullopt), while not returning any potential garbage.
 optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
   const Input& input = ctx.input;
@@ -432,7 +440,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
 }
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
-// source line, strictly more indented than parindent.
+// source line, strictly less indented than parindent.
 optional<QuotedString>
 lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
@@ -444,7 +452,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
     if(!line.has_value()) break;
     if(!line->empty()) allblank = false;
     rv += *line; rv += '\n';
-    input.forgetBefore(i);
+    rst.markUsed(i);
   }
   if(allblank) return nullopt;
   QuotedString qs(rst.start(),i,rv);
