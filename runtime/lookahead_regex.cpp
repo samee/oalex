@@ -59,11 +59,11 @@ MatchState init(const Regex& regex) {
   else if(auto* s = get_if_unique<string>(&regex))
     return make_unique<vector<bool>>(s->size()+1, false);
   else if(auto* opt = get_if_unique<Optional>(&regex))
-    return unique_braces<OptionalState>(false, init(opt->part));
+    return move_to_unique(OptionalState{false, init(opt->part)});
   else if(auto* ors = get_if_unique<OrList>(&regex))
-    return unique_braces<MatchStateVector>(partInit(ors->parts));
+    return move_to_unique(MatchStateVector{partInit(ors->parts)});
   else if(auto* seq = get_if_unique<Concat>(&regex))
-    return unique_braces<MatchStateVector>(partInit(seq->parts));
+    return move_to_unique(MatchStateVector{partInit(seq->parts)});
   else if(auto* rep = get_if_unique<Repeat>(&regex))
     return init(rep->part);
   else Unimplemented()<<"init() for index "<<regex.index();

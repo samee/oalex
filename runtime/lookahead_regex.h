@@ -65,16 +65,14 @@ auto get_unique(const V& v) -> const T& {
 }
 
 // Enables brace-initialization for variants without naming the type twice.
-// TODO: replace with unique_braces.
 template <class T>
-auto makeUniqueRegex(T t) -> Regex {
+auto move_to_unique(T& t) -> std::unique_ptr<T> {
   return std::make_unique<T>(std::move(t));
 }
 
-template<typename T, typename ... Args>
-auto unique_braces(Args&& ... args) -> std::unique_ptr<T>
-{
-    return std::unique_ptr<T>(new T{std::forward<Args>(args)...});
+template <class T>
+auto move_to_unique(T&& t) -> std::unique_ptr<T> {
+  return std::make_unique<T>(std::move(t));
 }
 
 // Used for lookaheads

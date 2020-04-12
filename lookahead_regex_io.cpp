@@ -335,7 +335,7 @@ auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<Regex> {
       ctx.Error(j, j+1, "Character range has no start");
   } while(!hasChar(input,j,']'));
   i = j+1;
-  return makeUniqueRegex(std::move(cset));
+  return move_to_unique(cset);
 }
 
 auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
@@ -358,11 +358,11 @@ auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
   char ch = ctx.input[i];
   if(ch == '\\') {
     if(auto opt = parseEscapeCode(ctx, i, stringMeta))
-      return makeUniqueRegex(string(1, *opt));
+      return make_unique<string>(1, *opt);
     else return nullopt;
   }
   else if(ch == '^' || ch == '$') Unimplemented()<<"Anchors";
-  else return makeUniqueRegex(string(1, ctx.input[i++]));
+  else return make_unique<string>(1, ctx.input[i++]);
 }
 
 // Consequtive string parts get joined into a single string.
@@ -381,10 +381,10 @@ auto contractStrings(Concat concat) -> Concat {
 // op is assumed to be one of [+*?].
 Regex repeatWith(Regex regex, char op) {
   switch(op) {
-    case '+': return makeUniqueRegex<Repeat>({std::move(regex)});
-    case '?': return makeUniqueRegex<Optional>({std::move(regex)});
-    case '*': return makeUniqueRegex<Optional>({
-                       makeUniqueRegex<Repeat>({std::move(regex)})
+    case '+': return move_to_unique(Repeat{std::move(regex)});
+    case '?': return move_to_unique(Optional{std::move(regex)});
+    case '*': return move_to_unique(Optional{
+                       move_to_unique(Repeat{std::move(regex)})
                      });
     default: Bug()<<"repeatWith called with invalid op: "<<op;
   }
@@ -424,7 +424,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {
-      subres = makeUniqueRegex<CharSet>({{}, true});
+      subres = move_to_unique(CharSet{{}, true});
       ++j;
     }else subres = parseSingleChar(ctx, j);
 

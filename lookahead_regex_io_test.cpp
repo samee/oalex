@@ -26,7 +26,6 @@ using oalex::UserErrorEx;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
-using oalex::regex::makeUniqueRegex;
 using oalex::regex::Optional;
 using oalex::regex::OrList;
 using oalex::regex::Regex;
@@ -82,11 +81,11 @@ auto orlist(Ts ... ts) -> unique_ptr<OrList> {
 }
 
 Regex repeat(Regex part, char ch) {
-  if(ch == '+') return makeUniqueRegex<Repeat>({std::move(part)});
-  if(ch == '*') return makeUniqueRegex<Optional>({
-                         makeUniqueRegex<Repeat>({std::move(part)})
+  if(ch == '+') return move_to_unique(Repeat{std::move(part)});
+  if(ch == '*') return move_to_unique(Optional{
+                         move_to_unique(Repeat{std::move(part)})
                        });
-  if(ch == '?') return makeUniqueRegex<Optional>({std::move(part)});
+  if(ch == '?') return move_to_unique(Optional{std::move(part)});
   BugDie()<<"Don't know how to construct repeats of type "<<ch;
 }
 
