@@ -23,6 +23,7 @@ using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::UserErrorEx;
+using oalex::move_to_unique;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;

@@ -14,6 +14,7 @@
 
 #pragma once
 #include<iostream>
+#include<memory>
 #include<sstream>
 #include<stdexcept>
 
@@ -93,5 +94,16 @@ struct Str {
   template <class X> Str& operator<<(const X& x)
     { os<<x; return *this; }
 };
+
+// Enables brace-initialization for variants without naming the type twice.
+template <class T>
+auto move_to_unique(T& t) -> std::unique_ptr<T> {
+  return std::make_unique<T>(std::move(t));
+}
+
+template <class T>
+auto move_to_unique(T&& t) -> std::unique_ptr<T> {
+  return std::make_unique<T>(std::move(t));
+}
 
 }  // namespace oalex

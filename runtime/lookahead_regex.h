@@ -64,17 +64,6 @@ auto get_unique(const V& v) -> const T& {
   else throw std::bad_variant_access();
 }
 
-// Enables brace-initialization for variants without naming the type twice.
-template <class T>
-auto move_to_unique(T& t) -> std::unique_ptr<T> {
-  return std::make_unique<T>(std::move(t));
-}
-
-template <class T>
-auto move_to_unique(T&& t) -> std::unique_ptr<T> {
-  return std::make_unique<T>(std::move(t));
-}
-
 // Used for lookaheads
 bool startsWith(const Input& input, size_t i, const Regex& regex);
 
