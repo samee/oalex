@@ -129,6 +129,15 @@ string prettyPrintSet(const CharSet& set) {
   return os.str();
 }
 
+string prettyPrintAnchor(Anchor a) {
+  switch(a) {
+    case Anchor::wordEdge: return "\\b";
+    case Anchor::bol: return "^";
+    case Anchor::eol: return "$";
+    default: Bug()<<"Unknown Anchor type "<<static_cast<int>(a);
+  }
+}
+
 template <class T>
 struct is_variant { static constexpr bool value = false; };
 template <class ... Ts>
@@ -167,7 +176,7 @@ void surroundUnless(ostringstream& os, const Regex& regex) {
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    surroundUnless<CharSet, string, Repeat, Optional>(os, part);
+    surroundUnless<CharSet, string, Anchor, Repeat, Optional>(os, part);
   }
   return os.str();
 }
@@ -176,10 +185,12 @@ string prettyPrintOrs(const OrList& ors) {
   if(ors.parts.empty()) return "";
   ostringstream os;
 
-  surroundUnless<CharSet, string, Concat, Repeat, Optional>(os, ors.parts[0]);
+  surroundUnless<CharSet, string, Anchor,
+                 Concat, Repeat, Optional>(os, ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
     os<<'|';
-    surroundUnless<CharSet, string, Concat, Repeat, Optional>(os, ors.parts[i]);
+    surroundUnless<CharSet, string, Anchor,
+                   Concat, Repeat, Optional>(os, ors.parts[i]);
   }
   return os.str();
 }
@@ -231,6 +242,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return prettyPrintSeq(*seq);
   else if(auto* s = get_if_unique<string>(&regex)) return escapedForString(*s);
+  else if(auto* a = get_if_unique<Anchor>(&regex)) return prettyPrintAnchor(*a);
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);

@@ -22,9 +22,13 @@
 
 namespace oalex::regex {
 
+// Forward decl.
+enum struct Anchor;
+
 using Regex = std::variant<
   std::unique_ptr<struct CharSet>,
   std::unique_ptr<std::string>,
+  std::unique_ptr<Anchor>,  // TODO matching, parsing.
   std::unique_ptr<struct Concat>,
   std::unique_ptr<struct Repeat>,
   std::unique_ptr<struct Optional>,
@@ -34,6 +38,7 @@ using Regex = std::variant<
 // Regex primitives. Likely to change if we ever switch to matching JsonLoc.
 struct CharRange { unsigned char from, to; };
 struct CharSet { std::vector<CharRange> ranges; bool negated = false; };
+enum struct Anchor { wordEdge, bol, eol };
 
 struct Concat { std::vector<Regex> parts; };
 struct Repeat { Regex part; };

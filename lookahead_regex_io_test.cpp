@@ -24,6 +24,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::UserErrorEx;
 using oalex::move_to_unique;
+using oalex::regex::Anchor;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
@@ -139,6 +140,10 @@ void testPrettyPrint() {
     {charString("hello\n"), "/hello\\n/"},
     {charString("{in}/[brackets]"), "/\\{in}\\/\\[brackets]/"},
     {charString("\\slashes/"), "/\\\\slashes\\//"},
+    {concat(move_to_unique(Anchor::wordEdge), charString("hello"),
+            move_to_unique(Anchor::wordEdge)), "/\\bhello\\b/"},
+    {concat(move_to_unique(Anchor::bol), charString("hello"),
+            move_to_unique(Anchor::eol)), "/^hello$/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
