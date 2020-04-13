@@ -54,6 +54,22 @@ auto partInit(const vector<Regex>& parts) {
   return rv;
 }
 
+auto assertVectorBool(MatchState& state, size_t sz) -> vector<bool>& {
+  auto& v = get_unique<vector<bool>>(state);
+  if(v.size() != sz)
+    Bug()<<"MatchState expected to have "<<sz<<" bools, not "<<v.size();
+  return v;
+}
+
+auto assertMatchStateVector(MatchState& state, size_t sz)
+  -> vector<MatchState>& {
+  auto& partstates = get_unique<MatchStateVector>(state).parts;
+  if(sz != partstates.size())
+    Bug()<<"init() produced states with the wrong size: "<<sz
+      <<" != "<<partstates.size();
+  return partstates;
+}
+
 MatchState init(const Regex& regex) {
   if(holds_one_of_unique<CharSet, Anchor>(regex))
     return make_unique<vector<bool>>(2, false);
@@ -89,12 +105,9 @@ void start(const Regex& regex, MatchState& state) {
       start(ors->parts.at(i++), part);
   }else if(auto* rep = get_if_unique<Repeat>(&regex)) start(rep->part, state);
   else if(auto* seq = get_if_unique<Concat>(&regex)) {
-    auto& partstates = get_unique<MatchStateVector>(state).parts;
     if(seq->parts.empty())
       Bug()<<"Cannot Concat over an empty vector. Use an empty string instead.";
-    if(seq->parts.size() != partstates.size())
-      Bug()<<"init() produced states with the wrong size: "<<seq->parts.size()
-           <<" != "<<partstates.size();
+    auto& partstates = assertMatchStateVector(state, seq->parts.size());
     start(seq->parts[0], partstates[0]);
     for(size_t i=1; i<seq->parts.size(); ++i) {
       if(!matched(seq->parts[i-1], partstates[i-1])) break;
@@ -129,37 +142,29 @@ void shiftRight(vector<bool>& v) {
 
 void advance(const Regex& regex, unsigned char ch, MatchState& state) {
   if(auto* cset = get_if_unique<CharSet>(&regex)) {
-    auto& v = get_unique<vector<bool>>(state);
-    if(v.size() != 2)
-      Bug()<<"CharSet's MatchState should have 2 bools, not "<<v.size();
+    auto& v = assertVectorBool(state, 2);
     if(!matchesCharSet(ch, *cset)) v[0] = false;
     shiftRight(v);
   }else if(auto* s = get_if_unique<string>(&regex)) {
-    auto& v = get_unique<vector<bool>>(state);
-    if(v.size() != s->size()+1)
-      Bug()<<"string's MatchState should have "<<s->size()+1
-           <<" bools, not "<<v.size();
+    auto& v = assertVectorBool(state, s->size()+1);
     for(size_t i=0; i<s->size(); ++i) if(ch != (*s)[i]) v[i] = false;
     shiftRight(v);
+  }else if(get_if_unique<Anchor>(&regex)) {
+    auto& v = assertVectorBool(state, 2);
+    v[0] = v[1] = false;
   }else if(auto* opt = get_if_unique<Optional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);
     optstate.justStarted = false;
     advance(opt->part, ch, optstate.part);
   }else if(auto* ors = get_if_unique<OrList>(&regex)) {
-    auto& partstates = get_unique<MatchStateVector>(state).parts;
-    if(ors->parts.size() != partstates.size())
-      Bug()<<"State vector size mismatch on OrList: "<<ors->parts.size()
-           <<" != "<<partstates.size();
+    auto& partstates = assertMatchStateVector(state, ors->parts.size());
     for(size_t i=0; i<partstates.size(); ++i)
       advance(ors->parts[i], ch, partstates[i]);
   }else if(auto* rep = get_if_unique<Repeat>(&regex)) {
     advance(rep->part, ch, state);
     if(matched(rep->part, state)) start(rep->part, state);
   }else if(auto* seq = get_if_unique<Concat>(&regex)) {
-    auto& partstates = get_unique<MatchStateVector>(state).parts;
-    if(seq->parts.size() != partstates.size())
-      Bug()<<"State vector size mismatch on Concat: "<<seq->parts.size()
-           <<" != "<<partstates.size();
+    auto& partstates = assertMatchStateVector(state, seq->parts.size());
     for(size_t i=0; i<partstates.size(); ++i)
       advance(seq->parts[i], ch, partstates[i]);
     for(size_t i=0; i+1<partstates.size(); ++i)
