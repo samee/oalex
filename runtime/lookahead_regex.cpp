@@ -55,7 +55,8 @@ auto partInit(const vector<Regex>& parts) {
 }
 
 MatchState init(const Regex& regex) {
-  if(get_if_unique<CharSet>(&regex)) return make_unique<vector<bool>>(2, false);
+  if(holds_one_of_unique<CharSet, Anchor>(regex))
+    return make_unique<vector<bool>>(2, false);
   else if(auto* s = get_if_unique<string>(&regex))
     return make_unique<vector<bool>>(s->size()+1, false);
   else if(auto* opt = get_if_unique<Optional>(&regex))
@@ -76,7 +77,7 @@ bool matchesCharSet(char ch, const CharSet& cset) {
 }
 
 void start(const Regex& regex, MatchState& state) {
-  if(get_if_unique<CharSet>(&regex) || get_if_unique<string>(&regex))
+  if(holds_one_of_unique<CharSet, string, Anchor>(regex))
     get_unique<vector<bool>>(state).at(0) = true;
   else if(auto* opt = get_if_unique<Optional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);

@@ -18,7 +18,6 @@
 #include "lexer.h"
 #include "runtime/util.h"
 using std::get_if;
-using std::holds_alternative;
 using std::isprint;
 using std::make_unique;
 using std::nullopt;
@@ -136,35 +135,6 @@ string prettyPrintAnchor(Anchor a) {
     case Anchor::eol: return "$";
     default: Bug()<<"Unknown Anchor type "<<static_cast<int>(a);
   }
-}
-
-template <class T>
-struct is_variant { static constexpr bool value = false; };
-template <class ... Ts>
-struct is_variant<std::variant<Ts...>> { static constexpr bool value = true; };
-template <class T> inline constexpr
-bool is_variant_v = is_variant<T>::value;
-
-template <class ... Ts> struct holds_one_of_helper;  // undefined
-
-template <>
-struct holds_one_of_helper<> {
-  template <class V> static bool check(const V&) { return false; }
-};
-
-template <class T, class ... Ts>
-struct holds_one_of_helper<T, Ts...> {
-  template <class V> static bool check(const V& v) {
-    static_assert(is_variant_v<V>);
-    return holds_alternative<T>(v) || holds_one_of_helper<Ts...>::check(v);
-  }
-};
-
-template <class ... Ts, class V> bool holds_one_of(const V& v) {
-  return holds_one_of_helper<Ts...>::check(v);
-}
-template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
-  return holds_one_of<unique_ptr<Ts>...>(v);
 }
 
 template <class ... Ts>
