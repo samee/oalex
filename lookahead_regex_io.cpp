@@ -305,10 +305,10 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   return ch;
 }
 
-auto parseCharSet(InputDiags& ctx, size_t& i) -> optional<Regex> {
+auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'['))
-    Bug()<<"parseCharSet called at invalid location "<<i;
+    Bug()<<"parseCharSetUnq called at invalid location "<<i;
   CharSet cset;
   size_t j = i+1;
 
@@ -427,7 +427,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   optional<Regex> subres;
 
   while(input.sizeGt(j)) {
-    if(input[j] == '[') subres = parseCharSet(ctx, j);
+    if(input[j] == '[') subres = parseCharSetUnq(ctx, j);
     else if(input[j] == '(') subres = parseGroup(ctx, j, depth);
     else if(is_in(input[j], ")/|")) {  // end pattern.
       i = j;
@@ -476,6 +476,16 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 
 auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
+}
+
+CharSet parseCharSet(string input) {
+  InputDiags ctx{Input{input}, {}};
+  size_t i = 0;
+  if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
+  else {
+    for(const auto& d : ctx.diags) BugWarn()<<string(d);
+    BugDie()<<"parseCharSet() input was invalid: "<<input;
+  }
 }
 
 // Current state: only parses concatenation of character sets.

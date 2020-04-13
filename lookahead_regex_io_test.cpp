@@ -33,6 +33,7 @@ using oalex::regex::OrList;
 using oalex::regex::Regex;
 using oalex::regex::RegexOptions;
 using oalex::regex::Repeat;
+using oalex::regex::parseCharSet;
 using std::cerr;
 using std::endl;
 using std::make_unique;
@@ -238,7 +239,7 @@ void testStripOuterParens() {
 }
 
 void testRegexStartsWith() {
-  RegexOptions opts{};
+  RegexOptions opts{.word = parseCharSet("[0-9A-Za-z_]")};
   const vector<pair<string,string>> testVectors{
     {"//", "foo"},
     {"/fo[ox]/", "fox"},

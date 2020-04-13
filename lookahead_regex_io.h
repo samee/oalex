@@ -79,4 +79,6 @@ namespace oalex::regex {
 auto prettyPrint(const Regex& regex) -> std::string;
 auto parse(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
 
+// Used for test only. Dies on invalid input.
+CharSet parseCharSet(std::string input);
 }  // namespace oalex::regex
