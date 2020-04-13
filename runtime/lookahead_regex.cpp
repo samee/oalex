@@ -117,7 +117,7 @@ void start(const Regex& regex, MatchState& state) {
 }
 
 bool matched(const Regex& regex, const MatchState& state) {
-  if(get_if_unique<CharSet>(&regex) || get_if_unique<string>(&regex))
+  if(holds_one_of_unique<CharSet, string, Anchor>(regex))
     return get_unique<vector<bool>>(state).back();
   else if(auto* opt = get_if_unique<Optional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);
@@ -233,6 +233,7 @@ bool startsWith(const Input& input, size_t i, const Regex& regex,
   start(regex, state);
   while(!matched(regex, state) && input.sizeGt(i)) {
     advanceAnchor(regex, state, anchorBetweenChars(prev, input[i], opts));
+    if(matched(regex, state)) return true;
     advance(regex, input[i], state);
     prev = input[i++];
   }

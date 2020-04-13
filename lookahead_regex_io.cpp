@@ -337,13 +337,19 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
 auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
+  auto reta = [&i](Anchor a, size_t off) {
+    i += off;
+    return make_unique<Anchor>(a);
+  };
   char ch = ctx.input[i];
   if(ch == '\\') {
-    if(auto opt = parseEscapeCode(ctx, i, stringMeta))
+    if(hasChar(ctx.input,i+1,'b')) return reta(Anchor::wordEdge, 2);
+    else if(auto opt = parseEscapeCode(ctx, i, stringMeta))
       return make_unique<string>(1, *opt);
     else return nullopt;
   }
-  else if(ch == '^' || ch == '$') Unimplemented()<<"Anchors";
+  else if(ch == '^') return reta(Anchor::bol, 1);
+  else if(ch == '$') return reta(Anchor::eol, 1);
   else return make_unique<string>(1, ctx.input[i++]);
 }
 

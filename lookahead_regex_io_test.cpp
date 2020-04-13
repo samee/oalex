@@ -174,7 +174,8 @@ void testParseAndPrint() {
     "/hello?/", "/hello*/", "/hello+/",
     "//", "/hello|world/", "/(hello|world)|goodbye/",
     "/(hello|world|)there/",
-    "/a.*a/", "/hello\\nworld/", "/\\{in}\\/\\[brackets]/", "/\\\\slashes\\//"
+    "/a.*a/", "/hello\\nworld/", "/\\{in}\\/\\[brackets]/", "/\\\\slashes\\//",
+    "/^hello$/", "/\\bhello\\b/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
@@ -246,6 +247,10 @@ void testRegexStartsWith() {
     {"/foo?/", "fox"},
     {"/(ab?c)+|.[xyz]+/", "abcacacabcfoo"},
     {"/(ab?c)+|.[xyz]+/", "wx"},
+    {"/^foo$/", "foo"},
+    {"/\\bfoo\\b/", "foo "},
+    {"/$/", ""},
+    {"/^/", "foo"},
   };
   for(auto& [pattern, inputstr] : testVectors) {
     InputDiags regex_input{Input{pattern}, {}};
@@ -258,6 +263,9 @@ void testRegexStartsWith() {
   const vector<pair<string,string>> failVectors{
     {"/(ab?c)+|.[xyz]+/", "!abcacacabcfoo"},
     {"/(ab?c)+|.[xyz]+/", "!wx"},
+    {"/^foo$/", "foo "},
+    {"/\\bfoo\\b/", "food"},
+    {"/\\b/", ""},
   };
   for(auto& [pattern, inputstr] : failVectors) {
     InputDiags regex_input{Input{pattern}, {}};
