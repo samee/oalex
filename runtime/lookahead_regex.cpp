@@ -170,7 +170,8 @@ void advance(const Regex& regex, unsigned char ch, MatchState& state) {
 
 }  // namespace
 
-bool startsWith(const Input& input, size_t i, const Regex& regex) {
+bool startsWith(const Input& input, size_t i, const Regex& regex,
+                const RegexOptions&) {
   MatchState state = init(regex);
   start(regex, state);
   while(!matched(regex, state) && input.sizeGt(i))

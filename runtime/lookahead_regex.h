@@ -69,7 +69,12 @@ auto get_unique(const V& v) -> const T& {
   else throw std::bad_variant_access();
 }
 
+struct RegexOptions {
+  CharSet word;  // Used for \b matches.
+};
+
 // Used for lookaheads
-bool startsWith(const Input& input, size_t i, const Regex& regex);
+bool startsWith(const Input& input, size_t i,
+                const Regex& regex, const RegexOptions& opts);
 
 }  // namespace oalex::regex

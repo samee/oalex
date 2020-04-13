@@ -31,6 +31,7 @@ using oalex::regex::Concat;
 using oalex::regex::Optional;
 using oalex::regex::OrList;
 using oalex::regex::Regex;
+using oalex::regex::RegexOptions;
 using oalex::regex::Repeat;
 using std::cerr;
 using std::endl;
@@ -237,6 +238,7 @@ void testStripOuterParens() {
 }
 
 void testRegexStartsWith() {
+  RegexOptions opts{};
   const vector<pair<string,string>> testVectors{
     {"//", "foo"},
     {"/fo[ox]/", "fox"},
@@ -249,7 +251,7 @@ void testRegexStartsWith() {
     size_t i = 0;
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
-    if(!startsWith(input, 0, regex))
+    if(!startsWith(input, 0, regex, opts))
       BugMe<<'"'<<inputstr<<"\" was expected to startWith() "<<pattern;
   }
   const vector<pair<string,string>> failVectors{
@@ -261,7 +263,7 @@ void testRegexStartsWith() {
     size_t i = 0;
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
-    if(startsWith(input, 0, regex))
+    if(startsWith(input, 0, regex, opts))
       BugMe<<'"'<<inputstr<<"\" was not expected to startWith() "<<pattern;
   };
 }
