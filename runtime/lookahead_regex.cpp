@@ -174,14 +174,69 @@ void advance(const Regex& regex, unsigned char ch, MatchState& state) {
   else Bug()<<"Unknown index in advance() "<<regex.index();
 }
 
+enum AnchorMatches { matchesWordEdge = 1, matchesBol = 2, matchesEol = 4 };
+
+AnchorMatches anchorBetweenChars(char from, char to, const RegexOptions& opts) {
+  bool w1 = matchesCharSet(from, opts.word);
+  bool w2 = matchesCharSet(to, opts.word);
+  int rv = 0;
+  if(w1 != w2) rv |= matchesWordEdge;
+  if(from == '\n') rv |= matchesBol;
+  if(to == '\n') rv |= matchesEol;
+  return static_cast<AnchorMatches>(rv);
+}
+
+// Only ever adds more true values to MatchState, never takes them away.
+void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
+  if(holds_one_of_unique<CharSet, string>(regex)) return;
+  else if(auto* a = get_if_unique<Anchor>(&regex)) {
+    auto& v = assertVectorBool(state, 2);
+    if(!v[0]) return;
+    if(((anch & matchesWordEdge) && *a == Anchor::wordEdge) ||
+       ((anch & matchesBol) && *a == Anchor::bol) ||
+       ((anch & matchesEol) && *a == Anchor::eol)) v[1] = true;
+  }else if(auto* opt = get_if_unique<Optional>(&regex)) {
+    advanceAnchor(opt->part, get_unique<OptionalState>(state).part, anch);
+  }else if(auto* ors = get_if_unique<OrList>(&regex)) {
+    size_t i = 0;
+    for(auto& p : assertMatchStateVector(state, ors->parts.size()))
+      advanceAnchor(ors->parts[i++], p, anch);
+  }else if(auto* rep = get_if_unique<Repeat>(&regex)) {
+    bool startedMatched = matched(rep->part, state);
+    advanceAnchor(rep->part, state, anch);
+    // Fixpoint guaranteed in a single additional iteration.
+    if(!startedMatched && matched(rep->part, state)) {
+      start(rep->part, state);
+      advanceAnchor(rep->part, state, anch);
+    }
+  }else if(auto* seq = get_if_unique<Concat>(&regex)) {
+    size_t n = seq->parts.size();
+    if(n == 0) return;
+    auto& v = assertMatchStateVector(state, n);
+    for(size_t i=0; i+1<n; i++) {
+      const Regex& p = seq->parts[i];
+      bool startedMatched = matched(p, v[i]);
+      advanceAnchor(p, v[i], anch);
+      if(!startedMatched && matched(p, v[i])) start(seq->parts[i+1], v[i+1]);
+    }
+    advanceAnchor(seq->parts[n-1], v[n-1], anch);
+  }
+  else Bug()<<"Unknown index in advance() "<<regex.index();
+}
+
 }  // namespace
 
 bool startsWith(const Input& input, size_t i, const Regex& regex,
-                const RegexOptions&) {
+                const RegexOptions& opts) {
   MatchState state = init(regex);
+  char prev = '\n';
   start(regex, state);
-  while(!matched(regex, state) && input.sizeGt(i))
-    advance(regex, input[i++], state);
+  while(!matched(regex, state) && input.sizeGt(i)) {
+    advanceAnchor(regex, state, anchorBetweenChars(prev, input[i], opts));
+    advance(regex, input[i], state);
+    prev = input[i++];
+  }
+  advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
   return matched(regex, state);
 }
 
