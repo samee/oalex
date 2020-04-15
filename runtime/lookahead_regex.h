@@ -28,7 +28,7 @@ enum struct Anchor;
 using Regex = std::variant<
   std::unique_ptr<struct CharSet>,
   std::unique_ptr<std::string>,
-  std::unique_ptr<Anchor>,  // TODO matching, parsing.
+  std::unique_ptr<Anchor>,
   std::unique_ptr<struct Concat>,
   std::unique_ptr<struct Repeat>,
   std::unique_ptr<struct Optional>,

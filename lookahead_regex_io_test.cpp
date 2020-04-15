@@ -209,6 +209,7 @@ void testParseDiags() {
     {"/+/", "Nothing to repeat"},
     {"/hello", "Unterminated regex"},
     {"/hello|", "Unterminated regex"},
+    {"/a++++++/", "Too many consecutive repeat operators"},
   };
   for(auto& [input, msg] : testVectors) {
     InputDiags ctx{Input{input}, {}};

@@ -220,6 +220,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
 }
 
 constexpr uint8_t kMaxDepth = 255;
+constexpr uint8_t kMaxRepDepth = 5;
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex>;
 
 // Regex and string literals are among the few places that don't ignore spaces
@@ -399,6 +400,7 @@ Regex unpackSingleton(T t) {
 auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
+  size_t repdepth = 0;
   regex::Concat concat;
   optional<Regex> subres;
 
@@ -409,6 +411,8 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       i = j;
       return unpackSingleton(contractStrings(std::move(concat)));
     }else if(startsRepeat(input[j])) {
+      if(++repdepth > kMaxRepDepth)
+        ctx.Fatal(j, j+1, "Too many consecutive repeat operators.");
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {
@@ -416,6 +420,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       ++j;
     }else subres = parseSingleChar(ctx, j);
 
+    repdepth = 0;
     if(!subres) return nullopt;
     concat.parts.push_back(std::move(*subres));
   }
