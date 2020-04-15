@@ -31,11 +31,14 @@ using oalex::BugDie;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::regex::Anchor;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
 using oalex::regex::Concat;
+using oalex::regex::Optional;
 using oalex::regex::OrList;
 using oalex::regex::Regex;
+using oalex::regex::Repeat;
 using oalex::regex::get_if_unique;
 using oalex::regex::get_unique;
 using std::cerr;
@@ -103,7 +106,10 @@ auto parseEsc(const string& s, size_t& i) -> optional<char> {
   if(s.compare(i, 2, "\\]") == 0) { i+=2; return ']'; }
   if(s.compare(i, 2, "\\-") == 0) { i+=2; return '-'; }
   if(s.compare(i, 2, "\\^") == 0) { i+=2; return '^'; }
+  if(s.compare(i, 2, "\\/") == 0) { i+=2; return '/'; }
   if(s.compare(i, 2, "\\\\") == 0) { i+=2; return '\\'; }
+  if(s.compare(i, 2, "\\t") == 0) { i+=2; return '\t'; }
+  if(s.compare(i, 2, "\\n") == 0) { i+=2; return '\n'; }
   return nullopt;
 }
 
@@ -128,6 +134,10 @@ bool astEq(const CharSet& a, const CharSet& b) {
        a.ranges[i].to != b.ranges[i].to) return false;
   }
   return true;
+}
+
+bool astEq(Anchor a, Anchor b) {
+  return int(a) == int(b);
 }
 
 bool astEq(const Concat& a, const Concat& b) {
@@ -156,6 +166,12 @@ bool astEq(const Regex& a, const Regex& b) {
     return astEq(*ac, get_unique<OrList>(b));
   if(auto *ac = get_if_unique<string>(&a))
     return astEq(*ac, get_unique<string>(b));
+  if(auto *ac = get_if_unique<Repeat>(&a))
+    return astEq(ac->part, get_unique<Repeat>(b).part);
+  if(auto *ac = get_if_unique<Optional>(&a))
+    return astEq(ac->part, get_unique<Optional>(b).part);
+  if(auto *ac = get_if_unique<Anchor>(&a))
+    return astEq(*ac, get_unique<Anchor>(b));
   BugMe<<"Unknown regex index: "<<a.index();
 }
 
