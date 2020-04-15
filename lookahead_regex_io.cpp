@@ -137,6 +137,16 @@ string prettyPrintAnchor(Anchor a) {
   }
 }
 
+bool printsToNull(const Regex& regex) {
+  if(holds_one_of_unique<CharSet,Anchor,Optional,Repeat,OrList>(regex))
+    return false;
+  else if(auto* s = get_if_unique<string>(&regex)) return s->empty();
+  else if(auto* seq = get_if_unique<Concat>(&regex)) {
+    for(const Regex& p : seq->parts) if(!printsToNull(p)) return false;
+    return true;
+  }else Bug()<<"printsToNull() called with unknown index "<<regex.index();
+}
+
 template <class ... Ts>
 void surroundUnless(ostringstream& os, const Regex& regex) {
   if(!holds_one_of_unique<Ts...>(regex)) os<<'('<<prettyPrintRec(regex)<<')';
@@ -146,7 +156,8 @@ void surroundUnless(ostringstream& os, const Regex& regex) {
 string prettyPrintSeq(const Concat& seq) {
   ostringstream os;
   for(auto& part : seq.parts) {
-    surroundUnless<CharSet, string, Anchor, Repeat, Optional>(os, part);
+    if(printsToNull(part)) os<<"()";
+    else surroundUnless<CharSet, string, Anchor, Repeat, Optional>(os, part);
   }
   return os.str();
 }

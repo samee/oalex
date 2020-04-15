@@ -176,6 +176,7 @@ void testParseAndPrint() {
     "/(hello|world|)there/",
     "/a.*a/", "/hello\\nworld/", "/\\{in}\\/\\[brackets]/", "/\\\\slashes\\//",
     "/^hello$/", "/\\bhello\\b/",
+    "/()+/",
   };
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}, {}};
