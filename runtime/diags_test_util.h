@@ -21,7 +21,7 @@ inline void showDiags(const std::vector<oalex::Diag>& diags) {
   for(const auto& d : diags) oalex::BugWarn()<<"  "<<std::string(d);
 }
 
-inline void assertHasDiagWithSubstr(const char testName[],
+inline void assertHasDiagWithSubstr(std::string_view testName,
                                     const std::vector<oalex::Diag>& diags,
                                     std::string_view expectedDiag) {
   using oalex::Diag;
@@ -40,4 +40,17 @@ inline void assertEmptyDiags(std::string_view testName,
   if(diags.empty()) return;
   for(const auto& d:diags) std::cerr<<std::string(d)<<std::endl;
   oalex::BugDie()<<testName<<" had unexpected errors";
+}
+
+template <class Cb>
+void assertProducesDiag(std::string_view testName, std::string_view input,
+                        std::string_view err, Cb cb) {
+  oalex::InputDiags ctx{oalex::Input{std::string(input)}, {}};
+  size_t i = 0;
+  try {
+    cb(ctx, i);
+  }catch(oalex::UserErrorEx& ex) {
+    ctx.Error(0,0,ex.what());  // demote Fatal() error to non-fatal.
+  }
+  assertHasDiagWithSubstr(testName, ctx.diags, err);
 }

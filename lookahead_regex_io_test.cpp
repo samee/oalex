@@ -208,14 +208,7 @@ void testParseDiags() {
     {"/a++++++/", "Too many consecutive repeat operators"},
   };
   for(auto& [input, msg] : testVectors) {
-    InputDiags ctx{Input{input}, {}};
-    size_t i = 0;
-    try {
-      optional<Regex> parseResult = regex::parse(ctx, i);
-    }catch(UserErrorEx& ex) {
-      ctx.Error(0,0,ex.what());  // demote Fatal() error to non-fatal.
-    }
-    assertHasDiagWithSubstr(__func__, ctx.diags, msg);
+    assertProducesDiag(__func__, input, msg, regex::parse);
   }
 }
 

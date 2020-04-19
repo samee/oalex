@@ -14,6 +14,19 @@ Ident fromString(string_view testName, string_view input) {
   return rv;
 }
 
+void testParseErrors() {
+  pair<string,string> tests[] = {
+    {string(101,'x'), "Identifier too long"},
+    {"_", "must have a digit or letter"},
+    {"_a", "leading"},
+    {"a_", "trailing"},
+    {"foo__bar", "Consecutive"},
+  };
+  for(const auto& [s,err] : tests) {
+    assertProducesDiag(__func__, s, err, Ident::parse);
+  }
+}
+
 void testEqualities() {
   pair<string,string> equals[] = {
     {"foo_bar", "fooBar"},
@@ -40,5 +53,6 @@ void testEqualities() {
 }  // namespace
 
 int main() {
+  testParseErrors();
   testEqualities();
 }
