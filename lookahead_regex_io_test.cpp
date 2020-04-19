@@ -156,11 +156,6 @@ void testPrettyPrint() {
   }
 }
 
-void abortScreaming(string_view testName, const vector<Diag>& diags) {
-  for(const auto& d:diags) cerr<<string(d)<<endl;
-  BugDie()<<testName<<" had unexpected errors";
-}
-
 // If direct string comparison ever becomes too simple, try AST comparison
 // after a parse-print-parse cycle.
 void testParseAndPrint() {
@@ -182,7 +177,7 @@ void testParseAndPrint() {
     InputDiags ctx{Input{input}, {}};
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
-    if(!ctx.diags.empty()) abortScreaming(__func__, ctx.diags);
+    assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe<<"Regex "<<input<<" silently failed to parse.";
     string output = regex::prettyPrint(*parseResult);
     if(input != output)
@@ -232,7 +227,7 @@ void testStripOuterParens() {
     InputDiags ctx{Input{input}, {}};
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
-    if(!ctx.diags.empty()) abortScreaming(__func__, ctx.diags);
+    assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe<<"Regex "<<input<<" silently failed to parse.";
     string output = regex::prettyPrint(*parseResult);
     if(expected != output)

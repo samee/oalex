@@ -34,3 +34,10 @@ inline void assertHasDiagWithSubstr(const char testName[],
 inline oalex::InputDiags testInputDiags(std::string_view s) {
   return oalex::InputDiags{oalex::Input(oalex::GetFromString(s)),{}};
 }
+
+inline void assertEmptyDiags(std::string_view testName,
+                      const std::vector<oalex::Diag>& diags) {
+  if(diags.empty()) return;
+  for(const auto& d:diags) std::cerr<<std::string(d)<<std::endl;
+  oalex::BugDie()<<testName<<" had unexpected errors";
+}
