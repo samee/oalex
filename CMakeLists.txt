@@ -23,8 +23,9 @@ add_executable(lookahead_regex_io_test
 target_link_libraries(lookahead_regex_io_test oalex)
 add_test(lookahead_regex_io_test lookahead_regex_io_test)
 
-add_library(ident ident.cpp)
-target_link_libraries(ident oalex)
+add_executable(ident_test ident.cpp ident_test.cpp)
+target_link_libraries(ident_test oalex)
+add_test(ident_test ident_test)
 
 add_subdirectory(archived)
 add_subdirectory(runtime)

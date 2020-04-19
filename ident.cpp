@@ -32,7 +32,7 @@ bool operator==(const Ident& a, const Ident& b) {
 
 const size_t kMaxIdentLen = 100;
 
-Ident parse(InputDiags& ctx, size_t& i) {
+Ident Ident::parse(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx, i);
   const Input& input = ctx.input;
   bool alluscore = true;

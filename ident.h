@@ -50,7 +50,7 @@ class Ident {
   Ident(std::nullopt_t) {}
  public:
   Ident() = default;
-  friend Ident parse(InputDiags& ctx, size_t& i);
+  static Ident parse(InputDiags& ctx, size_t& i);
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;
@@ -59,5 +59,6 @@ class Ident {
   explicit operator bool() const { return !orig_.empty(); }
 };
 
+inline bool operator!=(const Ident& a, const Ident& b) { return !(a == b); }
 }  // namespace oalex
 
