@@ -50,9 +50,36 @@ void testEqualities() {
   }
 }
 
+void testCaseChange() {
+  tuple<string, string, string, string> tests[] = {
+    {"foo", "foo", "Foo", "foo"},
+    {"foo_bar", "foo_bar", "FooBar", "fooBar"},
+    {"fooBar", "foo_bar", "FooBar", "fooBar"},
+    {"FOO_BAR", "foo_bar", "FooBar", "fooBar"},
+    {"toLCase", "to_l_case", "ToLCase", "toLCase"},
+    {"me42you", "me_42_you", "Me42You", "me42You"},
+  };
+  for(const auto& [a,snake,ucamel,lcamel] : tests) {
+    Ident ai = fromString(__func__, a);
+    string snakeo = ai.toSnakeCase();
+    if(snakeo != snake)
+      BugDie()<<"Snake case failed. "<<a<<" became "<<snakeo
+              <<" instead of "<<snake;
+    string ucamelo = ai.toUCamelCase();
+    if(ucamelo != ucamel)
+      BugDie()<<"Upper case failed. "<<a<<" became "<<ucamelo
+              <<" instead of "<<ucamel;
+    string lcamelo = ai.toLCamelCase();
+    if(lcamelo != lcamel)
+      BugDie()<<"Lower camel case failed. "<<a<<" became "<<lcamelo
+              <<" instead of "<<lcamel;
+  }
+}
+
 }  // namespace
 
 int main() {
   testParseErrors();
   testEqualities();
+  testCaseChange();
 }
