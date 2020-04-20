@@ -24,6 +24,7 @@ using std::vector;
 size_t std::hash<oalex::Ident>::operator()(const oalex::Ident& ident) const {
   std::string s;
   for(char ch : ident.orig_) if(ch != '_') s += tolower(ch);
+  // Maybe memoize s as a member of Ident if this becomes a bottleneck.
   return hash_helper(s);
 }
 

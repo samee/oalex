@@ -92,6 +92,10 @@ void testCaseChange() {
     if(lcamelo != lcamel)
       BugDie()<<"Lower camel case failed. "<<a<<" became "<<lcamelo
               <<" instead of "<<lcamel;
+    string a2 = ai.preserveCase();
+    if(a != a2)
+      BugDie()<<"preserveCase() is no longer preserves input: '"
+              <<a<<"' != '"<<a2<<"'";
   }
 }
 
