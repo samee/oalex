@@ -25,6 +25,8 @@ void testParseErrors() {
     {"_a", "leading"},
     {"a_", "trailing"},
     {"foo__bar", "Consecutive"},
+    {"", "must have a digit or letter"},
+    {"1world", "cannot start with a digit"},
   };
   for(const auto& [s,err] : tests) {
     assertProducesDiag(__func__, s, err, Ident::parse);

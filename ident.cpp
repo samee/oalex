@@ -71,6 +71,8 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   if(input[o] == '_' || input[o+l-1] == '_')
     return ctx.Error(o, o+l, "Identifiers with leading or trailing underscores "
                              "are not supported for forward compatibility");
+  if(isdigit(input[o]))
+    return ctx.Error(o, o+1, "Identifiers cannot start with a digit");
   for(size_t j=o+1; j<o+l; ++j) if(input[j] == '_' && input[j-1] == '_')
     return ctx.Error(j-1, j+1, "Consecutive underscores are not allowed for "
                                "forward compatibility");
