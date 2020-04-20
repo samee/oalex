@@ -39,6 +39,7 @@
    */
 
 #pragma once
+#include<functional>
 #include<string>
 #include<runtime/diags.h>
 #include<runtime/input_view.h>
@@ -58,9 +59,14 @@ class Ident {
   // Replace with C++20 operator<=> when that's supported.
   friend bool operator==(const Ident& a, const Ident& b);
   friend bool operator<(const Ident& a, const Ident& b);
+  friend class std::hash<Ident>;
   explicit operator bool() const { return !orig_.empty(); }
 };
 
 inline bool operator!=(const Ident& a, const Ident& b) { return !(a == b); }
 }  // namespace oalex
 
+template <> struct std::hash<oalex::Ident> {
+  hash<string> hash_helper;
+  size_t operator()(const oalex::Ident& ident) const;
+};

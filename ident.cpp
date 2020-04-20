@@ -21,6 +21,12 @@ using std::string;
 using std::string_view;
 using std::vector;
 
+size_t std::hash<oalex::Ident>::operator()(const oalex::Ident& ident) const {
+  std::string s;
+  for(char ch : ident.orig_) if(ch != '_') s += tolower(ch);
+  return hash_helper(s);
+}
+
 namespace oalex {
 
 bool operator==(const Ident& a, const Ident& b) {

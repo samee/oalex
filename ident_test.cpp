@@ -1,5 +1,6 @@
 #include"ident.h"
 #include<set>
+#include<unordered_set>
 #include<string_view>
 #include"runtime/diags_test_util.h"
 using namespace oalex;
@@ -101,6 +102,13 @@ void testSet() {
     BugDie()<<"std::set was expected to treat foo_bar and fooBar as equal";
   if(!s.insert(id("food")).second)
     BugDie()<<"std::set failed to insert new key";
+
+  unordered_set<Ident> us{id("foo"), id("fooBar"), id("fooBaz")};
+  if(us.insert(id("foo_bar")).second)
+    BugDie()<<"std::unordered_set was expected to treat "
+              "foo_bar and fooBar as equal";
+  if(!us.insert(id("food")).second)
+    BugDie()<<"std::unordered_set failed to insert new key";
 }
 
 }  // namespace
