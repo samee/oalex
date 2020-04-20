@@ -55,7 +55,9 @@ class Ident {
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;
   std::string preserveCase() const { return orig_; }
+  // Replace with C++20 operator<=> when that's supported.
   friend bool operator==(const Ident& a, const Ident& b);
+  friend bool operator<(const Ident& a, const Ident& b);
   explicit operator bool() const { return !orig_.empty(); }
 };
 

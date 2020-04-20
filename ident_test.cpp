@@ -1,4 +1,5 @@
 #include"ident.h"
+#include<set>
 #include<string_view>
 #include"runtime/diags_test_util.h"
 using namespace oalex;
@@ -11,6 +12,9 @@ Ident fromString(string_view testName, string_view input) {
   size_t i = 0;
   auto rv = Ident::parse(ctx, i);
   assertEmptyDiags(testName, ctx.diags);
+  if(i < input.size())
+    BugDie()<<testName<<": '"<<input<<"' has trailing chars: '"
+            <<input.substr(i)<<"'";
   return rv;
 }
 
@@ -25,6 +29,16 @@ void testParseErrors() {
   for(const auto& [s,err] : tests) {
     assertProducesDiag(__func__, s, err, Ident::parse);
   }
+}
+
+void testStopsAtTrail() {
+  InputDiags ctx{Input{"foo-"}, {}};
+  size_t i = 0;
+  auto rv = Ident::parse(ctx, i);
+  assertEmptyDiags(__func__, ctx.diags);
+  if(i != 3)
+    BugDie()<<__func__<<": Ident parsing of 'foo-' was expected to end "
+                        "at position 3, not "<<i;
 }
 
 void testEqualities() {
@@ -78,10 +92,21 @@ void testCaseChange() {
   }
 }
 
+void testSet() {
+  auto id = [](string_view s) { return fromString("testSet()", s); };
+  set<Ident> s{id("foo"), id("fooBar"), id("fooBaz")};
+  if(s.insert(id("foo_bar")).second)
+    BugDie()<<"std::set was expected to treat foo_bar and fooBar as equal";
+  if(!s.insert(id("food")).second)
+    BugDie()<<"std::set failed to insert new key";
+}
+
 }  // namespace
 
 int main() {
   testParseErrors();
+  testStopsAtTrail();
   testEqualities();
   testCaseChange();
+  testSet();
 }

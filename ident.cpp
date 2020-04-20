@@ -35,6 +35,19 @@ bool operator==(const Ident& a, const Ident& b) {
   return i==a.orig_.size() && j==b.orig_.size();
 }
 
+// This allows us to use std::map.
+bool operator<(const Ident& a, const Ident& b) {
+  size_t i=0, j=0;
+  while(i<a.orig_.size() && j<b.orig_.size()) {
+    char ai = tolower(a.orig_[i]), bj = tolower(b.orig_[j]);
+    if(ai == '_') { ++i; continue; }
+    if(bj == '_') { ++j; continue; }
+    if(ai != bj) return ai < bj;
+    ++i; ++j;
+  }
+  return i==a.orig_.size() && j!=b.orig_.size();
+}
+
 const size_t kMaxIdentLen = 100;
 
 Ident Ident::parse(InputDiags& ctx, size_t& i) {
