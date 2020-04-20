@@ -44,6 +44,7 @@ void testEqualities() {
   };
   for(const auto& [a,b] : not_equals) {
     Ident ai = fromString(__func__, a), bi = fromString(__func__, b);
+    if(!ai || !bi) BugDie()<<"Ident failed to parse";
     if(ai == bi)
       BugDie()<<"Identifiers "<<a<<" and "<<b
               <<" weren't expected to compare equal.";
@@ -61,6 +62,7 @@ void testCaseChange() {
   };
   for(const auto& [a,snake,ucamel,lcamel] : tests) {
     Ident ai = fromString(__func__, a);
+    if(!ai) BugDie()<<"Ident failed to parse";
     string snakeo = ai.toSnakeCase();
     if(snakeo != snake)
       BugDie()<<"Snake case failed. "<<a<<" became "<<snakeo
