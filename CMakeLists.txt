@@ -27,5 +27,8 @@ add_executable(ident_test ident.cpp ident_test.cpp)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
+add_executable(template_test template.cpp template_test.cpp)
+add_test(template_test template_test)
+
 add_subdirectory(archived)
 add_subdirectory(runtime)
