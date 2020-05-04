@@ -30,14 +30,12 @@ struct Diag {
   explicit operator std::string() const;
 };
 
-struct InputDiags {
-  Input input;
-  std::vector<Diag> diags;
-
-  explicit InputDiags(Input input) : input(std::move(input)) {}
-  InputDiags(InputDiags&&) = default;
-  InputDiags& operator=(InputDiags&&) = default;
-  void markUsed(size_t st, size_t en);
+class DiagDest {
+ protected:
+  virtual const InputPiece& row_col_table() const = 0;
+  virtual std::vector<Diag>& diagDest() = 0;
+ public:
+  virtual ~DiagDest() = default;
 
   // throws, never returns.
   [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
@@ -57,9 +55,24 @@ struct InputDiags {
     { return Warning(pos, pos+1, std::move(msg)); }
   std::nullopt_t Note(size_t pos,std::string msg)
     { return Note(pos, pos+1, std::move(msg)); }
+};
+
+struct InputDiags final : public DiagDest {
+  Input input;
+  std::vector<Diag> diags;
+
+  explicit InputDiags(Input input) : input(std::move(input)) {}
+  InputDiags(InputDiags&&) = default;
+  InputDiags& operator=(InputDiags&& that) = default;
+  InputDiags(const InputDiags&) = delete;
+  InputDiags& operator=(const InputDiags&) = delete;
+
+  void markUsed(size_t st, size_t en);
 
  private:
   size_t lastForgotten_ = 0;
+  const InputPiece& row_col_table() const override { return input; }
+  std::vector<Diag>& diagDest() override { return diags; }
 };
 
 // Helper for Input::forgetBefore().

@@ -42,26 +42,28 @@ Diag::operator string() const {
   return locationString(*this) + ": " + severityString(severity) + ": " + msg;
 }
 
-void InputDiags::FatalBug(size_t st, size_t en, string msg) const {
-  BugDie()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
+void DiagDest::FatalBug(size_t st, size_t en, string msg) const {
+  BugDie()<<string(Diag(row_col_table(), st, en, Diag::error, std::move(msg)));
 }
 
-void InputDiags::Fatal(size_t st, size_t en, string msg) const {
-  UserError()<<string(Diag(this->input, st, en, Diag::error, std::move(msg)));
+void DiagDest::Fatal(size_t st, size_t en, string msg) const {
+  UserError()<<string(Diag(row_col_table(), st, en,
+                           Diag::error, std::move(msg)));
 }
 
-nullopt_t InputDiags::Error(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::error, std::move(msg));
+nullopt_t DiagDest::Error(size_t st, size_t en, string msg) {
+  diagDest().emplace_back(row_col_table(), st, en, Diag::error, std::move(msg));
   return nullopt;
 }
 
-nullopt_t InputDiags::Warning(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::warning, std::move(msg));
+nullopt_t DiagDest::Warning(size_t st, size_t en, string msg) {
+  diagDest().emplace_back(row_col_table(), st, en,
+                          Diag::warning, std::move(msg));
   return nullopt;
 }
 
-nullopt_t InputDiags::Note(size_t st, size_t en, string msg) {
-  this->diags.emplace_back(this->input, st, en, Diag::note, std::move(msg));
+nullopt_t DiagDest::Note(size_t st, size_t en, string msg) {
+  diagDest().emplace_back(row_col_table(), st, en, Diag::note, std::move(msg));
   return nullopt;
 }
 
