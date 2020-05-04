@@ -22,6 +22,13 @@
 
 namespace oalex {
 
+class InputPiece {
+ public:
+  virtual char operator[](size_t sz) const = 0;
+  virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
+  virtual ~InputPiece() = default;
+};
+
 // input_view_auto_forget.h seemed too complicated for a simple recursive
 // descent parser.  We try an alternative abstraction here, where we access it
 // like a normal string, but it only keeps a smallish substring in memory. Any
@@ -40,7 +47,7 @@ namespace oalex {
 // you can safely pass a `const Input&` to a method knowing that they won't
 // cause you to lose parts of the input string you still care about.
 
-class Input {
+class Input final : public InputPiece {
  public:
   static constexpr auto npos = std::numeric_limits<size_t>::max();
 
@@ -54,7 +61,7 @@ class Input {
   Input& operator=(Input&&) = default;
 
   void forgetBefore(size_t pos);   // Amortized O(1).
-  char operator[](size_t sz) const;  // Amortized O(1).
+  char operator[](size_t sz) const override;  // Amortized O(1).
   bool sizeGt(size_t pos) const { peekTo(pos); return pos<size_; }
 
   // Beginning-of-line index. It is okay if characters at position i has
@@ -69,7 +76,7 @@ class Input {
   // Returns 1-based positions: line number, and offset in that line.
   // Everything else in this lass is 0-based.
   // O(log k), where k is the working window size.
-  std::pair<size_t,size_t> rowCol(size_t i) const;
+  std::pair<size_t,size_t> rowCol(size_t i) const override;
 
   // Like std::string::substr, except:
   //   * Throws an out of bound exception if pos has already been forgotten.

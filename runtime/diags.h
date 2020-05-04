@@ -21,7 +21,8 @@ struct Diag {
   enum Severity { error,warning,note } severity;
   size_t stLine, stPos, enLine, enPos;  // These ranges are inclusive.
   std::string msg;
-  Diag(const Input& input, size_t st, size_t en, Severity sev, std::string msg)
+  Diag(const InputPiece& input, size_t st, size_t en,
+       Severity sev, std::string msg)
     : severity(sev), msg(msg) {
     std::tie(stLine,stPos) = input.rowCol(st);
     std::tie(enLine,enPos) = input.rowCol(--en);
