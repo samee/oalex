@@ -34,8 +34,7 @@ struct InputDiags {
   Input input;
   std::vector<Diag> diags;
 
-  InputDiags(Input input, std::vector<Diag> diags)
-    : input(std::move(input)), diags(std::move(diags)) {}
+  explicit InputDiags(Input input) : input(std::move(input)) {}
   InputDiags(InputDiags&&) = default;
   InputDiags& operator=(InputDiags&&) = default;
   void markUsed(size_t st, size_t en);

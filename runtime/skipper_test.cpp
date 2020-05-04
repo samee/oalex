@@ -91,7 +91,7 @@ void unixifyTests() {
 }
 
 InputDiags unixifiedTestInputDiags(string_view s) {
-  return InputDiags{Input(Unixify{GetFromString(s)}), {}};
+  return InputDiags{Input(Unixify{GetFromString(s)})};
 }
 
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};

@@ -9,7 +9,7 @@ using namespace std;
 namespace {
 
 Ident fromString(string_view testName, string_view input) {
-  InputDiags ctx{Input{string(input)}, {}};
+  InputDiags ctx{Input{string(input)}};
   size_t i = 0;
   auto rv = Ident::parse(ctx, i);
   assertEmptyDiags(testName, ctx.diags);
@@ -35,7 +35,7 @@ void testParseErrors() {
 }
 
 void testStopsAtTrail() {
-  InputDiags ctx{Input{"foo-"}, {}};
+  InputDiags ctx{Input{"foo-"}};
   size_t i = 0;
   auto rv = Ident::parse(ctx, i);
   assertEmptyDiags(__func__, ctx.diags);

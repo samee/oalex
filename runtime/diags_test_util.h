@@ -32,7 +32,7 @@ inline void assertHasDiagWithSubstr(std::string_view testName,
 }
 
 inline oalex::InputDiags testInputDiags(std::string_view s) {
-  return oalex::InputDiags{oalex::Input(oalex::GetFromString(s)),{}};
+  return oalex::InputDiags{oalex::Input(oalex::GetFromString(s))};
 }
 
 inline void assertEmptyDiags(std::string_view testName,
@@ -45,7 +45,7 @@ inline void assertEmptyDiags(std::string_view testName,
 template <class Cb>
 void assertProducesDiag(std::string_view testName, std::string_view input,
                         std::string_view err, Cb cb) {
-  oalex::InputDiags ctx{oalex::Input{std::string(input)}, {}};
+  oalex::InputDiags ctx{oalex::Input{std::string(input)}};
   size_t i = 0;
   try {
     cb(ctx, i);

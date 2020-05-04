@@ -174,7 +174,7 @@ void testParseAndPrint() {
     "/()+/",
   };
   for(auto& input : inputs) {
-    InputDiags ctx{Input{input}, {}};
+    InputDiags ctx{Input{input}};
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
@@ -217,7 +217,7 @@ void testStripOuterParens() {
   for(auto& part: testVectors) {
     string expected = "/"+part+"/";
     string input = "/("+part+")/";
-    InputDiags ctx{Input{input}, {}};
+    InputDiags ctx{Input{input}};
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
@@ -243,7 +243,7 @@ void testRegexStartsWith() {
     {"/^/", "foo"},
   };
   for(auto& [pattern, inputstr] : testVectors) {
-    InputDiags regex_input{Input{pattern}, {}};
+    InputDiags regex_input{Input{pattern}};
     size_t i = 0;
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
@@ -258,7 +258,7 @@ void testRegexStartsWith() {
     {"/\\b/", ""},
   };
   for(auto& [pattern, inputstr] : failVectors) {
-    InputDiags regex_input{Input{pattern}, {}};
+    InputDiags regex_input{Input{pattern}};
     size_t i = 0;
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};

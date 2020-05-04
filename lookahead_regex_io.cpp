@@ -471,7 +471,7 @@ auto prettyPrint(const Regex& regex) -> string {
 }
 
 CharSet parseCharSet(string input) {
-  InputDiags ctx{Input{input}, {}};
+  InputDiags ctx{Input{input}};
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
   else {
