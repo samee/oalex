@@ -301,7 +301,7 @@ char openBracket(BracketType bt) {
     case BracketType::square: return '[';
     case BracketType::brace: return '{';
     case BracketType::paren: return '(';
-    default: BugDie()<<"Invalid openBracket() type "<<int(bt);
+    default: Bug()<<"Invalid openBracket() type "<<int(bt);
   }
 }
 
@@ -310,7 +310,7 @@ char closeBracket(BracketType bt) {
     case BracketType::square: return ']';
     case BracketType::brace: return '}';
     case BracketType::paren: return ')';
-    default: BugDie()<<"Invalid closeBracket() type "<<int(bt);
+    default: Bug()<<"Invalid closeBracket() type "<<int(bt);
   }
 }
 
@@ -381,7 +381,6 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
   else ctx.Fatal(i, "Invalid input character");
 }
 
-// TODO replace all BugDie in this file with this, so they have location.
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
 // the caller should try parsing something else. In all other cases, it will
 // either return a valid string, or nullopt with errors added to ctx.diags. In

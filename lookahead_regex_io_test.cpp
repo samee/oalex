@@ -18,7 +18,7 @@
 #include <vector>
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
-using oalex::BugDie;
+using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -90,7 +90,7 @@ Regex repeat(Regex part, char ch) {
                          move_to_unique(Repeat{std::move(part)})
                        });
   if(ch == '?') return move_to_unique(Optional{std::move(part)});
-  BugDie()<<"Don't know how to construct repeats of type "<<ch;
+  Bug()<<"Don't know how to construct repeats of type "<<ch;
 }
 
 void testPrettyPrint() {

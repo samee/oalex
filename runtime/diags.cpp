@@ -26,7 +26,7 @@ static string severityString(Diag::Severity sev) {
     case Diag::error: return "error";
     case Diag::warning: return "warning";
     case Diag::note: return "note";
-    default: BugDie()<<"Diagnostics has a strange severity: "<<sev;
+    default: Bug()<<"Diagnostics has a strange severity: "<<sev;
   }
 }
 
@@ -43,7 +43,7 @@ Diag::operator string() const {
 }
 
 void DiagDest::FatalBug(size_t st, size_t en, string msg) const {
-  BugDie()<<string(Diag(row_col_table(), st, en, Diag::error, std::move(msg)));
+  Bug()<<string(Diag(row_col_table(), st, en, Diag::error, std::move(msg)));
 }
 
 void DiagDest::Fatal(size_t st, size_t en, string msg) const {

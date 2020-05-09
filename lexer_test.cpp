@@ -34,7 +34,7 @@ using std::string_view;
 using std::vector;
 using namespace std::string_literals;
 using oalex::operator<<;
-using oalex::BugDie;
+using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -102,12 +102,12 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    BugDie()<<testName<<" failed";
+    Bug()<<testName<<" failed";
   }else {
     vector<string> observed;
     for(const UnquotedToken& t : *res) observed.push_back(*t);
     if(expected != observed)
-      BugDie()<<testName<<": "<<expected<<" != "<<observed;
+      Bug()<<testName<<": "<<expected<<" != "<<observed;
   }
 }
 
@@ -117,7 +117,7 @@ void headerFailureImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(res && ctx.diags.empty())
-    BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
+    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -137,10 +137,10 @@ void stringSuccessImpl(const char testInput[], const char testName[],
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    BugDie()<<testName<<" failed";
+    Bug()<<testName<<" failed";
   }else {
     if(expected != res->s)
-      BugDie()<<testName<<": "<<expected<<" != "<<res->s;
+      Bug()<<testName<<": "<<expected<<" != "<<res->s;
   }
 }
 
@@ -150,7 +150,7 @@ void stringFailureImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(res && ctx.diags.empty())
-    BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
+    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -178,10 +178,10 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   optional<QuotedString> res = lexDelimitedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    BugDie()<<testName<<" failed";
+    Bug()<<testName<<" failed";
   }else {
     if(expected != res->s) {
-      BugDie()<<testName<<": "<<expected<<" != "<<res->s;
+      Bug()<<testName<<": "<<expected<<" != "<<res->s;
     }
   }
 }
@@ -208,10 +208,10 @@ void indentedSourceBlockSuccessImpl(
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    BugDie()<<testName<<" failed";
+    Bug()<<testName<<" failed";
   }
   if(res.has_value() && res->s != expectedResult)
-    BugDie()<<testName<<" '"<<res->s<<"' != '"<<*expectedResult<<"'";
+    Bug()<<testName<<" '"<<res->s<<"' != '"<<*expectedResult<<"'";
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";
@@ -223,7 +223,7 @@ void indentedSourceBlockFailureImpl(
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res && ctx.diags.empty())
-    BugDie()<<"Test "<<testName<<" succeeded unexpectedly";
+    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 

@@ -34,11 +34,7 @@ struct TestErrImpl {
 
 #define TestErr TestErrImpl().start(__FILE__,__LINE__)
 
-// If I need to check BugDie later, I'll use std::set_terminate(). This can
-// happen if I worry about accidentally disabling checks. But for now, I am not
-// testing them since dying is never part of the API contract. They are all
-// internal bugs.
-#define BugMe oalex::BugDie()<<__func__<<": "
+#define BugMe oalex::Bug()<<__func__<<": "
 
 // Useful as getch() callbacks in dfa.h and input_view.h.
 // Dev note: When reading from files, two things to note:

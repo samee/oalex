@@ -67,7 +67,7 @@ void Input::peekAndBoundCharAt(size_t i) const {
   if(i < start_pos_) bugLostPos(i);
   peekTo(i+1);
   if(i-start_pos_ < buf_.size()) return;
-  if(!endSeen()) BugDie()<<"peekTo() returned unexpectedly early.";
+  if(!endSeen()) Bug()<<"peekTo() returned unexpectedly early.";
   Bug()<<"Out of bound error. "<<i<<" is beyond the end of input.";
 }
 

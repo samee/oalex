@@ -35,7 +35,7 @@ string debugType(const ExprToken& x) {
   if(holds_alternative<QuotedString>(x)) return "QuotedString";
   if(holds_alternative<UnquotedToken>(x)) return "UnquotedToken";
   if(holds_alternative<BracketGroup>(x)) return "BracketGroup";
-  BugDie()<<"ExprToken has unknown type: "<<x.index();
+  Bug()<<"ExprToken has unknown type: "<<x.index();
 }
 
 string debugType(BracketType t) {
@@ -43,7 +43,7 @@ string debugType(BracketType t) {
     case BracketType::square: return "BracketType::square";
     case BracketType::brace:  return "BracketType::brace";
     case BracketType::paren:  return "BracketType::paren";
-    default: BugDie()<<"Unknown BracketType: "<<int(t);
+    default: Bug()<<"Unknown BracketType: "<<int(t);
   }
 }
 
@@ -83,7 +83,7 @@ optional<string> match(ExprMatcher pattern, ExprToken expr) {
       if(auto err = match(m->children[i], x->children[i])) return err;
     return nullopt;
   }
-  BugDie()<<"ExprMatcher has unknown type: "<<pattern.index();
+  Bug()<<"ExprMatcher has unknown type: "<<pattern.index();
 }
 
 }  // namespace oalex::lex::matcher

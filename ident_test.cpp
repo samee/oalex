@@ -14,8 +14,8 @@ Ident fromString(string_view testName, string_view input) {
   auto rv = Ident::parse(ctx, i);
   assertEmptyDiags(testName, ctx.diags);
   if(i < input.size())
-    BugDie()<<testName<<": '"<<input<<"' has trailing chars: '"
-            <<input.substr(i)<<"'";
+    Bug()<<testName<<": '"<<input<<"' has trailing chars: '"
+         <<input.substr(i)<<"'";
   return rv;
 }
 
@@ -40,8 +40,8 @@ void testStopsAtTrail() {
   auto rv = Ident::parse(ctx, i);
   assertEmptyDiags(__func__, ctx.diags);
   if(i != 3)
-    BugDie()<<__func__<<": Ident parsing of 'foo-' was expected to end "
-                        "at position 3, not "<<i;
+    Bug()<<__func__<<": Ident parsing of 'foo-' was expected to end "
+                     "at position 3, not "<<i;
 }
 
 void testEqualities() {
@@ -53,7 +53,7 @@ void testEqualities() {
   for(const auto& [a,b] : equals) {
     Ident ai = fromString(__func__, a), bi = fromString(__func__, b);
     if(ai != bi)
-      BugDie()<<"Identifiers "<<a<<" and "<<b<<" don't compare equal.";
+      Bug()<<"Identifiers "<<a<<" and "<<b<<" don't compare equal.";
   }
   pair<string,string> not_equals[] = {
     {"foo_barx", "fooBar"},
@@ -61,9 +61,9 @@ void testEqualities() {
   };
   for(const auto& [a,b] : not_equals) {
     Ident ai = fromString(__func__, a), bi = fromString(__func__, b);
-    if(!ai || !bi) BugDie()<<"Ident failed to parse";
+    if(!ai || !bi) Bug()<<"Ident failed to parse";
     if(ai == bi)
-      BugDie()<<"Identifiers "<<a<<" and "<<b
+      Bug()<<"Identifiers "<<a<<" and "<<b
               <<" weren't expected to compare equal.";
   }
 }
@@ -79,23 +79,23 @@ void testCaseChange() {
   };
   for(const auto& [a,snake,ucamel,lcamel] : tests) {
     Ident ai = fromString(__func__, a);
-    if(!ai) BugDie()<<"Ident failed to parse";
+    if(!ai) Bug()<<"Ident failed to parse";
     string snakeo = ai.toSnakeCase();
     if(snakeo != snake)
-      BugDie()<<"Snake case failed. "<<a<<" became "<<snakeo
-              <<" instead of "<<snake;
+      Bug()<<"Snake case failed. "<<a<<" became "<<snakeo
+           <<" instead of "<<snake;
     string ucamelo = ai.toUCamelCase();
     if(ucamelo != ucamel)
-      BugDie()<<"Upper case failed. "<<a<<" became "<<ucamelo
-              <<" instead of "<<ucamel;
+      Bug()<<"Upper case failed. "<<a<<" became "<<ucamelo
+           <<" instead of "<<ucamel;
     string lcamelo = ai.toLCamelCase();
     if(lcamelo != lcamel)
-      BugDie()<<"Lower camel case failed. "<<a<<" became "<<lcamelo
+      Bug()<<"Lower camel case failed. "<<a<<" became "<<lcamelo
               <<" instead of "<<lcamel;
     string a2 = ai.preserveCase();
     if(a != a2)
-      BugDie()<<"preserveCase() is no longer preserves input: '"
-              <<a<<"' != '"<<a2<<"'";
+      Bug()<<"preserveCase() is no longer preserves input: '"
+           <<a<<"' != '"<<a2<<"'";
   }
 }
 
@@ -103,16 +103,16 @@ void testSet() {
   auto id = [](string_view s) { return fromString("testSet()", s); };
   set<Ident> s{id("foo"), id("fooBar"), id("fooBaz")};
   if(s.insert(id("foo_bar")).second)
-    BugDie()<<"std::set was expected to treat foo_bar and fooBar as equal";
+    Bug()<<"std::set was expected to treat foo_bar and fooBar as equal";
   if(!s.insert(id("food")).second)
-    BugDie()<<"std::set failed to insert new key";
+    Bug()<<"std::set failed to insert new key";
 
   unordered_set<Ident> us{id("foo"), id("fooBar"), id("fooBaz")};
   if(us.insert(id("foo_bar")).second)
-    BugDie()<<"std::unordered_set was expected to treat "
-              "foo_bar and fooBar as equal";
+    Bug()<<"std::unordered_set was expected to treat "
+           "foo_bar and fooBar as equal";
   if(!us.insert(id("food")).second)
-    BugDie()<<"std::unordered_set failed to insert new key";
+    Bug()<<"std::unordered_set failed to insert new key";
 }
 
 }  // namespace

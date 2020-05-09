@@ -476,7 +476,7 @@ CharSet parseCharSet(string input) {
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
   else {
     for(const auto& d : ctx.diags) BugWarn()<<string(d);
-    BugDie()<<"parseCharSet() input was invalid: "<<input;
+    Bug()<<"parseCharSet() input was invalid: "<<input;
   }
 }
 
