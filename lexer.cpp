@@ -431,10 +431,6 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
       return s;
     }
   }
-  // FIXME: There is now a possibility that we can "leak" (i.e. not forget any
-  // string from this point on) because we forgot the second markUsed(). I.e.
-  // if i changes after the first markused(), we should keep forgetting
-  // perhaps.
   rst.markUsed(i);
   return ctx.Error(delimStart, i-1, "Source block ends abruptly");
 }
