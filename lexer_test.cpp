@@ -209,6 +209,32 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
       Bug()<<testName<<": "<<expected<<" != "<<res->s;
     }
   }
+
+  try {
+    size_t input_line_count = ctx.input.rowCol(i).first - 1;
+    if(res->row_col_map.size() != input_line_count) {
+      Bug()<<testName<<": Was expecting "<<input_line_count
+           <<" entries in row_col_map, found "<<res->row_col_map.size();
+    }
+    for(size_t i=0; i<res->row_col_map.size(); ++i) {
+      const RowColRelation& w = res->row_col_map[i];
+      if(w.col != 1) Bug()<<testName<<": Found a linebreak mid-line";
+      size_t o = dsize + 1 + w.pos;
+      if(ctx.input.bol(o) != o)
+        Bug()<<testName<<": Parsed QuotedString starts a newline even though "
+                         "input does not";
+      if(ctx.input.rowCol(o).first != w.row)
+        Bug()<<testName<<": Parsed rowCol() points to unexpected line: "
+             <<w.row<<" != "<<ctx.input.rowCol(o).first;
+      if(i > 0 && res->row_col_map[i-1].row+1 != w.row)
+        Bug()<<testName<<": Line "<<w.row
+             <<" appears out of sequence after line "
+             <<res->row_col_map[i-1].row;
+    }
+  }catch(oalex::BugEx& ex) {
+    for(const auto& w : res->row_col_map) oalex::BugWarn()<<debug(w);
+    throw;
+  }
 }
 
 void delimSourceBlockFailureImpl(const char testInput[], const char testName[],

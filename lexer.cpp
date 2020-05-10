@@ -431,6 +431,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   Resetter rst(ctx, i);
+  vector<RowColRelation> rcmap;
   string delim = getline(ctx, i);
   if(!isSourceDelim(delim))
     ctx.Fatal(rst.start(), i, "Delimiters must be alphanumeric");
@@ -439,15 +440,17 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   size_t delimStart = rst.start();
   size_t inputStart = i;
   rst.markUsed(i);
+  rcmap.push_back(makeRowColRelation(input, i, 0));
   while(input.sizeGt(i)) {
     size_t lineStart = i;
     string line = getline(ctx, i);
     if(line == delim) {
       QuotedString s(delimStart, i-1,
-                     input.substr(inputStart, lineStart-inputStart), {});
+                     input.substr(inputStart, lineStart-inputStart),
+                     std::move(rcmap));
       rst.markUsed(i);
       return s;
-    }
+    } else rcmap.push_back(makeRowColRelation(input, i, i-inputStart));
   }
   rst.markUsed(i);
   return ctx.Error(delimStart, i-1, "Source block ends abruptly");
