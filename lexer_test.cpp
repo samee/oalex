@@ -257,7 +257,7 @@ const char noTrailingNewline[] = "  foo";
 const char noTrailingNewlineParsed[] = "foo\n";
 
 void indentedSourceBlockSuccessImpl(
-    const char testInput[], const char testName[],
+    string_view testInput, const char testName[],
     optional<string> expectedResult) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
@@ -266,8 +266,35 @@ void indentedSourceBlockSuccessImpl(
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     Bug()<<testName<<" failed";
   }
-  if(res.has_value() && res->s != expectedResult)
+  if(!res.has_value()) return;  // Don't check *res if it's not valid.
+
+  if(res->s != expectedResult)
     Bug()<<testName<<" '"<<res->s<<"' != '"<<*expectedResult<<"'";
+
+  if(testInput.substr(i, 2) == "  ")
+    Bug()<<testName<<" indented block parsing stopped too early";
+  const vector<RowColRelation>& rcmap = res->row_col_map;
+  size_t expected_lines = ctx.input.rowCol(i).first - (i < testInput.size());
+  if(rcmap.size() != expected_lines) {
+    Bug()<<"Indented block produced "<<rcmap.size()<<" entries, "
+         <<"but we stopped parsing after "<<expected_lines
+         <<" lines. Input:\n"<<testInput;
+  }
+  for(size_t j=0; j<rcmap.size(); ++j) if(rcmap[j].row != j+1)
+    Bug()<<__func__<<": line "<<j+1<<" is mapped to line "<<rcmap[j].row
+         <<" after parsing input:\n"<<testInput;
+  for(const auto& rel : rcmap) {
+    if(rel.col == 1) {
+      if(rel.pos < res->s.size() && res->s[rel.pos] != '\n')
+        Bug()<<__func__<<": non-blank line "<<rel.row
+             <<" is unexpectedly mapped to the first column for input:\n"
+             <<testInput;
+    }else if(rel.col == 3) {
+      if(rel.pos >= res->s.size() || res->s[rel.pos] == '\n')
+        Bug()<<__func__<<": rcmap indicated non-blank line "<<rel.row
+             <<" in output:\n"<<res->s;
+    }else Bug()<<__func__<<": Unexpected indent "<<debug(rel);
+  }
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";

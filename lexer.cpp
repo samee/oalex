@@ -463,16 +463,23 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
   string rv;
   Resetter rst(ctx,i);
+  vector<RowColRelation> rcmap;
   bool allblank = true;
   while(input.sizeGt(i)) {
+    size_t ls = i;
     optional<string> line = lexSourceLine(ctx,i,parindent);
     if(!line.has_value()) break;
-    if(!line->empty()) allblank = false;
+    if(line->empty()) rcmap.push_back(makeRowColRelation(input, ls, rv.size()));
+    else {
+      allblank = false;
+      rcmap.push_back(makeRowColRelation(input, ls+parindent.size(),
+                                         rv.size()));
+    }
     rv += *line; rv += '\n';
     rst.markUsed(i);
   }
   if(allblank) return nullopt;
-  QuotedString qs(rst.start(),i,rv,{});
+  QuotedString qs(rst.start(), i, std::move(rv), std::move(rcmap));
   rst.markUsed(i);
   return qs;
 }
