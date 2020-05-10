@@ -396,7 +396,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == '"') {
       rst.markUsed(++i);
-      if(!error) return QuotedString(rst.start(),i,s);
+      if(!error) return QuotedString(rst.start(),i,s,{});
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) s += *escres;
@@ -425,7 +425,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
     string line = getline(ctx, i);
     if(line == delim) {
       QuotedString s(delimStart, i-1,
-                     input.substr(inputStart, lineStart-inputStart));
+                     input.substr(inputStart, lineStart-inputStart), {});
       rst.markUsed(i);
       return s;
     }
@@ -450,7 +450,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
     rst.markUsed(i);
   }
   if(allblank) return nullopt;
-  QuotedString qs(rst.start(),i,rv);
+  QuotedString qs(rst.start(),i,rv,{});
   rst.markUsed(i);
   return qs;
 }

@@ -23,6 +23,10 @@
 
 namespace oalex::lex {
 
+struct RowColRelation {
+  size_t pos, row, col;
+};
+
 enum class LexSegmentTag {
   unquotedToken = Segment::lastReservedTag + 1,
   section,
@@ -48,9 +52,12 @@ struct UnquotedToken : LexSegment {
 
 struct QuotedString : LexSegment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
+  // TODO make these private, have clients use InputPiece::operator[].
   std::string s;  // escape codes already interpreted.
-  QuotedString(size_t st,size_t en,std::string_view s)
-    : LexSegment(st,en,type_tag), s(s) {}
+  std::vector<RowColRelation> row_col_map;
+  QuotedString(size_t st, size_t en, std::string_view s,
+               std::vector<RowColRelation> rcmap)
+    : LexSegment(st,en,type_tag), s(s), row_col_map(std::move(rcmap)) {}
 };
 
 struct BracketGroup;
