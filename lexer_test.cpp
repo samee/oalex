@@ -189,6 +189,8 @@ Even this
 Doesn't end the string
 ```foo)";
 
+const char badDelimStart[] = "```foo#\n";
+
 size_t delimSize(string_view s) { return s.find('\n'); }
 
 void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
@@ -207,6 +209,11 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
       Bug()<<testName<<": "<<expected<<" != "<<res->s;
     }
   }
+}
+
+void delimSourceBlockFailureImpl(const char testInput[], const char testName[],
+    string_view expectedDiag) {
+  assertProducesDiag(testName, testInput, expectedDiag, lexDelimitedSource);
 }
 
 const char goodIndent[] = R"(
@@ -373,6 +380,8 @@ void bracketGroupThrows(string input, string expectedDiag) {
   stringFailureImpl(test, #test "()", expected)
 #define delimSourceBlockSuccess(test) \
   delimSourceBlockSuccessImpl(test, #test "()")
+#define delimSourceBlockFailure(test, expected) \
+  delimSourceBlockFailureImpl(test, #test "()", expected)
 #define indentedSourceBlockSuccess(test, expected) \
   indentedSourceBlockSuccessImpl(test, #test, expected)
 #define indentedSourceBlockFailure(test, expected) \
@@ -401,6 +410,7 @@ int main() {
 
   delimSourceBlockSuccess(delimSourceBlock);
   delimSourceBlockSuccess(delimSourceBlockCustom);
+  delimSourceBlockFailure(badDelimStart, "Delimiters must be alphanumeric");
 
   indentedSourceBlockSuccess(goodIndent, goodIndentParsed);
   indentedSourceBlockSuccess(allBlank, nullopt);

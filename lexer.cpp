@@ -418,13 +418,22 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   return nullopt;
 }
 
+static bool isSourceDelim(string_view delim) {
+  if(delim.substr(0,3) != "```") return false;
+  size_t i;
+  for(i=3; i<delim.size(); ++i) if(!isalnum(delim[i])) break;
+  for(   ; i<delim.size(); ++i) if(delim[i]!=' ' && delim[i]!='\t') break;
+  return i == delim.size();
+}
+
 optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   Resetter rst(ctx, i);
-  // TODO only allow alphanumeric and space. No comments or punctuation.
   string delim = getline(ctx, i);
+  if(!isSourceDelim(delim))
+    ctx.Fatal(rst.start(), i, "Delimiters must be alphanumeric");
 
   // Valid starting delimiter, so now we are commited to changing i.
   size_t delimStart = rst.start();
