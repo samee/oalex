@@ -44,6 +44,7 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::QuotedString;
+using oalex::lex::RowColRelation;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexDelimitedSource;
@@ -152,6 +153,28 @@ void stringFailureImpl(const char testInput[], const char testName[],
   if(res && ctx.diags.empty())
     Bug()<<"Test "<<testName<<" succeeded unexpectedly";
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+}
+
+string debug(const RowColRelation& iw) {
+  return Str()<<".pos = "<<iw.pos<<", .row = "<<iw.row<<", .col = "<<iw.col;
+}
+
+void assertEq(const RowColRelation& a, const RowColRelation& b) {
+  if(a.pos != b.pos || a.row != b.row || a.col != b.col)
+    Bug()<<"Row col mismatched: {"<<debug(a)<<"} != {"<<debug(b)<<"}";
+}
+
+void stringPosMap() {
+  const char testInput[] = R"("foo\nbar")";
+  InputDiags ctx{testInputDiags(testInput)};
+  size_t i = 0;
+  optional<QuotedString> res = lexQuotedString(ctx, i);
+  if(!res) Bug()<<"Parsing "<<testInput<<" failed in "<<__func__;
+  if(res->row_col_map.size() != 2)
+    Bug()<<__func__<<" is producing a row_col_map of size "
+         <<res->row_col_map.size()<<" != 2";
+  assertEq(res->row_col_map[0], {.pos=0, .row=1, .col=2});
+  assertEq(res->row_col_map[1], {.pos=4, .row=1, .col=7});
 }
 
 const char delimSourceBlock[] = R"(```
@@ -374,6 +397,7 @@ int main() {
   stringFailure(invalidEscape, "Invalid escape");
   stringFailure(incompleteHex, "Incomplete hex");
   stringFailure(invalidHex, "Invalid hex");
+  stringPosMap();
 
   delimSourceBlockSuccess(delimSourceBlock);
   delimSourceBlockSuccess(delimSourceBlockCustom);

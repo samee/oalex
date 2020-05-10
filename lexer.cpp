@@ -381,6 +381,12 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
   else ctx.Fatal(i, "Invalid input character");
 }
 
+static RowColRelation
+makeRowColRelation(const Input& input, size_t inputPos, size_t quotePos) {
+  auto [r,c] = input.rowCol(inputPos);
+  return {.pos = quotePos, .row = r, .col = c};
+}
+
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
 // the caller should try parsing something else. In all other cases, it will
 // either return a valid string, or nullopt with errors added to ctx.diags. In
@@ -391,16 +397,20 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   if(!input.sizeGt(i) || input[i]!='"') return nullopt;
   Resetter rst(ctx, i);
   string s;
+  vector<RowColRelation> rcmap;
   bool error = false;
   ++i;
+  rcmap.push_back(makeRowColRelation(input, i, 0));
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == '"') {
       rst.markUsed(++i);
-      if(!error) return QuotedString(rst.start(),i,s,{});
+      if(!error) return QuotedString(rst.start(), i, s, std::move(rcmap));
       else return nullopt;
     }else if(input[i] == '\\') {
-      if(optional<char> escres = lexQuotedEscape(ctx, ++i)) s += *escres;
-      else error = true;
+      if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
+        s += *escres;
+        rcmap.push_back(makeRowColRelation(input, i, s.size()));
+      } else error = true;
     }else s += input[i++];
   }
   ctx.Error(rst.start(),i,"Unexpected end of line");
