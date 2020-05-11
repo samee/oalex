@@ -25,6 +25,7 @@ namespace oalex {
 class InputPiece {
  public:
   virtual char operator[](size_t sz) const = 0;
+  virtual bool sizeGt(size_t sz) const = 0;
   virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
   virtual ~InputPiece() = default;
 };
@@ -62,7 +63,7 @@ class Input final : public InputPiece {
 
   void forgetBefore(size_t pos);   // Amortized O(1).
   char operator[](size_t sz) const override;  // Amortized O(1).
-  bool sizeGt(size_t pos) const { peekTo(pos); return pos<size_; }
+  bool sizeGt(size_t pos) const override { peekTo(pos); return pos<size_; }
 
   // Beginning-of-line index. It is okay if characters at position i has
   // already been forgotten. It is still useful for figuring out indentation.

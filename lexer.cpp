@@ -55,6 +55,7 @@ using std::hex;
 using std::nullopt;
 using std::numeric_limits;
 using std::optional;
+using std::pair;
 using std::shared_ptr;
 using std::stoi;
 using std::string;
@@ -316,6 +317,19 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
+
+pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
+  auto bypos = [](const RowColRelation& a, const RowColRelation& b) {
+    return a.pos < b.pos;
+  };
+  auto it = upper_bound(row_col_map_.begin(), row_col_map_.end(),
+                        RowColRelation{.pos = pos, .row = 0, .col = 0}, bypos);
+  if(it == row_col_map_.begin())
+    Bug()<<"No row/col entry for the first line in: "<<s_;
+  --it;
+  return pair(it->row, it->col + pos - it->pos);
+}
+
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
 // are just parsing the "hh" part. `i` points to what should be the first hex
 // digit.
@@ -479,6 +493,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
     rst.markUsed(i);
   }
   if(allblank) return nullopt;
+  rcmap.push_back(makeRowColRelation(input, i, rv.size()));
   QuotedString qs(rst.start(), i, std::move(rv), std::move(rcmap));
   rst.markUsed(i);
   return qs;

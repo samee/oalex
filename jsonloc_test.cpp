@@ -97,7 +97,7 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
   if(auto token = parseIdent(ctx,expr))
     return JsonLoc(JsonLoc::Placeholder{token->token});
   if(auto* qs = get_if<QuotedString>(&expr))
-    return JsonLoc(qs->s);
+    return JsonLoc(*qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
     if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
     if(bg->type == BracketType::square) return parseVector(ctx, bg->children);

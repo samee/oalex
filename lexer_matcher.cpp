@@ -63,7 +63,7 @@ optional<string> match(ExprMatcher pattern, ExprToken expr) {
   if(const auto* m = get_if<QuotedMatcher>(&pattern)) {
     const auto* x = get_if<QuotedString>(&expr);
     if(!x) return typeMismatch("QuotedString", expr);
-    else if(m->s != x->s) return stringMismatch(m->s, x->s);
+    else if(m->s != string_view(*x)) return stringMismatch(m->s, *x);
     else return nullopt;
   }
   if(const auto* m = get_if<UnquotedMatcher>(&pattern)) {

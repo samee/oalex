@@ -29,6 +29,7 @@ using std::nullopt;
 using std::optional;
 using std::ostream;
 using std::ostringstream;
+using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -140,8 +141,8 @@ void stringSuccessImpl(const char testInput[], const char testName[],
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     Bug()<<testName<<" failed";
   }else {
-    if(expected != res->s)
-      Bug()<<testName<<": "<<expected<<" != "<<res->s;
+    if(expected != *res)
+      Bug()<<testName<<": "<<expected<<" != "<<string_view(*res);
   }
 }
 
@@ -155,13 +156,13 @@ void stringFailureImpl(const char testInput[], const char testName[],
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
-string debug(const RowColRelation& iw) {
-  return Str()<<".pos = "<<iw.pos<<", .row = "<<iw.row<<", .col = "<<iw.col;
+string debug(const pair<size_t,size_t>& p) {
+  return Str()<<p.first<<':'<<p.second;
 }
 
-void assertEq(const RowColRelation& a, const RowColRelation& b) {
-  if(a.pos != b.pos || a.row != b.row || a.col != b.col)
-    Bug()<<"Row col mismatched: {"<<debug(a)<<"} != {"<<debug(b)<<"}";
+template <class T>
+void assertEq(string_view errmsg, const T& a, const T& b) {
+  if(a != b) Bug()<<errmsg<<": "<<debug(a)<<" != "<<debug(b);
 }
 
 void stringPosMap() {
@@ -170,11 +171,12 @@ void stringPosMap() {
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(!res) Bug()<<"Parsing "<<testInput<<" failed in "<<__func__;
-  if(res->row_col_map.size() != 2)
-    Bug()<<__func__<<" is producing a row_col_map of size "
-         <<res->row_col_map.size()<<" != 2";
-  assertEq(res->row_col_map[0], {.pos=0, .row=1, .col=2});
-  assertEq(res->row_col_map[1], {.pos=4, .row=1, .col=7});
+  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(0),
+           pair<size_t,size_t>(1, 2));
+  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(4),
+           pair<size_t,size_t>(1, 7));
+  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(7),
+           pair<size_t,size_t>(1, 10));
 }
 
 const char delimSourceBlock[] = R"(```
@@ -205,36 +207,31 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
     for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
     Bug()<<testName<<" failed";
   }else {
-    if(expected != res->s) {
-      Bug()<<testName<<": "<<expected<<" != "<<res->s;
+    if(expected != *res) {
+      Bug()<<testName<<": "<<expected<<" != "<<string_view(*res);
     }
   }
 
-  try {
-    size_t input_line_count = ctx.input.rowCol(i).first - 1;
-    if(res->row_col_map.size() != input_line_count) {
-      Bug()<<testName<<": Was expecting "<<input_line_count
-           <<" entries in row_col_map, found "<<res->row_col_map.size();
-    }
-    for(size_t i=0; i<res->row_col_map.size(); ++i) {
-      const RowColRelation& w = res->row_col_map[i];
-      if(w.col != 1) Bug()<<testName<<": Found a linebreak mid-line";
-      size_t o = dsize + 1 + w.pos;
-      if(ctx.input.bol(o) != o)
-        Bug()<<testName<<": Parsed QuotedString starts a newline even though "
-                         "input does not";
-      if(ctx.input.rowCol(o).first != w.row)
-        Bug()<<testName<<": Parsed rowCol() points to unexpected line: "
-             <<w.row<<" != "<<ctx.input.rowCol(o).first;
-      if(i > 0 && res->row_col_map[i-1].row+1 != w.row)
-        Bug()<<testName<<": Line "<<w.row
-             <<" appears out of sequence after line "
-             <<res->row_col_map[i-1].row;
-    }
-  }catch(oalex::BugEx& ex) {
-    for(const auto& w : res->row_col_map) oalex::BugWarn()<<debug(w);
-    throw;
+  size_t lastLineNumber = ctx.input.rowCol(i).first;
+
+  if(res->rowCol(0).first != 2)
+    Bug()<<testName<<": Was expecting delimted string body to start on "
+         <<"the second line. Found it on "<<res->rowCol(0).first<<". Input:\n"
+         <<testInput;
+  for(size_t i=0; i<res->size(); ++i) if(res->rowCol(i+1).second == 1) {
+    if(res->rowCol(i).first+1 != res->rowCol(i+1).first)
+      Bug()<<testName<<" Line numbers are not sequential "
+           <<" at the start of line "<<res->rowCol(i+1).first<<". Input:\n"
+           <<testInput;
+    auto expected = ctx.input.rowCol(i + 1 + dsize);
+    if(res->rowCol(i) != expected)
+      Bug()<<testName<<" Location info changed after parsing: "
+           <<debug(expected)<<" became "<<debug(res->rowCol(i));
   }
+  if(res->rowCol(res->size()) != pair(lastLineNumber, size_t(1)))
+    Bug()<<testName<<": Was expecting the input to end on "<<lastLineNumber
+         <<":1, instead found "<<debug(res->rowCol(res->size()))<<". Input\n"
+         <<testInput;
 }
 
 void delimSourceBlockFailureImpl(const char testInput[], const char testName[],
@@ -253,8 +250,9 @@ const char goodIndentParsed[] = "\nfoo\n\nbar:\n  baz\n";
 
 const char allBlank[] = "\n  \n\t\n";
 
-const char noTrailingNewline[] = "  foo";
-const char noTrailingNewlineParsed[] = "foo\n";
+size_t lineCount(string_view s) {
+  size_t c = 1; for(char ch : s) if(ch == '\n') ++c; return c;
+}
 
 void indentedSourceBlockSuccessImpl(
     string_view testInput, const char testName[],
@@ -268,33 +266,46 @@ void indentedSourceBlockSuccessImpl(
   }
   if(!res.has_value()) return;  // Don't check *res if it's not valid.
 
-  if(res->s != expectedResult)
-    Bug()<<testName<<" '"<<res->s<<"' != '"<<*expectedResult<<"'";
+  if(string_view(*res) != *expectedResult)
+    Bug()<<testName<<" '"<<string_view(*res)<<"' != '"<<*expectedResult<<"'";
 
   if(testInput.substr(i, 2) == "  ")
     Bug()<<testName<<" indented block parsing stopped too early";
-  const vector<RowColRelation>& rcmap = res->row_col_map;
-  size_t expected_lines = ctx.input.rowCol(i).first - (i < testInput.size());
-  if(rcmap.size() != expected_lines) {
-    Bug()<<"Indented block produced "<<rcmap.size()<<" entries, "
-         <<"but we stopped parsing after "<<expected_lines
-         <<" lines. Input:\n"<<testInput;
-  }
-  for(size_t j=0; j<rcmap.size(); ++j) if(rcmap[j].row != j+1)
-    Bug()<<__func__<<": line "<<j+1<<" is mapped to line "<<rcmap[j].row
-         <<" after parsing input:\n"<<testInput;
-  for(const auto& rel : rcmap) {
-    if(rel.col == 1) {
-      if(rel.pos < res->s.size() && res->s[rel.pos] != '\n')
-        Bug()<<__func__<<": non-blank line "<<rel.row
-             <<" is unexpectedly mapped to the first column for input:\n"
-             <<testInput;
-    }else if(rel.col == 3) {
-      if(rel.pos >= res->s.size() || res->s[rel.pos] == '\n')
-        Bug()<<__func__<<": rcmap indicated non-blank line "<<rel.row
-             <<" in output:\n"<<res->s;
-    }else Bug()<<__func__<<": Unexpected indent "<<debug(rel);
-  }
+
+  size_t lc = lineCount(testInput.substr(0, i));
+  if(res->rowCol(0).first != 1)
+    Bug()<<testName<<" Parsed value does not start at row 1";
+
+  if(res->rowCol(res->size()).first != lc)
+    Bug()<<testName<<" Parsed value does not end on line "<<lc<<", input:\n"
+         <<testInput;
+
+  string_view testOutput  = *res;
+  for(size_t i = 0; i < res->size(); ++i)
+    if(res->rowCol(i).first != res->rowCol(i+1).first) {
+      size_t r1 = res->rowCol(i).first, r2 = res->rowCol(i+1).first;
+      if(r1+1 != r2)
+        Bug()<<testName<<" line numbers are not sequential after "<<r1
+             <<": found "<<r2;
+      if(testOutput[i] != '\n')
+        Bug()<<testName<<" starts a new line without a newline char at "
+             <<debug(res->rowCol(i+1));
+      size_t c2 = res->rowCol(i+1).second;
+      char next = (res->sizeGt(i+1) ? testOutput[i+1] : '\n');
+      if(c2 == 1) {
+        if(next != '\n')
+          Bug()<<testName<<" maps "<<i+1<<" to column 1, even though it is "
+               <<"not a blank line.";
+      }else if(c2 == 3) {
+        if(next == '\n')
+         Bug()<<testName<<" maps "<<i+1<<" to column 3, even thouhg it is "
+              <<"a blank line.";
+      }else
+        Bug()<<testName<<" maps the start of line "<<r2<<" to column "<<c2
+             <<", was expecting column 1 or 3.";
+    }else if(testOutput[i] == '\n')
+      Bug()<<testName<<" doesn't start a new line in spite of a \\n char at "
+           <<debug(res->rowCol(i));
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";
@@ -377,7 +388,7 @@ void debug(ostream& os,const ExprToken& expr) {
     return;
   }
   if(const auto* qs = get_if<QuotedString>(&expr)) {
-    os<<"quoted("<<qs->s<<")";
+    os<<"quoted("<<string_view(*qs)<<")";
     return;
   }
   const BracketGroup& bg = get<BracketGroup>(expr);
@@ -467,7 +478,6 @@ int main() {
 
   indentedSourceBlockSuccess(goodIndent, goodIndentParsed);
   indentedSourceBlockSuccess(allBlank, nullopt);
-  indentedSourceBlockSuccess(noTrailingNewline, noTrailingNewlineParsed);
   indentedSourceBlockFailure(tabSpaceMix, "mixes tabs and spaces");
 
   lookaheadsSuccess();

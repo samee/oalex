@@ -50,14 +50,27 @@ struct UnquotedToken : LexSegment {
   const std::string& operator*() const { return token; }
 };
 
-struct QuotedString : LexSegment {
+// These are the (assumed and unverified) assumptions on rcmap:
+//   * rcmap.pos are provided in strictly increasing order.
+//   * rcmap[i].pos < rcmap[j].pos iff
+//       (rcmap[i].row, rcmap[i].col) < (rcmap[j].row, rcmap[j].col)
+class QuotedString : public LexSegment, public InputPiece {
+ public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
   // TODO make these private, have clients use InputPiece::operator[].
-  std::string s;  // escape codes already interpreted.
-  std::vector<RowColRelation> row_col_map;
   QuotedString(size_t st, size_t en, std::string_view s,
                std::vector<RowColRelation> rcmap)
-    : LexSegment(st,en,type_tag), s(s), row_col_map(std::move(rcmap)) {}
+    : LexSegment(st,en,type_tag), s_(s), row_col_map_(std::move(rcmap)) {}
+
+  char operator[](size_t pos) const final { return s_[pos]; }
+  bool sizeGt(size_t pos) const final { return s_.size() > pos; }
+  std::pair<size_t,size_t> rowCol(size_t pos) const final;
+  operator std::string_view() const { return s_; }
+  operator std::string() const { return s_; }
+  size_t size() const { return s_.size(); }
+ private:
+  std::string s_;  // escape codes already interpreted.
+  std::vector<RowColRelation> row_col_map_;
 };
 
 struct BracketGroup;
