@@ -13,6 +13,8 @@
     limitations under the License. */
 
 #include "template.h"
+#include "lexer.h"
+#include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 using std::optional;
 using std::pair;
@@ -22,7 +24,10 @@ using std::vector;
 using namespace std::literals::string_literals;
 using oalex::Bug;
 using oalex::DelimPair;
+using oalex::InputDiags;
 using oalex::matchAllParts;
+using oalex::lex::QuotedString;
+using oalex::lex::lexQuotedString;
 
 namespace {
 
@@ -34,19 +39,32 @@ void assertHasSubstr(string_view testName, string_view s,
          <<"' instead of '"<<t<<"'";
 }
 
+QuotedString quoteImpl(string_view testName, string s) {
+  size_t i = 0;
+  InputDiags ctx = testInputDiags('"' + s + '"');
+  auto res = lexQuotedString(ctx, i);
+  assertEmptyDiags(testName, ctx.diags);
+  if(!res.has_value() || i != s.size() + 2)
+    Bug()<<testName<<": quote() called with invalid string "<<s;
+  return *res;
+}
+
+#define quote(arg) quoteImpl(__func__, arg)
+
 void testMatchAll() {
-  const string tmpl = "if (cond) { ... } else { ... }";
+  const QuotedString tmpl = quote("if (cond) { ... } else { ... }");
 
   // Test a single match.
-  optional<vector<pair<size_t, size_t>>> out = matchAllParts("cond"s, tmpl);
+  optional<vector<pair<size_t, size_t>>> out
+    = matchAllParts(quote("cond"), tmpl);
 
-  if(!out) BugMe<<"Couldn't find 'cond' in: "<<tmpl;
+  if(!out) BugMe<<"Couldn't find 'cond' in: "<<string(tmpl);
   if(out->size() != 1)
     BugMe<<"Was expecting a single match. Found "<<out->size();
   assertHasSubstr(__func__, tmpl, out->at(0).first, "cond");
 
-  out = matchAllParts(DelimPair{"{", "}"}, tmpl);
-  if(!out) BugMe<<"Couldn't find '{ ... }' in: "<<tmpl;
+  out = matchAllParts(DelimPair{quote("{"), quote("}")}, tmpl);
+  if(!out) BugMe<<"Couldn't find '{ ... }' in: "<<string(tmpl);
   if(out->size() != 2)
     BugMe<<"Was expecting two matches. Found "<<out->size();
   for(auto& bound : *out) {

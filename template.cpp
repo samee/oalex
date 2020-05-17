@@ -21,10 +21,11 @@ using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
+using oalex::lex::QuotedString;
 
 namespace oalex {
 
-static auto matchAllParts(const string& spatt, string_view s)
+static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
   if(spatt.empty()) return nullopt;
   vector<pair<size_t, size_t>> rv;
@@ -36,8 +37,7 @@ static auto matchAllParts(const string& spatt, string_view s)
   return rv;
 }
 
-using oalex::Debug;
-static auto matchAllParts(const DelimPair& dpatt, string_view s)
+static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
   -> optional<vector<pair<size_t,size_t>>> {
   if(dpatt.st.empty() || dpatt.en.empty()) return nullopt;
   if(dpatt.st.find(dpatt.en, 1) != string::npos) return nullopt;
@@ -53,9 +53,9 @@ static auto matchAllParts(const DelimPair& dpatt, string_view s)
 }
 
 // TODO: Produce error message for every `return nullopt` here.
-auto matchAllParts(const PartPattern& patt, string_view s)
+auto matchAllParts(const PartPattern& patt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
-  if(auto* spatt = get_if<string>(&patt)) return matchAllParts(*spatt, s);
+  if(auto* spatt = get_if<QuotedString>(&patt)) return matchAllParts(*spatt, s);
   if(auto* dpatt = get_if<DelimPair>(&patt)) return matchAllParts(*dpatt, s);
   Bug()<<"matchAllParts() called with unknown variant: index "<<patt.index();
 }
