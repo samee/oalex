@@ -50,7 +50,7 @@ struct UnquotedToken : LexSegment {
   const std::string& operator*() const { return token; }
 };
 
-// These are the (assumed and unverified) assumptions on rcmap:
+// These are the factory methods ensure the following invariants on rcmap:
 //   * rcmap.pos are provided in strictly increasing order.
 //   * rcmap[i].pos < rcmap[j].pos iff
 //       (rcmap[i].row, rcmap[i].col) < (rcmap[j].row, rcmap[j].col)
@@ -69,10 +69,13 @@ struct UnquotedToken : LexSegment {
 class QuotedString : public LexSegment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
-  // TODO make these private, have clients use InputPiece::operator[].
-  QuotedString(size_t st, size_t en, std::string_view s,
-               std::vector<RowColRelation> rcmap)
-    : LexSegment(st,en,type_tag), s_(s), row_col_map_(std::move(rcmap)) {}
+  friend auto lexQuotedString(InputDiags& ctx, size_t& i)
+    -> std::optional<QuotedString>;
+  friend auto lexDelimitedSource(InputDiags& ctx, size_t& i)
+    -> std::optional<QuotedString>;
+  friend auto lexIndentedSource(InputDiags& ctx, size_t& i,
+                                std::string_view parindent)
+    -> std::optional<QuotedString>;
 
   char operator[](size_t pos) const final { return s_[pos]; }
   bool sizeGt(size_t pos) const final { return s_.size() > pos; }
@@ -88,6 +91,10 @@ class QuotedString : public LexSegment, public InputPiece {
  private:
   std::string s_;  // escape codes already interpreted.
   std::vector<RowColRelation> row_col_map_;
+  QuotedString(size_t st, size_t en, std::string_view s,
+               std::vector<RowColRelation> rcmap)
+    : LexSegment(st,en,type_tag), s_(s), row_col_map_(std::move(rcmap)) {}
+
 };
 
 struct BracketGroup;
