@@ -79,7 +79,12 @@ class QuotedString : public LexSegment, public InputPiece {
   std::pair<size_t,size_t> rowCol(size_t pos) const final;
   operator std::string_view() const { return s_; }
   operator std::string() const { return s_; }
+  bool empty() const { return s_.empty(); }
   size_t size() const { return s_.size(); }
+  std::string_view substr(size_t pos, size_t len) const
+    { return std::string_view(s_).substr(pos, len); }
+  size_t find(std::string_view s, size_t st=0) const noexcept
+    { return s_.find(s, st); }
  private:
   std::string s_;  // escape codes already interpreted.
   std::vector<RowColRelation> row_col_map_;
