@@ -54,6 +54,18 @@ struct UnquotedToken : LexSegment {
 //   * rcmap.pos are provided in strictly increasing order.
 //   * rcmap[i].pos < rcmap[j].pos iff
 //       (rcmap[i].row, rcmap[i].col) < (rcmap[j].row, rcmap[j].col)
+//
+// Alternate approaches:
+//   Q: Why don't we just keep the entire file in memory, representing strings
+//      as just an std::string_view?
+//   A: We will still need to keep location information for error messages.
+//
+//   Q: Okay, then why don't we make our own simple string_view class that uses
+//      file indices instead of pointers? We already have rowCol() map for those
+//      offsets in class Input.
+//   A: QuotedString often represents processed strings, after escape codes
+//      and other quoted constructs have been decoded. Bytes in the input file
+//      do not always correspond to bytes in a QuotedString.
 class QuotedString : public LexSegment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
