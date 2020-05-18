@@ -66,7 +66,8 @@ struct UnquotedToken : LexSegment {
 //   A: QuotedString often represents processed strings, after escape codes
 //      and other quoted constructs have been decoded. Bytes in the input file
 //      do not always correspond to bytes in a QuotedString.
-class QuotedString : public LexSegment, public InputPiece {
+class QuotedString final
+  : public LexSegment, public InputPiece, public DiagDest {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
@@ -97,6 +98,8 @@ class QuotedString : public LexSegment, public InputPiece {
     : LexSegment(st,en,type_tag), s_(s),
       diags_(diags), row_col_map_(std::move(rcmap)) {}
 
+  const InputPiece& row_col_table() const final { return *this; }
+  std::vector<Diag>& diagDest() { return *diags_; }
 };
 
 struct BracketGroup;
