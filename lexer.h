@@ -90,10 +90,12 @@ class QuotedString : public LexSegment, public InputPiece {
     { return s_.find(s, st); }
  private:
   std::string s_;  // escape codes already interpreted.
+  std::vector<Diag>* diags_;
   std::vector<RowColRelation> row_col_map_;
   QuotedString(size_t st, size_t en, std::string_view s,
-               std::vector<RowColRelation> rcmap)
-    : LexSegment(st,en,type_tag), s_(s), row_col_map_(std::move(rcmap)) {}
+               std::vector<Diag>* diags, std::vector<RowColRelation> rcmap)
+    : LexSegment(st,en,type_tag), s_(s),
+      diags_(diags), row_col_map_(std::move(rcmap)) {}
 
 };
 

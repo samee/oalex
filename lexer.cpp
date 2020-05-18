@@ -418,7 +418,8 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == '"') {
       rst.markUsed(++i);
-      if(!error) return QuotedString(rst.start(), i, s, std::move(rcmap));
+      if(!error)
+        return QuotedString(rst.start(), i, s, &ctx.diags, std::move(rcmap));
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
@@ -461,7 +462,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
     if(line == delim) {
       QuotedString s(delimStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
-                     std::move(rcmap));
+                     &ctx.diags, std::move(rcmap));
       rst.markUsed(i);
       return s;
     } else rcmap.push_back(makeRowColRelation(input, i, i-inputStart));
@@ -494,7 +495,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   }
   if(allblank) return nullopt;
   rcmap.push_back(makeRowColRelation(input, i, rv.size()));
-  QuotedString qs(rst.start(), i, std::move(rv), std::move(rcmap));
+  QuotedString qs(rst.start(), i, std::move(rv), &ctx.diags, std::move(rcmap));
   rst.markUsed(i);
   return qs;
 }
