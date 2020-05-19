@@ -137,7 +137,7 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
     if(!input.sizeGt(i) || i>=end) return end;
     else if(isin(input[i], " \t\n")) ++i;
     else if(skipComments(*this, input, i, end)) {
-      if(i == Input::npos) ctx.Error(i, i+1, "Comment never ends");
+      if(i == Input::npos) Error(ctx, i, i+1, "Comment never ends");
     }else return i;
   }
 }
@@ -150,7 +150,7 @@ size_t Skipper::acrossLines(InputDiags& ctx, size_t pos) const {
     if(!input.sizeGt(i)) return Input::npos;
     else if(isin(input[i], " \t")) ++i;
     else if(skipComments(*this, input, i, Input::npos)) {
-      if(i == Input::npos) ctx.Error(i, i+1, "Comment never ends");
+      if(i == Input::npos) Error(ctx, i, i+1, "Comment never ends");
       lineBlank = false;
     }else if(input[i] == '\n') {
       if(lineBlank) anyLineBlank = true;

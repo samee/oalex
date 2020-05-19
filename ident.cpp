@@ -63,7 +63,7 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   bool alluscore = true;
   size_t l;
   for(l=0; input.sizeGt(i+l); ++l) {
-    if(l >= kMaxIdentLen) ctx.Fatal(i, i+l, "Identifier too long");
+    if(l >= kMaxIdentLen) Fatal(ctx, i, i+l, "Identifier too long");
     char ch = input[i+l];
     if(ch!='_' && !isalnum(ch)) break;
     if(isalnum(ch)) alluscore = false;
@@ -74,15 +74,15 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   rst.markUsed(i+=l);
 
   if(alluscore)
-    return ctx.Error(o, o+l, "Identifier must have a digit or letter");
+    return Error(ctx, o, o+l, "Identifier must have a digit or letter");
   if(input[o] == '_' || input[o+l-1] == '_')
-    return ctx.Error(o, o+l, "Identifiers with leading or trailing underscores "
-                             "are not supported for forward compatibility");
+    return Error(ctx, o, o+l, "Identifiers with leading or trailing underscores"
+                              " are not supported for forward compatibility");
   if(isdigit(input[o]))
-    return ctx.Error(o, o+1, "Identifiers cannot start with a digit");
+    return Error(ctx, o, o+1, "Identifiers cannot start with a digit");
   for(size_t j=o+1; j<o+l; ++j) if(input[j] == '_' && input[j-1] == '_')
-    return ctx.Error(j-1, j+1, "Consecutive underscores are not allowed for "
-                               "forward compatibility");
+    return Error(ctx, j-1, j+1, "Consecutive underscores are not allowed for "
+                                "forward compatibility");
   return rv;
 }
 

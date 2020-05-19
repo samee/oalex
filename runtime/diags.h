@@ -14,6 +14,7 @@
 
 #pragma once
 #include "input_view.h"
+#include "util.h"
 
 namespace oalex {
 
@@ -35,26 +36,69 @@ class DiagDest {
   virtual const InputPiece& row_col_table() const = 0;
   virtual std::vector<Diag>& diagDest() = 0;
   virtual ~DiagDest() = default;
-
-  // throws, never returns.
-  [[noreturn]] void FatalBug(size_t st,size_t en,std::string msg) const;
-  [[noreturn]] void Fatal(size_t st,size_t en,std::string msg) const;
-
-  std::nullopt_t Error(size_t st,size_t en,std::string msg);
-  std::nullopt_t Warning(size_t st,size_t en,std::string msg);
-  std::nullopt_t Note(size_t st,size_t en,std::string msg);
-
-  [[noreturn]] void FatalBug(size_t pos,std::string msg) const
-    { FatalBug(pos, pos+1, std::move(msg)); }
-  [[noreturn]] void Fatal(size_t pos,std::string msg) const
-    { Fatal(pos, pos+1, std::move(msg)); }
-  std::nullopt_t Error(size_t pos,std::string msg)
-    { return Error(pos, pos+1, std::move(msg)); }
-  std::nullopt_t Warning(size_t pos,std::string msg)
-    { return Warning(pos, pos+1, std::move(msg)); }
-  std::nullopt_t Note(size_t pos,std::string msg)
-    { return Note(pos, pos+1, std::move(msg)); }
 };
+
+// Typically, we don't expect this to be called directly. This is merely a
+// helper for the more convenient Error(), Warning(), and Note().
+template <class DiagTarget> std::nullopt_t
+pushDiagReturnNullOpt(DiagTarget& dt, size_t st, size_t en,
+                      Diag::Severity sev, std::string msg) {
+  std::vector<Diag>& diags = dt.diagDest();
+  diags.emplace_back(dt.row_col_table(), st, en, sev, std::move(msg));
+  return std::nullopt;
+}
+
+template <class DiagTarget> [[noreturn]] void
+FatalBug(DiagTarget& dt, size_t st, size_t en, std::string msg) {
+  Bug()<<std::string(Diag(dt.row_col_table(), st, en,
+                          Diag::error, std::move(msg)));
+}
+
+template <class DiagTarget> [[noreturn]] void
+Fatal(DiagTarget& dt, size_t st, size_t en, std::string msg) {
+  UserError()<<std::string(Diag(dt.row_col_table(), st, en,
+                                Diag::error, std::move(msg)));
+}
+
+template <class DiagTarget> std::nullopt_t
+Error(DiagTarget& dt, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, en, Diag::error, std::move(msg));
+}
+
+template <class DiagTarget> std::nullopt_t
+Warning(DiagTarget& dt, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, en, Diag::warning, std::move(msg));
+}
+
+template <class DiagTarget> std::nullopt_t
+Note(DiagTarget& dt, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, en, Diag::note, std::move(msg));
+}
+
+template <class DiagTarget> [[noreturn]] void
+FatalBug(DiagTarget& dt, size_t st, std::string msg) {
+  FatalBug(dt, st, st+1, std::move(msg));
+}
+
+template <class DiagTarget> [[noreturn]] void
+Fatal(DiagTarget& dt, size_t st, std::string msg) {
+  Fatal(dt, st, st+1, std::move(msg));
+}
+
+template <class DiagTarget> std::nullopt_t
+Error(DiagTarget& dt, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, st+1, Diag::error, std::move(msg));
+}
+
+template <class DiagTarget> std::nullopt_t
+Warning(DiagTarget& dt, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, st+1, Diag::warning, std::move(msg));
+}
+
+template <class DiagTarget> std::nullopt_t
+Note(DiagTarget& dt, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(dt, st, st+1, Diag::note, std::move(msg));
+}
 
 struct InputDiags final : public DiagDest {
   Input input;

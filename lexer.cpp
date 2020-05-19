@@ -159,7 +159,7 @@ optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
 // just after the backslash, inside a string literal.
 optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  if(!input.sizeGt(i)) return ctx.Error(i-1,"Incomplete escape code");
+  if(!input.sizeGt(i)) return Error(ctx, i-1, "Incomplete escape code");
   char ch;
   // If this changes, please change jsonloc::pringString() as well.
   switch(input[i]) {
@@ -168,7 +168,7 @@ optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
     case 'x': return lexHexCode(ctx, ++i);
-    default: return ctx.Error(i-1,"Invalid escape code");
+    default: return Error(ctx, i-1, "Invalid escape code");
   }
   ++i;
   return ch;
@@ -206,8 +206,8 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
 // Else, return the source line with parindent stripped out.
 //
 // If indentation is incompatible with parindent, we still consume the current
-// line, but then add a ctx.Error() and return "". This allows us a form of
-// error recovery: we can still parsing the subsequent lines (since caller ends
+// line, but then add a Error() and return "". This allows us a form of error
+// recovery: we can still parsing the subsequent lines (since caller ends
 // source block on nullopt), while not returning any potential garbage.
 optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
@@ -224,8 +224,8 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
   if(cmp == IndentCmp::lt) return nullopt;
 
   if(cmp == IndentCmp::bad) {
-    ctx.Error(i, j, "Indentation mixes tabs and spaces differently "
-                    "from the previous line");
+    Error(ctx, i, j, "Indentation mixes tabs and spaces differently "
+                     "from the previous line");
     getline(ctx, i);  // Skip to end of line.
     return "";        // Don't return any of it.
   }
@@ -269,7 +269,7 @@ string debugChar(char ch) {
   if(!input.sizeGt(j)) return false;
   else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
           isoperch(input[j])) { i=j; return true; }
-  else ctx.Fatal(j,"Unexpected character " + debugChar(input[j]));
+  else Fatal(ctx, j, "Unexpected character " + debugChar(input[j]));
 }
 
 // Careful on numbers: a -12.34e+55 will be decomposed as
@@ -336,9 +336,9 @@ pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
 optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i+1))
-    return ctx.Error(i-2,"Incomplete hex code");
+    return Error(ctx, i-2, "Incomplete hex code");
   if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
-    return ctx.Error(i-2,"Invalid hex code");
+    return Error(ctx, i-2, "Invalid hex code");
   i += 2;
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
@@ -355,7 +355,7 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   BracketGroup bg(i,Input::npos,bt);
   while(true) {
     if(!lookaheadStart(ctx,i)) {  // lookaheadStart is false on EOF.
-      ctx.Error(i,Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
+      Error(ctx, i, Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
       i = Input::npos;
       return nullopt;
     }
@@ -366,7 +366,7 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       if(bt==bt2) { bg.enPos=i; rst.markUsed(i); return bg; }
       else {
         rst.markUsed(i+1);
-        return ctx.Error(rst.start(),i,
+        return Error(ctx, rst.start(), i,
           Str()<<"Match not found for '"<<openBracket(bt)<<"', found '"
                <<closeBracket(bt2)<<"' instead.");
       }
@@ -380,8 +380,8 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       bg.children.push_back(std::move(*wordopt));
     else if(auto operopt = lexOperator(input,i))
       bg.children.push_back(std::move(*operopt));
-    else ctx.FatalBug(i, "Invalid input character, "
-                         "should have been caught by lookaheadStart().");
+    else FatalBug(ctx, i, "Invalid input character, "
+                          "should have been caught by lookaheadStart().");
   }
 }
 
@@ -392,7 +392,7 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
   else if(isbracket(ctx.input[i]) || isquote(ctx.input[i]))
     return UnquotedToken(i,i+1,ctx.input);
   else if(auto op = lexOperator(ctx.input, i)) return op;
-  else ctx.Fatal(i, "Invalid input character");
+  else Fatal(ctx, i, "Invalid input character");
 }
 
 static RowColRelation
@@ -428,7 +428,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
       } else error = true;
     }else s += input[i++];
   }
-  ctx.Error(rst.start(),i,"Unexpected end of line");
+  Error(ctx, rst.start(), i, "Unexpected end of line");
   rst.markUsed(++i);
   return nullopt;
 }
@@ -449,7 +449,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   vector<RowColRelation> rcmap;
   string delim = getline(ctx, i);
   if(!isSourceDelim(delim))
-    ctx.Fatal(rst.start(), i, "Delimiters must be alphanumeric");
+    Fatal(ctx, rst.start(), i, "Delimiters must be alphanumeric");
 
   // Valid starting delimiter, so now we are commited to changing i.
   size_t delimStart = rst.start();
@@ -468,7 +468,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
     } else rcmap.push_back(makeRowColRelation(input, i, i-inputStart));
   }
   rst.markUsed(i);
-  return ctx.Error(delimStart, i-1, "Source block ends abruptly");
+  return Error(ctx, delimStart, i-1, "Source block ends abruptly");
 }
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
@@ -528,11 +528,11 @@ optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
   size_t stCont=rv->at(0).stPos;
   const Input& input=ctx.input;
   if(input.bol(stCont) != stCont)
-    ctx.Error(input.bol(stCont),stCont-1,
-        Str() << "Section headers must not be indented");
+    Error(ctx, input.bol(stCont), stCont-1,
+          "Section headers must not be indented");
   if(input.bol(*stDash) != *stDash)
-    ctx.Error(input.bol(*stDash),*stDash-1,
-        Str() << "Dashes in a section header must not be indented");
+    Error(ctx, input.bol(*stDash), *stDash-1,
+          "Dashes in a section header must not be indented");
 
   return rv;
 }

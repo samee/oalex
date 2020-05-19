@@ -50,7 +50,7 @@ void assertProducesDiag(std::string_view testName, std::string_view input,
   try {
     cb(ctx, i);
   }catch(oalex::UserErrorEx& ex) {
-    ctx.Error(0,0,ex.what());  // demote Fatal() error to non-fatal.
+    Error(ctx,0,0,ex.what());  // demote Fatal() error to non-fatal.
   }
   assertHasDiagWithSubstr(testName, ctx.diags, err);
 }

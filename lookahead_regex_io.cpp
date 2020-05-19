@@ -257,30 +257,30 @@ auto unescaped(char ch, const char meta[]) -> optional<unsigned char> {
 auto parseHexCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   size_t j = i+2;  // skip over "\x"
   if(auto res = oalex::lex::lexHexCode(ctx, j)) { i = j; return res; }
-  else return ctx.Error(i, i+4, "Invalid hex code");
+  else return Error(ctx, i, i+4, "Invalid hex code");
 }
 
 auto parseEscapeCode(InputDiags& ctx, size_t& i, const char meta[]) ->
 optional<unsigned char> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'\\')) return nullopt;
-  if(!input.sizeGt(i+1)) ctx.Fatal(i, i+1, "Incomplete escape code");
+  if(!input.sizeGt(i+1)) Fatal(ctx, i, i+1, "Incomplete escape code");
   if(input[i+1] == 'x') return parseHexCode(ctx, i);
   if(auto res = unescaped(input[i+1], meta)) { i=i+2; return res; }
-  else { i += 2; return ctx.Error(i-2, i, "Unknown escape code"); }
+  else { i += 2; return Error(ctx, i-2, i, "Unknown escape code"); }
 }
 
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '/') {
-    ctx.Fatal(i, i+1, "Expected closing ']'");
+    Fatal(ctx, i, i+1, "Expected closing ']'");
     return nullopt;
   }
   if(input[i] == '\\') return parseEscapeCode(ctx, i, "^\\/-]");
   char ch = input[i];
   if(!isprint(ch)) {
-    ctx.Error(i, i+1, "Invalid character");
+    Error(ctx, i, i+1, "Invalid character");
     return nullopt;
   }
   ++i;
@@ -299,7 +299,7 @@ auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
   // One or more set elements, not zero or more.
   // Allow ']' as the first set element. It does not close the set.
   do {
-    if(!input.sizeGt(j)) ctx.Fatal(i, i+1, "Unmatched '['");
+    if(!input.sizeGt(j)) Fatal(ctx, i, i+1, "Unmatched '['");
     if(auto st = parseCharSetElt(ctx, j)) cset.ranges.push_back({*st,*st});
     else { ++j; continue; }
 
@@ -317,30 +317,30 @@ auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
 
     // TODO remove this check. It exists only to help fuzzing.
     if(new_range.from == new_range.to)
-      ctx.Error(i, j, "Redundant range. Use a single character.");
+      Error(ctx, i, j, "Redundant range. Use a single character.");
 
     if(new_range.from > new_range.to)
-      ctx.Error(i, j, "Invalid range going backwards.");
+      Error(ctx, i, j, "Invalid range going backwards.");
 
     if(!isPlainRange(new_range))
-      ctx.Error(i, j, "Ranges can only span 0-9, A-Z, or a-z.");
+      Error(ctx, i, j, "Ranges can only span 0-9, A-Z, or a-z.");
 
     if(hasChar(input,j,'-') && !hasChar(input,j+1,']'))
-      ctx.Error(j, j+1, "Character range has no start");
+      Error(ctx, j, j+1, "Character range has no start");
   } while(!hasChar(input,j,']'));
   i = j+1;
   return move_to_unique(cset);
 }
 
 auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
-  if(depth == kMaxDepth) ctx.Fatal(i, i+1, "Parentheses nested too deep");
+  if(depth == kMaxDepth) Fatal(ctx, i, i+1, "Parentheses nested too deep");
   const Input& input = ctx.input;
   size_t j = i;
   if(!hasChar(input,i,'('))
-    ctx.FatalBug(i, i+1, "parseGroup() must start with '('");
+    FatalBug(ctx, i, i+1, "parseGroup() must start with '('");
   optional<Regex> res = parseRec(ctx, ++j, depth+1);
   if(!res) return nullopt;
-  if(!hasChar(input,j,')')) return ctx.Error(i, j, "Unmatched '('");
+  if(!hasChar(input,j,')')) return Error(ctx, i, j, "Unmatched '('");
   i = j+1;
   return res;
 }
@@ -395,7 +395,10 @@ bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
   char ch = ctx.input[i];
   ++i;
   if(ch == '{') Unimplemented()<<"'{}'";
-  if(concat.parts.empty()) return ctx.Error(i-1, i, "Nothing to repeat"), false;
+  if(concat.parts.empty()) {
+    Error(ctx, i-1, i, "Nothing to repeat");
+    return false;
+  }
   concat.parts.back() = repeatWith(std::move(concat.parts.back()), ch);
   return true;
 }
@@ -423,7 +426,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       return unpackSingleton(contractStrings(std::move(concat)));
     }else if(startsRepeat(input[j])) {
       if(++repdepth > kMaxRepDepth)
-        ctx.Fatal(j, j+1, "Too many consecutive repeat operators.");
+        Fatal(ctx, j, j+1, "Too many consecutive repeat operators.");
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {
@@ -436,7 +439,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
     concat.parts.push_back(std::move(*subres));
   }
 
-  ctx.Error(i, j, "Unterminated regex, expected '/'");
+  Error(ctx, i, j, "Unterminated regex, expected '/'");
   i = j;
   return nullopt;
 }
@@ -456,10 +459,10 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       i = j;
       return unpackSingleton(std::move(ors));
     }else if(input[j] == '|') ++j;
-    else ctx.FatalBug(j, j+1, "Branch parsing finished unexpectedly");
+    else FatalBug(ctx, j, j+1, "Branch parsing finished unexpectedly");
   }
 
-  ctx.Error(i, j, "Unterminated regex, expected '/'");
+  Error(ctx, i, j, "Unterminated regex, expected '/'");
   i = j;
   return nullopt;
 }
@@ -487,9 +490,9 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   size_t j = i+1;
   auto rv = parseRec(ctx, j, 0);
   if(!rv) return rv;
-  else if(hasChar(input,j,')')) return ctx.Error(j, j+1, "Unmatched ')'");
+  else if(hasChar(input,j,')')) return Error(ctx, j, j+1, "Unmatched ')'");
   else if(!hasChar(input,j,'/'))
-    ctx.FatalBug(j, j+1, "Pattern parsing ended unexpectedly without '/'");
+    FatalBug(ctx, j, j+1, "Pattern parsing ended unexpectedly without '/'");
   i = j+1;
   return rv;
 }

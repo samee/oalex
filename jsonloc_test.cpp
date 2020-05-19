@@ -54,7 +54,7 @@ splitCommaNoEmpty(InputDiags& ctx,const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
-      if(rv.back().empty()) ctx.Error(stPos(elt),"Unexpected comma");
+      if(rv.back().empty()) Error(ctx, stPos(elt),"Unexpected comma");
       else rv.emplace_back();
     }
     else rv.back().push_back(elt);
@@ -84,10 +84,10 @@ bool isIdent(string_view s) {
 
 optional<UnquotedToken> parseIdent(InputDiags& ctx, const ExprToken& expr) {
   auto* token = get_if<UnquotedToken>(&expr);
-  if(!token) return ctx.Error(stPos(expr),"Was expecting an identifier");
+  if(!token) return Error(ctx, stPos(expr),"Was expecting an identifier");
   if(!isIdent(token->token)) {
-    ctx.Error(token->stPos,
-      "'" + token->token + "' is not a valid identifier.");
+    Error(ctx, token->stPos,
+          "'" + token->token + "' is not a valid identifier.");
     return UnquotedToken(token->stPos, token->enPos, "invalid_identifier");
   }
   return *token;
@@ -102,7 +102,7 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
     if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
     if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
     if(bg->type == BracketType::paren)
-      return ctx.Error(bg->stPos, "Unexpected parenthesis");
+      return Error(ctx, bg->stPos, "Unexpected parenthesis");
     Bug()<<"Unknown BracketType: "<<int(bg->type);
   }
   Bug()<<"Unknown ExprType with index: "<<expr.index();
@@ -118,30 +118,30 @@ optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
     if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
     optional<UnquotedToken> key = parseIdent(ctx, elt[0]);
     if(!key) {
-      ctx.Error(stPos(elt[0]), "Was expecting a key.");
+      Error(ctx, stPos(elt[0]), "Was expecting a key.");
       continue;
     }
     optional<JsonLoc> parsedElt;
     if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->token};
     else {
       if(!isToken(elt[1],":")) {
-        ctx.Error(enPos(elt[0]), "Was expecting a colon sign after the key.");
+        Error(ctx, enPos(elt[0]), "Was expecting a colon sign after the key.");
         continue;
       }
       if(elt.size()<3) {
-        ctx.Error(enPos(elt[1]), "Value missing after the colon.");
+        Error(ctx, enPos(elt[1]), "Value missing after the colon.");
         continue;
       }
       parsedElt = parseJsonLoc(ctx, elt[2]);
       if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
       if(elt.size()>=4) {
-        ctx.Error(stPos(elt[3]), "Was expecting a comma here");
+        Error(ctx, stPos(elt[3]), "Was expecting a comma here");
         continue;
       }
     }
 
     if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
-      ctx.Error(key->stPos, "Duplicate key " + key->token);
+      Error(ctx, key->stPos, "Duplicate key " + key->token);
   }
   return JsonLoc(rv);
 }
@@ -152,7 +152,7 @@ optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
   vector<JsonLoc> rv;
   for(auto& elt : splitres) {
     if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
-    if(elt.size()!=1) ctx.Error(stPos(elt[1]), "Was expecting a comma here");
+    if(elt.size()!=1) Error(ctx, stPos(elt[1]), "Was expecting a comma here");
     else {
       optional<JsonLoc> parsedElt = parseJsonLoc(ctx, elt[0]);
       if(parsedElt) rv.push_back(*parsedElt);
