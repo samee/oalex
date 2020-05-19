@@ -31,13 +31,6 @@ struct Diag {
   explicit operator std::string() const;
 };
 
-class DiagDest {
- public:
-  virtual const InputPiece& row_col_table() const = 0;
-  virtual std::vector<Diag>& diagDest() = 0;
-  virtual ~DiagDest() = default;
-};
-
 // Typically, we don't expect this to be called directly. This is merely a
 // helper for the more convenient Error(), Warning(), and Note().
 template <class DiagTarget> std::nullopt_t
@@ -100,7 +93,7 @@ Note(DiagTarget& dt, size_t st, std::string msg) {
   return pushDiagReturnNullOpt(dt, st, st+1, Diag::note, std::move(msg));
 }
 
-struct InputDiags final : public DiagDest {
+struct InputDiags {
   Input input;
   std::vector<Diag> diags;
 
@@ -112,8 +105,8 @@ struct InputDiags final : public DiagDest {
 
   void markUsed(size_t st, size_t en);
 
-  const InputPiece& row_col_table() const override { return input; }
-  std::vector<Diag>& diagDest() override { return diags; }
+  const InputPiece& row_col_table() const { return input; }
+  std::vector<Diag>& diagDest() { return diags; }
  private:
   size_t lastForgotten_ = 0;
 };
