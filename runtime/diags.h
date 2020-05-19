@@ -31,10 +31,9 @@ struct Diag {
 };
 
 class DiagDest {
- protected:
+ public:
   virtual const InputPiece& row_col_table() const = 0;
   virtual std::vector<Diag>& diagDest() = 0;
- public:
   virtual ~DiagDest() = default;
 
   // throws, never returns.
@@ -69,10 +68,10 @@ struct InputDiags final : public DiagDest {
 
   void markUsed(size_t st, size_t en);
 
- private:
-  size_t lastForgotten_ = 0;
   const InputPiece& row_col_table() const override { return input; }
   std::vector<Diag>& diagDest() override { return diags; }
+ private:
+  size_t lastForgotten_ = 0;
 };
 
 // Helper for Input::forgetBefore().

@@ -89,6 +89,9 @@ class QuotedString final
     { return std::string_view(s_).substr(pos, len); }
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
+
+  const InputPiece& row_col_table() const final { return *this; }
+  std::vector<Diag>& diagDest() { return *diags_; }
  private:
   std::string s_;  // escape codes already interpreted.
   std::vector<Diag>* diags_;
@@ -97,9 +100,6 @@ class QuotedString final
                std::vector<Diag>* diags, std::vector<RowColRelation> rcmap)
     : LexSegment(st,en,type_tag), s_(s),
       diags_(diags), row_col_map_(std::move(rcmap)) {}
-
-  const InputPiece& row_col_table() const final { return *this; }
-  std::vector<Diag>& diagDest() { return *diags_; }
 };
 
 struct BracketGroup;
