@@ -13,8 +13,10 @@
     limitations under the License. */
 
 #include "template.h"
+#include <algorithm>
 #include <runtime/util.h>
 using std::make_pair;
+using std::max;
 using std::nullopt;
 using std::optional;
 using std::pair;
@@ -27,11 +29,15 @@ namespace oalex {
 
 static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
-  if(spatt.empty()) return nullopt;
+  if(spatt.empty())
+    return Error(spatt, 0, spatt.size(), "Placeholder pattern cannot be empty");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+spatt.size() <= s.size(); ++i)
     if(s.substr(i, spatt.size()) == spatt) {
-      if(!rv.empty() && rv.back().second<i) return nullopt; // Disallow overlaps
+      if(!rv.empty() && i<rv.back().second)
+        return Error(s, rv.back().first, i + spatt.size(),
+                     Str()<<"Pattern '"<<string(spatt)
+                          <<"' matches overlapping segments");
       else rv.push_back(make_pair(i, i+spatt.size()));
     }
   return rv;
@@ -39,14 +45,27 @@ static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
 
 static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
   -> optional<vector<pair<size_t,size_t>>> {
-  if(dpatt.st.empty() || dpatt.en.empty()) return nullopt;
-  if(dpatt.st.find(dpatt.en, 1) != string::npos) return nullopt;
+  if(dpatt.st.empty() || dpatt.en.empty()) {
+    const QuotedString& qs = (dpatt.st.empty() ? dpatt.st : dpatt.en);
+    return Error(qs, 0, qs.size(), "Placeholder pattern cannot be empty");
+  }
+  if(dpatt.st.find(dpatt.en, 1) != string::npos)
+    return Error(dpatt.en, 0, dpatt.en.size(),
+                 "End pattern is a substring of the start pattern");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+dpatt.st.size() <= s.size(); ++i)
     if(s.substr(i, dpatt.st.size()) == dpatt.st) {
-      if(!rv.empty() && i<rv.back().second) return nullopt; // Disallow overlaps
+      if(!rv.empty() && i<rv.back().second) {
+        return Error(s, rv.back().first,
+                     max(rv.back().second, i + dpatt.st.size()),
+                     Str()<<"Pattern '"<<string(dpatt.st)<<" ... "
+                          <<string(dpatt.en)<<"' matches overlapping segments");
+      }
       size_t j = s.find(dpatt.en, i+1);
-      if(j == string::npos) return nullopt;  // TODO recover
+      if(j == string::npos) {
+        Error(s, i, i+dpatt.st.size(), "Unterminated segment");
+        continue;  // recover
+      }
       rv.push_back(make_pair(i, j+dpatt.en.size()));
     }
   return rv;

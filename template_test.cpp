@@ -74,7 +74,7 @@ Input parameters:
   * fileBody: Usually a concatenation of various string literals used in a test.
 
 Implementation note:
-  * We surrounds fileBody with spaces to prevent internal markUsed() calls from
+  * We surround fileBody with spaces to prevent internal markUsed() calls from
     invoking forgetBefore(). This is unnecessary if we are using fileBody
     contents in only a single test, but this allows convenient reuse.
   * We cannot return InputDiags by value, since fquote keeps a reference to it.
@@ -100,12 +100,14 @@ void testMatchAll() {
   optional<vector<pair<size_t, size_t>>> out
     = matchAllParts(fquote("cond"), tmpl);
 
+  assertEmptyDiags(__func__, ctx->diags);
   if(!out) BugMe<<"Couldn't find 'cond' in: "<<string(tmpl);
   if(out->size() != 1)
     BugMe<<"Was expecting a single match. Found "<<out->size();
   assertHasSubstr(__func__, tmpl, out->at(0).first, "cond");
 
   out = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
+  assertEmptyDiags(__func__, ctx->diags);
   if(!out) BugMe<<"Couldn't find '{ ... }' in: "<<string(tmpl);
   if(out->size() != 2)
     BugMe<<"Was expecting two matches. Found "<<out->size();
@@ -115,6 +117,64 @@ void testMatchAll() {
   }
 }
 
+void testEmptyPatternsFail() {
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("foo" "")");
+  QuotedString tmpl = fquote("foo");
+  QuotedString empty = fquote("");
+
+  auto res1 = matchAllParts(empty, tmpl);
+  if(res1) BugMe<<"succeeded unexpectedly with an empty pattern";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Placeholder pattern cannot be empty");
+
+  ctx->diags.clear();
+  auto res2 = matchAllParts(DelimPair{empty, empty}, tmpl);
+  if(res2) BugMe<<"succeeded unexpectedly with a pair of empty patterns";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Placeholder pattern cannot be empty");
+}
+
+void testConfusingPatterns() {
+  // Test with something like HTML comments, but end marker is truncated
+  // to create confusion about whether the starting delimitter is self-closing.
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("foo" "<!--" "--")");
+  auto res = matchAllParts(DelimPair{fquote("<!--"), fquote("--")},
+                           fquote("foo"));
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "End pattern is a substring of the start pattern");
+}
+
+void testMatchAllFailsOnOverlap() {
+  auto [ctx, fquote] = setupMatchTest(__func__,
+                                      R"("ababa { { } }" "aba" "{" "}")");
+  QuotedString tmpl = fquote("ababa { { } }");
+
+  auto res1 = matchAllParts(fquote("aba"), tmpl);
+  if(res1) BugMe<<"succeeded unexpectedly while matching 'aba'";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Pattern 'aba' matches overlapping segments");
+
+  ctx->diags.clear();
+  auto res2 = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
+  if(res2) BugMe<<"succeeded unexpectedly while matching '{ ... }'}";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Pattern '{ ... }' matches overlapping segments");
+}
+
+void testUnfinishedMatch() {
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("{} {" "{" "}")");
+  QuotedString tmpl = fquote("{} {");
+  auto res = matchAllParts(DelimPair{fquote("{"), fquote("}")}, fquote("{} {"));
+  if(!res) BugMe<<"Was expecting a match in spite of error";
+  assertHasDiagWithSubstr(__func__, ctx->diags, "Unterminated segment");
+}
+
 }  // namespace
 
-int main() {testMatchAll();}
+int main() {
+  testMatchAll();
+  testEmptyPatternsFail();
+  testConfusingPatterns();
+  testMatchAllFailsOnOverlap();
+  testUnfinishedMatch();
+}
