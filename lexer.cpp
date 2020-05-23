@@ -323,7 +323,8 @@ pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
     return a.pos < b.pos;
   };
   auto it = upper_bound(row_col_map_.begin(), row_col_map_.end(),
-                        RowColRelation{.pos = pos, .row = 0, .col = 0}, bypos);
+                        RowColRelation{.pos = pos, .row = 0, .col = 0,
+                                       .inputPos = 0}, bypos);
   if(it == row_col_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
@@ -398,7 +399,7 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
 static RowColRelation
 makeRowColRelation(const Input& input, size_t inputPos, size_t quotePos) {
   auto [r,c] = input.rowCol(inputPos);
-  return {.pos = quotePos, .row = r, .col = c};
+  return {.pos = quotePos, .row = r, .col = c, .inputPos = inputPos};
 }
 
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case

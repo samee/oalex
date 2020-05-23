@@ -25,6 +25,7 @@ namespace oalex::lex {
 
 struct RowColRelation {
   size_t pos, row, col;
+  size_t inputPos;
 };
 
 enum class LexSegmentTag {
