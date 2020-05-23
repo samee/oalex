@@ -23,8 +23,9 @@
 
 namespace oalex::lex {
 
-struct RowColRelation {
-  size_t pos, row, col;
+struct IndexRelation {
+  size_t inputPos;
+  size_t quotePos;
 };
 
 enum class LexSegmentTag {
@@ -80,6 +81,7 @@ class QuotedString final : public LexSegment, public InputPiece {
   char operator[](size_t pos) const final { return s_[pos]; }
   bool sizeGt(size_t pos) const final { return s_.size() > pos; }
   std::pair<size_t,size_t> rowCol(size_t pos) const final;
+  size_t inputPos(size_t pos) const;
   operator std::string_view() const { return s_; }
   operator std::string() const { return s_; }
   bool empty() const { return s_.empty(); }
@@ -90,15 +92,15 @@ class QuotedString final : public LexSegment, public InputPiece {
     { return s_.find(s, st); }
 
   const InputPiece& row_col_table() const { return *this; }
-  std::vector<Diag>& diagDest() const { return *diags_; }
+  std::vector<Diag>& diagDest() const { return ctx_->diags; }
  private:
   std::string s_;  // escape codes already interpreted.
-  std::vector<Diag>* diags_;
-  std::vector<RowColRelation> row_col_map_;
+  InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
+  std::vector<IndexRelation> index_map_;
   QuotedString(size_t st, size_t en, std::string_view s,
-               std::vector<Diag>* diags, std::vector<RowColRelation> rcmap)
+               InputDiags* ctx, std::vector<IndexRelation> imap)
     : LexSegment(st,en,type_tag), s_(s),
-      diags_(diags), row_col_map_(std::move(rcmap)) {}
+      ctx_(ctx), index_map_(std::move(imap)) {}
 };
 
 struct BracketGroup;

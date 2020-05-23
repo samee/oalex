@@ -319,15 +319,19 @@ char closeBracket(BracketType bt) {
 
 
 pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
-  auto bypos = [](const RowColRelation& a, const RowColRelation& b) {
-    return a.pos < b.pos;
+  return ctx_->input.rowCol(this->inputPos(pos));
+}
+
+size_t QuotedString::inputPos(size_t pos) const {
+  auto byquote = [](const IndexRelation& a, const IndexRelation& b) {
+    return a.quotePos < b.quotePos;
   };
-  auto it = upper_bound(row_col_map_.begin(), row_col_map_.end(),
-                        RowColRelation{.pos = pos, .row = 0, .col = 0}, bypos);
-  if(it == row_col_map_.begin())
+  auto it = upper_bound(index_map_.begin(), index_map_.end(),
+                        IndexRelation{.inputPos = 0, .quotePos = pos}, byquote);
+  if(it == index_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
-  return pair(it->row, it->col + pos - it->pos);
+  return it->inputPos + pos - it->quotePos;
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -395,12 +399,6 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
   else Fatal(ctx, i, "Invalid input character");
 }
 
-static RowColRelation
-makeRowColRelation(const Input& input, size_t inputPos, size_t quotePos) {
-  auto [r,c] = input.rowCol(inputPos);
-  return {.pos = quotePos, .row = r, .col = c};
-}
-
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
 // the caller should try parsing something else. In all other cases, it will
 // either return a valid string, or nullopt with errors added to ctx.diags. In
@@ -411,20 +409,20 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   if(!input.sizeGt(i) || input[i]!='"') return nullopt;
   Resetter rst(ctx, i);
   string s;
-  vector<RowColRelation> rcmap;
+  vector<IndexRelation> imap;
   bool error = false;
   ++i;
-  rcmap.push_back(makeRowColRelation(input, i, 0));
+  imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == '"') {
       rst.markUsed(++i);
       if(!error)
-        return QuotedString(rst.start(), i, s, &ctx.diags, std::move(rcmap));
+        return QuotedString(rst.start(), i, s, &ctx, std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
         s += *escres;
-        rcmap.push_back(makeRowColRelation(input, i, s.size()));
+        imap.push_back(IndexRelation{.inputPos = i, .quotePos = s.size()});
       } else error = true;
     }else s += input[i++];
   }
@@ -446,7 +444,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   Resetter rst(ctx, i);
-  vector<RowColRelation> rcmap;
+  vector<IndexRelation> imap;
   string delim = getline(ctx, i);
   if(!isSourceDelim(delim))
     Fatal(ctx, rst.start(), i, "Delimiters must be alphanumeric");
@@ -455,17 +453,18 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   size_t delimStart = rst.start();
   size_t inputStart = i;
   rst.markUsed(i);
-  rcmap.push_back(makeRowColRelation(input, i, 0));
+  imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
   while(input.sizeGt(i)) {
     size_t lineStart = i;
     string line = getline(ctx, i);
     if(line == delim) {
       QuotedString s(delimStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
-                     &ctx.diags, std::move(rcmap));
+                     &ctx, std::move(imap));
       rst.markUsed(i);
       return s;
-    } else rcmap.push_back(makeRowColRelation(input, i, i-inputStart));
+    } else imap.push_back(IndexRelation{.inputPos = i,
+                                        .quotePos = i-inputStart});
   }
   rst.markUsed(i);
   return Error(ctx, delimStart, i-1, "Source block ends abruptly");
@@ -478,24 +477,25 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
   string rv;
   Resetter rst(ctx,i);
-  vector<RowColRelation> rcmap;
+  vector<IndexRelation> imap;
   bool allblank = true;
   while(input.sizeGt(i)) {
     size_t ls = i;
     optional<string> line = lexSourceLine(ctx,i,parindent);
     if(!line.has_value()) break;
-    if(line->empty()) rcmap.push_back(makeRowColRelation(input, ls, rv.size()));
+    if(line->empty())
+      imap.push_back(IndexRelation{.inputPos = ls, .quotePos = rv.size()});
     else {
       allblank = false;
-      rcmap.push_back(makeRowColRelation(input, ls+parindent.size(),
-                                         rv.size()));
+      imap.push_back(IndexRelation{.inputPos = ls+parindent.size(),
+                                   .quotePos = rv.size()});
     }
     rv += *line; rv += '\n';
     rst.markUsed(i);
   }
   if(allblank) return nullopt;
-  rcmap.push_back(makeRowColRelation(input, i, rv.size()));
-  QuotedString qs(rst.start(), i, std::move(rv), &ctx.diags, std::move(rcmap));
+  imap.push_back(IndexRelation{.inputPos = i, .quotePos = rv.size()});
+  QuotedString qs(rst.start(), i, std::move(rv), &ctx, std::move(imap));
   rst.markUsed(i);
   return qs;
 }
