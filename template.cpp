@@ -15,6 +15,7 @@
 #include "template.h"
 #include <algorithm>
 #include <runtime/util.h>
+using std::get_if;
 using std::make_pair;
 using std::max;
 using std::nullopt;

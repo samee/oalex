@@ -15,12 +15,12 @@
 #include <map>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 #include "runtime/diags.h"
 #include "runtime/skipper.h"
 #include "runtime/lookahead_regex.h"
 #include "ident.h"
-#include "jsonloc.h"
 #include "lexer.h"
 
 namespace oalex {
@@ -42,18 +42,16 @@ auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
 
 // TODO implement this.
 // Params:
-//   diags: This is what we use to log errors.
-//   quoted.value must have JsonLoc::String, or we Bug() out.
+//   s: The string that needs to be split up.
 //   partPatterns: The user-specified patterns to be replaced with Placeholders.
 //
-// On error, we return nullopt. If return.has_value(), it is guaranteed to be a
-// JsonLoc::Vector, whose elements will be either JsonLoc::String or
-// JsonLoc::Placeholder.
+// On error, we return an empty vector. An empty `s` input will produce a
+// vector with a single empty QuotedString.
+using LabelOrPart = std::variant<lex::QuotedString, Ident>;
 auto labelParts(
-    Diag& diags,
-    const JsonLoc& quoted,
+    const lex::QuotedString& s,
     const std::map<Ident,PartPattern>& partPatterns)
-    -> std::optional<JsonLoc>;
+    -> std::vector<LabelOrPart>;
 // TODO later steps will catch placeholders-in-comments as error.
 
 }  // namespace oalex
