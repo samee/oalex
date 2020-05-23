@@ -23,9 +23,9 @@
 
 namespace oalex::lex {
 
-struct RowColRelation {
-  size_t quotePos;
+struct IndexRelation {
   size_t inputPos;
+  size_t quotePos;
 };
 
 enum class LexSegmentTag {
@@ -96,11 +96,11 @@ class QuotedString final : public LexSegment, public InputPiece {
  private:
   std::string s_;  // escape codes already interpreted.
   InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
-  std::vector<RowColRelation> row_col_map_;
+  std::vector<IndexRelation> index_map_;
   QuotedString(size_t st, size_t en, std::string_view s,
-               InputDiags* ctx, std::vector<RowColRelation> rcmap)
+               InputDiags* ctx, std::vector<IndexRelation> imap)
     : LexSegment(st,en,type_tag), s_(s),
-      ctx_(ctx), row_col_map_(std::move(rcmap)) {}
+      ctx_(ctx), index_map_(std::move(imap)) {}
 };
 
 struct BracketGroup;

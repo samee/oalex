@@ -45,7 +45,6 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::QuotedString;
-using oalex::lex::RowColRelation;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexDelimitedSource;
