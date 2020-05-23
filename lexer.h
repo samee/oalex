@@ -24,7 +24,7 @@
 namespace oalex::lex {
 
 struct RowColRelation {
-  size_t pos, row, col;
+  size_t pos;
   size_t inputPos;
 };
 

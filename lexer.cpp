@@ -323,12 +323,11 @@ pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
     return a.pos < b.pos;
   };
   auto it = upper_bound(row_col_map_.begin(), row_col_map_.end(),
-                        RowColRelation{.pos = pos, .row = 0, .col = 0,
-                                       .inputPos = 0}, bypos);
+                        RowColRelation{.pos = pos, .inputPos = 0}, bypos);
   if(it == row_col_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
-  return pair(it->row, it->col + pos - it->pos);
+  return ctx_->input.rowCol(it->inputPos + pos - it->pos);
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -397,9 +396,8 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
 }
 
 static RowColRelation
-makeRowColRelation(const Input& input, size_t inputPos, size_t quotePos) {
-  auto [r,c] = input.rowCol(inputPos);
-  return {.pos = quotePos, .row = r, .col = c, .inputPos = inputPos};
+makeRowColRelation(size_t inputPos, size_t quotePos) {
+  return {.pos = quotePos, .inputPos = inputPos};
 }
 
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
@@ -415,7 +413,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   vector<RowColRelation> rcmap;
   bool error = false;
   ++i;
-  rcmap.push_back(makeRowColRelation(input, i, 0));
+  rcmap.push_back(makeRowColRelation(i, 0));
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == '"') {
       rst.markUsed(++i);
@@ -425,7 +423,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
         s += *escres;
-        rcmap.push_back(makeRowColRelation(input, i, s.size()));
+        rcmap.push_back(makeRowColRelation(i, s.size()));
       } else error = true;
     }else s += input[i++];
   }
@@ -456,7 +454,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
   size_t delimStart = rst.start();
   size_t inputStart = i;
   rst.markUsed(i);
-  rcmap.push_back(makeRowColRelation(input, i, 0));
+  rcmap.push_back(makeRowColRelation(i, 0));
   while(input.sizeGt(i)) {
     size_t lineStart = i;
     string line = getline(ctx, i);
@@ -466,7 +464,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
                      &ctx, std::move(rcmap));
       rst.markUsed(i);
       return s;
-    } else rcmap.push_back(makeRowColRelation(input, i, i-inputStart));
+    } else rcmap.push_back(makeRowColRelation(i, i-inputStart));
   }
   rst.markUsed(i);
   return Error(ctx, delimStart, i-1, "Source block ends abruptly");
@@ -485,17 +483,17 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
     size_t ls = i;
     optional<string> line = lexSourceLine(ctx,i,parindent);
     if(!line.has_value()) break;
-    if(line->empty()) rcmap.push_back(makeRowColRelation(input, ls, rv.size()));
+    if(line->empty()) rcmap.push_back(makeRowColRelation(ls, rv.size()));
     else {
       allblank = false;
-      rcmap.push_back(makeRowColRelation(input, ls+parindent.size(),
+      rcmap.push_back(makeRowColRelation(ls+parindent.size(),
                                          rv.size()));
     }
     rv += *line; rv += '\n';
     rst.markUsed(i);
   }
   if(allblank) return nullopt;
-  rcmap.push_back(makeRowColRelation(input, i, rv.size()));
+  rcmap.push_back(makeRowColRelation(i, rv.size()));
   QuotedString qs(rst.start(), i, std::move(rv), &ctx, std::move(rcmap));
   rst.markUsed(i);
   return qs;
