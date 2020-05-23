@@ -319,6 +319,10 @@ char closeBracket(BracketType bt) {
 
 
 pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
+  return ctx_->input.rowCol(this->inputPos(pos));
+}
+
+size_t QuotedString::inputPos(size_t pos) const {
   auto bypos = [](const RowColRelation& a, const RowColRelation& b) {
     return a.quotePos < b.quotePos;
   };
@@ -327,7 +331,7 @@ pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
   if(it == row_col_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
-  return ctx_->input.rowCol(it->inputPos + pos - it->quotePos);
+  return it->inputPos + pos - it->quotePos;
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
