@@ -90,15 +90,15 @@ class QuotedString final : public LexSegment, public InputPiece {
     { return s_.find(s, st); }
 
   const InputPiece& row_col_table() const { return *this; }
-  std::vector<Diag>& diagDest() const { return *diags_; }
+  std::vector<Diag>& diagDest() const { return ctx_->diags; }
  private:
   std::string s_;  // escape codes already interpreted.
-  std::vector<Diag>* diags_;
+  InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
   std::vector<RowColRelation> row_col_map_;
   QuotedString(size_t st, size_t en, std::string_view s,
-               std::vector<Diag>* diags, std::vector<RowColRelation> rcmap)
+               InputDiags* ctx, std::vector<RowColRelation> rcmap)
     : LexSegment(st,en,type_tag), s_(s),
-      diags_(diags), row_col_map_(std::move(rcmap)) {}
+      ctx_(ctx), row_col_map_(std::move(rcmap)) {}
 };
 
 struct BracketGroup;
