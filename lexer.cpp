@@ -320,14 +320,14 @@ char closeBracket(BracketType bt) {
 
 pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
   auto bypos = [](const RowColRelation& a, const RowColRelation& b) {
-    return a.pos < b.pos;
+    return a.quotePos < b.quotePos;
   };
   auto it = upper_bound(row_col_map_.begin(), row_col_map_.end(),
-                        RowColRelation{.pos = pos, .inputPos = 0}, bypos);
+                        RowColRelation{.quotePos = pos, .inputPos = 0}, bypos);
   if(it == row_col_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
-  return ctx_->input.rowCol(it->inputPos + pos - it->pos);
+  return ctx_->input.rowCol(it->inputPos + pos - it->quotePos);
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
@@ -397,7 +397,7 @@ optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
 
 static RowColRelation
 makeRowColRelation(size_t inputPos, size_t quotePos) {
-  return {.pos = quotePos, .inputPos = inputPos};
+  return {.quotePos = quotePos, .inputPos = inputPos};
 }
 
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
