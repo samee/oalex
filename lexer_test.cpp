@@ -171,11 +171,11 @@ void stringPosMap() {
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(!res) Bug()<<"Parsing "<<testInput<<" failed in "<<__func__;
-  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(0),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(0),
            pair<size_t,size_t>(1, 2));
-  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(4),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(4),
            pair<size_t,size_t>(1, 7));
-  assertEq(__func__ + "rowCol mismatch"s, res->rowCol(7),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(7),
            pair<size_t,size_t>(1, 10));
 }
 
