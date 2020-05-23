@@ -36,10 +36,7 @@ struct LexDirective {
 // TODO Use this in Skipper as well.
 struct DelimPair { lex::QuotedString st, en; };
 using PartPattern = std::variant<lex::QuotedString, DelimPair>;
-// TODO: We need something like Diags() constructor, something that can convert
-//   from string offsets to rowCol() at least for the pre-semantic parsing
-//   passes. Maybe, when extracting a QuotedSegment, we can initialize any
-//   bol() --> rowCol() mapping table.
+
 auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
   -> std::optional<std::vector<std::pair<size_t, size_t>>>;
 
