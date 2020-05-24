@@ -88,6 +88,7 @@ class QuotedString final : public LexSegment, public InputPiece {
   size_t size() const { return s_.size(); }
   std::string_view substr(size_t pos, size_t len) const
     { return std::string_view(s_).substr(pos, len); }
+  QuotedString subqstr(size_t pos, size_t len) const;
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
 

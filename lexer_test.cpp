@@ -164,6 +164,14 @@ void assertEq(string_view errmsg, const T& a, const T& b) {
   if(a != b) Bug()<<errmsg<<": "<<debug(a)<<" != "<<debug(b);
 }
 
+void compareSubqstrIndexPos(const QuotedString& a, size_t pos, size_t len) {
+  const QuotedString b = a.subqstr(pos, len);
+  for(size_t i=0; i<=b.size(); ++i) if(a.inputPos(i+pos) != b.inputPos(i))
+    Bug()<<"Substring inputPos mismatch between '"<<string(a)<<"' and '"
+         <<string(b)<<"': a.inputPos("<<i+pos<<") = "<<a.inputPos(i+pos)
+         <<" != b.inputPos("<<i<<") = "<<b.inputPos(i);
+}
+
 void stringPosMap() {
   const char testInput[] = R"("foo\nbar")";
   InputDiags ctx{testInputDiags(testInput)};
@@ -176,6 +184,14 @@ void stringPosMap() {
            pair<size_t,size_t>(1, 7));
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(7),
            pair<size_t,size_t>(1, 10));
+
+  compareSubqstrIndexPos(*res, 0, string::npos);
+  compareSubqstrIndexPos(*res, 1, string::npos);
+  compareSubqstrIndexPos(*res, 0, 4);
+  compareSubqstrIndexPos(*res, 1, 3);
+  compareSubqstrIndexPos(*res, 1, 4);
+  compareSubqstrIndexPos(*res, 1, 1);
+  compareSubqstrIndexPos(*res, 1, 0);
 }
 
 const char delimSourceBlock[] = R"(```

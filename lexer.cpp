@@ -39,6 +39,7 @@
 
 #include "lexer.h"
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <optional>
@@ -52,6 +53,7 @@
 
 using std::function;
 using std::hex;
+using std::min;
 using std::nullopt;
 using std::numeric_limits;
 using std::optional;
@@ -317,17 +319,41 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
+static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
+  return a.quotePos < b.quotePos;
+}
+
+QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
+  if(pos > size()) Bug()<<"QuotedString::subqstr() invoked with invalid pos";
+  len = min(len, size() - pos);
+
+  // Find the subrange for the new index_map_.
+  auto stit = upper_bound(index_map_.begin(), index_map_.end(),
+                          IndexRelation{.inputPos = 0, .quotePos = pos},
+                          cmpByQuotePos);
+  if(stit == index_map_.begin()) Bug()<<"Index map doesn't have start entry";
+  --stit;
+  auto enit = upper_bound(index_map_.begin(), index_map_.end(),
+                          IndexRelation{.inputPos = 0, .quotePos = pos+len},
+                          cmpByQuotePos);
+
+  // Construct the new index_map_.
+  vector<IndexRelation> imap(stit, enit);  // cannot be empty.
+  imap[0] = {.inputPos = this->inputPos(pos), .quotePos = 0};
+  for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
+  size_t st = imap[0].inputPos;
+  size_t en = imap.back().inputPos + (len - imap.back().quotePos);
+  return QuotedString(st, en, this->substr(pos, len), ctx_, std::move(imap));
+}
 
 pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
   return ctx_->input.rowCol(this->inputPos(pos));
 }
 
 size_t QuotedString::inputPos(size_t pos) const {
-  auto byquote = [](const IndexRelation& a, const IndexRelation& b) {
-    return a.quotePos < b.quotePos;
-  };
   auto it = upper_bound(index_map_.begin(), index_map_.end(),
-                        IndexRelation{.inputPos = 0, .quotePos = pos}, byquote);
+                        IndexRelation{.inputPos = 0, .quotePos = pos},
+                        cmpByQuotePos);
   if(it == index_map_.begin())
     Bug()<<"No row/col entry for the first line in: "<<s_;
   --it;
