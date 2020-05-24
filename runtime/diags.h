@@ -31,6 +31,8 @@ struct Diag {
   explicit operator std::string() const;
 };
 
+std::string locationString(const InputPiece& input, size_t st, size_t en);
+
 // Typically, we don't expect this to be called directly. This is merely a
 // helper for the more convenient Error(), Warning(), and Note().
 template <class DiagTarget> std::nullopt_t

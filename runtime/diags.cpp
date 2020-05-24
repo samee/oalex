@@ -37,6 +37,9 @@ static string locationString(const Diag& diag) {
   else return Str()<<diag.stLine<<':'<<diag.stPos;
 }
 
+string locationString(const InputPiece& input, size_t st, size_t en) {
+  return locationString(Diag{input, st, en, Diag::error, string()});
+}
 
 Diag::operator string() const {
   return locationString(*this) + ": " + severityString(severity) + ": " + msg;
