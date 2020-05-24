@@ -17,18 +17,24 @@
 #include "runtime/input_view.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
+#include <map>
+using std::get_if;
 using std::make_unique;
+using std::map;
 using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
 using oalex::Bug;
 using oalex::DelimPair;
+using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::matchAllParts;
+using oalex::PartPattern;
 using oalex::lex::QuotedString;
 using oalex::lex::lexQuotedString;
 
@@ -169,6 +175,85 @@ void testUnfinishedMatch() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Unterminated segment");
 }
 
+Ident findIdent(string_view testName, InputDiags& ctx, string_view id) {
+  size_t i = findSubstr(ctx.input, id);
+  if(i == string::npos) Bug()<<id<<" not found in "<<testName<<" input";
+  Ident rv = Ident::parse(ctx, i);
+  if(rv.preserveCase() != id)
+    Bug()<<"findIdent() cannot perform whole-word matches. Found "
+         <<rv.preserveCase()<<" instead of "<<id;
+  return rv;
+}
+
+string debug(const variant<QuotedString,Ident>& lp) {
+  if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
+  if(auto* q = get_if<QuotedString>(&lp)) return string(*q);
+  Bug()<<"LabelOrPart variant with unknown index "<<lp.index();
+}
+
+void testLabelParts() {
+  char input[] = R"("if (cond) { ... } else { ... }"
+                    "cond" "{" "}" condexpr stmt)";
+  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
+  auto fid = [&](string_view s) {
+    return findIdent("testLabelParts", *ctx, s);
+  };
+  map<Ident,PartPattern> partspec{
+    {fid("condexpr"), fquote("cond")},
+    {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  vector<variant<QuotedString,Ident>> expected{
+    tmpl.subqstr(0,4), fid("condexpr"), tmpl.subqstr(8,2),
+    fid("stmt"), tmpl.subqstr(17,6), fid("stmt"),
+  };
+  if(observed.size() != expected.size())
+    BugMe<<"Expected "<<expected.size()<<" parts, found "<<observed.size();
+  for(size_t i=0; i<expected.size(); ++i) if(expected[i] != observed[i])
+    BugMe<<"Failed equality at index "<<i<<": "
+         <<debug(expected[i])<<" != "<<debug(observed[i]);
+  if(observed != expected) BugMe<<"Something didn't match";
+}
+
+void testCrossLabelOverlapFails() {
+  char input[] = R"( "[ ] [" "[" "]" index index2)";
+  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  QuotedString tmpl = fquote("[ ] [");
+  map<Ident,PartPattern> partspec{
+    {findIdent(__func__, *ctx, "index"), DelimPair{fquote("["), fquote("]")}},
+    {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
+  };
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  if(!observed.empty()) BugMe<<"Was expecting an empty vector on error";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Part '] ... [' overlaps with '[ ... ]'");
+}
+
+void testNoMatchWarns() {
+  auto [ctx, fquote] = setupMatchTest(__func__, R"(" " "foo")");
+  QuotedString tmpl = fquote(" ");
+  map<Ident,PartPattern> partspec{
+    {findIdent(__func__, *ctx, "foo"), fquote("foo")},
+  };
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  vector<variant<QuotedString,Ident>> expected{tmpl};
+  if(observed != expected) BugMe<<"Didn't get the unsplit string";
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "No match found for pattern 'foo'");
+}
+
+void testEmptySuccess() {
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("")");
+  vector observed = labelParts(fquote(""), {});
+  if(observed.empty()) BugMe<<"Failed on empty input";
+  if(observed.size() != 1)
+    BugMe<<"Split empty string to get "<<observed.size()
+         <<" pieces, was expecting 1";
+  if(debug(observed[0]) != "")
+    BugMe<<"Split empty string to obtain non-empty output: "
+         <<debug(observed[0]);
+}
+
 }  // namespace
 
 int main() {
@@ -177,4 +262,8 @@ int main() {
   testConfusingPatterns();
   testMatchAllFailsOnOverlap();
   testUnfinishedMatch();
+  testLabelParts();
+  testCrossLabelOverlapFails();
+  testNoMatchWarns();
+  testEmptySuccess();
 }

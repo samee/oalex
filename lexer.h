@@ -104,6 +104,13 @@ class QuotedString final : public LexSegment, public InputPiece {
       ctx_(ctx), index_map_(std::move(imap)) {}
 };
 
+inline bool operator==(const QuotedString& a, const QuotedString& b) {
+  return std::string_view(a) == std::string_view(b);
+}
+inline bool operator!=(const QuotedString& a, const QuotedString& b) {
+  return std::string_view(a) != std::string_view(b);
+}
+
 struct BracketGroup;
 
 using ExprToken = std::variant<UnquotedToken, QuotedString, BracketGroup>;
