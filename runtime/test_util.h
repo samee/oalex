@@ -22,18 +22,6 @@
 
 namespace oalex {
 
-// Definition of non-static global variable, not declaration.
-bool someError=false;
-struct TestErrImpl {
-  ~TestErrImpl() { std::cerr<<std::endl; }
-  std::ostream& start(const char* file,int line) {
-    someError=true;
-    return std::cerr<<file<<':'<<line<<": ";
-  }
-};
-
-#define TestErr TestErrImpl().start(__FILE__,__LINE__)
-
 #define BugMe oalex::Bug()<<__func__<<": "
 
 // Useful as getch() callbacks in dfa.h and input_view.h.

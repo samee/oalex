@@ -18,7 +18,18 @@
 using namespace std;
 using namespace oalex;
 
+#define TestErr TestErrImpl().start(__FILE__,__LINE__)
+
 namespace oalex {
+
+bool someError=false;
+struct TestErrImpl {
+  ~TestErrImpl() { std::cerr<<std::endl; }
+  std::ostream& start(const char* file,int line) {
+    someError=true;
+    return std::cerr<<file<<':'<<line<<": ";
+  }
+};
 
 class input_buffer_test {
  public:
