@@ -10,6 +10,14 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
+include(FetchContent)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 19bd751020a1f3c3363b2eb67a039852f139a8d3)  # 6.2.1
+FetchContent_MakeAvailable(fmt)
+include_directories(${fmt_SOURCE_DIR}/include)
+
 add_executable(lexer_test lexer.cpp lexer_matcher.cpp lexer_test.cpp)
 target_link_libraries(lexer_test oalex)
 add_test(lexer_test lexer_test)
