@@ -14,7 +14,9 @@
 
 #include "diags.h"
 #include "util.h"
+#include "fmt/format.h"
 #include <string>
+using fmt::format;
 using std::string;
 using std::nullopt;
 using std::nullopt_t;
@@ -26,15 +28,16 @@ static string severityString(Diag::Severity sev) {
     case Diag::error: return "error";
     case Diag::warning: return "warning";
     case Diag::note: return "note";
-    default: Bug()<<"Diagnostics has a strange severity: "<<sev;
+    default: BugFmt("Diagnostics has a strange severity: {}", sev);
   }
 }
 
 static string locationString(const Diag& diag) {
-  if(diag.stLine != diag.enLine) return Str()<<diag.stLine<<'-'<<diag.enLine;
+  if(diag.stLine != diag.enLine)
+    return format("{}-{}", diag.stLine, diag.enLine);
   else if(diag.stPos != diag.enPos)
-    return Str()<<diag.stLine<<':'<<diag.stPos<<'-'<<diag.enPos;
-  else return Str()<<diag.stLine<<':'<<diag.stPos;
+    return format("{}:{}-{}", diag.stLine, diag.stPos, diag.enPos);
+  else return format("{}:{}", diag.stLine, diag.stPos);
 }
 
 string locationString(const InputPiece& input, size_t st, size_t en) {
@@ -42,7 +45,8 @@ string locationString(const InputPiece& input, size_t st, size_t en) {
 }
 
 Diag::operator string() const {
-  return locationString(*this) + ": " + severityString(severity) + ": " + msg;
+  return format("{}: {}: {}", locationString(*this),
+                severityString(severity), msg);
 }
 
 }  // namespace oalex
