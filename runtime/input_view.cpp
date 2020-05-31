@@ -35,7 +35,7 @@ void Input::peekTo(size_t last) const {
     else {
       size_t lastBol = newlines_.empty()?0:newlines_.back();
       if(pos+1-lastBol > maxLineLength_)
-      UserError()<<"Line "<<newlines_.size()+1<<" is too long";
+        UserErrorFmt("Line {} is too long", newlines_.size()+1);
     }
     buf_ += ch;
   }
@@ -58,7 +58,7 @@ void Input::forgetBefore(const size_t pos) {
 }
 
 [[noreturn]] static void bugLostPos(size_t pos) {
-  Bug()<<"Out of bounds, already forgotten "<<pos<<'.';
+  BugFmt("Out of bounds, already forgoten {}.", pos);
 }
 
 // TODO I no longer remember when to use this function, vs directly comparing
@@ -67,8 +67,8 @@ void Input::peekAndBoundCharAt(size_t i) const {
   if(i < start_pos_) bugLostPos(i);
   peekTo(i+1);
   if(i-start_pos_ < buf_.size()) return;
-  if(!endSeen()) Bug()<<"peekTo() returned unexpectedly early.";
-  Bug()<<"Out of bound error. "<<i<<" is beyond the end of input.";
+  if(!endSeen()) BugFmt("peekTo() returned unexpectedly early.");
+  BugFmt("Out of bound error. {} is beyond the end of the input.", i);
 }
 
 char Input::operator[](size_t i) const {

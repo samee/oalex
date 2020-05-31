@@ -13,9 +13,11 @@
     limitations under the License. */
 
 #include "input_view.h"
-#include <random>
 #include "test_util.h"
 #include "util.h"
+
+#include <random>
+#include "fmt/format.h"
 using std::bernoulli_distribution;
 using std::default_random_engine;
 using std::make_pair;
@@ -23,6 +25,7 @@ using std::pair;
 using std::string;
 using std::uniform_int_distribution;
 
+using oalex::BugFmt;
 using oalex::GetFromString;
 using oalex::Input;
 
@@ -82,20 +85,20 @@ void testDataMatchesString(const string& s, size_t avgWindowLen) {
     if(i >= s.size() || forget_coin(engine)) {
       size_t rmlen=forgetLen(engine, i-j);
       if(s.substr(j,rmlen) != input.substr(j,rmlen))
-        BugMe<<"substr mismatch: "<<s.substr(j,rmlen)<<" != "
-             <<input.substr(j,rmlen);
+        BugFmt("substr mismatch {} != {}", s.substr(j,rmlen),
+                                           input.substr(j,rmlen));
       j+=rmlen;
       input.forgetBefore(j);
     }else {
       if(s[i] != input[i])
-        BugMe<<"input["<<i<<"] mismatch: "<<s[i]<<" != "<<input[j];
+        BugFmt("input[{}] mismatch: {} != {}", i, s[i], input[i]);
       if(bol(s,i) != input.bol(i))
-        BugMe<<"bol("<<i<<") mismatch: "<<bol(s,i)<<" != "<<input.bol(i);
+        BugFmt("bol({}) mismatch: {} != {}", i, bol(s,i), input.bol(i));
       pair<size_t,size_t> observed = input.rowCol(i), expected = rowCol(s,i);
       if(observed.first != expected.first)
-        BugMe<<"row mismatch: "<<expected.first<<" != "<<observed.first;
+        BugFmt("row mismatch: {} != {}", expected.first, observed.first);
       if(observed.second != expected.second)
-        BugMe<<"col mismatch: "<<expected.second<<" != "<<observed.second;
+        BugFmt("col mismatch: {} != {}", expected.second, observed.second);
       ++i;
     }
   }
@@ -106,12 +109,11 @@ void testLineTooLong() {
   Input input((GetFromString(s)));
   try {
     char ch = input[input.maxLineLength()];
-    BugMe<<"Got input[i] == '"<<ch<<"', was expecting an exception";
+    BugMeFmt("Got input[i] == '{}', was expecting an exception", ch);
   }catch(oalex::UserErrorEx& ex) {
     const char expected[] = "Line 1 is too long";
     if(string(ex.what()).find(expected)==string::npos)
-      BugMe<<"substr mismatch: \""<<expected<<"\" is not in \""
-           <<ex.what()<<"\"";
+      BugMeFmt("substr mismatch: \"{}\" is not in \"{}\"", expected, ex.what());
   }
 }
 
@@ -120,9 +122,9 @@ void testForgottenBol() {
   Input input{GetFromString(s)};
   input.forgetBefore(80);
   if(input.bol(90)!=0)
-    BugMe<<"first-line bol() is wrong after amnesia. 0 != "<<input.bol(90);
+    BugMeFmt("first-line bol() is wrong after amnesia. 0 != {}", input.bol(90));
   if(input.bol(50)!=0)
-    BugMe<<"Can't find bol() for forgotten index. 0 != "<<input.bol(50);
+    BugMeFmt("Can't find bol() for forgotten index. 0 != {}", input.bol(50));
 }
 
 }
