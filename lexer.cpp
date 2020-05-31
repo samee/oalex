@@ -46,13 +46,14 @@
 #include <string>
 #include <string_view>
 #include <vector>
+#include "fmt/format.h"
 
 #include "segment.h"
 #include "runtime/input_view.h"
 #include "runtime/util.h"
 
+using fmt::format;
 using std::function;
-using std::hex;
 using std::min;
 using std::nullopt;
 using std::numeric_limits;
@@ -259,8 +260,8 @@ optional<BracketType> lexCloseBracket(const Input& input, size_t& i) {
 }
 
 string debugChar(char ch) {
-  if(isprint(ch)) return Str()<<'\''<<ch<<'\'';
-  else return Str()<<"\\x"<<hex<<int(ch);
+  if(isprint(ch)) return format("'{}'", ch);
+  else return format("\\x{:02x}", int(ch));
 }
 
 // Returns false on eof. Throws on invalid language character.
@@ -304,7 +305,7 @@ char openBracket(BracketType bt) {
     case BracketType::square: return '[';
     case BracketType::brace: return '{';
     case BracketType::paren: return '(';
-    default: Bug()<<"Invalid openBracket() type "<<int(bt);
+    default: BugFmt("Invalid openBracket() type {}", int(bt));
   }
 }
 
@@ -313,7 +314,7 @@ char closeBracket(BracketType bt) {
     case BracketType::square: return ']';
     case BracketType::brace: return '}';
     case BracketType::paren: return ')';
-    default: Bug()<<"Invalid closeBracket() type "<<int(bt);
+    default: BugFmt("Invalid closeBracket() type {}", int(bt));
   }
 }
 
@@ -324,14 +325,14 @@ static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
 }
 
 QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
-  if(pos > size()) Bug()<<"QuotedString::subqstr() invoked with invalid pos";
+  if(pos > size()) BugFmt("QuotedString::subqstr() invoked with invalid pos");
   len = min(len, size() - pos);
 
   // Find the subrange for the new index_map_.
   auto stit = upper_bound(index_map_.begin(), index_map_.end(),
                           IndexRelation{.inputPos = 0, .quotePos = pos},
                           cmpByQuotePos);
-  if(stit == index_map_.begin()) Bug()<<"Index map doesn't have start entry";
+  if(stit == index_map_.begin()) BugFmt("Index map doesn't have start entry");
   --stit;
   auto enit = upper_bound(index_map_.begin(), index_map_.end(),
                           IndexRelation{.inputPos = 0, .quotePos = pos+len},
@@ -355,7 +356,7 @@ size_t QuotedString::inputPos(size_t pos) const {
                         IndexRelation{.inputPos = 0, .quotePos = pos},
                         cmpByQuotePos);
   if(it == index_map_.begin())
-    Bug()<<"No row/col entry for the first line in: "<<s_;
+    BugFmt("No row/col entry for the first line in: {}", s_);
   --it;
   return it->inputPos + pos - it->quotePos;
 }
@@ -385,7 +386,7 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   BracketGroup bg(i,Input::npos,bt);
   while(true) {
     if(!lookaheadStart(ctx,i)) {  // lookaheadStart is false on EOF.
-      Error(ctx, i, Str()<<"Match not found for '"<<openBracket(bt)<<"'.");
+      Error(ctx, i, format("Match not found for '{}'.", openBracket(bt)));
       i = Input::npos;
       return nullopt;
     }
@@ -397,8 +398,8 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       else {
         rst.markUsed(i+1);
         return Error(ctx, rst.start(), i,
-          Str()<<"Match not found for '"<<openBracket(bt)<<"', found '"
-               <<closeBracket(bt2)<<"' instead.");
+                     format("Match not found for '{}', found '{}' instead.",
+                            openBracket(bt), closeBracket(bt2)));
       }
     }
 

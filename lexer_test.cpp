@@ -18,9 +18,13 @@
 #include <string>
 #include <string_view>
 
+#include "fmt/format.h"
+
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
+using fmt::format;
+using fmt::print;
 using std::cerr;
 using std::endl;
 using std::get;
@@ -34,8 +38,8 @@ using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
-using oalex::operator<<;
 using oalex::Bug;
+using oalex::BugFmt;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -102,13 +106,13 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(!res || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    Bug()<<testName<<" failed";
+    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    BugFmt("{} failed", testName);
   }else {
     vector<string> observed;
     for(const UnquotedToken& t : *res) observed.push_back(*t);
     if(expected != observed)
-      Bug()<<testName<<": "<<expected<<" != "<<observed;
+      BugFmt("{}: {} != {}", testName, expected, observed);
   }
 }
 
@@ -118,7 +122,7 @@ void headerFailureImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(res && ctx.diags.empty())
-    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
+    BugFmt("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -132,44 +136,44 @@ const char incompleteHex[] = R"("Foo\xF)";
 const char invalidHex[] = R"("\xag")";
 
 void stringSuccessImpl(const char testInput[], const char testName[],
-    string_view expected) {
+                       string_view expected) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    Bug()<<testName<<" failed";
+    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    BugFmt("{} failed", testName);
   }else {
     if(expected != *res)
-      Bug()<<testName<<": "<<expected<<" != "<<string_view(*res);
+      BugFmt("{}: {} != {}", testName, expected, string_view(*res));
   }
 }
 
 void stringFailureImpl(const char testInput[], const char testName[],
-    string_view expectedDiag) {
+                       string_view expectedDiag) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(res && ctx.diags.empty())
-    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
+    BugFmt("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 string debug(const pair<size_t,size_t>& p) {
-  return Str()<<p.first<<':'<<p.second;
+  BugFmt("{}:{}", p.first, p.second);
 }
 
 template <class T>
 void assertEq(string_view errmsg, const T& a, const T& b) {
-  if(a != b) Bug()<<errmsg<<": "<<debug(a)<<" != "<<debug(b);
+  if(a != b) BugFmt("{}: {} != {}", errmsg, debug(a), debug(b));
 }
 
 void compareSubqstrIndexPos(const QuotedString& a, size_t pos, size_t len) {
   const QuotedString b = a.subqstr(pos, len);
   for(size_t i=0; i<=b.size(); ++i) if(a.inputPos(i+pos) != b.inputPos(i))
-    Bug()<<"Substring inputPos mismatch between '"<<string(a)<<"' and '"
-         <<string(b)<<"': a.inputPos("<<i+pos<<") = "<<a.inputPos(i+pos)
-         <<" != b.inputPos("<<i<<") = "<<b.inputPos(i);
+    BugFmt("Substring inputPos mismatch between '{}' and '{}': "
+           "a.inputPos({}) = {}  !=  b.inputPos({}) = {}", string_view(a),
+           string_view(b), i+pos, a.inputPos(i+pos), i, b.inputPos(i));
 }
 
 void stringPosMap() {
@@ -177,7 +181,7 @@ void stringPosMap() {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
-  if(!res) Bug()<<"Parsing "<<testInput<<" failed in "<<__func__;
+  if(!res) BugFmt("Parsing {} failed in {}", testInput, __func__);
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(0),
            pair<size_t,size_t>(1, 2));
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(4),
@@ -219,34 +223,34 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   size_t i = 0;
   optional<QuotedString> res = lexDelimitedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    Bug()<<testName<<" failed";
+    for(const auto& d:ctx.diags) print("{}\n", string(d));
+    BugFmt("{} failed", testName);
   }else {
     if(expected != *res) {
-      Bug()<<testName<<": "<<expected<<" != "<<string_view(*res);
+      BugFmt("{}: {} != {}", testName, expected, string_view(*res));
     }
   }
 
   size_t lastLineNumber = ctx.input.rowCol(i).first;
 
   if(res->rowCol(0).first != 2)
-    Bug()<<testName<<": Was expecting delimted string body to start on "
-         <<"the second line. Found it on "<<res->rowCol(0).first<<". Input:\n"
-         <<testInput;
+    BugFmt("{}: Was expecting delimted string body to start on "
+           "the second line. Found it on {}. Input:\n{}",
+           testName, res->rowCol(0).first, testInput);
   for(size_t i=0; i<res->size(); ++i) if(res->rowCol(i+1).second == 1) {
     if(res->rowCol(i).first+1 != res->rowCol(i+1).first)
-      Bug()<<testName<<" Line numbers are not sequential "
-           <<" at the start of line "<<res->rowCol(i+1).first<<". Input:\n"
-           <<testInput;
+      BugFmt("{}: Line numbers are not sequential "
+             " at the start of line {}. Input:\n{}",
+             testName, res->rowCol(i+1).first, testInput);
     auto expected = ctx.input.rowCol(i + 1 + dsize);
     if(res->rowCol(i) != expected)
-      Bug()<<testName<<" Location info changed after parsing: "
-           <<debug(expected)<<" became "<<debug(res->rowCol(i));
+      BugFmt("{}: Location info changed after parsing: "
+             "{} became {}", testName, debug(expected), debug(res->rowCol(i)));
   }
   if(res->rowCol(res->size()) != pair(lastLineNumber, size_t(1)))
-    Bug()<<testName<<": Was expecting the input to end on "<<lastLineNumber
-         <<":1, instead found "<<debug(res->rowCol(res->size()))<<". Input\n"
-         <<testInput;
+    BugFmt("{}: Was expecting the input to end on {}:1, instead found {}. "
+           "Input\n", testName, lastLineNumber, debug(res->rowCol(res->size())),
+           testInput);
 }
 
 void delimSourceBlockFailureImpl(const char testInput[], const char testName[],
@@ -276,51 +280,51 @@ void indentedSourceBlockSuccessImpl(
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    Bug()<<testName<<" failed";
+    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    BugFmt("{} failed", testName);
   }
   if(!res.has_value()) return;  // Don't check *res if it's not valid.
 
   if(string_view(*res) != *expectedResult)
-    Bug()<<testName<<" '"<<string_view(*res)<<"' != '"<<*expectedResult<<"'";
+    BugFmt("{}: '{}' != '{}'", testName, string_view(*res), *expectedResult);
 
   if(testInput.substr(i, 2) == "  ")
-    Bug()<<testName<<" indented block parsing stopped too early";
+    BugFmt("{}: indented block parsing stopped too early", testName);
 
   size_t lc = lineCount(testInput.substr(0, i));
   if(res->rowCol(0).first != 1)
-    Bug()<<testName<<" Parsed value does not start at row 1";
+    BugFmt("{}: Parsed value does not start at row 1", testName);
 
   if(res->rowCol(res->size()).first != lc)
-    Bug()<<testName<<" Parsed value does not end on line "<<lc<<", input:\n"
-         <<testInput;
+    BugFmt("{}: Parsed value does not end on line {}, input:\n{}",
+           testName, lc, testInput);
 
   string_view testOutput  = *res;
   for(size_t i = 0; i < res->size(); ++i)
     if(res->rowCol(i).first != res->rowCol(i+1).first) {
       size_t r1 = res->rowCol(i).first, r2 = res->rowCol(i+1).first;
       if(r1+1 != r2)
-        Bug()<<testName<<" line numbers are not sequential after "<<r1
-             <<": found "<<r2;
+        BugFmt("{}: line numbers are not sequential after {}: found {}",
+               testName, r1, r2);
       if(testOutput[i] != '\n')
-        Bug()<<testName<<" starts a new line without a newline char at "
-             <<debug(res->rowCol(i+1));
+        BugFmt("{} starts a new line without a newline char at {}",
+               testName, debug(res->rowCol(i+1)));
       size_t c2 = res->rowCol(i+1).second;
       char next = (res->sizeGt(i+1) ? testOutput[i+1] : '\n');
       if(c2 == 1) {
         if(next != '\n')
-          Bug()<<testName<<" maps "<<i+1<<" to column 1, even though it is "
-               <<"not a blank line.";
+          BugFmt("{} maps {} to column 1, even though it is "
+                 "not a blank line.", testName, i+1);
       }else if(c2 == 3) {
         if(next == '\n')
-         Bug()<<testName<<" maps "<<i+1<<" to column 3, even thouhg it is "
-              <<"a blank line.";
+         BugFmt("{} maps {} to column 3, even though it is a blank line.",
+                testName, i+1);
       }else
-        Bug()<<testName<<" maps the start of line "<<r2<<" to column "<<c2
-             <<", was expecting column 1 or 3.";
+        BugFmt("{} maps the start of line {} to column {}, "
+               "was expecting column 1 or 3.", testName, r2, c2);
     }else if(testOutput[i] == '\n')
-      Bug()<<testName<<" doesn't start a new line in spite of a \\n char at "
-           <<debug(res->rowCol(i));
+      BugFmt("{} doesn't start a new line in spite of a \\n char at {}",
+             testName, debug(res->rowCol(i)));
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";
@@ -332,7 +336,7 @@ void indentedSourceBlockFailureImpl(
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res && ctx.diags.empty())
-    Bug()<<"Test "<<testName<<" succeeded unexpectedly";
+    BugFmt("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -344,9 +348,9 @@ void lookaheadsSuccess() {
     InputDiags ctx{testInputDiags(inputs[i])};
     if(optional<UnquotedToken> tok = lookahead(ctx,1)) {
       if(tok->token!=expecteds[i])
-        BugMe<<"Test case "<<i<<" failed with \""
-             <<tok->token<<"\" != \""<<expecteds[i]<<'"';
-    }else BugMe<<"Test case "<<i<<" was supposed to succeed";
+        BugMeFmt("Test case {} failed with \"{}\" != \"{}\"", i,
+                 tok->token, expecteds[i]);
+    }else BugMeFmt("Test case {} was supposed to succeed", i);
   }
 }
 
@@ -354,7 +358,7 @@ void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
   InputDiags ctx{testInputDiags(input)};
   if(optional<UnquotedToken> tok = lookahead(ctx,3))
-    BugMe<<"Succeeded unexpectedly, got "<<tok->token;
+    BugMeFmt("Succeeded unexpectedly, got {}", tok->token);
 }
 
 void lookaheadThrowsOnInvalidChar() {
@@ -362,10 +366,10 @@ void lookaheadThrowsOnInvalidChar() {
   InputDiags ctx{testInputDiags(input)};
   try {
     auto tok = lookahead(ctx,0);
-    BugMe<<"Succeeded unexpectedly, got "<<(tok?tok->token:"<nullopt>"s);
+    BugMeFmt("Succeeded unexpectedly, got {}", (tok?tok->token:"<nullopt>"s));
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find("Unexpected character") == string::npos)
-      BugMe<<"Not the expected Fatal() error: "<<ex.what();
+      BugMeFmt("Not the expected Fatal() error: {}", ex.what());
   }
 }
 
@@ -381,10 +385,10 @@ void bracketGroupSuccess() {
 
   if(bgopt.has_value() && ctx.diags.empty()) {
     if(auto err = matcher::match(expected,*bgopt))
-      BugMe<<"Failed: "<<*err;
+      BugMeFmt("Failed: {}", *err);
   }else {
-    for(const auto& d:ctx.diags) cerr<<string(d)<<endl;
-    BugMe<<"Failed";
+    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    BugMeFmt("Failed");
   }
 }
 
@@ -393,33 +397,33 @@ string debugMatcher(BracketType bt) {
     case BracketType::square: return "squareBrackets";
     case BracketType::brace: return "braces";
     case BracketType::paren: return "parens";
-    default: return Str()<<"Unknown BracketType "<<int(bt);
+    default: return format("Unknown BracketType {}", int(bt));
   }
 }
 
-void debug(ostream& os,const ExprToken& expr) {
+void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
   if(const auto* tok = get_if<UnquotedToken>(&expr)) {
-    os<<tok->token;
+    format_to(buf, "{}", tok->token);
     return;
   }
   if(const auto* qs = get_if<QuotedString>(&expr)) {
-    os<<"quoted("<<string_view(*qs)<<")";
+    format_to(buf, "quoted({})", string_view(*qs));
     return;
   }
   const BracketGroup& bg = get<BracketGroup>(expr);
-  os<<debugMatcher(bg.type)<<'(';
+  format_to(buf, "{}(", debugMatcher(bg.type));
   bool first_child = true;
   for(const ExprToken& x : bg.children) {
-    if(!first_child) os<<", ";
+    if(!first_child) format_to(buf, ", ");
     first_child = false;
-    debug(os, x);
+    debug(buf, x);
   }
 }
 
 string debug(const BracketGroup& bg) {
-  ostringstream os;
-  debug(os, bg);
-  return os.str();
+  fmt::memory_buffer buf;
+  debug(buf, bg);
+  return fmt::to_string(buf);
 }
 
 void bracketGroupFailureImpl(const char testName[], string input,
@@ -429,7 +433,7 @@ void bracketGroupFailureImpl(const char testName[], string input,
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
   if(!expectedDiag.has_value()) {
     if(bgopt.has_value())
-      cerr<<testName<<": Was expecting nullopt, got "<<debug(*bgopt);
+      BugMeFmt("Was expecting nullopt, got {}", debug(*bgopt));
     return;
   }
   assertHasDiagWithSubstr(testName, ctx.diags, *expectedDiag);
@@ -440,10 +444,10 @@ void bracketGroupThrows(string input, string expectedDiag) {
   size_t i = 0;
   try {
     auto bg = lexBracketGroup(ctx,i);
-    BugMe<<"Succeeded unexpectedly, got "<<(bg?debug(*bg):"nullopt");
+    BugMeFmt("Succeeded unexpectedly, got {}", (bg?debug(*bg):"nullopt"));
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find(expectedDiag) == string::npos)
-      BugMe<<"Not the expected Fatal() error: "<<ex.what();
+      BugMeFmt("Not the expected Fatal() error: {}", ex.what());
   }
 }
 

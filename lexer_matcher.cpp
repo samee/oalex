@@ -14,12 +14,14 @@
 
 #include "lexer_matcher.h"
 #include "runtime/util.h"
+#include "fmt/format.h"
 using std::get_if;
 using std::holds_alternative;
 using std::nullopt;
 using std::optional;
 using std::string;
 using std::string_view;
+using fmt::format;
 
 using oalex::Str;
 
@@ -28,14 +30,14 @@ namespace oalex::lex::matcher {
 namespace {
 
 string stringMismatch(string_view s, string_view t) {
-  return Str()<<"\""<<s<<"\" != \""<<t<<"\"";
+  return format("\"{}\" != \"{}\"", s, t);
 }
 
 string debugType(const ExprToken& x) {
   if(holds_alternative<QuotedString>(x)) return "QuotedString";
   if(holds_alternative<UnquotedToken>(x)) return "UnquotedToken";
   if(holds_alternative<BracketGroup>(x)) return "BracketGroup";
-  Bug()<<"ExprToken has unknown type: "<<x.index();
+  BugFmt("ExprToken has unknown type: {}", x.index());
 }
 
 string debugType(BracketType t) {
@@ -43,19 +45,21 @@ string debugType(BracketType t) {
     case BracketType::square: return "BracketType::square";
     case BracketType::brace:  return "BracketType::brace";
     case BracketType::paren:  return "BracketType::paren";
-    default: Bug()<<"Unknown BracketType: "<<int(t);
+    default: BugFmt("Unknown BracketType: {}", int(t));
   }
 }
 
 string typeMismatch(string_view s, const ExprToken& x) {
-  return Str()<<"Type "<<s<<" != "<<debugType(x);
+  return format("Type {} != {}", s, debugType(x));
 }
 
 string typeMismatch(BracketType bt1,BracketType bt2) {
-  return Str()<<debugType(bt1)<<" != "<<debugType(bt2);
+  return format("{} != {}", debugType(bt1), debugType(bt2));
 }
 
-string sizeMismatch(size_t a, size_t b) { return Str()<<"Size "<<a<<" != "<<b; }
+string sizeMismatch(size_t a, size_t b) {
+  return format("Size {} != {}", a, b);
+}
 
 }  // namespace
 
@@ -83,7 +87,7 @@ optional<string> match(ExprMatcher pattern, ExprToken expr) {
       if(auto err = match(m->children[i], x->children[i])) return err;
     return nullopt;
   }
-  Bug()<<"ExprMatcher has unknown type: "<<pattern.index();
+  BugFmt("ExprMatcher has unknown type: {}", pattern.index());
 }
 
 }  // namespace oalex::lex::matcher
