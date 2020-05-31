@@ -28,7 +28,7 @@ using std::string_view;
 using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
-using oalex::Bug;
+using oalex::BugFmt;
 using oalex::DelimPair;
 using oalex::Ident;
 using oalex::Input;
@@ -44,8 +44,8 @@ void assertHasSubstr(string_view testName, string_view s,
                      size_t st, string_view t) {
   string_view m = s.substr(st, t.size());
   if(m != t)
-    Bug()<<testName<<": Matched the wrong part. Found '"<<m
-         <<"' instead of '"<<t<<"'";
+    BugFmt("{}: Matched the wrong part. Found '{}' instead of '{}'",
+           testName, m, t);
 }
 
 // Maybe move this to runtime/input_view.h if this becomes useful.
@@ -59,12 +59,12 @@ QuotedString findQuote(string_view testName, InputDiags& ctx,
   s = '"' + s + '"';
   size_t i = findSubstr(ctx.input, s);
   if(i == string::npos)
-    Bug()<<testName<<": '"<<s<<"' not found in test input";
+    BugFmt("{}: '{}' not found in test input", testName, s);
   size_t j = i;
   auto res = lexQuotedString(ctx, j);
   assertEmptyDiags(testName, ctx.diags);
   if(!res.has_value() || j != i + s.size())
-    Bug()<<testName<<": findQuote() called with invalid string "<<s;
+    BugFmt("{}: findQuote() called with invalid string {}", testName, s);
   return std::move(*res);
 }
 
@@ -107,16 +107,16 @@ void testMatchAll() {
     = matchAllParts(fquote("cond"), tmpl);
 
   assertEmptyDiags(__func__, ctx->diags);
-  if(!out) BugMe<<"Couldn't find 'cond' in: "<<string(tmpl);
+  if(!out) BugMeFmt("Couldn't find 'cond' in: {}", string(tmpl));
   if(out->size() != 1)
-    BugMe<<"Was expecting a single match. Found "<<out->size();
+    BugMeFmt("Was expecting a single match. Found {}", out->size());
   assertHasSubstr(__func__, tmpl, out->at(0).first, "cond");
 
   out = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
   assertEmptyDiags(__func__, ctx->diags);
-  if(!out) BugMe<<"Couldn't find '{ ... }' in: "<<string(tmpl);
+  if(!out) BugMeFmt("Couldn't find '{ ... }' in: {}", string(tmpl));
   if(out->size() != 2)
-    BugMe<<"Was expecting two matches. Found "<<out->size();
+    BugMeFmt("Was expecting two matches. Found {}", out->size());
   for(auto& bound : *out) {
     assertHasSubstr(__func__, tmpl, bound.first, "{");
     assertHasSubstr(__func__, tmpl, bound.second-"}"s.size(), "}");
@@ -129,13 +129,13 @@ void testEmptyPatternsFail() {
   QuotedString empty = fquote("");
 
   auto res1 = matchAllParts(empty, tmpl);
-  if(res1) BugMe<<"succeeded unexpectedly with an empty pattern";
+  if(res1) BugMeFmt("succeeded unexpectedly with an empty pattern");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholder pattern cannot be empty");
 
   ctx->diags.clear();
   auto res2 = matchAllParts(DelimPair{empty, empty}, tmpl);
-  if(res2) BugMe<<"succeeded unexpectedly with a pair of empty patterns";
+  if(res2) BugMeFmt("succeeded unexpectedly with a pair of empty patterns");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholder pattern cannot be empty");
 }
@@ -156,13 +156,13 @@ void testMatchAllFailsOnOverlap() {
   QuotedString tmpl = fquote("ababa { { } }");
 
   auto res1 = matchAllParts(fquote("aba"), tmpl);
-  if(res1) BugMe<<"succeeded unexpectedly while matching 'aba'";
+  if(res1) BugMeFmt("succeeded unexpectedly while matching 'aba'");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Pattern 'aba' matches overlapping segments");
 
   ctx->diags.clear();
   auto res2 = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
-  if(res2) BugMe<<"succeeded unexpectedly while matching '{ ... }'}";
+  if(res2) BugMeFmt("succeeded unexpectedly while matching '{{ ... }}'");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Pattern '{ ... }' matches overlapping segments");
 }
@@ -171,24 +171,24 @@ void testUnfinishedMatch() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("{} {" "{" "}")");
   QuotedString tmpl = fquote("{} {");
   auto res = matchAllParts(DelimPair{fquote("{"), fquote("}")}, fquote("{} {"));
-  if(!res) BugMe<<"Was expecting a match in spite of error";
+  if(!res) BugMeFmt("Was expecting a match in spite of error");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Unterminated segment");
 }
 
 Ident findIdent(string_view testName, InputDiags& ctx, string_view id) {
   size_t i = findSubstr(ctx.input, id);
-  if(i == string::npos) Bug()<<id<<" not found in "<<testName<<" input";
+  if(i == string::npos) BugFmt("{} not found in {} input", id, testName);
   Ident rv = Ident::parse(ctx, i);
   if(rv.preserveCase() != id)
-    Bug()<<"findIdent() cannot perform whole-word matches. Found "
-         <<rv.preserveCase()<<" instead of "<<id;
+    BugFmt("findIdent() cannot perform whole-word matches. Found "
+           "{} instead of {}", rv.preserveCase(), id);
   return rv;
 }
 
 string debug(const variant<QuotedString,Ident>& lp) {
   if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
   if(auto* q = get_if<QuotedString>(&lp)) return string(*q);
-  Bug()<<"LabelOrPart variant with unknown index "<<lp.index();
+  BugFmt("LabelOrPart variant with unknown index {}", lp.index());
 }
 
 void testLabelParts() {
@@ -208,11 +208,11 @@ void testLabelParts() {
     fid("stmt"), tmpl.subqstr(17,6), fid("stmt"),
   };
   if(observed.size() != expected.size())
-    BugMe<<"Expected "<<expected.size()<<" parts, found "<<observed.size();
+    BugMeFmt("Expected {} parts, found {}", expected.size(), observed.size());
   for(size_t i=0; i<expected.size(); ++i) if(expected[i] != observed[i])
-    BugMe<<"Failed equality at index "<<i<<": "
-         <<debug(expected[i])<<" != "<<debug(observed[i]);
-  if(observed != expected) BugMe<<"Something didn't match";
+    BugMeFmt("Failed equality at index {}: {} != {}",
+             i, debug(expected[i]), debug(observed[i]));
+  if(observed != expected) BugMeFmt("Something didn't match");
 }
 
 void testCrossLabelOverlapFails() {
@@ -224,7 +224,7 @@ void testCrossLabelOverlapFails() {
     {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
   };
   vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
-  if(!observed.empty()) BugMe<<"Was expecting an empty vector on error";
+  if(!observed.empty()) BugMeFmt("Was expecting an empty vector on error");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part '] ... [' overlaps with '[ ... ]'");
 }
@@ -237,7 +237,7 @@ void testNoMatchWarns() {
   };
   vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
   vector<variant<QuotedString,Ident>> expected{tmpl};
-  if(observed != expected) BugMe<<"Didn't get the unsplit string";
+  if(observed != expected) BugMeFmt("Didn't get the unsplit string");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "No match found for pattern 'foo'");
 }
@@ -245,13 +245,13 @@ void testNoMatchWarns() {
 void testEmptySuccess() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("")");
   vector observed = labelParts(fquote(""), {});
-  if(observed.empty()) BugMe<<"Failed on empty input";
+  if(observed.empty()) BugMeFmt("Failed on empty input");
   if(observed.size() != 1)
-    BugMe<<"Split empty string to get "<<observed.size()
-         <<" pieces, was expecting 1";
+    BugMeFmt("Split empty string to get {} pieces, was expecting 1",
+             observed.size());
   if(debug(observed[0]) != "")
-    BugMe<<"Split empty string to obtain non-empty output: "
-         <<debug(observed[0]);
+    BugMeFmt("Split empty string to obtain non-empty output: {}",
+             debug(observed[0]));
 }
 
 }  // namespace

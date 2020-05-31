@@ -15,7 +15,9 @@
 #include "template.h"
 #include <algorithm>
 #include <map>
+#include "fmt/format.h"
 #include "runtime/util.h"
+using fmt::format;
 using std::get_if;
 using std::make_pair;
 using std::map;
@@ -32,12 +34,12 @@ namespace oalex {
 
 static string debug(const QuotedString& qs) { return qs; }
 static string debug(const DelimPair& dp) {
-  return Str()<<string(dp.st)<<" ... "<<string(dp.en);
+  return format("{} ... {}", string(dp.st), string(dp.en));
 }
 static string debug(const PartPattern& pp) {
   if(auto* p = get_if<QuotedString>(&pp)) return debug(*p);
   if(auto* p = get_if<DelimPair>(&pp)) return debug(*p);
-  Bug()<<"Unknown PartPattern with index "<<pp.index();
+  BugFmt("Unknown PartPattern with index {}", pp.index());
 }
 
 static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
@@ -49,8 +51,8 @@ static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
     if(s.substr(i, spatt.size()) == spatt) {
       if(!rv.empty() && i<rv.back().second)
         return Error(s, rv.back().first, i + spatt.size(),
-                     Str()<<"Pattern '"<<debug(spatt)
-                          <<"' matches overlapping segments");
+                     format("Pattern '{}' matches overlapping segments",
+                            debug(spatt)));
       else rv.push_back(make_pair(i, i+spatt.size()));
     }
   return rv;
@@ -71,8 +73,8 @@ static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
       if(!rv.empty() && i<rv.back().second) {
         return Error(s, rv.back().first,
                      max(rv.back().second, i + dpatt.st.size()),
-                     Str()<<"Pattern '"<<debug(dpatt)
-                          <<"' matches overlapping segments");
+                     format("Pattern '{}' matches overlapping segments",
+                            debug(dpatt)));
       }
       size_t j = s.find(dpatt.en, i+1);
       if(j == string::npos) {
@@ -89,7 +91,7 @@ auto matchAllParts(const PartPattern& patt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
   if(auto* spatt = get_if<QuotedString>(&patt)) return matchAllParts(*spatt, s);
   if(auto* dpatt = get_if<DelimPair>(&patt)) return matchAllParts(*dpatt, s);
-  Bug()<<"matchAllParts() called with unknown variant: index "<<patt.index();
+  BugFmt("matchAllParts() called with unknown variant: index {}", patt.index());
 }
 
 // A map of non-empty, non-overlapping intervals. Key is the start position,
@@ -108,8 +110,8 @@ static auto
 insert(IntervalMap& m, const IntervalMap::value_type& x)
   -> const IntervalMap::value_type* {
   if(x.first >= x.second.first)
-    Bug()<<"matchAllParts() produced invalid interval: "
-         <<x.first<<", "<<x.second.first;
+    BugFmt("matchAllParts() produced invalid interval: {}, {}",
+           x.first, x.second.first);
 
   IntervalMap::iterator next = m.lower_bound(x.first);
   if(next != m.end() && overlaps(x, *next)) return &*next;
@@ -124,19 +126,19 @@ insert(IntervalMap& m, const IntervalMap::value_type& x)
 static size_t stPattPos(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return stPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return stPos(dp->st);
-  Bug()<<"stPos() called with unknown index "<<patt.index();
+  BugFmt("stPattPos() called with unknown index {}", patt.index());
 }
 
 static size_t enPattPos(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return enPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return enPos(dp->st);
-  Bug()<<"stPos() called with unknown index "<<patt.index();
+  BugFmt("enPattPos() called with unknown index {}", patt.index());
 }
 
 static const QuotedString& pattStart(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return *q;
   if(auto* dp = get_if<DelimPair>(&patt)) return dp->st;
-  Bug()<<"stPos() called with unknown index "<<patt.index();
+  BugFmt("pattStart() called with unknown index {}", patt.index());
 }
 
 auto labelParts(const QuotedString& s,
@@ -150,15 +152,15 @@ auto labelParts(const QuotedString& s,
     if(!matches) { matchError = true; continue; }
     if(matches->empty())
       Warning(pattStart(patt), stPattPos(patt), enPattPos(patt),
-              Str()<<"No match found for pattern '"<<debug(patt)<<"'");
+              format("No match found for pattern '{}'", debug(patt)));
     for(const auto& [st,en] : *matches) {
       const IntervalMap::value_type interval{st, {en, id}};
       const IntervalMap::value_type* ovlap = insert(m, interval);
       if(ovlap) {
         Error(s, st, en,
-              Str()<<"Part '"<<debug(patt)<<"' overlaps with '"
-                   <<debug(partPatterns.at(ovlap->second.second))<<"' at "
-                   <<locationString(s, ovlap->first, ovlap->second.first));
+              format("Part '{}' overlaps with '{}' at {}", debug(patt),
+                     debug(partPatterns.at(ovlap->second.second)),
+                     locationString(s, ovlap->first, ovlap->second.first)));
         matchError = true;
       }
     }
@@ -171,10 +173,10 @@ auto labelParts(const QuotedString& s,
   for(const auto& [st, enid] : m) {
     auto& [en, id] = enid;
     if(st < lastEn)
-      Bug()<<"Overlapping intervals should have been caught earlier: "
-           <<locationString(s, st, en)
-           <<" starts before ending another interval at "
-           <<locationString(s, lastEn, lastEn+1);
+      BugFmt("Overlapping intervals should have been caught earlier: {}"
+             " starts before ending another interval at {}",
+             locationString(s, st, en),
+             locationString(s, lastEn, lastEn+1));
     if(st > lastEn) rv.push_back(s.subqstr(lastEn, st-lastEn));
     rv.push_back(id);
     lastEn = en;
