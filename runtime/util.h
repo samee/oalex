@@ -17,6 +17,7 @@
 #include<memory>
 #include<sstream>
 #include<stdexcept>
+#include"fmt/format.h"
 
 namespace oalex {
 
@@ -41,12 +42,21 @@ struct Bug {
 template <class X> std::ostream& operator<<(Bug&& b, const X& x) {
   return b.os << x;
 }
+template <class ... Args>
+[[noreturn]] void BugFmt(const char* fmt, const Args& ... args) {
+  throw BugEx(fmt::format(fmt, args...));
+}
 
 struct BugDie {
   [[noreturn]] ~BugDie() { std::cerr<<std::endl; std::abort(); }
 };
 template <class X> std::ostream& operator<<(BugDie&&, const X& x) {
   return std::cerr << "Bug: " << x;
+}
+template <class ... Args>
+[[noreturn]] void BugDieFmt(const char* fmt, const Args& ... args) {
+  fmt::print(stderr, fmt, args...);
+  std::abort();
 }
 
 struct UnimplementedEx : BugEx {
@@ -61,6 +71,11 @@ struct Unimplemented {
 template <class X> std::ostream& operator<<(Unimplemented&& b, const X& x) {
   return b.os << "Unimplemented: " << x;
 }
+template <class ... Args>
+[[noreturn]] void UnimplementedFmt(const char* fmt, const Args& ... args) {
+  throw UnimplementedEx(fmt::format(fmt, args...));
+}
+
 
 struct Debug {
   ~Debug () { std::cerr<<std::endl; }
@@ -68,6 +83,12 @@ struct Debug {
 template <class X> std::ostream& operator<<(Debug&&, const X& x) {
   return std::cerr << x;
 }
+template <class ... Args>
+[[noreturn]] void DebugFmt(const char* fmt, const Args& ... args) {
+  fmt::print(stderr, fmt, args...);
+  fmt::print(stderr, "\n");
+}
+
 
 
 struct UserErrorEx : std::runtime_error {
@@ -81,10 +102,18 @@ struct UserError {
 template <class X> std::ostream& operator<<(UserError&& b, const X& x) {
   return b.os << x;
 }
+template <class ... Args>
+[[noreturn]] void UserErrorFmt(const char* fmt, const Args& ... args) {
+  throw UserErrorEx(fmt::format(fmt, args...));
+}
 
 struct BugWarn { ~BugWarn() { std::cerr<<std::endl; } };
 template <class X> std::ostream& operator<<(BugWarn&&, const X& x) {
   return std::cerr <<"Bug: " << x;
+}
+template <class ... Args>
+void BugWarnFmt(const char* fmt, const Args& ... args) {
+  fmt::print(stderr, fmt::format("Bug: {}\n", fmt), args...);
 }
 
 // Usage: std::string s = (Str()<<"hello world "<<5);

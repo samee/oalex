@@ -18,11 +18,31 @@
 #include <map>
 #include <string>
 #include <string_view>
+#include "fmt/format.h"
 #include "util.h"
+
+template <>
+struct fmt::formatter<std::vector<std::string>> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+  template <typename FormatContext>
+  auto format(const std::vector<std::string>& v, FormatContext& ctx) {
+    if(v.empty()) return format_to(ctx.out(), "{{}}");
+    format_to(ctx.out(), "{{{}", v[0]);
+    for(size_t i=1;i<v.size();++i) format_to(ctx.out(), ", {}", v[i]);
+    return format_to(ctx.out(), "}}");
+  }
+};
 
 namespace oalex {
 
+template <class ... Args> [[noreturn]] void
+  BugMeFmtImpl(const char testName[], const char* fmt, const Args& ... args) {
+    BugFmt(fmt::format("{}: {}", testName, fmt).data(), args...);
+}
+
 #define BugMe oalex::Bug()<<__func__<<": "
+#define BugMeFmt(...) oalex::BugMeFmtImpl(__func__, __VA_ARGS__)
 
 // Useful as getch() callbacks in dfa.h and input_view.h.
 // Dev note: When reading from files, two things to note:
