@@ -15,6 +15,7 @@
 #include "lookahead_regex_io.h"
 #include <cctype>
 #include <cstring>
+#include "fmt/format.h"
 #include "lexer.h"
 #include "runtime/util.h"
 using std::get_if;
@@ -35,7 +36,7 @@ namespace {
 char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
   else if(ch <= 15) return ch-10+'a';
-  else Bug()<<"hexdigit("<<int(ch)<<") input is not a hex digit.";
+  else BugFmt("hexdigit({}) input is not a hex digit.", int(ch));
 }
 
 bool is_in(char ch, const char s[]) {
@@ -110,22 +111,23 @@ bool hasAllChars(const CharSet& set) {
 string prettyPrintSet(const CharSet& set) {
   if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
-  ostringstream os;
+  fmt::memory_buffer buf;
 
-  if(set.negated) os<<"[^";
-  else os<<'[';
+  if(set.negated) format_to(buf, "[^");
+  else format_to(buf, "[");
 
   for(size_t i=0; i<n; ++i) {
     auto& r = set.ranges[i];
-    if(r.from > r.to) Bug()<<"Invalid regex range";
+    if(r.from > r.to) BugFmt("Invalid regex range: {} > {}", r.from, r.to);
     else if(r.from == r.to) {
-      if(r.from == '^' && i == 0 && !set.negated) os<<"\\^";
-      else os<<escapedForSet(r.from, i, n);
-    }else if(isPlainRange(r.from, r.to)) os<<r.from<<'-'<<r.to;
-    else Bug()<<"Complicated range found: "<<r.from<<" to "<<r.to;
+      if(r.from == '^' && i == 0 && !set.negated) format_to(buf, "\\^");
+      else format_to(buf, "{}", escapedForSet(r.from, i, n));
+    }else if(isPlainRange(r.from, r.to))
+      format_to(buf, "{}-{}", char(r.from), char(r.to));
+    else BugFmt("Complicated range found: {} to {}", r.from, r.to);
   }
-  os<<']';
-  return os.str();
+  format_to(buf, "]");
+  return fmt::to_string(buf);
 }
 
 string prettyPrintAnchor(Anchor a) {
@@ -133,7 +135,7 @@ string prettyPrintAnchor(Anchor a) {
     case Anchor::wordEdge: return "\\b";
     case Anchor::bol: return "^";
     case Anchor::eol: return "$";
-    default: Bug()<<"Unknown Anchor type "<<static_cast<int>(a);
+    default: BugFmt("Unknown Anchor type {}", static_cast<int>(a));
   }
 }
 
@@ -144,36 +146,37 @@ bool printsToNull(const Regex& regex) {
   else if(auto* seq = get_if_unique<Concat>(&regex)) {
     for(const Regex& p : seq->parts) if(!printsToNull(p)) return false;
     return true;
-  }else Bug()<<"printsToNull() called with unknown index "<<regex.index();
+  }else BugFmt("printsToNull() called with unknown index {}", regex.index());
 }
 
 template <class ... Ts>
-void surroundUnless(ostringstream& os, const Regex& regex) {
-  if(!holds_one_of_unique<Ts...>(regex)) os<<'('<<prettyPrintRec(regex)<<')';
-  else os<<prettyPrintRec(regex);
+void surroundUnless(fmt::memory_buffer& buf, const Regex& regex) {
+  if(!holds_one_of_unique<Ts...>(regex))
+    format_to(buf, "({})", prettyPrintRec(regex));
+  else format_to(buf, "{}", prettyPrintRec(regex));
 }
 
 string prettyPrintSeq(const Concat& seq) {
-  ostringstream os;
+  fmt::memory_buffer buf;
   for(auto& part : seq.parts) {
-    if(printsToNull(part)) os<<"()";
-    else surroundUnless<CharSet, string, Anchor, Repeat, Optional>(os, part);
+    if(printsToNull(part)) format_to(buf, "()");
+    else surroundUnless<CharSet, string, Anchor, Repeat, Optional>(buf, part);
   }
-  return os.str();
+  return fmt::to_string(buf);
 }
 
 string prettyPrintOrs(const OrList& ors) {
   if(ors.parts.empty()) return "";
-  ostringstream os;
+  fmt::memory_buffer buf;
 
   surroundUnless<CharSet, string, Anchor,
-                 Concat, Repeat, Optional>(os, ors.parts[0]);
+                 Concat, Repeat, Optional>(buf, ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
-    os<<'|';
+    format_to(buf, "|");
     surroundUnless<CharSet, string, Anchor,
-                   Concat, Repeat, Optional>(os, ors.parts[i]);
+                   Concat, Repeat, Optional>(buf, ors.parts[i]);
   }
-  return os.str();
+  return fmt::to_string(buf);
 }
 
 string surround(string s) { return "(" + s + ")"; }
@@ -185,7 +188,7 @@ string prettyPrintRepeatPart(const Regex& part, char op) {
     if(s->size() == 1) return prettyPrintRec(part) + op_s;
     else return surround(prettyPrintRec(part)) + op_s;
   }
-  else if(holds_one_of_unique<Concat,OrList>(part))
+  else if(holds_one_of_unique<Concat,Repeat,OrList>(part))
     return surround(prettyPrintRec(part)) + op_s;
   else return prettyPrintRec(part) + op_s;
 }
@@ -227,7 +230,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
-  else Unimplemented()<<"prettyPrint(regex) for variant "<<regex.index();
+  else UnimplementedFmt("prettyPrint(regex) for variant {}", regex.index());
 }
 
 constexpr uint8_t kMaxDepth = 255;
@@ -290,7 +293,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'['))
-    Bug()<<"parseCharSetUnq called at invalid location "<<i;
+    BugFmt("parseCharSetUnq called at invalid location {}", i);
   CharSet cset;
   size_t j = i+1;
 
@@ -386,7 +389,7 @@ Regex repeatWith(Regex regex, char op) {
     case '*': return move_to_unique(Optional{
                        move_to_unique(Repeat{std::move(regex)})
                      });
-    default: Bug()<<"repeatWith called with invalid op: "<<op;
+    default: BugFmt("repeatWith called with invalid op: {}", op);
   }
 }
 
@@ -394,7 +397,7 @@ Regex repeatWith(Regex regex, char op) {
 bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
   char ch = ctx.input[i];
   ++i;
-  if(ch == '{') Unimplemented()<<"'{}'";
+  if(ch == '{') UnimplementedFmt("'{{}}'");
   if(concat.parts.empty()) {
     Error(ctx, i-1, i, "Nothing to repeat");
     return false;
@@ -420,7 +423,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 
   while(input.sizeGt(j)) {
     if(input[j] == '[') subres = parseCharSetUnq(ctx, j);
-    else if(input[j] == '(') subres = parseGroup(ctx, j, depth);
+    else if(input[j] == '(') subres = parseGroup(ctx, j, depth + repdepth);
     else if(is_in(input[j], ")/|")) {  // end pattern.
       i = j;
       return unpackSingleton(contractStrings(std::move(concat)));
@@ -478,8 +481,8 @@ CharSet parseCharSet(string input) {
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
   else {
-    for(const auto& d : ctx.diags) BugWarn()<<string(d);
-    Bug()<<"parseCharSet() input was invalid: "<<input;
+    for(const auto& d : ctx.diags) BugWarnFmt("{}", string(d));
+    BugFmt("parseCharSet() input was invalid: {}", input);
   }
 }
 

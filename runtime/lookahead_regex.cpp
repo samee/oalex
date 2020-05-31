@@ -57,7 +57,7 @@ auto partInit(const vector<Regex>& parts) {
 auto assertVectorBool(MatchState& state, size_t sz) -> vector<bool>& {
   auto& v = get_unique<vector<bool>>(state);
   if(v.size() != sz)
-    Bug()<<"MatchState expected to have "<<sz<<" bools, not "<<v.size();
+    BugFmt("MatchState expected to have {} bools, not {}", sz, v.size());
   return v;
 }
 
@@ -65,8 +65,8 @@ auto assertMatchStateVector(MatchState& state, size_t sz)
   -> vector<MatchState>& {
   auto& partstates = get_unique<MatchStateVector>(state).parts;
   if(sz != partstates.size())
-    Bug()<<"init() produced states with the wrong size: "<<sz
-      <<" != "<<partstates.size();
+    BugFmt("init() produced states with the wrong size: {} != {}",
+           sz, partstates.size());
   return partstates;
 }
 
@@ -83,7 +83,7 @@ MatchState init(const Regex& regex) {
     return move_to_unique(MatchStateVector{partInit(seq->parts)});
   else if(auto* rep = get_if_unique<Repeat>(&regex))
     return init(rep->part);
-  else Unimplemented()<<"init() for index "<<regex.index();
+  else UnimplementedFmt("init() for index {}", regex.index());
 }
 
 bool matchesCharSet(char ch, const CharSet& cset) {
@@ -106,14 +106,15 @@ void start(const Regex& regex, MatchState& state) {
   }else if(auto* rep = get_if_unique<Repeat>(&regex)) start(rep->part, state);
   else if(auto* seq = get_if_unique<Concat>(&regex)) {
     if(seq->parts.empty())
-      Bug()<<"Cannot Concat over an empty vector. Use an empty string instead.";
+      BugFmt("Cannot Concat over an empty vector. "
+             "Use an empty string instead.");
     auto& partstates = assertMatchStateVector(state, seq->parts.size());
     start(seq->parts[0], partstates[0]);
     for(size_t i=1; i<seq->parts.size(); ++i) {
       if(!matched(seq->parts[i-1], partstates[i-1])) break;
       start(seq->parts[i], partstates[i]);
     }
-  }else Bug()<<"Unknown index in start() "<<regex.index();
+  }else BugFmt("Unknown index in start() {}", regex.index());
 }
 
 bool matched(const Regex& regex, const MatchState& state) {
@@ -132,7 +133,7 @@ bool matched(const Regex& regex, const MatchState& state) {
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return matched(seq->parts.back(),
         get_unique<MatchStateVector>(state).parts.back());
-  else Bug()<<"Unknown index in matched() "<<regex.index();
+  else BugFmt("Unknown index in matched() {}", regex.index());
 }
 
 void shiftRight(vector<bool>& v) {
@@ -171,7 +172,7 @@ void advance(const Regex& regex, unsigned char ch, MatchState& state) {
       if(matched(seq->parts[i], partstates[i]))
         start(seq->parts[i+1], partstates[i+1]);
   }
-  else Bug()<<"Unknown index in advance() "<<regex.index();
+  else BugFmt("Unknown index in advance() {}", regex.index());
 }
 
 enum AnchorMatches { matchesWordEdge = 1, matchesBol = 2, matchesEol = 4 };
@@ -221,7 +222,7 @@ void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
     }
     advanceAnchor(seq->parts[n-1], v[n-1], anch);
   }
-  else Bug()<<"Unknown index in advance() "<<regex.index();
+  else BugFmt("Unknown index in advance() {}", regex.index());
 }
 
 }  // namespace
