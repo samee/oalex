@@ -17,6 +17,7 @@
 #include <utility>
 #include <vector>
 #include "util.h"
+using fmt::format;
 using std::pair;
 using std::nullopt;
 using std::optional;
@@ -64,8 +65,8 @@ optional<string> Skipper::valid() const {
   for(size_t i=0; i<starts.size(); ++i)
     for(size_t j=0; j<starts.size(); ++j)
       if(i != j && starts_with(starts[i], starts[j]))
-        return Str()<<"Comment delimiters cannot be prefixes of each other: "
-                    <<starts[i]<<", "<<starts[j];
+        return format("Comment delimiters cannot be prefixes of each other: "
+                      "{}, {}", starts[i], starts[j]);
   return nullopt;
 }
 
@@ -85,8 +86,8 @@ static size_t skipPastNestedComment(
   const auto& [stdelim,endelim] = delims;
 
   if(stdelim.empty() || endelim.empty())
-    Bug()<<"Nested comment delimiters shouldn't be empty. '"
-         <<stdelim<<"', '"<<endelim<<"'";
+    BugFmt("Nested comment delimiters shouldn't be empty. '{}', '{}'",
+           stdelim, endelim);
 
   while(input.sizeGt(i) && i<end) {
     if(input.hasPrefix(i, end-i, stdelim)) {
