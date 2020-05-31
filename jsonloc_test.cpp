@@ -21,15 +21,14 @@ using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
-using oalex::Bug;
-using oalex::BugWarn;
+using oalex::BugFmt;
+using oalex::BugWarnFmt;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::Resetter;
 using oalex::uniqueKeys;
 using oalex::UserError;
-using oalex::operator<<;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
@@ -72,7 +71,7 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
   rst.markUsed(i);
   if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
   if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
-  Bug()<<"Unknown BracketType: "<<int(bg->type);
+  BugFmt("Unknown BracketType: {}", int(bg->type));
 }
 
 bool isIdent(string_view s) {
@@ -103,9 +102,9 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
     if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
     if(bg->type == BracketType::paren)
       return Error(ctx, bg->stPos, "Unexpected parenthesis");
-    Bug()<<"Unknown BracketType: "<<int(bg->type);
+    BugFmt("Unknown BracketType: {}", int(bg->type));
   }
-  Bug()<<"Unknown ExprType with index: "<<expr.index();
+  BugFmt("Unknown ExprType with index: {}", expr.index());
 }
 
 // TODO diags should throw after 3 or so errors.
@@ -115,7 +114,8 @@ optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
 
   map<string,JsonLoc> rv;
   for(auto& elt : splitres) {
-    if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
+    if(elt.empty())
+      BugMeFmt("splitCommaNoEmpty() is returning empty elements.");
     optional<UnquotedToken> key = parseIdent(ctx, elt[0]);
     if(!key) {
       Error(ctx, stPos(elt[0]), "Was expecting a key.");
@@ -151,7 +151,7 @@ optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
 
   vector<JsonLoc> rv;
   for(auto& elt : splitres) {
-    if(elt.empty()) Bug()<<"splitCommaNoEmpty() is returning empty elements.";
+    if(elt.empty()) BugFmt("splitCommaNoEmpty() is returning empty elements.");
     if(elt.size()!=1) Error(ctx, stPos(elt[1]), "Was expecting a comma here");
     else {
       optional<JsonLoc> parsedElt = parseJsonLoc(ctx, elt[0]);
@@ -184,7 +184,7 @@ void testSimpleSuccess() {
     ]
   })";
   if(output != expected)
-    BugMe<<"Unexpected output:\n"<<output;
+    BugMeFmt("Unexpected output:\n{}", output);
 }
 
 void testSubstitution() {
@@ -197,19 +197,19 @@ void testSubstitution() {
   JsonLoc::PlaceholderMap blanks = json->allPlaceholders();
   const vector<string> expected_blanks{"input","input2"};
   if(uniqueKeys(blanks) != expected_blanks)
-    BugMe<<"Unexpected blank set: ["<<uniqueKeys(blanks)
-         <<"] != ["<<expected_blanks<<"]";
+    BugMeFmt("Unexpected blank set: [{}] != [{}]", uniqueKeys(blanks),
+             expected_blanks);
 
   // Try one substitution.
   optional<JsonLoc> part1 = parseJsonLoc(R"({key: "value"})");
   json->substitute(blanks, "input", *part1);
   if(json->substitutionsOk())
-    BugMe<<"Unexpectedly okay with substitution after only 1 of 2 subs";
+    BugMeFmt("Unexpectedly okay with substitution after only 1 of 2 subs");
 
   // Try second substitution.
   json->substitute(blanks, "input2", JsonLoc("hello"));
   if(!json->substitutionsOk())
-    BugMe<<"Even after all substitutions, still not okay";
+    BugMeFmt("Even after all substitutions, still not okay");
 
   string output = json->prettyPrint(2);
   const char expected[] = R"({
@@ -226,7 +226,7 @@ void testSubstitution() {
     ]
   })";
   if(output != expected)
-    BugMe<<"Unexpected output:\n"<<output;
+    BugMeFmt("Unexpected output:\n{}", output);
 }
 
 void testJsonLocFailure(const char input[], const char errmsg[]) {
@@ -234,8 +234,8 @@ void testJsonLocFailure(const char input[], const char errmsg[]) {
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(ctx, i);
   if(res.has_value() && ctx.diags.empty())
-    Bug()<<"Was expecting failure with input '"<<input
-         <<"'. Got this instead: "<<res->prettyPrint();
+    BugMeFmt("Was expecting failure with input '{}'. Got this instead: {}",
+             input, res->prettyPrint());
   assertHasDiagWithSubstr(__func__, ctx.diags, errmsg);
 }
 
@@ -244,11 +244,11 @@ void testJsonLocPosition(const char input[], size_t endi) {
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(ctx, i);
   if(!ctx.diags.empty()) {
-    for(const auto& d : ctx.diags) BugWarn()<<string(d);
-    Bug()<<"Got unexpected diags.";
+    for(const auto& d : ctx.diags) BugWarnFmt("{}", string(d));
+    BugFmt("Got unexpected diags.");
   }
-  if(i != endi) Bug()<<"For input '"<<input<<"', expected end position was "
-                     <<endi<<" != "<<i;
+  if(i != endi) BugFmt("For input '{}', expected end position was {} != {}",
+                       input, endi, i);
 }
 
 }  // namespace

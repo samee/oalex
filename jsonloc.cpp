@@ -14,17 +14,16 @@
 
 #include "jsonloc.h"
 
-#include <iomanip>
-#include <sstream>
+#include "fmt/format.h"
 #include "runtime/util.h"
+using fmt::format_to;
+using fmt::memory_buffer;
 using std::get_if;
 using std::holds_alternative;
 using std::make_pair;
 using std::map;
-using std::ostringstream;
 using std::string;
 using std::string_view;
-using oalex::Bug;
 
 namespace oalex {
 
@@ -34,7 +33,7 @@ using Map = JsonLoc::Map;
 using Vector = JsonLoc::Vector;
 
 [[noreturn]] static void BugUnknownJsonType(const JsonLoc& json) {
-  Bug()<<"Strange JsonLoc type with index = "<<json.value.index();
+  BugFmt("Strange JsonLoc type with index = {}", json.value.index());
 }
 
 static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
@@ -90,59 +89,62 @@ bool JsonLoc::substitutionsOk() const {
   return true;
 }
 
-static void printString(ostringstream& os, string_view s) {
-  os<<'"';
+static void printString(fmt::memory_buffer& buf, string_view s) {
+  format_to(buf, "\"");
   // If this changes, please change lexQuotedEscape as well.
   // TODO write test.
   for(char ch : s) {
-    if(ch=='"') os<<"\\\"";
-    else if(ch=='\\') os<<"\\\\";
-    else if(ch=='\n') os<<"\\n";
-    else if(ch=='\t') os<<"\\t";
-    else if(isprint(ch)) os<<ch;  // check this after '"' and '\\'.
-    else os<<"\\x"<<std::setfill('0')<<std::setw(2)<<std::hex<<int(ch);
+    if(ch=='"') format_to(buf, "\"");
+    else if(ch=='\\') format_to(buf, "\\\\");
+    else if(ch=='\n') format_to(buf, "\\n");
+    else if(ch=='\t') format_to(buf, "\\t");
+    else if(isprint(ch))
+      format_to(buf, "{}", ch);  // check this after '"' and '\\'.
+    else format_to(buf, "\\x{:02x}", ch);
   }
-  os<<'"';
+  format_to(buf, "\"");
 }
 
 static string_view assertIdent(string_view ctx, string_view s) {
-  if(s.empty()) Bug()<<ctx<<": Identifier can't be null.";
-  if(isdigit(s[0])) Bug()<<ctx<<": Identifier can't start with a digit.";
+  if(s.empty()) BugFmt("{}: Identifier can't be null.", ctx);
+  if(isdigit(s[0])) BugFmt("{}: Identifier can't start with a digit.", ctx);
   for(size_t i=0; i<s.size(); ++i) if(s[i]!='_' && !isalnum(s[i]))
-    Bug()<<ctx<<": Invalid identifier character at position "<<i;
+    BugFmt("{}: Invalid identifier character at position {}.", ctx, i);
   return s;
 }
 
-static void prettyPrint(ostringstream& os, size_t indent, const JsonLoc& json) {
-  if(auto* p = get_if<Placeholder>(&json)) os<<assertIdent(__func__,p->key);
-  else if(auto* s = get_if<String>(&json)) printString(os,*s);
+static void prettyPrint(fmt::memory_buffer& buf,
+                        size_t indent, const JsonLoc& json) {
+  if(auto* p = get_if<Placeholder>(&json))
+    format_to(buf, "{}", assertIdent(__func__, p->key));
+  else if(auto* s = get_if<String>(&json)) printString(buf, *s);
   else if(auto* v = get_if<Vector>(&json)) {
-    os<<"[\n";
+    format_to(buf, "[\n");
     bool first = true;
     for(const JsonLoc& elt : *v) {
-      if(!first) os<<",\n";
+      if(!first) format_to(buf, ",\n");
       first = false;
-      os<<string(indent+2,' ');
-      prettyPrint(os,indent+2,elt);
+      format_to(buf, "{:{}}", "", indent+2);
+      prettyPrint(buf, indent+2, elt);
     }
-    os<<'\n'<<string(indent,' ')<<']';
+    format_to(buf, "\n{:{}}]", "", indent);
   }else if(auto* m = get_if<Map>(&json)) {
-    os<<"{\n";
+    format_to(buf, "{{\n");
     bool first = true;
     for(auto& [k,v] : *m) {
-      if(!first) os<<",\n";
+      if(!first) format_to(buf, ",\n");
       first = false;
-      os<<string(indent+2,' ')<<assertIdent(__func__,k)<<": ";
-      prettyPrint(os,indent+2,v);
+      format_to(buf, "{:{}}{}: ", "", indent+2, assertIdent(__func__,k));
+      prettyPrint(buf, indent+2, v);
     }
-    os<<"\n"<<string(indent,' ')<<'}';
+    format_to(buf, "\n{:{}}}}", "", indent);
   }else BugUnknownJsonType(json);
 }
 
 string JsonLoc::prettyPrint(size_t indent) const {
-  ostringstream os;
-  oalex::prettyPrint(os,indent,*this);
-  return os.str();
+  fmt::memory_buffer buf;
+  oalex::prettyPrint(buf, indent, *this);
+  return fmt::to_string(buf);
 }
 
 }  // namespace oalex
