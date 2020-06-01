@@ -10,4 +10,5 @@ add_test(dfa_test dfa_test)
 add_executable(input_view_auto_forget_test
                input_view_auto_forget_test.cpp input_view_auto_forget.cpp)
 add_test(input_view_auto_forget_test input_view_auto_forget_test)
+target_link_libraries(input_view_auto_forget_test PRIVATE fmt)
 
