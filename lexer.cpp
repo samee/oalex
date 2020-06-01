@@ -305,7 +305,7 @@ char openBracket(BracketType bt) {
     case BracketType::square: return '[';
     case BracketType::brace: return '{';
     case BracketType::paren: return '(';
-    default: BugFmt("Invalid openBracket() type {}", int(bt));
+    default: Bug("Invalid openBracket() type {}", int(bt));
   }
 }
 
@@ -314,7 +314,7 @@ char closeBracket(BracketType bt) {
     case BracketType::square: return ']';
     case BracketType::brace: return '}';
     case BracketType::paren: return ')';
-    default: BugFmt("Invalid closeBracket() type {}", int(bt));
+    default: Bug("Invalid closeBracket() type {}", int(bt));
   }
 }
 
@@ -325,14 +325,14 @@ static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
 }
 
 QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
-  if(pos > size()) BugFmt("QuotedString::subqstr() invoked with invalid pos");
+  if(pos > size()) Bug("QuotedString::subqstr() invoked with invalid pos");
   len = min(len, size() - pos);
 
   // Find the subrange for the new index_map_.
   auto stit = upper_bound(index_map_.begin(), index_map_.end(),
                           IndexRelation{.inputPos = 0, .quotePos = pos},
                           cmpByQuotePos);
-  if(stit == index_map_.begin()) BugFmt("Index map doesn't have start entry");
+  if(stit == index_map_.begin()) Bug("Index map doesn't have start entry");
   --stit;
   auto enit = upper_bound(index_map_.begin(), index_map_.end(),
                           IndexRelation{.inputPos = 0, .quotePos = pos+len},
@@ -356,7 +356,7 @@ size_t QuotedString::inputPos(size_t pos) const {
                         IndexRelation{.inputPos = 0, .quotePos = pos},
                         cmpByQuotePos);
   if(it == index_map_.begin())
-    BugFmt("No row/col entry for the first line in: {}", s_);
+    Bug("No row/col entry for the first line in: {}", s_);
   --it;
   return it->inputPos + pos - it->quotePos;
 }

@@ -33,7 +33,7 @@ using Map = JsonLoc::Map;
 using Vector = JsonLoc::Vector;
 
 [[noreturn]] static void BugUnknownJsonType(const JsonLoc& json) {
-  BugFmt("Strange JsonLoc type with index = {}", json.value.index());
+  Bug("Strange JsonLoc type with index = {}", json.value.index());
 }
 
 static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
@@ -106,10 +106,10 @@ static void printString(fmt::memory_buffer& buf, string_view s) {
 }
 
 static string_view assertIdent(string_view ctx, string_view s) {
-  if(s.empty()) BugFmt("{}: Identifier can't be null.", ctx);
-  if(isdigit(s[0])) BugFmt("{}: Identifier can't start with a digit.", ctx);
+  if(s.empty()) Bug("{}: Identifier can't be null.", ctx);
+  if(isdigit(s[0])) Bug("{}: Identifier can't start with a digit.", ctx);
   for(size_t i=0; i<s.size(); ++i) if(s[i]!='_' && !isalnum(s[i]))
-    BugFmt("{}: Invalid identifier character at position {}.", ctx, i);
+    Bug("{}: Invalid identifier character at position {}.", ctx, i);
   return s;
 }
 

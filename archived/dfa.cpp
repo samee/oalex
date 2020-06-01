@@ -37,7 +37,7 @@ string edgeDebug(const DfaEdge& e) noexcept {
     return format("Push to {}", pe->dest);
   if(auto* se=get_if<StringEdge>(&e))
     return format("String '{}' to {}", se->s, se->dest);
-  BugDieFmt("Unknown edge type {}", e.index());
+  BugDie("Unknown edge type {}", e.index());
 }
 
 bool operator!=(const DfaEdge& e1,const DfaEdge& e2) {
@@ -58,7 +58,7 @@ bool operator!=(const DfaEdge& e1,const DfaEdge& e2) {
     auto* se2=get_if<StringEdge>(&e2);
     return se1->s!=se2->s||se1->dest!=se2->dest;
   }
-  BugDieFmt("Comparing unknown edge type {}", e1.index());
+  BugDie("Comparing unknown edge type {}", e1.index());
 }
 
 bool operator==(const DfaEdge& e1,const DfaEdge& e2) { return !(e1!=e2); }
@@ -77,7 +77,7 @@ DfaState dest(const DfaEdge* edge) noexcept {
   if(auto e=get_if<LabelEdge>(edge)) return e->dest;
   if(auto e=get_if<PushEdge>(edge)) return e->dest;
   if(auto e=get_if<StringEdge>(edge)) return e->dest;
-  BugDieFmt("dest(edge) found edge with unknown index {}", edge->index());
+  BugDie("dest(edge) found edge with unknown index {}", edge->index());
 }
 
 bool charInRange(char ch,const CharRangeEdge& e)
@@ -88,7 +88,7 @@ bool charCanStart(char ch,const DfaEdge* edge) noexcept {
   if(auto e=get_if<StringEdge>(edge)) return e->s[0]==ch;
   if(holds_alternative<PushEdge>(*edge)||holds_alternative<LabelEdge>(*edge))
     return false;
-  BugDieFmt("charCanStart(edge) found edge with unknown index {}",
+  BugDie("charCanStart(edge) found edge with unknown index {}",
             edge->index());
 }
 
@@ -103,14 +103,14 @@ bool isPrefixEdge(const DfaEdge& e1,const DfaEdge& e2) {
       return se1->s==se2->s.substr(0,se1->s.size());
     else if(auto* ce2=get_if<CharRangeEdge>(&e2))
       return se1->s.size()==1&&charInRange(se1->s[0],*ce2);
-    else BugDieFmt("isPrefixEdge called on wrong edge type");
+    else BugDie("isPrefixEdge called on wrong edge type");
   }else if(auto* ce1=get_if<CharRangeEdge>(&e1)) {
     if(auto* se2=get_if<StringEdge>(&e2))
       return se2->s.size()==1&&charInRange(se2->s[0],*ce1);
     else if(auto* ce2=get_if<CharRangeEdge>(&e2))
       return ce1->st<=ce2->en&&ce2->st<=ce1->en;
-    else BugDieFmt("isPrefixEdge called on wrong edge type");
-  }else BugDieFmt("isPrefixEdge called on wrong edge type");
+    else BugDie("isPrefixEdge called on wrong edge type");
+  }else BugDie("isPrefixEdge called on wrong edge type");
 }
 
 SharedDiagSet diagSingleton(shared_ptr<const Diag> d) {
@@ -146,7 +146,7 @@ bool canMerge(const optional<GssHead>& a,
 shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
   // This is typically taken care of in enqueueLabeledHeads, pre-merging.
   if(auto iv=dynamic_cast<const InputViewVal*>(head.v.get()))
-    BugDieFmt("Unexpectedly pushing from unreduced string {}",
+    BugDie("Unexpectedly pushing from unreduced string {}",
               string_view(iv->s));
 
   auto ge=make_shared<GssEdge>();
@@ -155,7 +155,7 @@ shared_ptr<GssEdge> closeHead(GssHead head,size_t breakPos) {
   ge->enPos=breakPos;
   ge->diags=head.diags;
   if(DfaState* a=get_if<DfaState>(&head.enState)) ge->enState=*a;
-  else BugDieFmt("Can't push back from a state in {}", head.enState.index());
+  else BugDie("Can't push back from a state in {}", head.enState.index());
   return ge;
 }
 
@@ -181,14 +181,14 @@ GssHooksRes reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
     return hk.reduceList(lbl,std::move(lv));
   }else if(auto iv=dynamic_cast<const InputViewVal*>(v.get())) {
     if(iv->stPos!=iv->s.start())
-      BugDieFmt("InputViewVal position tracking messed up: "
-                "SemVal starts at {}, while input_view starts at {}",
-                iv->stPos, iv->s.start());
+      BugDie("InputViewVal position tracking messed up: "
+             "SemVal starts at {}, while input_view starts at {}",
+             iv->stPos, iv->s.start());
     return hk.reduceString(lbl,
         make_shared<StringVal>(iv->s.start(),iv->s.stop(),string(iv->s)));
   }else {
-    BugDieFmt("GssHooks should reduce from String or List. Got {} "
-              "instead, on label {}", typeid(*v).name(), lbl);
+    BugDie("GssHooks should reduce from String or List. Got {} "
+           "instead, on label {}", typeid(*v).name(), lbl);
   }
 }
 
@@ -297,9 +297,9 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
                                      const LabelEdge& edge) {
   SharedListVal prevlv=dynamic_pointer_cast<const ListVal>(prev.v);
   if(!prevlv)
-    BugDieFmt("GssHooks should always extend from a ListVal. Got "
-              "{} instead, on edge {} ---{}--> {}", typeid(*prev.v).name(),
-              prev.enState, edge.lbl, edge.dest);
+    BugDie("GssHooks should always extend from a ListVal. Got "
+           "{} instead, on edge {} ---{}--> {}", typeid(*prev.v).name(),
+           prev.enState, edge.lbl, edge.dest);
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
   SharedDiagSet diags=diagSet(res);
   if(hasDiags(diags)) lastKnownDiags_=diags;
@@ -312,7 +312,7 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
 optional<GssHead> GlrCtx::changeHead(
     shared_ptr<const GssEdge> prev,GssHead h,const LabelEdge& edge) {
   if(prev->enPos>pos())
-    BugDieFmt("Problem in changeHead: prev->enPos too large: {}", prev->enPos);
+    BugDie("Problem in changeHead: prev->enPos too large: {}", prev->enPos);
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
   SharedDiagSet diags=diagSet(res);
   if(hasDiags(diags)) lastKnownDiags_=diags;
@@ -332,13 +332,13 @@ GssHead GlrCtx::mergeHeads(GssHead h1,GssHead h2) {
   DfaState s1=std::get<DfaState>(h1.enState);
   DfaState s2=std::get<DfaState>(h2.enState);
   if(s1!=s2||h1.stPos()!=h2.stPos())
-    BugDieFmt("Merging incompatible heads. States {},{} stPos {},{}", s1, s2,
-              h1.stPos(), h2.stPos());
+    BugDie("Merging incompatible heads. States {},{} stPos {},{}", s1, s2,
+           h1.stPos(), h2.stPos());
   SharedListVal lv1=dynamic_pointer_cast<const ListVal>(std::move(h1.v));
   SharedListVal lv2=dynamic_pointer_cast<const ListVal>(std::move(h2.v));
   if(lv1==nullptr||lv2==nullptr)
-    BugDieFmt("GssHooks can only merge lists. Found {} and {} at {}",
-              typeid(*h1.v).name(), typeid(*h2.v).name(), s1);
+    BugDie("GssHooks can only merge lists. Found {} and {} at {}",
+           typeid(*h1.v).name(), typeid(*h2.v).name(), s1);
   GssMergeChoice choice=hooks_->merge(s1,lv1,lv2);
   // There shouldn't be any duplicate prevs, since they should already
   // have been merged.
@@ -380,7 +380,7 @@ bool GlrCtx::shiftTerminalEdge(
         return true;
       }
     }else if(!holds_alternative<PushEdge>(e))
-      BugDieFmt("Shift edge found with unknown index {}", e.index());
+      BugDie("Shift edge found with unknown index {}", e.index());
   }
   return false;
 }
@@ -398,13 +398,13 @@ void GlrCtx::shift(char ch) {
     // The only exception is the first shift() call, when we do start with a
     // single zero-length head.
     if(pos<=head.stPos()&&
-        !(pos==0&&head.stPos()==0)) BugDieFmt("GSS corrupted. Head backwards.");
+        !(pos==0&&head.stPos()==0)) BugDie("GSS corrupted. Head backwards.");
 
     if(const MidString* ms=get_if<MidString>(&head.enState)) {
       const StringEdge& se=*ms->se;  // Die if ms->se is null.
       size_t i=pos-ms->edgeStart;
-      if(i==0) BugDieFmt("Who started this edge? {}", se.s);
-      else if(i>=se.s.size()) BugDieFmt("Overflowing StringEdge {}", se.s);
+      if(i==0) BugDie("Who started this edge? {}", se.s);
+      else if(i>=se.s.size()) BugDie("Overflowing StringEdge {}", se.s);
       else if(se.s[i]!=ch) it=heads_.erase(it);
       else {
         if(i+1==se.s.size()) head.enState=se.dest;
@@ -445,8 +445,8 @@ void GlrCtx::enqueueAllLabelsInHead(const GssHead& h,GssPendingQueue& q,
 
   for(DfaLabel l:dfa_->labels(*hendp)) {
     if(h.prev.empty())
-      BugDieFmt("prev is empty. This should not be possible if start state "
-                "only has PushEdges going out of it.");
+      BugDie("prev is empty. This should not be possible if start state "
+             "only has PushEdges going out of it.");
     for(const shared_ptr<const GssEdge>& prev:h.prev) {
       auto qpush=[&](const LabelEdge* le,size_t st,bool pushAgain) {
         if(!le) return;
@@ -517,7 +517,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   vector<pair<SharedVal,SharedDiagSet>> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
-      BugDieFmt("nullptr values should already have been dropped");
+      BugDie("nullptr values should already have been dropped");
     if(h.stPos()!=0) continue;
     const DfaState* s=get_if<DfaState>(&h.enState);
     if(!s||!dfa_->isEnState(*s)) continue;
@@ -538,8 +538,8 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
 
 GssMergeChoice GssHooks::merge(DfaState,
                                SharedListVal lv1,SharedListVal lv2) {
-  BugDieFmt("Unexpectedly encountered ambiguous parsing: [{}, {})",
-            lv1->stPos, lv2->enPos);
+  BugDie("Unexpectedly encountered ambiguous parsing: [{}, {})",
+         lv1->stPos, lv2->enPos);
 }
 
 GssHooksRes GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
@@ -556,15 +556,15 @@ vector<pair<SharedVal,SharedDiagSet>> glrParse(
 pair<SharedVal,SharedDiagSet> glrParseUnique(
     const Dfa& dfa,GssHooks& hk,function<int64_t()> getch) {
   vector<pair<SharedVal,SharedDiagSet>> res=glrParse(dfa,hk,std::move(getch));
-  if(res.size()>1) BugDieFmt("glrParseUnique doesn't expect ambiguity.");
-  if(res.empty()) BugDieFmt("glrParse should never return an empty vector");
+  if(res.size()>1) BugDie("glrParseUnique doesn't expect ambiguity.");
+  if(res.empty()) BugDie("glrParse should never return an empty vector");
   else return res[0];
 }
 
 bool glrParseFailed(const vector<pair<SharedVal,SharedDiagSet>>& parseRes) {
   for(const auto& r:parseRes) if(r.first!=nullptr) return false;
   if(parseRes.size()!=1)
-    BugDieFmt("Parse failure needs a single element. Got {}", parseRes.size());
+    BugDie("Parse failure needs a single element. Got {}", parseRes.size());
   return true;
 }
 

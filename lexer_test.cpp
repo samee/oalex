@@ -35,7 +35,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
-using oalex::BugFmt;
+using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -102,12 +102,12 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
-    BugFmt("{} failed", testName);
+    Bug("{} failed", testName);
   }else {
     vector<string> observed;
     for(const UnquotedToken& t : *res) observed.push_back(*t);
     if(expected != observed)
-      BugFmt("{}: {} != {}", testName, expected, observed);
+      Bug("{}: {} != {}", testName, expected, observed);
   }
 }
 
@@ -117,7 +117,7 @@ void headerFailureImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(res && ctx.diags.empty())
-    BugFmt("Test {} succeeded unexpectedly", testName);
+    Bug("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -137,10 +137,10 @@ void stringSuccessImpl(const char testInput[], const char testName[],
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
-    BugFmt("{} failed", testName);
+    Bug("{} failed", testName);
   }else {
     if(expected != *res)
-      BugFmt("{}: {} != {}", testName, expected, string_view(*res));
+      Bug("{}: {} != {}", testName, expected, string_view(*res));
   }
 }
 
@@ -150,23 +150,23 @@ void stringFailureImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
   if(res && ctx.diags.empty())
-    BugFmt("Test {} succeeded unexpectedly", testName);
+    Bug("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 string debug(const pair<size_t,size_t>& p) {
-  BugFmt("{}:{}", p.first, p.second);
+  Bug("{}:{}", p.first, p.second);
 }
 
 template <class T>
 void assertEq(string_view errmsg, const T& a, const T& b) {
-  if(a != b) BugFmt("{}: {} != {}", errmsg, debug(a), debug(b));
+  if(a != b) Bug("{}: {} != {}", errmsg, debug(a), debug(b));
 }
 
 void compareSubqstrIndexPos(const QuotedString& a, size_t pos, size_t len) {
   const QuotedString b = a.subqstr(pos, len);
   for(size_t i=0; i<=b.size(); ++i) if(a.inputPos(i+pos) != b.inputPos(i))
-    BugFmt("Substring inputPos mismatch between '{}' and '{}': "
+    Bug("Substring inputPos mismatch between '{}' and '{}': "
            "a.inputPos({}) = {}  !=  b.inputPos({}) = {}", string_view(a),
            string_view(b), i+pos, a.inputPos(i+pos), i, b.inputPos(i));
 }
@@ -176,7 +176,7 @@ void stringPosMap() {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
   optional<QuotedString> res = lexQuotedString(ctx, i);
-  if(!res) BugFmt("Parsing {} failed in {}", testInput, __func__);
+  if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(0),
            pair<size_t,size_t>(1, 2));
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(4),
@@ -219,33 +219,33 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   optional<QuotedString> res = lexDelimitedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print("{}\n", string(d));
-    BugFmt("{} failed", testName);
+    Bug("{} failed", testName);
   }else {
     if(expected != *res) {
-      BugFmt("{}: {} != {}", testName, expected, string_view(*res));
+      Bug("{}: {} != {}", testName, expected, string_view(*res));
     }
   }
 
   size_t lastLineNumber = ctx.input.rowCol(i).first;
 
   if(res->rowCol(0).first != 2)
-    BugFmt("{}: Was expecting delimted string body to start on "
-           "the second line. Found it on {}. Input:\n{}",
-           testName, res->rowCol(0).first, testInput);
+    Bug("{}: Was expecting delimted string body to start on "
+        "the second line. Found it on {}. Input:\n{}",
+        testName, res->rowCol(0).first, testInput);
   for(size_t i=0; i<res->size(); ++i) if(res->rowCol(i+1).second == 1) {
     if(res->rowCol(i).first+1 != res->rowCol(i+1).first)
-      BugFmt("{}: Line numbers are not sequential "
-             " at the start of line {}. Input:\n{}",
-             testName, res->rowCol(i+1).first, testInput);
+      Bug("{}: Line numbers are not sequential "
+          " at the start of line {}. Input:\n{}",
+          testName, res->rowCol(i+1).first, testInput);
     auto expected = ctx.input.rowCol(i + 1 + dsize);
     if(res->rowCol(i) != expected)
-      BugFmt("{}: Location info changed after parsing: "
-             "{} became {}", testName, debug(expected), debug(res->rowCol(i)));
+      Bug("{}: Location info changed after parsing: "
+          "{} became {}", testName, debug(expected), debug(res->rowCol(i)));
   }
   if(res->rowCol(res->size()) != pair(lastLineNumber, size_t(1)))
-    BugFmt("{}: Was expecting the input to end on {}:1, instead found {}. "
-           "Input\n", testName, lastLineNumber, debug(res->rowCol(res->size())),
-           testInput);
+    Bug("{}: Was expecting the input to end on {}:1, instead found {}. "
+        "Input\n", testName, lastLineNumber, debug(res->rowCol(res->size())),
+        testInput);
 }
 
 void delimSourceBlockFailureImpl(const char testInput[], const char testName[],
@@ -276,50 +276,50 @@ void indentedSourceBlockSuccessImpl(
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
-    BugFmt("{} failed", testName);
+    Bug("{} failed", testName);
   }
   if(!res.has_value()) return;  // Don't check *res if it's not valid.
 
   if(string_view(*res) != *expectedResult)
-    BugFmt("{}: '{}' != '{}'", testName, string_view(*res), *expectedResult);
+    Bug("{}: '{}' != '{}'", testName, string_view(*res), *expectedResult);
 
   if(testInput.substr(i, 2) == "  ")
-    BugFmt("{}: indented block parsing stopped too early", testName);
+    Bug("{}: indented block parsing stopped too early", testName);
 
   size_t lc = lineCount(testInput.substr(0, i));
   if(res->rowCol(0).first != 1)
-    BugFmt("{}: Parsed value does not start at row 1", testName);
+    Bug("{}: Parsed value does not start at row 1", testName);
 
   if(res->rowCol(res->size()).first != lc)
-    BugFmt("{}: Parsed value does not end on line {}, input:\n{}",
-           testName, lc, testInput);
+    Bug("{}: Parsed value does not end on line {}, input:\n{}",
+        testName, lc, testInput);
 
   string_view testOutput  = *res;
   for(size_t i = 0; i < res->size(); ++i)
     if(res->rowCol(i).first != res->rowCol(i+1).first) {
       size_t r1 = res->rowCol(i).first, r2 = res->rowCol(i+1).first;
       if(r1+1 != r2)
-        BugFmt("{}: line numbers are not sequential after {}: found {}",
-               testName, r1, r2);
+        Bug("{}: line numbers are not sequential after {}: found {}",
+            testName, r1, r2);
       if(testOutput[i] != '\n')
-        BugFmt("{} starts a new line without a newline char at {}",
-               testName, debug(res->rowCol(i+1)));
+        Bug("{} starts a new line without a newline char at {}",
+            testName, debug(res->rowCol(i+1)));
       size_t c2 = res->rowCol(i+1).second;
       char next = (res->sizeGt(i+1) ? testOutput[i+1] : '\n');
       if(c2 == 1) {
         if(next != '\n')
-          BugFmt("{} maps {} to column 1, even though it is "
-                 "not a blank line.", testName, i+1);
+          Bug("{} maps {} to column 1, even though it is "
+              "not a blank line.", testName, i+1);
       }else if(c2 == 3) {
         if(next == '\n')
-         BugFmt("{} maps {} to column 3, even though it is a blank line.",
-                testName, i+1);
+         Bug("{} maps {} to column 3, even though it is a blank line.",
+             testName, i+1);
       }else
-        BugFmt("{} maps the start of line {} to column {}, "
-               "was expecting column 1 or 3.", testName, r2, c2);
+        Bug("{} maps the start of line {} to column {}, "
+            "was expecting column 1 or 3.", testName, r2, c2);
     }else if(testOutput[i] == '\n')
-      BugFmt("{} doesn't start a new line in spite of a \\n char at {}",
-             testName, debug(res->rowCol(i)));
+      Bug("{} doesn't start a new line in spite of a \\n char at {}",
+          testName, debug(res->rowCol(i)));
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";
@@ -331,7 +331,7 @@ void indentedSourceBlockFailureImpl(
   size_t i = 0;
   optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
   if(res && ctx.diags.empty())
-    BugFmt("Test {} succeeded unexpectedly", testName);
+    Bug("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
@@ -343,9 +343,9 @@ void lookaheadsSuccess() {
     InputDiags ctx{testInputDiags(inputs[i])};
     if(optional<UnquotedToken> tok = lookahead(ctx,1)) {
       if(tok->token!=expecteds[i])
-        BugMeFmt("Test case {} failed with \"{}\" != \"{}\"", i,
-                 tok->token, expecteds[i]);
-    }else BugMeFmt("Test case {} was supposed to succeed", i);
+        BugMe("Test case {} failed with \"{}\" != \"{}\"", i,
+              tok->token, expecteds[i]);
+    }else BugMe("Test case {} was supposed to succeed", i);
   }
 }
 
@@ -353,7 +353,7 @@ void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
   InputDiags ctx{testInputDiags(input)};
   if(optional<UnquotedToken> tok = lookahead(ctx,3))
-    BugMeFmt("Succeeded unexpectedly, got {}", tok->token);
+    BugMe("Succeeded unexpectedly, got {}", tok->token);
 }
 
 void lookaheadThrowsOnInvalidChar() {
@@ -361,10 +361,10 @@ void lookaheadThrowsOnInvalidChar() {
   InputDiags ctx{testInputDiags(input)};
   try {
     auto tok = lookahead(ctx,0);
-    BugMeFmt("Succeeded unexpectedly, got {}", (tok?tok->token:"<nullopt>"s));
+    BugMe("Succeeded unexpectedly, got {}", (tok?tok->token:"<nullopt>"s));
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find("Unexpected character") == string::npos)
-      BugMeFmt("Not the expected Fatal() error: {}", ex.what());
+      BugMe("Not the expected Fatal() error: {}", ex.what());
   }
 }
 
@@ -380,10 +380,10 @@ void bracketGroupSuccess() {
 
   if(bgopt.has_value() && ctx.diags.empty()) {
     if(auto err = matcher::match(expected,*bgopt))
-      BugMeFmt("Failed: {}", *err);
+      BugMe("Failed: {}", *err);
   }else {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
-    BugMeFmt("Failed");
+    BugMe("Failed");
   }
 }
 
@@ -428,7 +428,7 @@ void bracketGroupFailureImpl(const char testName[], string input,
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
   if(!expectedDiag.has_value()) {
     if(bgopt.has_value())
-      BugMeFmt("Was expecting nullopt, got {}", debug(*bgopt));
+      BugMe("Was expecting nullopt, got {}", debug(*bgopt));
     return;
   }
   assertHasDiagWithSubstr(testName, ctx.diags, *expectedDiag);
@@ -439,10 +439,10 @@ void bracketGroupThrows(string input, string expectedDiag) {
   size_t i = 0;
   try {
     auto bg = lexBracketGroup(ctx,i);
-    BugMeFmt("Succeeded unexpectedly, got {}", (bg?debug(*bg):"nullopt"));
+    BugMe("Succeeded unexpectedly, got {}", (bg?debug(*bg):"nullopt"));
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find(expectedDiag) == string::npos)
-      BugMeFmt("Not the expected Fatal() error: {}", ex.what());
+      BugMe("Not the expected Fatal() error: {}", ex.what());
   }
 }
 

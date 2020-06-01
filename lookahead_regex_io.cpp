@@ -35,7 +35,7 @@ namespace {
 char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
   else if(ch <= 15) return ch-10+'a';
-  else BugFmt("hexdigit({}) input is not a hex digit.", int(ch));
+  else Bug("hexdigit({}) input is not a hex digit.", int(ch));
 }
 
 bool is_in(char ch, const char s[]) {
@@ -117,13 +117,13 @@ string prettyPrintSet(const CharSet& set) {
 
   for(size_t i=0; i<n; ++i) {
     auto& r = set.ranges[i];
-    if(r.from > r.to) BugFmt("Invalid regex range: {} > {}", r.from, r.to);
+    if(r.from > r.to) Bug("Invalid regex range: {} > {}", r.from, r.to);
     else if(r.from == r.to) {
       if(r.from == '^' && i == 0 && !set.negated) format_to(buf, "\\^");
       else format_to(buf, "{}", escapedForSet(r.from, i, n));
     }else if(isPlainRange(r.from, r.to))
       format_to(buf, "{}-{}", char(r.from), char(r.to));
-    else BugFmt("Complicated range found: {} to {}", r.from, r.to);
+    else Bug("Complicated range found: {} to {}", r.from, r.to);
   }
   format_to(buf, "]");
   return fmt::to_string(buf);
@@ -134,7 +134,7 @@ string prettyPrintAnchor(Anchor a) {
     case Anchor::wordEdge: return "\\b";
     case Anchor::bol: return "^";
     case Anchor::eol: return "$";
-    default: BugFmt("Unknown Anchor type {}", static_cast<int>(a));
+    default: Bug("Unknown Anchor type {}", static_cast<int>(a));
   }
 }
 
@@ -145,7 +145,7 @@ bool printsToNull(const Regex& regex) {
   else if(auto* seq = get_if_unique<Concat>(&regex)) {
     for(const Regex& p : seq->parts) if(!printsToNull(p)) return false;
     return true;
-  }else BugFmt("printsToNull() called with unknown index {}", regex.index());
+  }else Bug("printsToNull() called with unknown index {}", regex.index());
 }
 
 template <class ... Ts>
@@ -229,7 +229,7 @@ auto prettyPrintRec(const Regex& regex) -> string {
   else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
   else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
   else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
-  else UnimplementedFmt("prettyPrint(regex) for variant {}", regex.index());
+  else Unimplemented("prettyPrint(regex) for variant {}", regex.index());
 }
 
 constexpr uint8_t kMaxDepth = 255;
@@ -292,7 +292,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'['))
-    BugFmt("parseCharSetUnq called at invalid location {}", i);
+    Bug("parseCharSetUnq called at invalid location {}", i);
   CharSet cset;
   size_t j = i+1;
 
@@ -388,7 +388,7 @@ Regex repeatWith(Regex regex, char op) {
     case '*': return move_to_unique(Optional{
                        move_to_unique(Repeat{std::move(regex)})
                      });
-    default: BugFmt("repeatWith called with invalid op: {}", op);
+    default: Bug("repeatWith called with invalid op: {}", op);
   }
 }
 
@@ -396,7 +396,7 @@ Regex repeatWith(Regex regex, char op) {
 bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
   char ch = ctx.input[i];
   ++i;
-  if(ch == '{') UnimplementedFmt("'{{}}'");
+  if(ch == '{') Unimplemented("'{{}}'");
   if(concat.parts.empty()) {
     Error(ctx, i-1, i, "Nothing to repeat");
     return false;
@@ -480,8 +480,8 @@ CharSet parseCharSet(string input) {
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
   else {
-    for(const auto& d : ctx.diags) BugWarnFmt("{}", string(d));
-    BugFmt("parseCharSet() input was invalid: {}", input);
+    for(const auto& d : ctx.diags) BugWarn("{}", string(d));
+    Bug("parseCharSet() input was invalid: {}", input);
   }
 }
 

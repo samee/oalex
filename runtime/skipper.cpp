@@ -86,8 +86,8 @@ static size_t skipPastNestedComment(
   const auto& [stdelim,endelim] = delims;
 
   if(stdelim.empty() || endelim.empty())
-    BugFmt("Nested comment delimiters shouldn't be empty. '{}', '{}'",
-           stdelim, endelim);
+    Bug("Nested comment delimiters shouldn't be empty. '{}', '{}'",
+        stdelim, endelim);
 
   while(input.sizeGt(i) && i<end) {
     if(input.hasPrefix(i, end-i, stdelim)) {

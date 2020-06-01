@@ -17,7 +17,7 @@
 #include <vector>
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
-using oalex::BugFmt;
+using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -87,7 +87,7 @@ Regex repeat(Regex part, char ch) {
                          move_to_unique(Repeat{std::move(part)})
                        });
   if(ch == '?') return move_to_unique(Optional{std::move(part)});
-  BugFmt("Don't know how to construct repeats of type {}", ch);
+  Bug("Don't know how to construct repeats of type {}", ch);
 }
 
 void testPrettyPrint() {
@@ -148,8 +148,8 @@ void testPrettyPrint() {
   for(size_t i=0; i<n; ++i) {
     string observed = prettyPrint(testVectors[i].first);
     if(observed != testVectors[i].second)
-      BugMeFmt("Regex prettyPrint failed: {} != {}", observed,
-               testVectors[i].second);
+      BugMe("Regex prettyPrint failed: {} != {}", observed,
+            testVectors[i].second);
   }
 }
 
@@ -175,11 +175,11 @@ void testParseAndPrint() {
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
-    if(!parseResult) BugMeFmt("Regex {} silently failed to parse.", input);
+    if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = regex::prettyPrint(*parseResult);
     if(input != output)
-      BugMeFmt("Regex has changed after pretty-printing: {} became {}",
-               input, output);
+      BugMe("Regex has changed after pretty-printing: {} became {}",
+            input, output);
   }
 }
 
@@ -218,11 +218,11 @@ void testStripOuterParens() {
     size_t i = 0;
     optional<Regex> parseResult = regex::parse(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
-    if(!parseResult) BugMeFmt("Regex {} silently failed to parse.", input);
+    if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = regex::prettyPrint(*parseResult);
     if(expected != output)
-      BugMeFmt("Regex is not just sans-parenthesis after printing: "
-               "{} became {}", input, output);
+      BugMe("Regex is not just sans-parenthesis after printing: "
+            "{} became {}", input, output);
   }
 }
 
@@ -245,7 +245,7 @@ void testRegexStartsWith() {
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
     if(!startsWith(input, 0, regex, opts))
-      BugMeFmt("\"{}\" was expected to startWith() {}", inputstr, pattern);
+      BugMe("\"{}\" was expected to startWith() {}", inputstr, pattern);
   }
   const vector<pair<string,string>> failVectors{
     {"/(ab?c)+|.[xyz]+/", "!abcacacabcfoo"},
@@ -260,7 +260,7 @@ void testRegexStartsWith() {
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
     if(startsWith(input, 0, regex, opts))
-      BugMeFmt("\"{}\" was not expected to startWith() {}", inputstr, pattern);
+      BugMe("\"{}\" was not expected to startWith() {}", inputstr, pattern);
   };
 }
 

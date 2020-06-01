@@ -40,25 +40,25 @@ input_buffer::pos_type input_buffer::acquire_tail() noexcept {
 void input_buffer::acquire_copy(pos_type pos) noexcept {
   size_t i=pos.to_int;
   if(i<starts_del_)
-    BugDieFmt("Trying to copy from deleted portions: {} < {}", i, starts_del_);
+    BugDie("Trying to copy from deleted portions: {} < {}", i, starts_del_);
   i-=starts_del_;
   if(i>=starts_.size())
-    BugDieFmt("Out of range in acquire_copy_at: {} >= {}", i, starts_.size());
+    BugDie("Out of range in acquire_copy_at: {} >= {}", i, starts_.size());
   if(!starts_[i].second)
-    BugDieFmt("Nothing to copy from at {}", i);
+    BugDie("Nothing to copy from at {}", i);
   starts_[i].second++;
 }
 
 void input_buffer::release(pos_type pos) noexcept {
   size_t i=pos.to_int;
   if(i<starts_del_)
-    BugDieFmt("Trying to release already released portion. {} < {}",
-              i, starts_del_);
+    BugDie("Trying to release already released portion. {} < {}",
+           i, starts_del_);
   i-=starts_del_;
   if(i>=starts_.size())
-    BugDieFmt("Out of range in release_t: {} >= {}", i, starts_.size());
+    BugDie("Out of range in release_t: {} >= {}", i, starts_.size());
   if(starts_[i].second==0)
-    BugDieFmt("Nothing to release at {}", i);
+    BugDie("Nothing to release at {}", i);
   starts_[i].second--;
 
   // See if we can release memory
@@ -69,8 +69,8 @@ void input_buffer::release(pos_type pos) noexcept {
   size_t doff=s_.size();
   if(minnz_<starts_.size()) {
     if(starts_[minnz_].first<off_)
-      BugDieFmt("This part of starts_ should have been released "
-                "according to off_");
+      BugDie("This part of starts_ should have been released "
+             "according to off_");
     doff=starts_[minnz_].first-off_;
   }
 

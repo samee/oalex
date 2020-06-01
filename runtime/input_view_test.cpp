@@ -25,7 +25,7 @@ using std::pair;
 using std::string;
 using std::uniform_int_distribution;
 
-using oalex::BugFmt;
+using oalex::Bug;
 using oalex::GetFromString;
 using oalex::Input;
 
@@ -85,20 +85,20 @@ void testDataMatchesString(const string& s, size_t avgWindowLen) {
     if(i >= s.size() || forget_coin(engine)) {
       size_t rmlen=forgetLen(engine, i-j);
       if(s.substr(j,rmlen) != input.substr(j,rmlen))
-        BugFmt("substr mismatch {} != {}", s.substr(j,rmlen),
-                                           input.substr(j,rmlen));
+        Bug("substr mismatch {} != {}", s.substr(j,rmlen),
+                                        input.substr(j,rmlen));
       j+=rmlen;
       input.forgetBefore(j);
     }else {
       if(s[i] != input[i])
-        BugFmt("input[{}] mismatch: {} != {}", i, s[i], input[i]);
+        Bug("input[{}] mismatch: {} != {}", i, s[i], input[i]);
       if(bol(s,i) != input.bol(i))
-        BugFmt("bol({}) mismatch: {} != {}", i, bol(s,i), input.bol(i));
+        Bug("bol({}) mismatch: {} != {}", i, bol(s,i), input.bol(i));
       pair<size_t,size_t> observed = input.rowCol(i), expected = rowCol(s,i);
       if(observed.first != expected.first)
-        BugFmt("row mismatch: {} != {}", expected.first, observed.first);
+        Bug("row mismatch: {} != {}", expected.first, observed.first);
       if(observed.second != expected.second)
-        BugFmt("col mismatch: {} != {}", expected.second, observed.second);
+        Bug("col mismatch: {} != {}", expected.second, observed.second);
       ++i;
     }
   }
@@ -109,11 +109,11 @@ void testLineTooLong() {
   Input input((GetFromString(s)));
   try {
     char ch = input[input.maxLineLength()];
-    BugMeFmt("Got input[i] == '{}', was expecting an exception", ch);
+    BugMe("Got input[i] == '{}', was expecting an exception", ch);
   }catch(oalex::UserErrorEx& ex) {
     const char expected[] = "Line 1 is too long";
     if(string(ex.what()).find(expected)==string::npos)
-      BugMeFmt("substr mismatch: \"{}\" is not in \"{}\"", expected, ex.what());
+      BugMe("substr mismatch: \"{}\" is not in \"{}\"", expected, ex.what());
   }
 }
 
@@ -122,9 +122,9 @@ void testForgottenBol() {
   Input input{GetFromString(s)};
   input.forgetBefore(80);
   if(input.bol(90)!=0)
-    BugMeFmt("first-line bol() is wrong after amnesia. 0 != {}", input.bol(90));
+    BugMe("first-line bol() is wrong after amnesia. 0 != {}", input.bol(90));
   if(input.bol(50)!=0)
-    BugMeFmt("Can't find bol() for forgotten index. 0 != {}", input.bol(50));
+    BugMe("Can't find bol() for forgotten index. 0 != {}", input.bol(50));
 }
 
 }

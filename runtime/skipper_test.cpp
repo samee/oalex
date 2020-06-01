@@ -24,7 +24,7 @@ using std::optional;
 using std::vector;
 using std::string;
 using std::string_view;
-using oalex::BugFmt;
+using oalex::Bug;
 using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
@@ -77,7 +77,7 @@ void testUnixify(const char input[], const char expected_output[]) {
   string output;
   while(true) { char ch = getch(); if(ch < 0) break; output += ch; }
   if(expected_output != output)
-    BugMeFmt("{} != {}", escape(expected_output), escape(output));
+    BugMe("{} != {}", escape(expected_output), escape(output));
 }
 
 void unixifyTests() {
@@ -115,7 +115,7 @@ const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
 // Assumes i is a valid index. "\n" is a word. Increments i to end of word.
 string parseWord(const Input& input, size_t& i) {
   if(input[i] != '\n' && !isalpha(input[i]))
-    BugFmt("Found unexpected test character at input[{}]", i);
+    Bug("Found unexpected test character at input[{}]", i);
   if(input[i] == '\n') { ++i; return input.substr(i-1,1); }
   size_t j = i;
   while(input.sizeGt(i) && isalpha(input[i])) ++i;
@@ -127,7 +127,7 @@ vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
   vector<string> rv;
   for(size_t i = skip.withinLine(ctx,0);
       input.bol(i) == 0; i = skip.withinLine(ctx,i)) {
-    if(!input.sizeGt(i)) BugFmt("Input isn't producing a trailing newline");
+    if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     if(input[i] == '\n') break;
     rv.push_back(parseWord(input, i));
   }
@@ -139,7 +139,7 @@ vector<string> getAllWords(InputDiags& ctx, const Skipper& skip) {
   vector<string> rv;
   for(size_t i = skip.acrossLines(ctx,0);
       i != input.npos; i = skip.acrossLines(ctx,i)) {
-    if(!input.sizeGt(i)) BugFmt("Input isn't producing a trailing newline");
+    if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     rv.push_back(parseWord(input, i));
   }
   return rv;
@@ -150,11 +150,11 @@ void testSingleLineSuccess() {
     InputDiags ctx = unixifiedTestInputDiags(langinput[i]);
     vector<string> words = getLineWords(ctx, *langskip[i]);
     if(words != vector<string>{"hello", "world"})
-      BugMeFmt("Had problems with parsing {}. {} != {{hello, world}}",
+      BugMe("Had problems with parsing {}. {} != {{hello, world}}",
                 langnames[i], words);
     words = getAllWords(ctx, *langskip[i]);
     if(words != vector<string>{"hello", "world"})
-      BugMeFmt("skip.acrossLines() failed parsing {}. {} != {{hello, world}}",
+      BugMe("skip.acrossLines() failed parsing {}. {} != {{hello, world}}",
                langnames[i], words);
   }
 }
@@ -166,7 +166,7 @@ void testMultilineSuccess() {
   InputDiags ctx = unixifiedTestInputDiags(cmultiline);
   vector<string> words = getAllWords(ctx, cskip);
   if(words != vector<string>{"hello", "world", "again"})
-    BugMeFmt("Problem parsing multiline comment {} != {{hello, world, again}}",
+    BugMe("Problem parsing multiline comment {} != {{hello, world, again}}",
              words);
 }
 
@@ -180,7 +180,7 @@ void testBlankLinesMatter() {
   vector<string> words = getAllWords(ctx, mdskipper);
   vector<string> expected{"hello", "world", "\n", "goodbye", "world"};
   if(words != expected)
-    BugMeFmt("Markdown parsing problem: {} != {}", words, expected);
+    BugMe("Markdown parsing problem: {} != {}", words, expected);
 
   const Skipper ltxskipper{{{"%","\n"}}, {}, true};
   const char ltxinput1[] = R"(hello
@@ -195,13 +195,13 @@ void testBlankLinesMatter() {
   ctx = unixifiedTestInputDiags(ltxinput1);
   words = getAllWords(ctx, ltxskipper);
   if(words != expected)
-    BugMeFmt("LaTeX parsing problem: {} != {}", words, expected);
+    BugMe("LaTeX parsing problem: {} != {}", words, expected);
 
   const char ltxinput2[] = "hello\n%\nworld";
   ctx = unixifiedTestInputDiags(ltxinput2);
   words = getAllWords(ctx, ltxskipper);
   if(words != vector<string>{"hello", "world"})
-    BugMeFmt("LaTeX parsing problem: {} != {{hello, world}}", words);
+    BugMe("LaTeX parsing problem: {} != {{hello, world}}", words);
 }
 
 void testLineEndsAtNewline() {
@@ -210,12 +210,12 @@ void testLineEndsAtNewline() {
   size_t pos1 = input.size();
   size_t pos2 = cskip.withinLine(ctx, pos1);
   if(pos2 <= pos1)
-    BugMeFmt("Skipper::withinLine() is not moving to the next line. pos = {}",
-             pos2);
+    BugMe("Skipper::withinLine() is not moving to the next line. pos = {}",
+          pos2);
   if(!ctx.input.sizeGt(pos2))
-    BugMeFmt("We kept on skippin on the following line. pos = {}", pos2);
+    BugMe("We kept on skippin on the following line. pos = {}", pos2);
   if(ctx.input[pos2-1] != '\n')
-    BugMeFmt("We did not stop right after a newline. pos = {}", pos2);
+    BugMe("We did not stop right after a newline. pos = {}", pos2);
 }
 
 void testTabsSkipped() {
@@ -223,7 +223,7 @@ void testTabsSkipped() {
   InputDiags ctx = unixifiedTestInputDiags(input);
   vector<string> words = getLineWords(ctx, cskip);
   if(words != vector<string>{"hello", "world"})
-    BugMeFmt("{{hello, world}} != {}", words);
+    BugMe("{{hello, world}} != {}", words);
 }
 
 void testCommentNeverEnds() {
@@ -232,59 +232,59 @@ void testCommentNeverEnds() {
   size_t pos = cskip.withinLine(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
   // This check is typically used as a loop termination condition.
-  if(ctx.input.bol(pos) == 0) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Test that we are not accidentally nesting it.
   ctx = unixifiedTestInputDiags(input + " /* /* */");
   pos = cskip.withinLine(ctx, input.size());
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
-    BugMeFmt("Wasn't expecting problems with properly closed comments");
+    BugMe("Wasn't expecting problems with properly closed comments");
   }
-  if(ctx.input.bol(pos) == 0) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Test again for nested comments.
   ctx = unixifiedTestInputDiags(input + " {- {- -} ");
   pos = haskellskip.withinLine(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
-  if(ctx.input.bol(pos) == 0) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Multiline tests.
   ctx = unixifiedTestInputDiags(input + "\n /*");
   pos = cskip.acrossLines(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
-  if(ctx.input.sizeGt(pos)) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   ctx = unixifiedTestInputDiags(input + " /* \n /* */");
   pos = cskip.acrossLines(ctx, input.size());
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
-    BugMeFmt("Wasn't expecting problems with "
-             "properly closed multiline comments");
+    BugMe("Wasn't expecting problems with "
+          "properly closed multiline comments");
   }
-  if(ctx.input.sizeGt(pos)) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   ctx = unixifiedTestInputDiags(input + " {- {- \n  -} ");
   pos = haskellskip.acrossLines(ctx, input.size());
   assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
-  if(ctx.input.sizeGt(pos)) BugMeFmt("Leaves characters unconsumed");
+  if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 }
 
 void assertValidCallReturnsSubstring(string_view testname, const Skipper& skip,
     string_view expected_error) {
   optional<string> err = skip.valid();
-  if(!err) BugFmt("{} unexpectedly succeeded", testname);
+  if(!err) Bug("{} unexpectedly succeeded", testname);
   if(err->find(expected_error) == string::npos)
-    BugFmt("{} didn't find the expected error. '{}' does not contain '{}'",
-           *err, expected_error);
+    Bug("{} didn't find the expected error. '{}' does not contain '{}'",
+        *err, expected_error);
 }
 
 void testValid() {
   for(size_t i=0; i<lang_n; ++i) if(auto err = langskip[i]->valid())
-    BugFmt("{} skipper has problems: {}", langnames[i], *err);
+    Bug("{} skipper has problems: {}", langnames[i], *err);
   const Skipper noComments{{}, {}};
   if(auto err = noComments.valid())
-    BugFmt("Language with no comments has problems: {}", *err);
+    Bug("Language with no comments has problems: {}", *err);
   assertValidCallReturnsSubstring("empty unnested start delim",
       Skipper{{{"", "*/"}}, {}}, "delimiters cannot be empty");
   assertValidCallReturnsSubstring("empty unnested end delim",

@@ -29,7 +29,7 @@
 #include <vector>
 #include "runtime/test_util.h"
 #include "fmt/format.h"
-using oalex::BugFmt;
+using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
@@ -63,7 +63,7 @@ namespace {
 
 void abortScreaming(string_view testName, const vector<Diag>& diags) {
   for(const auto& d:diags) print(stderr, "{}\n", string(d));
-  BugFmt("{} had unexpected errors", testName);
+  Bug("{} had unexpected errors", testName);
 }
 
 auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
@@ -81,7 +81,7 @@ auto tryParsing(const string& input, size_t& i) -> optional<Regex> {
   // TODO stop catching these once all the "Unimplemented" throws
   // have been removed.
   catch(oalex::UnimplementedEx&) { return nullopt; }
-  if(!res && !hasDiags) BugMeFmt("Regex {} silently failed to parse.", input);
+  if(!res && !hasDiags) BugMe("Regex {} silently failed to parse.", input);
   if(hasDiags) return nullopt;
   return res;
 }
@@ -89,7 +89,7 @@ auto tryParsing(const string& input) -> optional<Regex> {
   size_t i = 0;
   auto rv = tryParsing(input, i);
   if(rv.has_value() && i != input.size())
-    BugMeFmt("We were expecting to consume the whole string: {}", input);
+    BugMe("We were expecting to consume the whole string: {}", input);
   return rv;
 }
 
@@ -174,7 +174,7 @@ bool astEq(const Regex& a, const Regex& b) {
     return astEq(ac->part, get_unique<Optional>(b).part);
   if(auto *ac = get_if_unique<Anchor>(&a))
     return astEq(*ac, get_unique<Anchor>(b));
-  BugMeFmt("Unknown regex index: {}", a.index());
+  BugMe("Unknown regex index: {}", a.index());
 }
 
 template <size_t len> string getline() {
@@ -199,14 +199,14 @@ int main() {
        input[1] != '(') {
       // Simple enough for direct string comparison
       if(!regexEqual(input, output))
-        BugMeFmt("Regex has changed after pretty-printing: {} became {}",
-                 input, output);
+        BugMe("Regex has changed after pretty-printing: {} became {}",
+              input, output);
     }else if(optional<Regex> secondParse = tryParsing(output)) {
       if(!astEq(*secondParse, *parseResult)) {
-        BugMeFmt("Regex parses to a different result on the second parse: "
-                 "{} became {}", input, output);
+        BugMe("Regex parses to a different result on the second parse: "
+              "{} became {}", input, output);
       }
-    }else BugMeFmt("Second parse failed after pretty-printing: {}", output);
+    }else BugMe("Second parse failed after pretty-printing: {}", output);
   }catch(const std::runtime_error& ex) {
     // This is to ignore fuzzing limits internally in libfmt.
     if(isSubstr("fuzz mode - ", ex.what())) return 0;

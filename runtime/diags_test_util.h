@@ -22,7 +22,7 @@ inline void showDiags(const std::vector<oalex::Diag>& diags) {
   fmt::memory_buffer buf;
   fmt::format_to(buf, "diags:\n");
   for(const auto& d : diags) fmt::format_to(buf, "  {}\n", std::string(d));
-  oalex::BugWarnFmt("{}", fmt::to_string(buf));
+  oalex::BugWarn("{}", fmt::to_string(buf));
 }
 
 inline void assertHasDiagWithSubstr(std::string_view testName,
@@ -32,8 +32,8 @@ inline void assertHasDiagWithSubstr(std::string_view testName,
   if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
   for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
   showDiags(diags);
-  oalex::BugFmt("{} didn't get the expected diag: {}",
-                testName, expectedDiag);
+  oalex::Bug("{} didn't get the expected diag: {}",
+             testName, expectedDiag);
 }
 
 inline oalex::InputDiags testInputDiags(std::string_view s) {
@@ -44,7 +44,7 @@ inline void assertEmptyDiags(std::string_view testName,
                       const std::vector<oalex::Diag>& diags) {
   if(diags.empty()) return;
   for(const auto& d:diags) fmt::print(stderr, "{}\n", std::string(d));
-  oalex::BugFmt("{} had unexpected errors", testName);
+  oalex::Bug("{} had unexpected errors", testName);
 }
 
 template <class Cb>

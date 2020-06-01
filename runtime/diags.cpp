@@ -28,7 +28,7 @@ static string severityString(Diag::Severity sev) {
     case Diag::error: return "error";
     case Diag::warning: return "warning";
     case Diag::note: return "note";
-    default: BugFmt("Diagnostics has a strange severity: {}", sev);
+    default: Bug("Diagnostics has a strange severity: {}", sev);
   }
 }
 

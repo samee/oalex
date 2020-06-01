@@ -21,11 +21,11 @@
 namespace oalex {
 
 // Usage:
-//   if(weird) BugFmt("Tell me more about {}", x);
-//   if(weird) BugDieFmt("Tell me more about {}", x);
-//   if(weird) BugWarnFmt("Tell me more about {}", x);
-//   if(weird) UserErrorFmt("Tell me more about {}", x);
-//   DebugFmt("More message about {}", x);  // Never in checked-in code.
+//   if(weird) Bug("Tell me more about {}", x);
+//   if(weird) BugDie("Tell me more about {}", x);
+//   if(weird) BugWarn("Tell me more about {}", x);
+//   if(weird) UserError("Tell me more about {}", x);
+//   Debug("More message about {}", x);  // Never in checked-in code.
 //
 // TODO: adopt std::format() whenever it becomes available and stable.
 struct BugEx : std::logic_error {
@@ -33,12 +33,12 @@ struct BugEx : std::logic_error {
 };
 
 template <class ... Args>
-[[noreturn]] void BugFmt(const char* fmt, const Args& ... args) {
+[[noreturn]] void Bug(const char* fmt, const Args& ... args) {
   throw BugEx(fmt::format(fmt, args...));
 }
 
 template <class ... Args>
-[[noreturn]] void BugDieFmt(const char* fmt, const Args& ... args) {
+[[noreturn]] void BugDie(const char* fmt, const Args& ... args) {
   fmt::print(stderr, fmt, args...);
   std::abort();
 }
@@ -47,12 +47,12 @@ struct UnimplementedEx : BugEx {
   UnimplementedEx(const std::string& msg) : BugEx(msg) {}
 };
 template <class ... Args>
-[[noreturn]] void UnimplementedFmt(const char* fmt, const Args& ... args) {
+[[noreturn]] void Unimplemented(const char* fmt, const Args& ... args) {
   throw UnimplementedEx(fmt::format(fmt, args...));
 }
 
 template <class ... Args>
-[[noreturn]] void DebugFmt(const char* fmt, const Args& ... args) {
+[[noreturn]] void Debug(const char* fmt, const Args& ... args) {
   fmt::print(stderr, fmt, args...);
   fmt::print(stderr, "\n");
 }
@@ -61,12 +61,12 @@ struct UserErrorEx : std::runtime_error {
   UserErrorEx(const std::string& s) : std::runtime_error(s) {}
 };
 template <class ... Args>
-[[noreturn]] void UserErrorFmt(const char* fmt, const Args& ... args) {
+[[noreturn]] void UserError(const char* fmt, const Args& ... args) {
   throw UserErrorEx(fmt::format(fmt, args...));
 }
 
 template <class ... Args>
-void BugWarnFmt(const char* fmt, const Args& ... args) {
+void BugWarn(const char* fmt, const Args& ... args) {
   fmt::print(stderr, fmt::format("Bug: {}\n", fmt), args...);
 }
 

@@ -36,11 +36,11 @@ struct fmt::formatter<std::vector<std::string>> {
 namespace oalex {
 
 template <class ... Args> [[noreturn]] void
-  BugMeFmtImpl(const char testName[], const char* fmt, const Args& ... args) {
-    BugFmt(fmt::format("{}: {}", testName, fmt).data(), args...);
+  BugMeImpl(const char testName[], const char* fmt, const Args& ... args) {
+    Bug(fmt::format("{}: {}", testName, fmt).data(), args...);
 }
 
-#define BugMeFmt(...) oalex::BugMeFmtImpl(__func__, __VA_ARGS__)
+#define BugMe(...) oalex::BugMeImpl(__func__, __VA_ARGS__)
 
 // Useful as getch() callbacks in dfa.h and input_view.h.
 // Dev note: When reading from files, two things to note:

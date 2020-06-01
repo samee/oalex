@@ -45,14 +45,14 @@ pushDiagReturnNullOpt(DiagTarget& dt, size_t st, size_t en,
 
 template <class DiagTarget> [[noreturn]] void
 FatalBug(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  BugFmt("{}", std::string(Diag(dt.row_col_table(), st, en,
-                           Diag::error, std::move(msg))));
+  Bug("{}", std::string(Diag(dt.row_col_table(), st, en,
+                        Diag::error, std::move(msg))));
 }
 
 template <class DiagTarget> [[noreturn]] void
 Fatal(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  UserErrorFmt("{}", std::string(Diag(dt.row_col_table(), st, en,
-                                 Diag::error, std::move(msg))));
+  UserError("{}", std::string(Diag(dt.row_col_table(), st, en,
+                              Diag::error, std::move(msg))));
 }
 
 template <class DiagTarget> std::nullopt_t

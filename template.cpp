@@ -39,7 +39,7 @@ static string debug(const DelimPair& dp) {
 static string debug(const PartPattern& pp) {
   if(auto* p = get_if<QuotedString>(&pp)) return debug(*p);
   if(auto* p = get_if<DelimPair>(&pp)) return debug(*p);
-  BugFmt("Unknown PartPattern with index {}", pp.index());
+  Bug("Unknown PartPattern with index {}", pp.index());
 }
 
 static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
@@ -91,7 +91,7 @@ auto matchAllParts(const PartPattern& patt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
   if(auto* spatt = get_if<QuotedString>(&patt)) return matchAllParts(*spatt, s);
   if(auto* dpatt = get_if<DelimPair>(&patt)) return matchAllParts(*dpatt, s);
-  BugFmt("matchAllParts() called with unknown variant: index {}", patt.index());
+  Bug("matchAllParts() called with unknown variant: index {}", patt.index());
 }
 
 // A map of non-empty, non-overlapping intervals. Key is the start position,
@@ -110,8 +110,8 @@ static auto
 insert(IntervalMap& m, const IntervalMap::value_type& x)
   -> const IntervalMap::value_type* {
   if(x.first >= x.second.first)
-    BugFmt("matchAllParts() produced invalid interval: {}, {}",
-           x.first, x.second.first);
+    Bug("matchAllParts() produced invalid interval: {}, {}",
+        x.first, x.second.first);
 
   IntervalMap::iterator next = m.lower_bound(x.first);
   if(next != m.end() && overlaps(x, *next)) return &*next;
@@ -126,19 +126,19 @@ insert(IntervalMap& m, const IntervalMap::value_type& x)
 static size_t stPattPos(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return stPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return stPos(dp->st);
-  BugFmt("stPattPos() called with unknown index {}", patt.index());
+  Bug("stPattPos() called with unknown index {}", patt.index());
 }
 
 static size_t enPattPos(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return enPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return enPos(dp->st);
-  BugFmt("enPattPos() called with unknown index {}", patt.index());
+  Bug("enPattPos() called with unknown index {}", patt.index());
 }
 
 static const QuotedString& pattStart(const PartPattern& patt) {
   if(auto* q = get_if<QuotedString>(&patt)) return *q;
   if(auto* dp = get_if<DelimPair>(&patt)) return dp->st;
-  BugFmt("pattStart() called with unknown index {}", patt.index());
+  Bug("pattStart() called with unknown index {}", patt.index());
 }
 
 auto labelParts(const QuotedString& s,
@@ -173,10 +173,10 @@ auto labelParts(const QuotedString& s,
   for(const auto& [st, enid] : m) {
     auto& [en, id] = enid;
     if(st < lastEn)
-      BugFmt("Overlapping intervals should have been caught earlier: {}"
-             " starts before ending another interval at {}",
-             locationString(s, st, en),
-             locationString(s, lastEn, lastEn+1));
+      Bug("Overlapping intervals should have been caught earlier: {}"
+          " starts before ending another interval at {}",
+          locationString(s, st, en),
+          locationString(s, lastEn, lastEn+1));
     if(st > lastEn) rv.push_back(s.subqstr(lastEn, st-lastEn));
     rv.push_back(id);
     lastEn = en;
