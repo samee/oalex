@@ -47,6 +47,7 @@
 #include<set>
 #include<variant>
 #include<vector>
+#include"fmt/format.h"
 
 #include"input_view_auto_forget.h"
 
@@ -398,3 +399,23 @@ bool glrParseFailed(
     const std::vector<std::pair<SharedVal,SharedDiagSet>>& parseRes);
 
 }  // namespace oalex
+
+// Debugging aids
+template <>
+struct fmt::formatter<oalex::DfaLabel> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+  template <typename FormatContext>
+  auto format(const oalex::DfaLabel& s, FormatContext& ctx) {
+    return format_to(ctx.out(), "DfaLabel{{{}}}", s.toInt);
+  }
+};
+template <>
+struct fmt::formatter<oalex::DfaState> {
+  constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
+
+  template <typename FormatContext>
+  auto format(const oalex::DfaState& s, FormatContext& ctx) {
+    return format_to(ctx.out(), "DfaState{{{}}}", s.toInt);
+  }
+};

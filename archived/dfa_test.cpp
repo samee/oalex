@@ -47,7 +47,7 @@ constexpr DfaLabel badLabel{numeric_limits<DfaLabel::int_type>::max()};
 
 void dieIfBad(const Dfa& dfa) {
   string checkRes=dfa.checkError();
-  if(!checkRes.empty()) BugDie()<<checkRes;
+  if(!checkRes.empty()) BugDieFmt({}, checkRes);
 }
 
 template <class X>
@@ -79,8 +79,8 @@ void testDiagSetGather() {
 
   vector<string> msg_observed=diagSetMessages(dsroot->gather());
   if(msg!=msg_observed) {
-    BugMe<<"DiagSet::Gather returned unexpected set: "<<msg_observed
-         <<" != "<<msg;
+    BugMeFmt("DiagSet::Gather returned unexpected set: {} != {}",
+             msg_observed, msg);
   }
 }
 
@@ -96,14 +96,14 @@ void testNullDiagsIgnored() {
 
   vector<string> msg_observed=diagSetMessages(d->gather());
   if(msg!=msg_observed) {
-    BugMe<<"null diags caused problems: "<<msg_observed<<" != "<<msg;
+    BugMeFmt("null diags caused problems: {} != {}", msg_observed, msg);
   }
 }
 
 void testDiagNullConcat() {
   if(auto nullcat=concat(SharedDiagSet(),SharedDiagSet())) {
-    BugMe<<"Concat(nullptr,nullptr) returned non-null: "
-         <<diagSetMessages(nullcat);
+    BugMeFmt("Concat(nullptr,nullptr) returned non-null: {}",
+             diagSetMessages(nullcat));
   }
   vector<shared_ptr<const Diag>> diagitems={
     make_shared<const Diag>(0,1,"msg1"),
@@ -111,13 +111,13 @@ void testDiagNullConcat() {
   auto diags=make_shared<const DiagSet>(diagitems.begin(),diagitems.end());
   auto r1=concat(diags,nullptr);
   if(r1!=diags) {
-    BugMe<<"Concat(diags,nullptr) produced "<<diagSetMessages(r1)
-         <<" != {msg1,msg2}";
+    BugMeFmt("Concat(diags,nullptr) produced {} != {msg1,msg2}",
+             diagSetMessages(r1));
   }
   auto r2=concat(nullptr,diags);
   if(r2!=diags) {
-    BugMe<<"Concat(diags,nullptr) produced "<<diagSetMessages(r2)
-         <<" != {msg1,msg2}";
+    BugMeFmt("Concat(diags,nullptr) produced {} != {msg1,msg2}",
+             diagSetMessages(r2));
   }
 }
 
@@ -126,7 +126,7 @@ namespace checkCheckError {
 void expectError(const Dfa& dfa,string_view b) {
   const string a=dfa.checkError();
   if(a.find(b)==string::npos)
-    BugDie()<<"Was expecting '"<<b<<"' got '"<<a<<'\'';
+    BugDieFmt("Was expecting '{}' got '{}'", b, a);
 }
 
 const Dfa dfaCanon {
@@ -188,7 +188,7 @@ void checksPushesFromTerminal() {
 void checksNonPushFromStart() {
   Dfa dfa=dfaCanon;
   dfa.adjList[0].push_back({LabelEdge{DfaLabel{1},1}});
-  expectError(dfa,"Start state must have only PusheEdges");
+  expectError(dfa,"Start state must have only PushEdges");
 }
 
 void checksAmbiguousPrio() {
@@ -239,8 +239,8 @@ void test() {
   ctx.shift('o');
   ctx.shift('o');
   if(GlrCtxTest::headSize(ctx)!=1)
-    BugDie()<<"Was expecting a single parse head. Got "
-            <<GlrCtxTest::headSize(ctx);
+    BugDieFmt("Was expecting a single parse head. Got {}",
+              GlrCtxTest::headSize(ctx));
 }
 
 }  // namespace singleShifts
@@ -250,7 +250,7 @@ namespace singleStringParse {
 
 struct Hooks : public GssHooks {
   GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=DfaLabel{0}) BugMe<<"Unexpected "<<lbl;
+    if(lbl!=DfaLabel{0}) BugMeFmt("Unexpected {}", lbl);
     else return lv->last;
   }
 };
@@ -272,7 +272,7 @@ void test() {
   Hooks hooks;
   SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
   const StringVal& sv=dynamic_cast<const StringVal&>(*v);
-  if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
+  if(sv.s!="foo") BugMeFmt("Parsed '{}' != 'foo'", sv.s);
 }
 
 }  // namespace singleStringParse
@@ -305,14 +305,15 @@ const Dfa dfa{
 struct Hooks : public GssHooks {
   GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
     if(lbl==DfaLabel{1}) {
-      if(lv->size!=2) BugMe<<"Expecting pair, got sequence size "<<lv->size;
+      if(lv->size!=2)
+        BugMeFmt("Expecting pair, got sequence size {}", lv->size);
       // Not a constant-time string-concatenation, but it's okay if this
       // grammar won't be ambiguous.
       auto &s1=dynamic_cast<const StringVal&>(*lv->at(0));
       auto &s2=dynamic_cast<const StringVal&>(*lv->at(1));
       return make_shared<StringVal>(lv->stPos,lv->enPos,s1.s+s2.s);
     }
-    BugMe<<"Unexpected "<<lbl;
+    BugMeFmt("Unexpected {}", lbl);
   }
 };
 
@@ -321,7 +322,7 @@ void test() {
   Hooks hooks;
   SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foobar")).first;
   const StringVal& sv=dynamic_cast<const StringVal&>(*v);
-  if(sv.s!="foobar") BugMe<<"Parsed '"<<sv.s<<"' != 'foobar'";
+  if(sv.s!="foobar") BugMeFmt("Parsed '{}' != 'foobar'", sv.s);
 }
 
 }  // namespace stringSequenceParse
@@ -347,9 +348,9 @@ struct Hooks : public GssHooks {
     else return sv;
   }
   GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=DfaLabel{2}) BugMe<<"Unexpected "<<lbl;
+    if(lbl!=DfaLabel{2}) BugMeFmt("Unexpected {}", lbl);
     if(lv->size!=1)
-      BugMe<<"Was expecting a single string 'foo'. Got size "<<lv->size;
+      BugMeFmt("Was expecting a single string 'foo'. Got size {}", lv->size);
     return lv->last;
   }
 };
@@ -359,7 +360,7 @@ void test() {
   Hooks hooks;
   SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
   const StringVal& sv=dynamic_cast<const StringVal&>(*v);
-  if(sv.s!="foo") BugMe<<"Parsed '"<<sv.s<<"' != 'foo'";
+  if(sv.s!="foo") BugMeFmt("Parsed '{}' != 'foo'", sv.s);
 }
 
 }  // namespace nullIgnored
@@ -436,7 +437,7 @@ const Dfa dfa{
 
 struct Hooks : GssHooks {
   GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=lblList) BugMe<<"Unexpected "<<lbl<<" != "<<lblList;
+    if(lbl!=lblList) BugMeFmt("Unexpected {} != {}", lbl, lblList);
     return lv;
   }
   GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
@@ -452,7 +453,7 @@ vector<string> gather(const ListVal* lv) {
     if(auto *sv=dynamic_cast<const StringVal*>(lv->last.get()))
       rv.push_back(sv->s);
     else if(dynamic_cast<const EmptyVal*>(lv->last.get())==nullptr)
-      BugMe<<"Got weird SemVal of typeid "<<typeid(*lv->last).name();
+      BugMeFmt("Got weird SemVal of typeid {}", typeid(*lv->last).name());
     lv=lv->prev.get();
   }
   reverse(rv.begin(),rv.end());
@@ -475,14 +476,14 @@ void test() {
       continue;
     vector<string> obs=gather(dynamic_cast<const ListVal*>(v.get()));
     if(obs!=outputs[i])
-      BugMe<<"listParse mismatch "<<obs<<" != "<<outputs[i];
+      BugMeFmt("listParse mismatch {} != {}", obs, outputs[i]);
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
     SharedVal v
       =glrParseUnique(dfa,hooks,GetFromString(invalid_inputs[i])).first;
-    if(v!=nullptr) BugMe<<"Got "<<typeid(*v).name()<<" was expecting null";
+    if(v!=nullptr) BugMeFmt("Got {} was expecting null", typeid(*v).name());
   }
 }
 
@@ -550,12 +551,12 @@ const Dfa dfa{
 class Hooks : public GssHooks {
  public:
   GssHooksRes reduceList(DfaLabel lbl,SharedListVal lv) override {
-    if(lbl!=lblList) BugMe<<"Reducing on strange "<<lbl;
+    if(lbl!=lblList) BugMeFmt("Reducing on strange {}", lbl);
     // elt-comma-elt.
-    if(lv->size!=3) BugMe<<"Got list of size "<<lv->size<<" != 3";
+    if(lv->size!=3) BugMeFmt("Got list of size {} != 3", lv->size);
     if(dynamic_cast<const EmptyVal*>(lv->at(1).get())==nullptr)
-      BugMe<<"Commas should be empty. Position 1 is not empty: "
-           <<typeid(*lv->at(1)).name();
+      BugMeFmt("Commas should be empty. Position 1 is not empty: {}",
+               typeid(*lv->at(1)).name());
     return lv;
   }
   GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
@@ -566,23 +567,25 @@ class Hooks : public GssHooks {
   GssMergeChoice merge(DfaState en,
                        SharedListVal lv1,SharedListVal lv2) override {
     if(lv1->size!=lv2->size)
-      BugMe<<"Can't merge on mismatching sizes: "<<lv1->size<<" != "<<lv2->size;
+      BugMeFmt("Can't merge on mismatching sizes: {} != {}",
+               lv1->size, lv2->size);
     if(lv1->size==1) {
       auto sv1=dynamic_cast<const StringVal*>(lv1->last.get());
       auto sv2=dynamic_cast<const StringVal*>(lv2->last.get());
       if(sv1&&sv2)
         return GssMergeChoice::pickFirst;  // Doesn't matter what we return.
       if(en!=DfaState{4})
-        BugMe<<"Merging singleton, but "<<en<<" != DfaState{4}";
+        BugMeFmt("Merging singleton, but {} != DfaState{4}", en);
       auto lu1=dynamic_pointer_cast<const ListVal>(lv1->last);
       auto lu2=dynamic_pointer_cast<const ListVal>(lv2->last);
       if(!lu1||!lu2)
-        BugMe<<"Caught null: "<<typeid(*lv1->last).name()
-             <<", "<<typeid(*lv2->last).name();
+        BugMeFmt("Caught null: {}, {}", typeid(*lv1->last).name(),
+                 typeid(*lv2->last).name());
       return merge(en,lu1,lu2);
     }
     if(lv1->size!=3)
-      BugMe<<"Expecting elt-comma-elt. Got size "<<lv1->size<<" != 3 at "<<en;
+      BugMeFmt("Expecting elt-comma-elt. Got size {} != 3 at {}",
+               lv1->size, en);
     // TODO check if en is the expected state.
     return lv1->at(0)->enPos>lv2->at(0)->enPos?GssMergeChoice::pickFirst
                                               :GssMergeChoice::pickSecond;
@@ -593,10 +596,10 @@ const string& unwrapToString(const SemVal* v) {
   if(const auto* sv=dynamic_cast<const StringVal*>(v))
     return sv->s;
   if(const auto* lv=dynamic_cast<const ListVal*>(v)) {
-    if(lv->size!=1) BugMe<<"This can't be a string. Size "<<lv->size<<" != 1";
+    if(lv->size!=1) BugMeFmt("This can't be a string. Size {} != 1", lv->size);
     return unwrapToString(lv->last.get());
   }
-  BugMe<<"unwrapToString got weird type: "<<typeid(*v).name();
+  BugMeFmt("unwrapToString got weird type: {}", typeid(*v).name());
 }
 
 vector<string> gather(SharedVal v) {
@@ -629,7 +632,7 @@ void test() {
   for(size_t i=0;i<n;++i) {
     vector<pair<SharedVal,SharedDiagSet>> res
       =glrParse(dfa,hooks,GetFromString(inputs[i]));
-    if(res.empty()) BugMe<<"No valid parse on input["<<i<<']';
+    if(res.empty()) BugMeFmt("No valid parse on input[{}]", i);
     for(size_t j=1;j<res.size();++j) {
       GssMergeChoice pick=hooks.merge(DfaState{6},
           dynamic_pointer_cast<const ListVal>(res[0].first),
@@ -639,7 +642,7 @@ void test() {
 
     vector<string> resg=gather(res[0].first);
     if(resg!=outputs[i])
-      BugMe<<"input["<<i<<"] parsed into "<<resg;
+      BugMeFmt("input[{}] parsed into {}", i, resg);
   }
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
@@ -647,8 +650,8 @@ void test() {
     vector<pair<SharedVal,SharedDiagSet>> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
     if(!glrParseFailed(res))
-      BugMe<<"Was expecting parse failure, got "
-           <<res.size()<<" successful parses";
+      BugMeFmt("Was expecting parse failure, got {} successful parses",
+               res.size());
   }
 }
 
@@ -676,11 +679,11 @@ void test() {
   Hooks hooks;
   SharedVal v=glrParseUnique(dfa,hooks,GetFromString("foo")).first;
   const StringVal& sv1=dynamic_cast<const StringVal&>(*v);
-  if(sv1.s!="foo") BugMe<<"Parsed '"<<sv1.s<<"' != 'foo'";
+  if(sv1.s!="foo") BugMeFmt("Parsed '{}' != 'foo'", sv1.s);
 
   v=glrParseUnique(dfa,hooks,GetFromString("fad")).first;
   const StringVal& sv2=dynamic_cast<const StringVal&>(*v);
-  if(sv2.s!="fad") BugMe<<"Parsed '"<<sv2.s<<"' != 'fad'";
+  if(sv2.s!="fad") BugMeFmt("Parsed '{}' != 'fad'", sv2.s);
 
 }
 
@@ -708,8 +711,8 @@ void test() {
   vector<string> expected_diags={"Got bar","Got baz","Got foo"};
   vector<string> observed_diags=diagSetMessages(diags);
   if(observed_diags!=expected_diags)
-    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
-         <<observed_diags<<" != "<<expected_diags;
+    BugMeFmt("Diag gathering from glrParseUnique is unexpected: {} != {}",
+             observed_diags, expected_diags);
 }
 
 }  // namespace parseReturnsDiags
@@ -724,13 +727,13 @@ void test() {
   dieIfBad(dfa1);
   auto [v,diags]=glrParseUnique(dfa1,hooks,GetFromString(""));
   if(v)
-    BugMe<<"Empty string should have returned nullptr. Got typeid == "
-         <<typeid(*v).name();
+    BugMeFmt("Empty string should have returned nullptr. Got typeid == {}",
+             typeid(*v).name());
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"No input provided"};
   if(observed_diags!=expected_diags)
-    BugMe<<"Diag gathering from glrParseUnique is unexpected: "
-         <<observed_diags<<" != "<<expected_diags;
+    BugMeFmt("Diag gathering from glrParseUnique is unexpected: {} != {}",
+             observed_diags, expected_diags);
 
   // Now let's make empty string a valid input.
   Dfa dfa2=dfa1;
@@ -738,11 +741,11 @@ void test() {
   dieIfBad(dfa2);
   tie(v,diags)=glrParseUnique(dfa2,hooks,GetFromString(""));
   if(typeid(*v)!=typeid(EmptyVal))
-    BugMe<<"Valid empty string returned strange value: "<<typeid(*v).name()
-         <<" != typeid(EmptyVal)";
+    BugMeFmt("Valid empty string returned strange value: "
+             "{} != typeid(EmptyVal)", typeid(*v).name());
   if(diags)
-    BugMe<<"Was not expecting diagnostics on empty input. Got "
-         <<diagSetMessages(diags);
+    BugMeFmt("Was not expecting diagnostics on empty input. Got {}",
+             diagSetMessages(diags));
 }
 
 }  // namespace emptyStringParsing
@@ -756,8 +759,8 @@ void test() {
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"Unexpected character s"};
   if(observed_diags!=expected_diags)
-    BugMe<<"Unexpected input characters not being properly reported: "
-         <<observed_diags<<" != "<<expected_diags;
+    BugMeFmt("Unexpected input characters not being properly reported: {}",
+             observed_diags, expected_diags);
 }
 
 }  // namespace unexpectedChar
@@ -769,7 +772,7 @@ struct Hooks : public GssHooks {
     return abandonReduce(sv->stPos,sv->enPos,"Abandoning string "+sv->s);
   }
   GssHooksRes reduceList(DfaLabel,SharedListVal) override {
-    BugMe<<"There shouldn't be any list without strings being reduced";
+    BugMeFmt("There shouldn't be any list without strings being reduced");
   }
 };
 
@@ -789,12 +792,12 @@ void test() {
   Hooks hooks;
   dieIfBad(dfa);
   auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
-  if(v) BugMe<<"Was expecting nullptr value on non-reduction";
+  if(v) BugMeFmt("Was expecting nullptr value on non-reduction");
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"Abandoning string foo"};
   if(observed_diags!=expected_diags)
-    BugMe<<"lastKnownDiags_ returning something unexpected: "
-         <<observed_diags<<" != "<<expected_diags;
+    BugMeFmt("lastKnownDiags_ returning something unexpected: {} != {}",
+             observed_diags, expected_diags);
 }
 
 }  // namespace lastKnownDiags
@@ -816,12 +819,12 @@ void test() {
   singleStringParse::Hooks hooks;
   dieIfBad(dfa);
   auto [v,diags]=glrParseUnique(dfa,hooks,GetFromString("foo"));
-  if(v) BugMe<<"Was expecting nullptr value on incomplete input";
+  if(v) BugMeFmt("Was expecting nullptr value on incomplete input");
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"Incomplete input"};
   if(observed_diags!=expected_diags)
-    BugMe<<"lastKnownDiags_ returning something unexpected: "
-         <<observed_diags<<" != "<<expected_diags;
+    BugMeFmt("lastKnownDiags_ returning something unexpected: {} != {}",
+             observed_diags, expected_diags);
 
 }
 
