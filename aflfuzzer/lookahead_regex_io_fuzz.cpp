@@ -23,13 +23,12 @@
 
 #include "lookahead_regex_io.h"
 #include <cctype>
-#include <iostream>
+#include <cstdio>
 #include <optional>
 #include <string_view>
 #include <vector>
 #include "runtime/test_util.h"
 #include "fmt/format.h"
-using oalex::Bug;
 using oalex::BugFmt;
 using oalex::Diag;
 using oalex::Input;
@@ -47,9 +46,6 @@ using oalex::regex::get_if_unique;
 using oalex::regex::get_unique;
 using fmt::format;
 using fmt::print;
-using std::cerr;
-using std::cin;
-using std::endl;
 using std::get;
 using std::get_if;
 using std::holds_alternative;
@@ -181,12 +177,17 @@ bool astEq(const Regex& a, const Regex& b) {
   BugMeFmt("Unknown regex index: {}", a.index());
 }
 
+template <size_t len> string getline() {
+  char buf[len];
+  if(!fgets(buf, len, stdin)) return "";
+  return string(buf);
+}
+
 }  // namespace
 
 int main() {
   try {
-    string input;
-    getline(cin, input);
+    string input = getline<3000>();
     size_t i = 0;
     optional<Regex> parseResult = tryParsing(input, i);
     if(!parseResult) return 0;

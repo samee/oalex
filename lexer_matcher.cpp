@@ -23,8 +23,6 @@ using std::string;
 using std::string_view;
 using fmt::format;
 
-using oalex::Str;
-
 namespace oalex::lex::matcher {
 
 namespace {

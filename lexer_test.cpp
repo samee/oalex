@@ -25,25 +25,20 @@
 #include "runtime/util.h"
 using fmt::format;
 using fmt::print;
-using std::cerr;
 using std::endl;
 using std::get;
 using std::get_if;
 using std::nullopt;
 using std::optional;
-using std::ostream;
-using std::ostringstream;
 using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
-using oalex::Bug;
 using oalex::BugFmt;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
-using oalex::Str;
 using oalex::UserErrorEx;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;

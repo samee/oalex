@@ -28,7 +28,6 @@ using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::Resetter;
 using oalex::uniqueKeys;
-using oalex::UserError;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;

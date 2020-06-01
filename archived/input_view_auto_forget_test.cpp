@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include"input_view_auto_forget.h"
+#include<iostream>
 #include<random>
 #include"runtime/test_util.h"
 using namespace std;

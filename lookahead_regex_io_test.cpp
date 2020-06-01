@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #include "lookahead_regex_io.h"
-#include <iostream>
 #include <string_view>
 #include <vector>
 #include "runtime/diags_test_util.h"
@@ -34,8 +33,6 @@ using oalex::regex::Regex;
 using oalex::regex::RegexOptions;
 using oalex::regex::Repeat;
 using oalex::regex::parseCharSet;
-using std::cerr;
-using std::endl;
 using std::make_unique;
 using std::optional;
 using std::pair;

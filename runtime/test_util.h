@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <map>
 #include <string>
 #include <string_view>
@@ -41,7 +40,6 @@ template <class ... Args> [[noreturn]] void
     BugFmt(fmt::format("{}: {}", testName, fmt).data(), args...);
 }
 
-#define BugMe oalex::Bug()<<__func__<<": "
 #define BugMeFmt(...) oalex::BugMeFmtImpl(__func__, __VA_ARGS__)
 
 // Useful as getch() callbacks in dfa.h and input_view.h.
@@ -55,15 +53,6 @@ class GetFromString {
   explicit GetFromString(std::string_view src):src(src) {}
   int operator()() { return i<src.size()?src[i++]:-1; }
 };
-
-inline std::ostream&
-operator<<(std::ostream& os,const std::vector<std::string>& v) {
-  if(v.empty()) return os<<"{}";
-  os<<'{'<<v[0];
-  for(size_t i=1;i<v.size();++i) os<<", "<<v[i];
-  os<<'}';
-  return os;
-}
 
 template <class K, class T, class Cmp> std::vector<K>
 uniqueKeys(const std::multimap<K,T,Cmp>& m) {
