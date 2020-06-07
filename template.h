@@ -25,9 +25,9 @@
 
 namespace oalex {
 
-// TODO see if we actually need to own these objects,
-//      or if we can just keep pointers.
-// This type is currently unused.
+// For now, frontend should restrict wordChars to isprint() && !isspace().
+// This will certainly cause problems if we ever want to support utf8, but we
+// can cross that bridge when we get there.
 struct LexDirective {
   regex::CharSet wordChars;
   Skipper skip;  // Assume skip.valid(), verified at construction.
@@ -51,5 +51,12 @@ auto labelParts(
     const lex::QuotedString& s,
     const std::map<Ident,PartPattern>& partPatterns)
     -> std::vector<LabelOrPart>;
+
+// TODO implement this.
+// This function doesn't make sense if we are keeping all spaces.
+using TokenOrPart = std::variant<lex::UnquotedToken, Ident>;
+auto tokenizeTemplate(
+    const LabelOrPart& lblParts,
+    const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 }  // namespace oalex

@@ -16,6 +16,8 @@
 #include <string>
 #include "diags.h"
 
+// TODO port this to use InputPiece instead of InputDiags.
+
 namespace oalex {
 
 // Specifies how whitespaces and comments are skipped. Not used for contexts
