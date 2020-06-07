@@ -99,6 +99,7 @@ class QuotedString final : public LexSegment, public InputPiece {
 
   const InputPiece& row_col_table() const { return *this; }
   std::vector<Diag>& diagDest() const { return ctx_->diags; }
+  operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:
   std::string s_;  // escape codes already interpreted.
   InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.

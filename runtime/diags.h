@@ -31,6 +31,11 @@ struct Diag {
   explicit operator std::string() const;
 };
 
+struct InputDiagsRef {
+  const InputPiece* input;
+  std::vector<Diag>* diags;
+};
+
 std::string locationString(const InputPiece& input, size_t st, size_t en);
 
 // Typically, we don't expect this to be called directly. This is merely a
@@ -109,6 +114,7 @@ struct InputDiags {
 
   const InputPiece& row_col_table() const { return input; }
   std::vector<Diag>& diagDest() { return diags; }
+  operator InputDiagsRef() { return {&input, &diags}; }  // implicit, non-const
  private:
   size_t lastForgotten_ = 0;
 };
