@@ -40,64 +40,62 @@ std::string locationString(const InputPiece& input, size_t st, size_t en);
 
 // Typically, we don't expect this to be called directly. This is merely a
 // helper for the more convenient Error(), Warning(), and Note().
-template <class DiagTarget> std::nullopt_t
-pushDiagReturnNullOpt(DiagTarget& dt, size_t st, size_t en,
+inline std::nullopt_t
+pushDiagReturnNullOpt(InputDiagsRef ctx, size_t st, size_t en,
                       Diag::Severity sev, std::string msg) {
-  std::vector<Diag>& diags = dt.diagDest();
-  diags.emplace_back(dt.row_col_table(), st, en, sev, std::move(msg));
+  ctx.diags->emplace_back(*ctx.input, st, en, sev, std::move(msg));
   return std::nullopt;
 }
 
-template <class DiagTarget> [[noreturn]] void
-FatalBug(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  Bug("{}", std::string(Diag(dt.row_col_table(), st, en,
-                        Diag::error, std::move(msg))));
+[[noreturn]] inline void
+FatalBug(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+  Bug("{}", std::string(Diag(*ctx.input, st, en, Diag::error, std::move(msg))));
 }
 
-template <class DiagTarget> [[noreturn]] void
-Fatal(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  UserError("{}", std::string(Diag(dt.row_col_table(), st, en,
+[[noreturn]] inline void
+Fatal(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+  UserError("{}", std::string(Diag(*ctx.input, st, en,
                               Diag::error, std::move(msg))));
 }
 
-template <class DiagTarget> std::nullopt_t
-Error(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, en, Diag::error, std::move(msg));
+inline std::nullopt_t
+Error(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, en, Diag::error, std::move(msg));
 }
 
-template <class DiagTarget> std::nullopt_t
-Warning(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, en, Diag::warning, std::move(msg));
+inline std::nullopt_t
+Warning(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, en, Diag::warning, std::move(msg));
 }
 
-template <class DiagTarget> std::nullopt_t
-Note(DiagTarget& dt, size_t st, size_t en, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, en, Diag::note, std::move(msg));
+inline std::nullopt_t
+Note(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, en, Diag::note, std::move(msg));
 }
 
-template <class DiagTarget> [[noreturn]] void
-FatalBug(DiagTarget& dt, size_t st, std::string msg) {
-  FatalBug(dt, st, st+1, std::move(msg));
+[[noreturn]] inline void
+FatalBug(InputDiagsRef ctx, size_t st, std::string msg) {
+  FatalBug(ctx, st, st+1, std::move(msg));
 }
 
-template <class DiagTarget> [[noreturn]] void
-Fatal(DiagTarget& dt, size_t st, std::string msg) {
-  Fatal(dt, st, st+1, std::move(msg));
+[[noreturn]] inline void
+Fatal(InputDiagsRef ctx, size_t st, std::string msg) {
+  Fatal(ctx, st, st+1, std::move(msg));
 }
 
-template <class DiagTarget> std::nullopt_t
-Error(DiagTarget& dt, size_t st, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, st+1, Diag::error, std::move(msg));
+inline std::nullopt_t
+Error(InputDiagsRef ctx, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, st+1, Diag::error, std::move(msg));
 }
 
-template <class DiagTarget> std::nullopt_t
-Warning(DiagTarget& dt, size_t st, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, st+1, Diag::warning, std::move(msg));
+inline std::nullopt_t
+Warning(InputDiagsRef ctx, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, st+1, Diag::warning, std::move(msg));
 }
 
-template <class DiagTarget> std::nullopt_t
-Note(DiagTarget& dt, size_t st, std::string msg) {
-  return pushDiagReturnNullOpt(dt, st, st+1, Diag::note, std::move(msg));
+inline std::nullopt_t
+Note(InputDiagsRef ctx, size_t st, std::string msg) {
+  return pushDiagReturnNullOpt(ctx, st, st+1, Diag::note, std::move(msg));
 }
 
 struct InputDiags {
