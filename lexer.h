@@ -97,8 +97,6 @@ class QuotedString final : public LexSegment, public InputPiece {
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
 
-  const InputPiece& row_col_table() const { return *this; }
-  std::vector<Diag>& diagDest() const { return ctx_->diags; }
   operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:
   std::string s_;  // escape codes already interpreted.

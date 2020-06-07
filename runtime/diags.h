@@ -110,8 +110,6 @@ struct InputDiags {
 
   void markUsed(size_t st, size_t en);
 
-  const InputPiece& row_col_table() const { return input; }
-  std::vector<Diag>& diagDest() { return diags; }
   operator InputDiagsRef() { return {&input, &diags}; }  // implicit, non-const
  private:
   size_t lastForgotten_ = 0;
