@@ -40,7 +40,6 @@ using PartPattern = std::variant<lex::QuotedString, DelimPair>;
 auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
   -> std::optional<std::vector<std::pair<size_t, size_t>>>;
 
-// TODO implement this.
 // Params:
 //   s: The string that needs to be split up.
 //   partPatterns: The user-specified patterns to be replaced with Placeholders.
@@ -52,6 +51,5 @@ auto labelParts(
     const lex::QuotedString& s,
     const std::map<Ident,PartPattern>& partPatterns)
     -> std::vector<LabelOrPart>;
-// TODO later steps will catch placeholders-in-comments as error.
 
 }  // namespace oalex
