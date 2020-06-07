@@ -41,6 +41,10 @@ struct LexSegment : Segment {
     : Segment{st,en,type_tag} {}
 };
 
+// These tokens never have embedded newlines, unless it's a newline all
+// by itself. These are meant to be a lightweight string wrapper, and do not
+// use complex rowCol() maps. This also disallows any backslash escape sequence
+// such as '\n' or '\t'.
 struct UnquotedToken : LexSegment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::unquotedToken);
   std::string token;
@@ -49,6 +53,7 @@ struct UnquotedToken : LexSegment {
   UnquotedToken(size_t st,size_t en,std::string tok)
     : LexSegment(st,en,type_tag), token(std::move(tok)) {}
   const std::string& operator*() const { return token; }
+  const std::string* operator->() const { return &token; }
 };
 
 // These are the factory methods ensure the following invariants on rcmap:
