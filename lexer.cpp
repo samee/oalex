@@ -324,19 +324,22 @@ static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;
 }
 
+// Returns index_map.iterator_type, never returns index_map.begin().
+static auto upperBound(const vector<IndexRelation>& index_map, size_t qpos) {
+  auto it = upper_bound(index_map.begin(), index_map.end(),
+                     IndexRelation{.inputPos = 0, .quotePos = qpos},
+                     cmpByQuotePos);
+  if(it == index_map.begin()) Bug("Index map doesn't have start entry");
+  return it;
+}
+
 QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
   if(pos > size()) Bug("QuotedString::subqstr() invoked with invalid pos");
   len = min(len, size() - pos);
 
   // Find the subrange for the new index_map_.
-  auto stit = upper_bound(index_map_.begin(), index_map_.end(),
-                          IndexRelation{.inputPos = 0, .quotePos = pos},
-                          cmpByQuotePos);
-  if(stit == index_map_.begin()) Bug("Index map doesn't have start entry");
-  --stit;
-  auto enit = upper_bound(index_map_.begin(), index_map_.end(),
-                          IndexRelation{.inputPos = 0, .quotePos = pos+len},
-                          cmpByQuotePos);
+  auto stit = --upperBound(index_map_, pos);
+  auto enit = upperBound(index_map_, pos+len);
 
   // Construct the new index_map_.
   vector<IndexRelation> imap(stit, enit);  // cannot be empty.
@@ -352,13 +355,18 @@ pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
 }
 
 size_t QuotedString::inputPos(size_t pos) const {
-  auto it = upper_bound(index_map_.begin(), index_map_.end(),
-                        IndexRelation{.inputPos = 0, .quotePos = pos},
-                        cmpByQuotePos);
-  if(it == index_map_.begin())
-    Bug("No row/col entry for the first line in: {}", s_);
-  --it;
+  auto it = --upperBound(index_map_, pos);
   return it->inputPos + pos - it->quotePos;
+}
+
+size_t QuotedString::bol(size_t i) const {
+  auto it = upperBound(index_map_, i);
+  while(true) {
+    --it;
+    if(it->quotePos == 0 || s_[it->quotePos-1] == '\n') return it->quotePos;
+    if(it == index_map_.begin())
+      Bug("Index map's first entry is {} != 0", it->quotePos);
+  }
 }
 
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we

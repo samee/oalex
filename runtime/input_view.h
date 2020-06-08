@@ -27,6 +27,7 @@ class InputPiece {
   virtual char operator[](size_t sz) const = 0;
   virtual bool sizeGt(size_t sz) const = 0;
   virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
+  virtual size_t bol(size_t i) const = 0;
   virtual ~InputPiece() = default;
 };
 
@@ -72,7 +73,7 @@ class Input final : public InputPiece {
   // last newline in input.
   //
   // O(log k), where k is the number of lines seen so far.
-  size_t bol(size_t i) const;
+  size_t bol(size_t i) const override;
 
   // Returns 1-based positions: line number, and offset in that line.
   // Everything else in this lass is 0-based.

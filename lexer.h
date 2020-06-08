@@ -96,6 +96,7 @@ class QuotedString final : public LexSegment, public InputPiece {
   QuotedString subqstr(size_t pos, size_t len) const;
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
+  size_t bol(size_t i) const final;
 
   operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:

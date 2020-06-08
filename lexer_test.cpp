@@ -320,6 +320,17 @@ void indentedSourceBlockSuccessImpl(
     }else if(testOutput[i] == '\n')
       Bug("{} doesn't start a new line in spite of a \\n char at {}",
           testName, debug(res->rowCol(i)));
+
+  for(size_t i=0; res->sizeGt(i); ++i) {
+    if(i == 0 || testOutput[i-1] == '\n') {
+      if(res->bol(i) != i)
+        BugMe("Expected bol({0}) == {0}, but found {1} in parsed result:\n{2}",
+              i, res->bol(i), testOutput);
+    }else if(res->bol(i) != res->bol(i-1)) {
+      BugMe("bol() changed without newline: bol({}) == {}, bol({}) == {}",
+            i, res->bol(i), i-1, res->bol(i-1));
+    }
+  }
 }
 
 const char tabSpaceMix[] = "  foo\n\tbar";
