@@ -91,11 +91,16 @@ class QuotedString final : public LexSegment, public InputPiece {
   operator std::string() const { return s_; }
   bool empty() const { return s_.empty(); }
   size_t size() const { return s_.size(); }
+  using InputPiece::hasPrefix;
+  bool hasPrefix(size_t pos, std::string_view s) const final
+    { return substr(pos, s.size()) == s; }
   std::string_view substr(size_t pos, size_t len) const
     { return std::string_view(s_).substr(pos, len); }
   QuotedString subqstr(size_t pos, size_t len) const;
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
+  size_t find(char ch, size_t st=0) const noexcept final
+    { return s_.find(ch, st); }
   size_t bol(size_t i) const final;
 
   operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit

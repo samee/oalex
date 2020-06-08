@@ -27,6 +27,10 @@ class InputPiece {
   virtual char operator[](size_t sz) const = 0;
   virtual bool sizeGt(size_t sz) const = 0;
   virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
+  virtual bool hasPrefix(size_t pos, std::string_view s) const = 0;
+  bool hasPrefix(size_t pos, size_t count, std::string_view s) const
+    { return count >= s.size() && hasPrefix(pos,s); }
+  virtual size_t find(char ch, size_t pos) const = 0;
   virtual size_t bol(size_t i) const = 0;
   virtual ~InputPiece() = default;
 };
@@ -96,10 +100,9 @@ class Input final : public InputPiece {
   // Unlike std::string_view, it will stay valid even if s is appended to,
   // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const;
-  bool hasPrefix(size_t pos, std::string_view s) const;
-  bool hasPrefix(size_t pos, size_t count, std::string_view s) const
-    { return count >= s.size() && hasPrefix(pos,s); }
-  size_t find(char ch, size_t pos) const;
+  using InputPiece::hasPrefix;
+  bool hasPrefix(size_t pos, std::string_view s) const override;
+  size_t find(char ch, size_t pos) const override;
 
   static constexpr size_t defaultMaxLineLength = 5000;
   size_t maxLineLength() const { return maxLineLength_; }
