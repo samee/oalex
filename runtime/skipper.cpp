@@ -70,7 +70,8 @@ optional<string> Skipper::valid() const {
   return nullopt;
 }
 
-static size_t skipEnd(const Input& input, size_t pos, bool endsBeforeNextLine) {
+static size_t skipEnd(const InputPiece& input, size_t pos,
+                      bool endsBeforeNextLine) {
   size_t end = endsBeforeNextLine ? input.find('\n',pos) : Input::npos;
   if(end != Input::npos) ++end;  // Careful not to overflow npos.
   return end;
@@ -81,7 +82,7 @@ static size_t skipEnd(const Input& input, size_t pos, bool endsBeforeNextLine) {
 // Returns the exact eof position if comment ends exactly at eof.
 static size_t skipPastNestedComment(
     const pair<string,string>& delims,
-    const Input& input, size_t pos, size_t end) {
+    const InputPiece& input, size_t pos, size_t end) {
   size_t depth=0, i=pos;
   const auto& [stdelim,endelim] = delims;
 
@@ -103,7 +104,7 @@ static size_t skipPastNestedComment(
 }
 
 static size_t
-skipPastNext(const string& s, const Input& input, size_t pos, size_t end) {
+skipPastNext(const string& s, const InputPiece& input, size_t pos, size_t end) {
   for(size_t i=pos; input.sizeGt(i) && i+s.size()<=end; ++i)
     if(input.hasPrefix(i,s)) return i+s.size();
   return Input::npos;
@@ -114,7 +115,7 @@ skipPastNext(const string& s, const Input& input, size_t pos, size_t end) {
 // returns true but sets st to Input::npos.
 // For all other values at input[st], returns false and leaves st unchanged.
 // Corollary: st is always incremented by some amount if return value is true.
-static bool skipComments(const Skipper& skip, const Input& input,
+static bool skipComments(const Skipper& skip, const InputPiece& input,
     size_t& st, size_t en) {
   if(skip.nestedComment &&
      input.hasPrefix(st,st-en,skip.nestedComment->first)) {
@@ -129,8 +130,8 @@ static bool skipComments(const Skipper& skip, const Input& input,
   return false;
 }
 
-size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
-  const Input& input = ctx.input;
+size_t Skipper::withinLine(InputDiagsRef ctx, size_t pos) const {
+  const InputPiece& input = *ctx.input;
   const size_t end = skipEnd(input,pos,true);
   size_t i = pos;
   while(true) {
@@ -143,8 +144,8 @@ size_t Skipper::withinLine(InputDiags& ctx, size_t pos) const {
   }
 }
 
-size_t Skipper::acrossLines(InputDiags& ctx, size_t pos) const {
-  Input& input = ctx.input;
+size_t Skipper::acrossLines(InputDiagsRef ctx, size_t pos) const {
+  const InputPiece& input = *ctx.input;
   size_t i = pos;
   bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
   while(true) {
@@ -156,7 +157,6 @@ size_t Skipper::acrossLines(InputDiags& ctx, size_t pos) const {
     }else if(input[i] == '\n') {
       if(lineBlank) anyLineBlank = true;
       lineBlank = true;
-      input.forgetBefore(i);
       ++i;
     }else {
       // subtracting 1 is guaranteed safe, because the preceding char is '\n'.

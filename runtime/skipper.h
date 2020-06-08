@@ -16,8 +16,6 @@
 #include <string>
 #include "diags.h"
 
-// TODO port this to use InputPiece instead of InputDiags.
-
 namespace oalex {
 
 // Specifies how whitespaces and comments are skipped. Not used for contexts
@@ -92,7 +90,7 @@ struct Skipper {
   skipper_test.cpp to this header.
   */
   bool indicateBlankLines = false;
-  size_t acrossLines(InputDiags& ctx, size_t pos) const;
+  size_t acrossLines(InputDiagsRef ctx, size_t pos) const;
 
   /*
   It finds the next non-space, non-comment character in ctx.input, within a
@@ -134,7 +132,7 @@ struct Skipper {
     acrossLines(). I will keep writing this anyway, since it's just easier to
     implement without having to think about blank line exceptions.
   */
-  size_t withinLine(InputDiags& ctx, size_t pos) const;
+  size_t withinLine(InputDiagsRef ctx, size_t pos) const;
 };
 
 }  // namespace oalex
