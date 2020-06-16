@@ -320,6 +320,10 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
+UnquotedToken::UnquotedToken(const QuotedString& s)
+  : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
+    token(string(s)) { }
+
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;
 }

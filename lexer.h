@@ -23,6 +23,8 @@
 
 namespace oalex::lex {
 
+class QuotedString;
+
 struct IndexRelation {
   size_t inputPos;
   size_t quotePos;
@@ -52,6 +54,10 @@ struct UnquotedToken : LexSegment {
     : LexSegment(st,en,type_tag), token(input.substr(st,en-st)) {}
   UnquotedToken(size_t st,size_t en,std::string tok)
     : LexSegment(st,en,type_tag), token(std::move(tok)) {}
+
+  // This should only be used for short and simple tokens without newlines or
+  // escape codes embedded in it, since that will mess up location-tracking.
+  explicit UnquotedToken(const QuotedString& s);
   const std::string& operator*() const { return token; }
   const std::string* operator->() const { return &token; }
 };
