@@ -278,6 +278,8 @@ void testTokenizeNoLabel() {
   }
 }
 
+// TODO Test unfinished comment
+
 }  // namespace
 
 int main() {
