@@ -86,12 +86,6 @@ MatchState init(const Regex& regex) {
   else Unimplemented("init() for index {}", regex.index());
 }
 
-bool matchesCharSet(char ch, const CharSet& cset) {
-  for(auto& range : cset.ranges)
-    if(range.from <= ch && ch <= range.to) return !cset.negated;
-  return cset.negated;
-}
-
 void start(const Regex& regex, MatchState& state) {
   if(holds_one_of_unique<CharSet, string, Anchor>(regex))
     get_unique<vector<bool>>(state).at(0) = true;
@@ -226,6 +220,12 @@ void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
 }
 
 }  // namespace
+
+bool matchesCharSet(char ch, const CharSet& cset) {
+  for(auto& range : cset.ranges)
+    if(range.from <= ch && ch <= range.to) return !cset.negated;
+  return cset.negated;
+}
 
 bool startsWith(const Input& input, size_t i, const Regex& regex,
                 const RegexOptions& opts) {

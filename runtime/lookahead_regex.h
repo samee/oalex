@@ -103,6 +103,8 @@ struct RegexOptions {
   CharSet word;  // Used for \b matches.
 };
 
+bool matchesCharSet(char ch, const CharSet& cset);
+
 // Used for lookaheads
 bool startsWith(const Input& input, size_t i,
                 const Regex& regex, const RegexOptions& opts);
