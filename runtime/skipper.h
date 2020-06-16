@@ -18,9 +18,6 @@
 
 namespace oalex {
 
-// TODO migrate this to use InputPiece rather than InputDiags, since it doesn't
-// produce any diagnostic.
-
 // Specifies how whitespaces and comments are skipped. Not used for contexts
 // where spaces are significant (e.g. inside string literals).
 //
@@ -62,15 +59,15 @@ struct Skipper {
   std::optional<std::string> valid() const;
 
   /*
-  It finds the next non-space, non-comment character in ctx.input, within the
+  It finds the next non-space, non-comment character in input, within the
   substring [pos,eof). If not found, it returns some value larger than input
-  size (i.e. some x that makes ctx.input.sizeGt(x) false).
+  size (i.e. some x that makes input.sizeGt(x) false).
 
   Example:
 
     Skipper skip{...};
-    InputDiags ctx(...);
-    for(size_t i=0; ctx.input.sizeGt(i); i=skip.acrossLines(ctx,i)) {
+    Input input(...);
+    for(size_t i=0; input.sizeGt(i); i=skip.acrossLines(input,i)) {
       // It doesn't matter what type 'tok' is, just that it somehow indicates
       // an end position just beyond what is parsed.
       auto tok = processTokenAt(i);
@@ -93,33 +90,33 @@ struct Skipper {
   skipper_test.cpp to this header.
   */
   bool indicateBlankLines = false;
-  size_t acrossLines(InputDiagsRef ctx, size_t pos) const;
+  size_t acrossLines(const InputPiece& input, size_t pos) const;
 
   /*
-  It finds the next non-space, non-comment character in ctx.input, within a
+  It finds the next non-space, non-comment character in input, within a
   single line. A "line" is defined as the substring in range the substring
   [pos,end), where end is the position of the next '\n'. Input is expected to
   terminate each line with a '\n', even the last line.
 
   If it's all spaces and comments, it returns the beginning of the next line
-  (i.e. the next value i such that ctx.input.bol(i) > ctx.input.bol(pos). If
+  (i.e. the next value i such that input.bol(i) > input.bol(pos). If
   this is the last line, it returns some value larger than input size (i.e.
-  some x that makes ctx.input.sizeGt(x) false).
+  some x that makes input.sizeGt(x) false).
 
   Example:
 
     Skipper skip{...};
-    InputDiags ctx(...);
-    for(size_t i=skip.withinLine(ctx,lineStart);
-        ctx.input.bol(i) == lineStart;
-        i=skip.withinLine(ctx,i)) {
+    Input input(...);
+    for(size_t i=skip.withinLine(input,lineStart);
+        input.bol(i) == lineStart;
+        i=skip.withinLine(input,i)) {
       // It doesn't matter what type 'tok' is, just that it somehow indicates
       // an end position just beyond what is parsed.
       auto tok = processTokenAt(i);
       i = tok.enPos;
      }
      // We assume Input::getch() terminates input with a newline.
-     if(ctx.input.sizeGt(i)) nextLineStart = i;
+     if(input.sizeGt(i)) nextLineStart = i;
      else foundEof = true;
 
   If and only if comments don't end within the line, it returns Input::npos. We
@@ -135,10 +132,10 @@ struct Skipper {
     acrossLines(). I will keep writing this anyway, since it's just easier to
     implement without having to think about blank line exceptions.
   */
-  size_t withinLine(InputDiagsRef ctx, size_t pos) const;
+  size_t withinLine(const InputPiece& input, size_t pos) const;
 
   // Tests if we can start skipping from pos.
-  bool canStart(InputDiagsRef ctx, size_t pos) const;
+  bool canStart(const InputPiece& input, size_t pos) const;
 };
 
 }  // namespace oalex

@@ -125,8 +125,8 @@ string parseWord(const Input& input, size_t& i) {
 vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
-  for(size_t i = skip.withinLine(ctx,0);
-      input.bol(i) == 0; i = skip.withinLine(ctx,i)) {
+  for(size_t i = skip.withinLine(input,0);
+      input.bol(i) == 0; i = skip.withinLine(input,i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     if(input[i] == '\n') break;
     rv.push_back(parseWord(input, i));
@@ -137,8 +137,8 @@ vector<string> getLineWords(InputDiags& ctx, const Skipper& skip) {
 vector<string> getAllWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
-  for(size_t i = skip.acrossLines(ctx,0);
-      input.sizeGt(i); i = skip.acrossLines(ctx,i)) {
+  for(size_t i = skip.acrossLines(input,0);
+      input.sizeGt(i); i = skip.acrossLines(input,i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     rv.push_back(parseWord(input, i));
   }
@@ -208,7 +208,7 @@ void testLineEndsAtNewline() {
   const string input = "hello world";
   InputDiags ctx = unixifiedTestInputDiags(input + "  \n  ");
   size_t pos1 = input.size();
-  size_t pos2 = cskip.withinLine(ctx, pos1);
+  size_t pos2 = cskip.withinLine(ctx.input, pos1);
   if(pos2 <= pos1)
     BugMe("Skipper::withinLine() is not moving to the next line. pos = {}",
           pos2);
@@ -229,7 +229,7 @@ void testTabsSkipped() {
 void testCommentNeverEnds() {
   const string input = "hello world";
   InputDiags ctx = unixifiedTestInputDiags(input + " /* ");
-  size_t pos = cskip.withinLine(ctx, input.size());
+  size_t pos = cskip.withinLine(ctx.input, input.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   // This check is typically used as a loop termination condition.
@@ -237,7 +237,7 @@ void testCommentNeverEnds() {
 
   // Test that we are not accidentally nesting it.
   ctx = unixifiedTestInputDiags(input + " /* /* */");
-  pos = cskip.withinLine(ctx, input.size());
+  pos = cskip.withinLine(ctx.input, input.size());
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Wasn't expecting problems with properly closed comments");
@@ -246,20 +246,20 @@ void testCommentNeverEnds() {
 
   // Test again for nested comments.
   ctx = unixifiedTestInputDiags(input + " {- {- -} ");
-  pos = haskellskip.withinLine(ctx, input.size());
+  pos = haskellskip.withinLine(ctx.input, input.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Multiline tests.
   ctx = unixifiedTestInputDiags(input + "\n /*");
-  pos = cskip.acrossLines(ctx, input.size());
+  pos = cskip.acrossLines(ctx.input, input.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   ctx = unixifiedTestInputDiags(input + " /* \n /* */");
-  pos = cskip.acrossLines(ctx, input.size());
+  pos = cskip.acrossLines(ctx.input, input.size());
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Wasn't expecting problems with "
@@ -268,7 +268,7 @@ void testCommentNeverEnds() {
   if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   ctx = unixifiedTestInputDiags(input + " {- {- \n  -} ");
-  pos = haskellskip.acrossLines(ctx, input.size());
+  pos = haskellskip.acrossLines(ctx.input, input.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");

@@ -129,8 +129,7 @@ static bool skipComments(const Skipper& skip, const InputPiece& input,
   return false;
 }
 
-size_t Skipper::withinLine(InputDiagsRef ctx, size_t pos) const {
-  const InputPiece& input = *ctx.input;
+size_t Skipper::withinLine(const InputPiece& input, size_t pos) const {
   const size_t end = skipEnd(input,pos);
   size_t i = pos;
   while(true) {
@@ -143,8 +142,7 @@ size_t Skipper::withinLine(InputDiagsRef ctx, size_t pos) const {
   }
 }
 
-size_t Skipper::acrossLines(InputDiagsRef ctx, size_t pos) const {
-  const InputPiece& input = *ctx.input;
+size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
   size_t i = pos;
   bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
   while(true) {
@@ -165,8 +163,7 @@ size_t Skipper::acrossLines(InputDiagsRef ctx, size_t pos) const {
   }
 }
 
-bool Skipper::canStart(InputDiagsRef ctx, size_t pos) const {
-  const InputPiece& input = *ctx.input;
+bool Skipper::canStart(const InputPiece& input, size_t pos) const {
   if(!input.sizeGt(pos)) return false;
   return isin(input[pos], " \t\n")
       || skipComments(*this, input, pos, Input::npos);
