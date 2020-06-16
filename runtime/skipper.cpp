@@ -70,9 +70,8 @@ optional<string> Skipper::valid() const {
   return nullopt;
 }
 
-static size_t skipEnd(const InputPiece& input, size_t pos,
-                      bool endsBeforeNextLine) {
-  size_t end = endsBeforeNextLine ? input.find('\n',pos) : Input::npos;
+static size_t skipEnd(const InputPiece& input, size_t pos) {
+  size_t end = input.find('\n',pos);
   if(end != Input::npos) ++end;  // Careful not to overflow npos.
   return end;
 }
@@ -132,7 +131,7 @@ static bool skipComments(const Skipper& skip, const InputPiece& input,
 
 size_t Skipper::withinLine(InputDiagsRef ctx, size_t pos) const {
   const InputPiece& input = *ctx.input;
-  const size_t end = skipEnd(input,pos,true);
+  const size_t end = skipEnd(input,pos);
   size_t i = pos;
   while(true) {
     // Check if we still have room to skip.
