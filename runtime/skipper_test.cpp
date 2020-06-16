@@ -138,7 +138,7 @@ vector<string> getAllWords(InputDiags& ctx, const Skipper& skip) {
   const Input& input = ctx.input;
   vector<string> rv;
   for(size_t i = skip.acrossLines(ctx,0);
-      i != input.npos; i = skip.acrossLines(ctx,i)) {
+      input.sizeGt(i); i = skip.acrossLines(ctx,i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     rv.push_back(parseWord(input, i));
   }
@@ -230,7 +230,8 @@ void testCommentNeverEnds() {
   const string input = "hello world";
   InputDiags ctx = unixifiedTestInputDiags(input + " /* ");
   size_t pos = cskip.withinLine(ctx, input.size());
-  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(pos != Input::npos)
+    BugMe("Unfinished comment should have produced npos, not {}", pos);
   // This check is typically used as a loop termination condition.
   if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
@@ -246,13 +247,15 @@ void testCommentNeverEnds() {
   // Test again for nested comments.
   ctx = unixifiedTestInputDiags(input + " {- {- -} ");
   pos = haskellskip.withinLine(ctx, input.size());
-  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(pos != Input::npos)
+    BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Multiline tests.
   ctx = unixifiedTestInputDiags(input + "\n /*");
   pos = cskip.acrossLines(ctx, input.size());
-  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(pos != Input::npos)
+    BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   ctx = unixifiedTestInputDiags(input + " /* \n /* */");
@@ -266,7 +269,8 @@ void testCommentNeverEnds() {
 
   ctx = unixifiedTestInputDiags(input + " {- {- \n  -} ");
   pos = haskellskip.acrossLines(ctx, input.size());
-  assertHasDiagWithSubstr(__func__, ctx.diags, "Comment never ends");
+  if(pos != Input::npos)
+    BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(ctx.input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 }
 

@@ -135,10 +135,10 @@ size_t Skipper::withinLine(InputDiagsRef ctx, size_t pos) const {
   size_t i = pos;
   while(true) {
     // Check if we still have room to skip.
-    if(!input.sizeGt(i) || i>=end) return end;
+    if(!input.sizeGt(i) || i>=end) return i;
     else if(isin(input[i], " \t\n")) ++i;
     else if(skipComments(*this, input, i, end)) {
-      if(i == Input::npos) Error(ctx, i, i+1, "Comment never ends");
+      if(i == Input::npos) return i;
     }else return i;
   }
 }
@@ -148,10 +148,10 @@ size_t Skipper::acrossLines(InputDiagsRef ctx, size_t pos) const {
   size_t i = pos;
   bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
   while(true) {
-    if(!input.sizeGt(i)) return Input::npos;
+    if(!input.sizeGt(i)) return i;
     else if(isin(input[i], " \t")) ++i;
     else if(skipComments(*this, input, i, Input::npos)) {
-      if(i == Input::npos) Error(ctx, i, i+1, "Comment never ends");
+      if(i == Input::npos) return i;
       lineBlank = false;
     }else if(input[i] == '\n') {
       if(lineBlank) anyLineBlank = true;

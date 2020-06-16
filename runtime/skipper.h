@@ -18,6 +18,9 @@
 
 namespace oalex {
 
+// TODO migrate this to use InputPiece rather than InputDiags, since it doesn't
+// produce any diagnostic.
+
 // Specifies how whitespaces and comments are skipped. Not used for contexts
 // where spaces are significant (e.g. inside string literals).
 //
@@ -81,7 +84,7 @@ struct Skipper {
 
   If indicateBlankLines = false,  it never stops at any whitespace.
 
-  If unfinished comments are found, it records an error in ctx.diags.
+  If and only if unfinished comments are found, it returns Input::npos.
   It is assumed that Input will terminate each line with a '\n', including the
   last line. That's why we expect a '\n' comment end-delimiter to match eof,
   even though we don't have any special-handling for that here.
@@ -119,7 +122,7 @@ struct Skipper {
      if(ctx.input.sizeGt(i)) nextLineStart = i;
      else foundEof = true;
 
-  If comments don't end within the line, it records an error in ctx.diags.  We
+  If and only if comments don't end within the line, it returns Input::npos. We
   rely on Input terminating all lines with '\n', even the last one. So it is
   okay if we are expecting a newline-terminated comment, but the end-user ends
   input before that: we should still see a newline here in Skipper.
