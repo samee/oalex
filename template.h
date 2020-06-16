@@ -52,19 +52,28 @@ auto labelParts(
     const std::map<Ident,PartPattern>& partPatterns)
     -> std::vector<LabelOrPart>;
 
+// Strong typedefs.
+struct WordToken : public lex::UnquotedToken {
+  explicit WordToken(const lex::QuotedString& s) : UnquotedToken(s) {}
+};
+struct OperToken : public lex::UnquotedToken {
+  explicit OperToken(const lex::QuotedString& s) : UnquotedToken(s) {}
+};
+
+using TokenOrPart = std::variant<WordToken, OperToken, Ident>;
 // This is unlikely to be used outside of tokenizeTemplate(), so for now
 // it is really only exposed for testing. An UnquotedToken can never be empty.
 // The bool for each element indicates whether the token should be surrounded
 // by word-boundary anchors when matching.
+// Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizeTemplateWithoutLabels(
     const lex::QuotedString& s, const LexDirective& opts)
-    -> std::vector<std::pair<lex::UnquotedToken,bool>>;
+    -> std::vector<TokenOrPart>;
 
 // TODO implement this.
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-using TokenOrPart = std::variant<lex::UnquotedToken, Ident>;
 auto tokenizeTemplate(
     const LabelOrPart& lblParts,
     const LexDirective& lexopts) -> std::vector<TokenOrPart>;

@@ -188,23 +188,23 @@ auto labelParts(const QuotedString& s,
 }
 
 // This function assumes we are starting with ctx.input.sizeGt(i).
-static auto lexTemplateToken(const QuotedString& s, size_t& i,
-                             const LexDirective& opts)
-                             -> pair<UnquotedToken,bool> {
+static TokenOrPart lexTemplateToken(const QuotedString& s, size_t& i,
+                             const LexDirective& opts) {
   const size_t st = i;
   const bool isword = matchesCharSet(s[i], opts.wordChars);
   while(s.sizeGt(i) && !opts.skip.canStart(s, i)) {
     if(isword != matchesCharSet(s[i], opts.wordChars)) break;
     ++i;
   }
-  return pair(UnquotedToken(s.subqstr(st, i-st)), isword);
+  return isword ? TokenOrPart(WordToken(s.subqstr(st, i-st)))
+                : TokenOrPart(OperToken(s.subqstr(st, i-st)));
 }
 
 auto tokenizeTemplateWithoutLabels(const QuotedString& s,
                                    const LexDirective& opts)
-                                   -> vector<pair<UnquotedToken,bool>> {
+                                   -> vector<TokenOrPart> {
   size_t i=0;
-  vector<pair<UnquotedToken,bool>> rv;
+  vector<TokenOrPart> rv;
   while(true) {
     i = opts.skip.acrossLines(s, i);
     if(!s.sizeGt(i)) break;

@@ -19,7 +19,9 @@
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 #include <map>
+#include <utility>
 using std::get_if;
+using std::holds_alternative;
 using std::make_unique;
 using std::map;
 using std::optional;
@@ -38,6 +40,9 @@ using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::PartPattern;
 using oalex::Skipper;
+using oalex::OperToken;
+using oalex::TokenOrPart;
+using oalex::WordToken;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexQuotedString;
@@ -259,22 +264,38 @@ void testEmptySuccess() {
           debug(observed[0]));
 }
 
+string_view token(string_view testName, const TokenOrPart& tok) {
+  if(auto* w = get_if<WordToken>(&tok)) return w->token;
+  if(auto* o = get_if<OperToken>(&tok)) return o->token;
+  Bug("{}: input has index {}, which is neither a word nor a token",
+      testName, tok.index());
+}
+
+bool isWord(string_view testName, const TokenOrPart& tok) {
+  if(holds_alternative<WordToken>(tok)) return true;
+  if(holds_alternative<OperToken>(tok)) return false;
+  Bug("{}: input has index {}, which is neither a word nor a token",
+      testName, tok.index());
+}
+
 void testTokenizeNoLabel() {
   LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
                        Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
-  vector<pair<UnquotedToken,bool>> observed =
+  vector<TokenOrPart> observed =
     tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts);
   vector<string> expected{"def", "foo", "(", "args", "):"};
   vector<string> observed_strings;
-  for(const auto& [tok, _] : observed)
-    observed_strings.push_back(tok.token);
+  for(const auto& tok : observed)
+    observed_strings.push_back(string(token(__func__, tok)));
   if(expected != observed_strings)
     BugMe("Tokenization produced {} != {}", observed_strings, expected);
-  for(const auto& [tok, isword] : observed) {
-    if(isword != matchesCharSet(tok.token[0], lexopts.wordChars))
+  for(const auto& tok : observed) {
+    bool isword = isWord(__func__, tok);
+    if(isword != matchesCharSet(token(__func__, tok)[0], lexopts.wordChars))
       BugMe("'{}' {} expected to be a word, but it {} found to be so",
-            tok.token, isword ? "wasn't" : "was", isword ? "was" : "wasn't");
+            token(__func__, tok),
+            isword ? "wasn't" : "was", isword ? "was" : "wasn't");
   }
 }
 
