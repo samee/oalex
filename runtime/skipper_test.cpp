@@ -218,6 +218,18 @@ void testLineEndsAtNewline() {
     BugMe("We did not stop right after a newline. pos = {}", pos2);
 }
 
+void testCommentEndsAtNewline() {
+  const string msg = R"(  % comment
+
+  foo)";
+  Input input = unixifiedTestInput(msg);
+  size_t pos = ltxskip.acrossLines(input, 0);
+  if(!input.sizeGt(pos)) BugMe("Was expecting to stop before eos");
+  if(msg[pos] != '\n')
+    BugMe("Was expecting to stop at blank line. Stopped at '{}' instead",
+          msg.substr(pos));
+}
+
 void testTabsSkipped() {
   const string msg = "\thello \t  /* stuff */\tworld";
   Input input = unixifiedTestInput(msg);
@@ -310,6 +322,7 @@ int main() {
   unixifyTests();
   testSingleLineSuccess();
   testLineEndsAtNewline();
+  testCommentEndsAtNewline();
   testTabsSkipped();
   testCommentNeverEnds();
   testValid();

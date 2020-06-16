@@ -150,7 +150,7 @@ size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
     else if(isin(input[i], " \t")) ++i;
     else if(skipComments(*this, input, i, Input::npos)) {
       if(i == Input::npos) return i;
-      lineBlank = false;
+      lineBlank = (i == input.bol(i));
     }else if(input[i] == '\n') {
       if(lineBlank) anyLineBlank = true;
       lineBlank = true;
