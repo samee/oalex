@@ -166,4 +166,11 @@ size_t Skipper::acrossLines(InputDiagsRef ctx, size_t pos) const {
   }
 }
 
+bool Skipper::canStart(InputDiagsRef ctx, size_t pos) const {
+  const InputPiece& input = *ctx.input;
+  if(!input.sizeGt(pos)) return false;
+  return isin(input[pos], " \t\n")
+      || skipComments(*this, input, pos, Input::npos);
+}
+
 }  // namespace oalex

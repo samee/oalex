@@ -133,6 +133,9 @@ struct Skipper {
     implement without having to think about blank line exceptions.
   */
   size_t withinLine(InputDiagsRef ctx, size_t pos) const;
+
+  // Tests if we can start skipping from pos.
+  bool canStart(InputDiagsRef ctx, size_t pos) const;
 };
 
 }  // namespace oalex
