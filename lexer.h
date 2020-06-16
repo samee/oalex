@@ -157,6 +157,8 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
  return false;
 }
 
+// Note: right now, we don't worry about unterminated comments in lexer.cpp.
+// We will need to change that if we add more comment delimitters here later.
 inline Skipper skip{{{"#","\n"}}, {}};
 inline Skipper wskip{};
 
