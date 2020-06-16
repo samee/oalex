@@ -105,9 +105,14 @@ const char htmlinput[] = "hello <!-- comment --> world";
 const Skipper haskellskip{{{"--","\n"}}, {{"{-","-}"}}};
 const char haskellinput[] = "hello {- a {- b -} c -} world -- stuff";
 
-const Skipper *langskip[] = {&cskip,&pyskip,&ocamlskip,&htmlskip,&haskellskip};
-const char *langinput[] = {cinput,pyinput,ocamlinput,htmlinput,haskellinput};
-const char langnames[][8] = {"c","python","ocaml","html","haskell"};
+const Skipper ltxskip{{{"%","\n"}}, {}, true};
+const char ltxinput[] = "hello world % comment";
+
+const Skipper *langskip[] = {&cskip,&pyskip,&ocamlskip,
+                             &htmlskip,&haskellskip,&ltxskip};
+const char *langinput[] = {cinput,pyinput,ocamlinput,
+                           htmlinput,haskellinput,ltxinput};
+const char langnames[][8] = {"c","python","ocaml","html","haskell","latex"};
 const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
 
 // Assumes i is a valid index. "\n" is a word. Increments i to end of word.
@@ -178,7 +183,6 @@ void testBlankLinesMatter() {
   if(words != expected)
     BugMe("Markdown parsing problem: {} != {}", words, expected);
 
-  const Skipper ltxskipper{{{"%","\n"}}, {}, true};
   const char ltxinput1[] = R"(hello
     % comment
     world
@@ -189,13 +193,13 @@ void testBlankLinesMatter() {
 
     goodbye world)";
   input = unixifiedTestInput(ltxinput1);
-  words = getAllWords(input, ltxskipper);
+  words = getAllWords(input, ltxskip);
   if(words != expected)
     BugMe("LaTeX parsing problem: {} != {}", words, expected);
 
   const char ltxinput2[] = "hello\n%\nworld";
   input = unixifiedTestInput(ltxinput2);
-  words = getAllWords(input, ltxskipper);
+  words = getAllWords(input, ltxskip);
   if(words != vector<string>{"hello", "world"})
     BugMe("LaTeX parsing problem: {} != {{hello, world}}", words);
 }
