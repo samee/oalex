@@ -35,7 +35,8 @@ add_executable(ident_test ident.cpp ident_test.cpp)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
-add_executable(template_test ident.cpp lexer.cpp template.cpp template_test.cpp)
+add_executable(template_test ident.cpp lexer.cpp lookahead_regex_io.cpp
+               template.cpp template_test.cpp)
 target_link_libraries(template_test oalex)
 add_test(template_test template_test)
 

@@ -29,6 +29,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using oalex::lex::QuotedString;
+using oalex::lex::UnquotedToken;
 
 namespace oalex {
 
@@ -183,6 +184,32 @@ auto labelParts(const QuotedString& s,
   }
   if(lastEn < s.size() || rv.empty())
     rv.push_back(s.subqstr(lastEn, s.size()-lastEn));
+  return rv;
+}
+
+// This function assumes we are starting with ctx.input.sizeGt(i).
+static auto lexTemplateToken(const QuotedString& s, size_t& i,
+                             const LexDirective& opts)
+                             -> pair<UnquotedToken,bool> {
+  const size_t st = i;
+  const bool isword = matchesCharSet(s[i], opts.wordChars);
+  while(s.sizeGt(i) && !opts.skip.canStart(s, i)) {
+    if(isword != matchesCharSet(s[i], opts.wordChars)) break;
+    ++i;
+  }
+  return pair(UnquotedToken(s.subqstr(st, i-st)), isword);
+}
+
+auto tokenizeTemplateWithoutLabels(const QuotedString& s,
+                                   const LexDirective& opts)
+                                   -> vector<pair<UnquotedToken,bool>> {
+  size_t i=0;
+  vector<pair<UnquotedToken,bool>> rv;
+  while(true) {
+    i = opts.skip.acrossLines(s, i);
+    if(!s.sizeGt(i)) break;
+    rv.push_back(lexTemplateToken(s, i, opts));
+  }
   return rv;
 }
 

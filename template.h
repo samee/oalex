@@ -52,8 +52,18 @@ auto labelParts(
     const std::map<Ident,PartPattern>& partPatterns)
     -> std::vector<LabelOrPart>;
 
+// This is unlikely to be used outside of tokenizeTemplate(), so for now
+// it is really only exposed for testing. An UnquotedToken can never be empty.
+// The bool for each element indicates whether the token should be surrounded
+// by word-boundary anchors when matching.
+// Expects unixified linefeeds, since it uses skippers.
+auto tokenizeTemplateWithoutLabels(
+    const lex::QuotedString& s, const LexDirective& opts)
+    -> std::vector<std::pair<lex::UnquotedToken,bool>>;
+
 // TODO implement this.
 // This function doesn't make sense if we are keeping all spaces.
+// Expects unixified linefeeds, since it uses skippers.
 using TokenOrPart = std::variant<lex::UnquotedToken, Ident>;
 auto tokenizeTemplate(
     const LabelOrPart& lblParts,

@@ -14,6 +14,7 @@
 
 #include "template.h"
 #include "lexer.h"
+#include "lookahead_regex_io.h"
 #include "runtime/input_view.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
@@ -33,10 +34,14 @@ using oalex::DelimPair;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::PartPattern;
+using oalex::Skipper;
 using oalex::lex::QuotedString;
+using oalex::lex::UnquotedToken;
 using oalex::lex::lexQuotedString;
+using oalex::regex::parseCharSet;
 
 namespace {
 
@@ -254,6 +259,25 @@ void testEmptySuccess() {
           debug(observed[0]));
 }
 
+void testTokenizeNoLabel() {
+  LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
+                       Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
+  vector<pair<UnquotedToken,bool>> observed =
+    tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts);
+  vector<string> expected{"def", "foo", "(", "args", "):"};
+  vector<string> observed_strings;
+  for(const auto& [tok, _] : observed)
+    observed_strings.push_back(tok.token);
+  if(expected != observed_strings)
+    BugMe("Tokenization produced {} != {}", observed_strings, expected);
+  for(const auto& [tok, isword] : observed) {
+    if(isword != matchesCharSet(tok.token[0], lexopts.wordChars))
+      BugMe("'{}' {} expected to be a word, but it {} found to be so",
+            tok.token, isword ? "wasn't" : "was", isword ? "was" : "wasn't");
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -266,4 +290,5 @@ int main() {
   testCrossLabelOverlapFails();
   testNoMatchWarns();
   testEmptySuccess();
+  testTokenizeNoLabel();
 }
