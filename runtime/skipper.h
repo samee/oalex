@@ -14,7 +14,7 @@
 
 #pragma once
 #include <string>
-#include "diags.h"
+#include "input_view.h"
 
 namespace oalex {
 
