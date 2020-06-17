@@ -278,9 +278,10 @@ bool isWord(string_view testName, const TokenOrPart& tok) {
       testName, tok.index());
 }
 
+const LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
+                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
+
 void testTokenizeNoLabel() {
-  LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
-                       Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
   vector<TokenOrPart> observed =
     tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts);
