@@ -195,6 +195,14 @@ Ident findIdent(string_view testName, InputDiags& ctx, string_view id) {
   return rv;
 }
 
+auto setupLabelTest(string testName, string fileBody) {
+  auto [ctx, fquote] = setupMatchTest(testName, fileBody);
+  auto fid = [testName, &ctxref = *ctx](string_view s) {
+    return findIdent(testName, ctxref, s);
+  };
+  return make_tuple(std::move(ctx), fquote, fid);
+}
+
 string debug(const variant<QuotedString,Ident>& lp) {
   if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
   if(auto* q = get_if<QuotedString>(&lp)) return string(*q);
@@ -204,11 +212,8 @@ string debug(const variant<QuotedString,Ident>& lp) {
 void testLabelParts() {
   char input[] = R"("if (cond) { ... } else { ... }"
                     "cond" "{" "}" condexpr stmt)";
-  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
   QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
-  auto fid = [&](string_view s) {
-    return findIdent("testLabelParts", *ctx, s);
-  };
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
