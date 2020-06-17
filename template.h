@@ -72,11 +72,10 @@ auto tokenizeTemplateWithoutLabels(
     std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
-// TODO implement this.
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizeTemplate(
-    const LabelOrPart& lblParts,
+    const std::vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 }  // namespace oalex

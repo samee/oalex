@@ -313,6 +313,56 @@ void testTokenizeNoLabelRunoffComment() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
 }
 
+void testTokenizeSuccess() {
+  char input[] = R"("if (cond) { ... } else { ... }"
+                    where:   # This 'where' is actually ignored
+                      condexpr: "cond"
+                      stmt: "{" "}")";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
+  map<Ident,PartPattern> partspec{
+    {fid("condexpr"), fquote("cond")},
+    {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
+  vector<variant<QuotedString,Ident>> lblOrParts = labelParts(tmpl, partspec);
+  vector<TokenOrPart> observed = tokenizeTemplate(lblOrParts, lexopts);
+  vector<string> observed_s;
+  for(const auto& top : observed) {
+    if(auto* w = get_if<oalex::WordToken>(&top))
+      observed_s.push_back("word:" + w->token);
+    else if(auto* op = get_if<oalex::OperToken>(&top))
+      observed_s.push_back("oper:" + op->token);
+    else if(auto* id = get_if<Ident>(&top))
+      observed_s.push_back("ident:" + id->preserveCase());
+    else BugMe("Unknown TokenOrPart index {}", top.index());
+  }
+  vector<string> expected {"word:if", "oper:(", "ident:condexpr", "oper:)",
+                           "ident:stmt", "word:else", "ident:stmt"};
+  if(observed_s != expected) BugMe("{} != {}", observed_s, expected);
+}
+
+void testTokenizeLabelInComment() {
+  char input[] = R"("if (cond) stmt;  // Test 'if' condition"
+                     where:
+                       condexpr: "cond"
+                       stmt: "stmt")";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  QuotedString tmpl = fquote("if (cond) stmt;  // Test 'if' condition");
+  map<Ident,PartPattern> partspec{
+    {fid("condexpr"), fquote("cond")},
+    {fid("stmt"), fquote("stmt")}};
+  tokenizeTemplate(labelParts(tmpl, partspec), lexopts);
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Placeholders not allowed in comments");
+}
+
+void testTokenizeRunoffComment() {
+  char input[] = R"("stmt; // comment")";
+  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  QuotedString tmpl = fquote("stmt; // comment");
+  tokenizeTemplate(labelParts(tmpl, {}), lexopts);
+  assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
+}
+
 }  // namespace
 
 int main() {
@@ -327,4 +377,7 @@ int main() {
   testEmptySuccess();
   testTokenizeNoLabel();
   testTokenizeNoLabelRunoffComment();
+  testTokenizeSuccess();
+  testTokenizeLabelInComment();
+  testTokenizeRunoffComment();
 }

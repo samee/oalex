@@ -217,4 +217,22 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
   return rv;
 }
 
+auto tokenizeTemplate(
+    const vector<LabelOrPart>& lblParts,
+    const LexDirective& lexopts) -> vector<TokenOrPart> {
+  vector<TokenOrPart> rv;
+  for(const LabelOrPart& lorp : lblParts) {
+    if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
+    else if(auto* qs = get_if<QuotedString>(&lorp)) {
+      const char* err = &lorp == &lblParts.back() ?
+        "Comment never ends" : "Placeholders not allowed in comments";
+      vector<TokenOrPart> toks
+        = tokenizeTemplateWithoutLabels(*qs, lexopts, err);
+      move(toks.begin(), toks.end(), back_inserter(rv));
+    }else Bug("{}: Unknown LabelOrPart alternative, index {}",
+              __func__, lorp.index());
+  }
+  return rv;
+}
+
 }  // namespace oalex
