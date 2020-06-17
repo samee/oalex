@@ -39,6 +39,8 @@ struct Skipper {
   std::optional<std::pair<std::string,std::string>> nestedComment;
 
   /*
+  optional<string> valid():
+
   Returns an error message if something is wrong with member values.
   std::nullopt means everything is okay, and it is safe to use the other
   methods here.
@@ -59,6 +61,8 @@ struct Skipper {
   std::optional<std::string> valid() const;
 
   /*
+  size_t acrossLines(input, pos):
+
   It finds the next non-space, non-comment character in input, within the
   substring [pos,eof). If not found, it returns some value larger than input
   size (i.e. some x that makes input.sizeGt(x) false).
@@ -78,25 +82,39 @@ struct Skipper {
   character to indicate the presence of blank lines *without* any comments.
   This mostly for languages like LaTeX or Markdown that treats uncommented
   blank lines as paragraph breaks, but collapses multiple lines into one.
+  The example loop above will produce a single '\n' to indicate a sequence of
+  comment-free blank lines, if indicateBlankLines is set to true. Otherwise,
+  it will never produce a '\n'.
 
-  If indicateBlankLines = false,  it never stops at any whitespace.
+  If indicateBlankLines = false, it never stops at any whitespace.
 
   If and only if unfinished comments are found, it returns Input::npos.
-  It is assumed that Input will terminate each line with a '\n', including the
-  last line. That's why we expect a '\n' comment end-delimiter to match eof,
-  even though we don't have any special-handling for that here.
 
-  If a crlf translation layer becomes important, move Unixify from
-  skipper_test.cpp to this header.
+  The caller may want to append an extra '\n' to the input,
+  especially if it is important to detect unterminated comments. In particular,
+  this can allow eof to match a '\n' in an end delimitter of an unnestedComment.
+  This may be important if the caller is expecting both single-line and
+  multi-line comments. Unterminated comments will produce Input::npos, while
+  proper termination will be indicated by some other value.
+
+  Dev notes: If a crlf translation layer becomes important, move Unixify from
+    skipper_test.cpp to this header.
   */
   bool indicateBlankLines = false;
   size_t acrossLines(const InputPiece& input, size_t pos) const;
 
   /*
+  size_t withinLine(input, pos):
+
   It finds the next non-space, non-comment character in input, within a
   single line. A "line" is defined as the substring in range the substring
-  [pos,end), where end is the position of the next '\n'. Input is expected to
-  terminate each line with a '\n', even the last line.
+  [pos,end), where end is the position of the next '\n' or end-of-string,
+  whichever comes first.
+
+  The caller may want to append an extra '\n' to the input,
+  especially if it is important to detect unterminated comments. In particular,
+  this can allow eof to match a '\n' in an end delimitter of an unnestedComment.
+  This will allow uniform detection of end-of-line using bol() as shown below.
 
   If it's all spaces and comments, it returns the beginning of the next line
   (i.e. the next value i such that input.bol(i) > input.bol(pos). If
@@ -119,10 +137,7 @@ struct Skipper {
      if(input.sizeGt(i)) nextLineStart = i;
      else foundEof = true;
 
-  If and only if comments don't end within the line, it returns Input::npos. We
-  rely on Input terminating all lines with '\n', even the last one. So it is
-  okay if we are expecting a newline-terminated comment, but the end-user ends
-  input before that: we should still see a newline here in Skipper.
+  If and only if comments don't end within the line, it returns Input::npos.
 
   If a crlf translation layer becomes important, move Unixify from
   skipper_test.cpp to this header.
