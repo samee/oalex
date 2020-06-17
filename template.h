@@ -68,7 +68,8 @@ using TokenOrPart = std::variant<WordToken, OperToken, Ident>;
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizeTemplateWithoutLabels(
-    const lex::QuotedString& s, const LexDirective& opts)
+    const lex::QuotedString& s, const LexDirective& opts,
+    std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // TODO implement this.

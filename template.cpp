@@ -28,6 +28,7 @@ using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
+using oalex::Error;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 
@@ -201,7 +202,8 @@ static TokenOrPart lexTemplateToken(const QuotedString& s, size_t& i,
 }
 
 auto tokenizeTemplateWithoutLabels(const QuotedString& s,
-                                   const LexDirective& opts)
+                                   const LexDirective& opts,
+                                   string_view comment_end_error)
                                    -> vector<TokenOrPart> {
   size_t i=0;
   vector<TokenOrPart> rv;
@@ -210,6 +212,8 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
     if(!s.sizeGt(i)) break;
     rv.push_back(lexTemplateToken(s, i, opts));
   }
+  if(i == Input::npos)
+    Error(s, s.size(), s.size()+1, string(comment_end_error));
   return rv;
 }
 

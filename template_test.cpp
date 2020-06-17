@@ -284,7 +284,7 @@ const LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
 void testTokenizeNoLabel() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
   vector<TokenOrPart> observed =
-    tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts);
+    tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts, "");
   vector<string> expected{"def", "foo", "(", "args", "):"};
   vector<string> observed_strings;
   for(const auto& tok : observed)
@@ -300,7 +300,13 @@ void testTokenizeNoLabel() {
   }
 }
 
-// TODO Test unfinished comment
+void testTokenizeNoLabelRunoffComment() {
+  auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
+  QuotedString qs = fquote("def foo(args): //\\n");
+  qs = qs.subqstr(0, qs.size()-1);  // Remove the last newline
+  tokenizeTemplateWithoutLabels(qs, lexopts, "Missing newline");
+  assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
+}
 
 }  // namespace
 
@@ -315,4 +321,5 @@ int main() {
   testNoMatchWarns();
   testEmptySuccess();
   testTokenizeNoLabel();
+  testTokenizeNoLabelRunoffComment();
 }
