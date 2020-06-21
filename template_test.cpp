@@ -286,7 +286,7 @@ bool isWord(string_view testName, const TokenOrPart& tok) {
 }
 
 const LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
-                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
+                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }, false};
 
 void testTokenizeNoLabel() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");

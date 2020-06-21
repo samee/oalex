@@ -31,6 +31,7 @@ namespace oalex {
 struct LexDirective {
   regex::CharSet wordChars;
   Skipper skip;  // Assume skip.valid(), verified at construction.
+  bool keepAllNewlines;
 };
 
 // TODO Use this in Skipper as well.

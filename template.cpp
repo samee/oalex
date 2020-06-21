@@ -206,6 +206,7 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
                                    const LexDirective& opts,
                                    string_view comment_end_error)
                                    -> vector<TokenOrPart> {
+  if(opts.keepAllNewlines) Unimplemented("keepAllNewlines");
   size_t i=0;
   vector<TokenOrPart> rv;
   while(true) {
