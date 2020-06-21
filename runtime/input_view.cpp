@@ -33,7 +33,7 @@ void Input::peekTo(size_t last) const {
     }
     if(ch == '\n') newlines_.push_back(pos);
     else {
-      size_t lastBol = newlines_.empty()?0:newlines_.back();
+      size_t lastBol = newlines_.empty() ? 0 : newlines_.back()+1;
       if(pos+1-lastBol > maxLineLength_)
         UserError("Line {} is too long", newlines_.size()+1);
     }

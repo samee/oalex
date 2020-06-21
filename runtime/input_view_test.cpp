@@ -115,6 +115,9 @@ void testLineTooLong() {
     if(string(ex.what()).find(expected)==string::npos)
       BugMe("substr mismatch: \"{}\" is not in \"{}\"", expected, ex.what());
   }
+  string t(Input::defaultMaxLineLength, '-');
+  Input input2((GetFromString("\n" + t)));
+  input2[input2.maxLineLength()];  // No exceptions.
 }
 
 void testForgottenBol() {
