@@ -43,6 +43,8 @@ using oalex::Skipper;
 using oalex::OperToken;
 using oalex::TokenOrPart;
 using oalex::WordToken;
+using oalex::lex::lexIndentedSource;
+using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexQuotedString;
@@ -322,6 +324,8 @@ vector<string> debugTokens(const vector<TokenOrPart>& tops) {
       rv.push_back("oper:" + op->token);
     else if(auto* id = get_if<Ident>(&top))
       rv.push_back("ident:" + id->preserveCase());
+    else if(holds_alternative<NewlineChar>(top))
+      rv.push_back("newline");
     else BugMe("Unknown TokenOrPart index {}", top.index());
   }
   return rv;
@@ -368,6 +372,49 @@ void testTokenizeRunoffComment() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 }
 
+size_t lineStart(size_t lineno, const Input& input) {
+  size_t i=0;
+  while(lineno--) {
+    i = input.find('\n', i);
+    if(i == input.npos) return i;
+    else ++i;
+  }
+  return i;
+}
+
+void testParaBreaks() {
+  LexDirective paralexopts = lexopts;
+  paralexopts.skip.indicateBlankLines = true;
+
+  char input[] = R"(
+  let:     # This 'let' is actually ignored.
+    directives
+
+    // some comment
+
+    loren
+    // Comment in para
+    ipsum
+    dolor
+  where:   # This is also ignored
+    directives: "directives"
+  )";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  size_t i = lineStart(2, ctx->input);
+  optional<QuotedString> tmpl = lexIndentedSource(*ctx, i, "    ");
+  if(!tmpl.has_value()) {
+    showDiags(ctx->diags);
+    BugMe("template was not parsed properly");
+  }
+  map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
+  vector<variant<QuotedString,Ident>> lblOrParts = labelParts(*tmpl, partspec);
+  vector<string> observed
+    = debugTokens(tokenizeTemplate(lblOrParts, paralexopts));
+  vector<string> expected {"ident:directives", "newline", "word:loren",
+                           "word:ipsum", "word:dolor"};
+  if(observed != expected) BugMe("{} != {}", observed, expected);
+}
+
 }  // namespace
 
 int main() {
@@ -385,4 +432,5 @@ int main() {
   testTokenizeSuccess();
   testTokenizeLabelInComment();
   testTokenizeRunoffComment();
+  testParaBreaks();
 }

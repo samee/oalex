@@ -29,6 +29,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using oalex::Error;
+using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 
@@ -210,7 +211,8 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
   while(true) {
     i = opts.skip.acrossLines(s, i);
     if(!s.sizeGt(i)) break;
-    rv.push_back(lexTemplateToken(s, i, opts));
+    else if(s[i] == '\n') rv.push_back(NewlineChar(i++));
+    else rv.push_back(lexTemplateToken(s, i, opts));
   }
   if(i == Input::npos)
     Error(s, s.size(), s.size()+1, string(comment_end_error));

@@ -60,7 +60,7 @@ struct OperToken : public lex::UnquotedToken {
   explicit OperToken(const lex::QuotedString& s) : UnquotedToken(s) {}
 };
 
-using TokenOrPart = std::variant<WordToken, OperToken, Ident>;
+using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // This is unlikely to be used outside of tokenizeTemplate(), so for now
 // it is really only exposed for testing. An UnquotedToken can never be empty.
 // The bool for each element indicates whether the token should be surrounded

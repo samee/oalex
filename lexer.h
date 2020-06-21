@@ -35,12 +35,18 @@ enum class LexSegmentTag {
   section,
   quotedString,
   bracketGroup,
+  newlineChar,
 };
 
 // This class is mostly to document which Segment types belong to the lexer.
 struct LexSegment : Segment {
   LexSegment(size_t st,size_t en,Segment::tagint_t type_tag)
     : Segment{st,en,type_tag} {}
+};
+
+struct NewlineChar : LexSegment {
+  explicit NewlineChar(size_t pos)
+    : LexSegment(pos, pos+1, tagint_t(LexSegmentTag::newlineChar)) {}
 };
 
 // These tokens never have embedded newlines, unless it's a newline all
