@@ -52,7 +52,7 @@ template <class ... Args>
 }
 
 template <class ... Args>
-[[noreturn]] void Debug(const char* fmt, const Args& ... args) {
+void Debug(const char* fmt, const Args& ... args) {
   fmt::print(stderr, fmt, args...);
   fmt::print(stderr, "\n");
 }
