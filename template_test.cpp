@@ -313,6 +313,20 @@ void testTokenizeNoLabelRunoffComment() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
 }
 
+vector<string> debugTokens(const vector<TokenOrPart>& tops) {
+  vector<string> rv;
+  for(const auto& top : tops) {
+    if(auto* w = get_if<oalex::WordToken>(&top))
+      rv.push_back("word:" + w->token);
+    else if(auto* op = get_if<oalex::OperToken>(&top))
+      rv.push_back("oper:" + op->token);
+    else if(auto* id = get_if<Ident>(&top))
+      rv.push_back("ident:" + id->preserveCase());
+    else BugMe("Unknown TokenOrPart index {}", top.index());
+  }
+  return rv;
+}
+
 void testTokenizeSuccess() {
   char input[] = R"("if (cond) { ... } else { ... }"
                     where:   # This 'where' is actually ignored
@@ -324,20 +338,11 @@ void testTokenizeSuccess() {
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
   vector<variant<QuotedString,Ident>> lblOrParts = labelParts(tmpl, partspec);
-  vector<TokenOrPart> observed = tokenizeTemplate(lblOrParts, lexopts);
-  vector<string> observed_s;
-  for(const auto& top : observed) {
-    if(auto* w = get_if<oalex::WordToken>(&top))
-      observed_s.push_back("word:" + w->token);
-    else if(auto* op = get_if<oalex::OperToken>(&top))
-      observed_s.push_back("oper:" + op->token);
-    else if(auto* id = get_if<Ident>(&top))
-      observed_s.push_back("ident:" + id->preserveCase());
-    else BugMe("Unknown TokenOrPart index {}", top.index());
-  }
+  vector<string> observed
+    = debugTokens(tokenizeTemplate(lblOrParts, lexopts));
   vector<string> expected {"word:if", "oper:(", "ident:condexpr", "oper:)",
                            "ident:stmt", "word:else", "ident:stmt"};
-  if(observed_s != expected) BugMe("{} != {}", observed_s, expected);
+  if(observed != expected) BugMe("{} != {}", observed, expected);
 }
 
 void testTokenizeLabelInComment() {
