@@ -36,6 +36,7 @@ using oalex::DelimPair;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::LabelOrPart;
 using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::PartPattern;
@@ -285,8 +286,13 @@ bool isWord(string_view testName, const TokenOrPart& tok) {
       testName, tok.index());
 }
 
+LexDirective mkLineLexOpts(LexDirective lexopts) {
+  lexopts.keepAllNewlines = true;
+  return lexopts;
+}
 const LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
                            Skipper{ {{"/*","*/"},{"//","\n"}}, {} }, false};
+const LexDirective linelexopts = mkLineLexOpts(lexopts);
 
 void testTokenizeNoLabel() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
@@ -362,6 +368,12 @@ void testTokenizeLabelInComment() {
   tokenizeTemplate(labelParts(tmpl, partspec), lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholders not allowed in comments");
+
+  // Now try with linelexopts.
+  ctx->diags.clear();
+  tokenizeTemplate(labelParts(tmpl, partspec), linelexopts);
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Placeholders not allowed in comments");
 }
 
 void testTokenizeRunoffComment() {
@@ -369,6 +381,11 @@ void testTokenizeRunoffComment() {
   auto [ctx, fquote] = setupMatchTest(__func__, input);
   QuotedString tmpl = fquote("stmt; // comment");
   tokenizeTemplate(labelParts(tmpl, {}), lexopts);
+  assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
+
+  // Now try with linelexopts.
+  ctx->diags.clear();
+  tokenizeTemplate(labelParts(tmpl, {}), linelexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 }
 
@@ -421,6 +438,53 @@ void testParaBreaks() {
   if(observed != expected) BugMe("{} != {}", observed, expected);
 }
 
+void testKeepAllNewlines() {
+  char input[] = R"(
+  let:
+    timestamp: <epoch_time>
+
+    // Paid today
+    transaction:
+      paid_to: landlord
+      amount: $1000
+  where:
+    timestamp_sec: "<epoch_time>"
+    recipient: "landlord"
+    amount: "$1000"
+  )";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  QuotedString tmpl
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
+  map<Ident,PartPattern> partspec{
+    {fid("timestamp_sec"), fquote("<epoch_time>")},
+    {fid("recipient"), fquote("landlord")},
+    {fid("amount"), fquote("$1000")},
+  };
+  vector<LabelOrPart> lblOrParts = labelParts(tmpl, partspec);
+  vector<string> observed
+    = debugTokens(tokenizeTemplate(lblOrParts, linelexopts));
+  vector<string> expected {
+    "word:timestamp", "oper::", "ident:timestamp_sec", "newline",
+    "newline",  // Consequtive newlines not collapsed.
+    "newline",  // Comments correctly ignored.
+    "word:transaction", "oper::", "newline",
+    "word:paid_to", "oper::", "ident:recipient", "newline",
+    "word:amount", "oper::", "ident:amount", "newline",
+  };
+  if(observed != expected)
+    BugMe("\n{}\nis not equal to \n{}", observed, expected);
+}
+
+void testNoEndingNewline() {
+  char input[] = R"("foo bar /* baz */")";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  QuotedString s = fquote("foo bar /* baz */");
+  vector<string> observed
+    = debugTokens(tokenizeTemplate(labelParts(s, {}), linelexopts));
+  vector<string> expected{"word:foo", "word:bar"};
+  if(observed != expected) BugMe("{} != {}", observed, expected);
+}
+
 }  // namespace
 
 int main() {
@@ -439,4 +503,6 @@ int main() {
   testTokenizeLabelInComment();
   testTokenizeRunoffComment();
   testParaBreaks();
+  testKeepAllNewlines();
+  testNoEndingNewline();
 }

@@ -206,7 +206,6 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
                                    const LexDirective& opts,
                                    string_view comment_end_error)
                                    -> vector<TokenOrPart> {
-  if(opts.keepAllNewlines) Unimplemented("keepAllNewlines");
   size_t i=0;
   vector<TokenOrPart> rv;
   while(true) {
@@ -220,17 +219,39 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
   return rv;
 }
 
+static auto tokenizeTemplateKeepNewlines(const QuotedString& s,
+    const LexDirective& opts, string_view comment_end_error)
+    -> vector<TokenOrPart> {
+  size_t i=0, lastBol=0;
+  vector<TokenOrPart> rv;
+  while(true) {
+    i = opts.skip.withinLine(s, i);
+    if(s.bol(i) != lastBol) {
+      rv.push_back(NewlineChar(s, i-1));
+      lastBol = i;
+    }else if(!s.sizeGt(i)) break;
+    else rv.push_back(lexTemplateToken(s, i, opts));
+  }
+  if(i == Input::npos)
+    Error(s, s.size(), s.size()+1, string(comment_end_error));
+  return rv;
+}
+
 auto tokenizeTemplate(
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
   vector<TokenOrPart> rv;
+  auto tokenizer = (lexopts.keepAllNewlines ? tokenizeTemplateKeepNewlines
+                                            : tokenizeTemplateWithoutLabels);
+  if(lexopts.keepAllNewlines && lexopts.skip.indicateBlankLines)
+    Bug("skip.indicateBlankLines and keepAllNewlines cannot both be set");
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
     else if(auto* qs = get_if<QuotedString>(&lorp)) {
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
       vector<TokenOrPart> toks
-        = tokenizeTemplateWithoutLabels(*qs, lexopts, err);
+        = tokenizer(*qs, lexopts, err);
       move(toks.begin(), toks.end(), back_inserter(rv));
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
