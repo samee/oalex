@@ -382,6 +382,16 @@ size_t lineStart(size_t lineno, const Input& input) {
   return i;
 }
 
+QuotedString assertSuccessfulParse(string_view testName, InputDiags& ctx,
+                                   size_t pos, string_view parindent) {
+  auto opt = lexIndentedSource(ctx, pos, parindent);
+  if(!opt.has_value()) {
+    showDiags(ctx.diags);
+    Bug("{}: template was not parsed properly", testName);
+  }
+  return std::move(*opt);
+}
+
 void testParaBreaks() {
   LexDirective paralexopts = lexopts;
   paralexopts.skip.indicateBlankLines = true;
@@ -400,14 +410,10 @@ void testParaBreaks() {
     directives: "directives"
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  size_t i = lineStart(2, ctx->input);
-  optional<QuotedString> tmpl = lexIndentedSource(*ctx, i, "    ");
-  if(!tmpl.has_value()) {
-    showDiags(ctx->diags);
-    BugMe("template was not parsed properly");
-  }
+  QuotedString tmpl
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
-  vector<variant<QuotedString,Ident>> lblOrParts = labelParts(*tmpl, partspec);
+  vector<variant<QuotedString,Ident>> lblOrParts = labelParts(tmpl, partspec);
   vector<string> observed
     = debugTokens(tokenizeTemplate(lblOrParts, paralexopts));
   vector<string> expected {"ident:directives", "newline", "word:loren",
