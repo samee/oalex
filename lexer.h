@@ -45,8 +45,7 @@ struct LexSegment : Segment {
 };
 
 struct NewlineChar : LexSegment {
-  explicit NewlineChar(size_t pos)
-    : LexSegment(pos, pos+1, tagint_t(LexSegmentTag::newlineChar)) {}
+  explicit NewlineChar(const QuotedString& s, size_t pos);
 };
 
 // These tokens never have embedded newlines, unless it's a newline all

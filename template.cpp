@@ -211,7 +211,7 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
   while(true) {
     i = opts.skip.acrossLines(s, i);
     if(!s.sizeGt(i)) break;
-    else if(s[i] == '\n') rv.push_back(NewlineChar(i++));
+    else if(s[i] == '\n') rv.push_back(NewlineChar(s, i++));
     else rv.push_back(lexTemplateToken(s, i, opts));
   }
   if(i == Input::npos)

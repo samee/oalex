@@ -320,6 +320,10 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
+NewlineChar::NewlineChar(const QuotedString& s, size_t pos)
+  : LexSegment(s.inputPos(pos), s.inputPos(pos)+1,
+               tagint_t(LexSegmentTag::newlineChar)) {}
+
 UnquotedToken::UnquotedToken(const QuotedString& s)
   : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
     token(string(s)) { }

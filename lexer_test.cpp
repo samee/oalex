@@ -43,6 +43,7 @@ using oalex::UserErrorEx;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
+using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexBracketGroup;
@@ -457,6 +458,25 @@ void bracketGroupThrows(string input, string expectedDiag) {
   }
 }
 
+void newlinePositionIsCorrect() {
+  InputDiags ctx{testInputDiags(R"(12345"foo\n")")};
+  size_t i = string_view("12345").size();
+  size_t j = string_view("12345\"foo").size();
+  if(ctx.input.substr(j,2) != "\\n")
+    BugMe("Input doesn't have '\\n' where expected");
+
+  size_t temp = i;
+  optional<QuotedString> s = lexQuotedString(ctx, temp);
+  if(!s.has_value()) BugMe("Couldn't parse string literal");
+  if((*s)[j-i-1] != '\n')
+    BugMe("Parsed literal doesn't have '\\n' at position {}: '{}'",
+          j-i-1, string_view(*s));
+
+  NewlineChar ch(*s, j-i-1);
+  if(ch.stPos != j)
+    BugMe("Newline was recorded at the wrong position: {} != {}", ch.stPos, j);
+}
+
 }  // namespace
 
 #define headerSuccess(test, expected) \
@@ -516,4 +536,6 @@ int main() {
   bracketGroupFailure(Mismatched,"[abc)",
       "Match not found for '[', found ')' instead.");
   bracketGroupThrows("@","Unexpected character '@'");
+
+  newlinePositionIsCorrect();
 }
