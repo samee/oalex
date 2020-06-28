@@ -61,8 +61,4 @@ uniqueKeys(const std::multimap<K,T,Cmp>& m) {
   return v;
 }
 
-inline bool isSubstr(std::string_view s, std::string_view t) {
-  return t.find(s) != std::string_view::npos;
-}
-
 }  // namespace oalex

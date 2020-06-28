@@ -81,4 +81,8 @@ auto move_to_unique(T&& t) -> std::unique_ptr<T> {
   return std::make_unique<T>(std::move(t));
 }
 
+inline bool isSubstr(std::string_view s, std::string_view t) {
+  return t.find(s) != std::string_view::npos;
+}
+
 }  // namespace oalex
