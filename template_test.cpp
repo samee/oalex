@@ -485,6 +485,37 @@ void testNoEndingNewline() {
   if(observed != expected) BugMe("{} != {}", observed, expected);
 }
 
+void testUnmarkedTemplateOpers() {
+  char input[] = R"(
+  let expr:
+    [a, ... , elt]                  // Okay, parsed as template operators
+    [sql| select * from mytable |]  // Error if unmarked.
+    expr .... expr                  // Four dots to provoke errors.
+  where:
+    GhcQuasiQuotes: "[sql|" "|]"
+    LongEllipsis: "...."
+  )";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  QuotedString tmpl
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
+  map<Ident,PartPattern> partspec{
+    {fid("GhcQuasiQuotes"), DelimPair{fquote("[sql|"), fquote("|]")}},
+    {fid("LongEllipsis"), fquote("....")},
+  };
+  vector<TokenOrPart> tops
+    = tokenizeTemplate(labelParts(tmpl, partspec), lexopts);
+  if(hasFusedTemplateOpers(*ctx, tops)) {
+    showDiags(ctx->diags);
+    BugMe("Unexpectedly found fused templates even with operators marked");
+  }
+
+  // Try again with no markings.
+  tops = tokenizeTemplate(labelParts(tmpl, {}), lexopts);
+  if(!hasFusedTemplateOpers(*ctx, tops))
+    BugMe("Failed to detect template operators");
+  assertHasDiagWithSubstr(__func__, ctx->diags, "Token '|]' incorporates '|'");
+}
+
 }  // namespace
 
 int main() {
@@ -505,4 +536,5 @@ int main() {
   testParaBreaks();
   testKeepAllNewlines();
   testNoEndingNewline();
+  testUnmarkedTemplateOpers();
 }

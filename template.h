@@ -80,4 +80,7 @@ auto tokenizeTemplate(
     const std::vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
+// Exposed for testing only.
+bool hasFusedTemplateOpers(InputDiags& ctx,
+                           const std::vector<TokenOrPart>& tops);
 }  // namespace oalex

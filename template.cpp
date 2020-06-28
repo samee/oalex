@@ -259,4 +259,25 @@ auto tokenizeTemplate(
   return rv;
 }
 
+static bool isStrictSubstr(string_view s, string_view t) {
+  return isSubstr(s, t) && s != t;
+}
+
+bool hasFusedTemplateOpers(InputDiags& ctx, const vector<TokenOrPart>& tops) {
+  static string_view tmplOpers[] = {"[", "]", "...", "|"};
+  bool rv = false;
+  for(auto& top : tops) {
+    const UnquotedToken* tok = get_if<WordToken>(&top);
+    if(!tok) tok = get_if<OperToken>(&top);
+    if(!tok) continue;
+    for(auto& op : tmplOpers) if(isStrictSubstr(op, **tok)) {
+      Error(ctx, tok->stPos, tok->enPos,
+            format("Token '{}' incorporates '{}'. They must be surrounded by "
+                   "whitespace outside of marked regions.", **tok, op));
+      rv = true;
+    }
+  }
+  return rv;
+}
+
 }  // namespace oalex
