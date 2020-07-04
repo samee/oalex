@@ -16,6 +16,7 @@
 #include<cstdio>
 #include<memory>
 #include<stdexcept>
+#include<variant>
 #include"fmt/format.h"
 
 namespace oalex {
@@ -79,6 +80,60 @@ auto move_to_unique(T& t) -> std::unique_ptr<T> {
 template <class T>
 auto move_to_unique(T&& t) -> std::unique_ptr<T> {
   return std::make_unique<T>(std::move(t));
+}
+
+// variant utilities, specially geared towards variant<unique_ptr<...>,...>.
+template <class T>
+struct is_variant { static constexpr bool value = false; };
+template <class ... Ts>
+struct is_variant<std::variant<Ts...>> { static constexpr bool value = true; };
+template <class T> inline constexpr
+bool is_variant_v = is_variant<T>::value;
+
+template <class ... Ts> struct holds_one_of_helper;  // undefined
+
+template <>
+struct holds_one_of_helper<> {
+  template <class V> static bool check(const V&) { return false; }
+};
+
+template <class T, class ... Ts>
+struct holds_one_of_helper<T, Ts...> {
+  template <class V> static bool check(const V& v) {
+    static_assert(is_variant_v<V>);
+    return std::holds_alternative<T>(v) || holds_one_of_helper<Ts...>::check(v);
+  }
+};
+
+template <class ... Ts, class V> bool holds_one_of(const V& v) {
+  return holds_one_of_helper<Ts...>::check(v);
+}
+template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
+  return holds_one_of<std::unique_ptr<Ts>...>(v);
+}
+
+template <class T, class V, class = std::enable_if_t<!std::is_const_v<V>>>
+auto get_if_unique(V* v) -> T* {
+  std::unique_ptr<T>* r = std::get_if<std::unique_ptr<T>>(v);
+  return r?r->get():nullptr;
+}
+
+template <class T, class V>
+auto get_if_unique(const V* v) -> const T* {
+  const std::unique_ptr<T>* r = std::get_if<std::unique_ptr<T>>(v);
+  return r?r->get():nullptr;
+}
+
+template <class T, class V, class = std::enable_if_t<!std::is_const_v<V>>>
+auto get_unique(V& v) -> T& {
+  if(auto& up = std::get<std::unique_ptr<T>>(v)) return *up;
+  else throw std::bad_variant_access();
+}
+
+template <class T, class V>
+auto get_unique(const V& v) -> const T& {
+  if(auto& up = std::get<std::unique_ptr<T>>(v)) return *up;
+  else throw std::bad_variant_access();
 }
 
 inline bool isSubstr(std::string_view s, std::string_view t) {
