@@ -83,4 +83,25 @@ auto tokenizeTemplate(
 // Exposed for testing only.
 bool hasFusedTemplateOpers(InputDiags& ctx,
                            const std::vector<TokenOrPart>& tops);
+
+using Template = std::variant<
+  // TokenOrPart components.
+  std::unique_ptr<WordToken>,
+  std::unique_ptr<OperToken>,
+  std::unique_ptr<lex::NewlineChar>,
+  std::unique_ptr<Ident>,
+  // Compound components.
+  std::unique_ptr<struct TemplateConcat>,
+  std::unique_ptr<struct TemplateOrList>,
+  std::unique_ptr<struct TemplateOptional>,
+  std::unique_ptr<struct TemplateRepeat>,
+  std::unique_ptr<struct TemplateFold>
+>;
+
+struct TemplateConcat { std::vector<Template> parts; };
+struct TemplateOrList { std::vector<Template> parts; };
+struct TemplateOptional { Template part; };
+struct TemplateRepeat   { Template part; };
+struct TemplateFold     { Template part, glue; };
+
 }  // namespace oalex
