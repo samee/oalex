@@ -28,6 +28,7 @@ using std::map;
 using std::optional;
 using std::nullopt;
 using std::pair;
+using std::size;
 using std::string;
 using std::string_view;
 using std::unique_ptr;

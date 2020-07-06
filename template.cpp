@@ -30,6 +30,7 @@ using std::pair;
 using std::string;
 using std::string_view;
 using std::vector;
+using std::visit;
 using oalex::Error;
 using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
