@@ -51,6 +51,7 @@ using oalex::PartPattern;
 using oalex::Skipper;
 using oalex::Template;
 using oalex::TemplateConcat;
+using oalex::TemplateOrList;
 using oalex::TemplateOptional;
 using oalex::templatize;
 using oalex::TokenOrPart;
@@ -530,7 +531,7 @@ void testUnmarkedTemplateOpers() {
 
 class TemplateMatcher {
  public:
-  enum class Type { leafToken, concat, optional };
+  enum class Type { leafToken, orList, concat, optional };
   TemplateMatcher() = default;
   TemplateMatcher(const char* d) : token_(d) {}  // implicit ctor
   TemplateMatcher(string_view d) : token_(d) {}  // implicit ctor
@@ -551,6 +552,9 @@ class TemplateMatcher {
 template <class ... Args> TemplateMatcher concatMatcher(Args ... args) {
   return TemplateMatcher(TemplateMatcher::Type::concat, {args...});
 }
+template <class ... Args> TemplateMatcher orListMatcher(Args ... args) {
+  return TemplateMatcher(TemplateMatcher::Type::orList, {args...});
+}
 TemplateMatcher optionalMatcher(TemplateMatcher m) {
   return TemplateMatcher(TemplateMatcher::Type::optional, {m});
 }
@@ -561,6 +565,7 @@ bool hasType(const Template& t) { return holds_alternative<unique_ptr<T>>(t); }
 string_view debugMatcherType(TemplateMatcher m) {
   switch(m.type()) {
     case TemplateMatcher::Type::leafToken: return "leafToken";
+    case TemplateMatcher::Type::orList:    return "orList";
     case TemplateMatcher::Type::concat:    return "concat";
     case TemplateMatcher::Type::optional:  return "optional";
     default: Bug("Unknown matcher type {}", static_cast<int>(m.type()));
@@ -570,6 +575,7 @@ string_view debugType(const Template& t) {
   if(hasType<WordToken>(t))   return "WordToken";
   if(hasType<OperToken>(t))   return "OperToken";
   if(hasType<TemplateConcat>(t))   return "TemplateConcat";
+  if(hasType<TemplateOrList>(t))   return "TemplateOrList";
   if(hasType<TemplateOptional>(t)) return "TemplateOptional";
   Bug("Unknown Template type of index {}", t.index());
 }
@@ -598,6 +604,10 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
     auto* concat = get_if_unique<TemplateConcat>(&t);
     if(!concat) return typeError("concat list");
     return vectorMatch(m.children_, concat->parts);
+  }else if(m.type_ == TemplateMatcher::Type::orList) {
+    auto* orList = get_if_unique<TemplateOrList>(&t);
+    if(!orList) return typeError("OR list");
+    return vectorMatch(m.children_, orList->parts);
   }else if(m.type_ == TemplateMatcher::Type::optional) {
     if(m.children_.size() != 1)
       Bug("Optional matcher should have a single child, got {}",
@@ -649,11 +659,11 @@ void testTemplateSingleConcat() {
 
 void testTemplateNester() {
   // Setup some weird language where only pointers can be const.
-  char input[] = R"("int [ [const] * ] x;"
+  char input[] = R"("int [ [const | volatile] * ] x;"
                     // Expectations
-                    "int" "const" "*" "x" ";")";
+                    "int" "const" "volatile" "*" "x" ";")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString s = fquote("int [ [const] * ] x;");
+  QuotedString s = fquote("int [ [const | volatile] * ] x;");
   vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
   if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
@@ -669,22 +679,29 @@ void testTemplateNester() {
     concatMatcher(
       "int",
       optionalMatcher(concatMatcher(
-        optionalMatcher("const"), "*"
+        optionalMatcher(orListMatcher("const", "volatile")),
+        "*"
       )),
       "x", ";");
   if(auto err = match(expected, *observed)) BugMe("{}", *err);
 }
 
-void testTemplateMismatchedBrackets() {
+void testTemplateErrorCases() {
   string inputs[] = {
     "int [ [const] * x;",
     "int [const] ] x;",
     "int [const [ ] ] x;",
+    "int [const | volatile | ] x;",
+    "| int [const | volatile ] x;",
+    "int [const | volatile ] x; | ",
   };
   string_view expectedDiags[] = {
     "Unmatched '['",
     "Unmatched ']'",
     "Empty '[]' not allowed",
+    "group is already optional",
+    "make this pattern optional in parent rules",
+    "make this pattern optional in parent rules",
   };
   static_assert(size(inputs) == size(expectedDiags));
   for(size_t i=0; i<size(inputs); ++i) {
@@ -726,5 +743,5 @@ int main() {
   testTemplateSimpleConcat();
   testTemplateSingleConcat();
   testTemplateNester();
-  testTemplateMismatchedBrackets();
+  testTemplateErrorCases();
 }

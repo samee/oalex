@@ -293,7 +293,6 @@ static auto getIfMetaToken(const TokenOrPart& top)
   return {};
 }
 
-
 template <class T> static
 Template gatherInto(vector<Template> parts) {
   static_assert(is_same_v<T,TemplateConcat> || is_same_v<T,TemplateOrList>);
@@ -315,13 +314,21 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   auto prevbranches = [&]()->auto& { return openopts.back().first.parts; };
   auto curbranch    = [&]()->auto& { return openopts.back().second.parts; };
   auto close_curbranch = [&](size_t closepos) {
+    const char outerOptHint[] =
+      "Empty '|' branch is not supported, "
+      "make this pattern optional in parent rules instead.";
+    const char innerOptHint[] =
+      "Empty '|' branch is unnecessary, the group is already optional";
     if(curbranch().empty()) {
-      Bug("{}: This should have been checked in the main loop", closepos);
+      const char* errmsg = openopts.size() > 1 ? innerOptHint : outerOptHint;
+      Error(ctx, closepos, errmsg);
+      return false;
     }else {
       prevbranches().push_back(
           gatherInto<TemplateConcat>(std::move(curbranch()))
       );
       curbranch().clear();
+      return true;
     }
   };
 
@@ -336,11 +343,13 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
     }else if(meta == "[") {
       openopts.emplace_back();
       lastPush = tokstart;
+    }else if(meta == "|") {
+      if(!close_curbranch(tokstart)) return nullopt;
     }else if(meta == "]") {
-      if(curbranch().empty())
+      if(curbranch().empty() && prevbranches().empty())
         return Error(ctx, tokstart, "Empty '[]' not allowed");
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
-      close_curbranch(tokstart);
+      if(!close_curbranch(tokstart)) return nullopt;
       Template tmpl = gatherInto<TemplateOrList>(std::move(prevbranches()));
       openopts.pop_back();
       curbranch().push_back(
@@ -349,10 +358,8 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
     }else Unimplemented("Metacharacter token {}", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
-  else {
-    close_curbranch(lasttok);
-    return gatherInto<TemplateOrList>(std::move(prevbranches()));
-  }
+  if(!close_curbranch(lasttok)) return nullopt;
+  else return gatherInto<TemplateOrList>(std::move(prevbranches()));
 }
 
 }  // namespace oalex
