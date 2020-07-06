@@ -298,6 +298,8 @@ static Template unpackSingleton(vector<Template> parts) {
 
 auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   -> optional<Template> {
+  if(tops.empty()) Bug("{} was not expecting an empty template", __func__);
+
   // Parsing stack: first entry is to construct the root node, while the
   // rest (if any) are for pending '[' brackets.
   vector<TemplateConcat> openopts(1);
