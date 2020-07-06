@@ -311,10 +311,25 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   // '|'-connected ORs, with concatenation still ongoing on the final branch.
   vector<pair<TemplateOrList,TemplateConcat>> openopts(1);
 
+  // Helpers
+  auto prevbranches = [&]()->auto& { return openopts.back().first.parts; };
   auto curbranch    = [&]()->auto& { return openopts.back().second.parts; };
+  auto close_curbranch = [&](size_t closepos) {
+    if(curbranch().empty()) {
+      Bug("{}: This should have been checked in the main loop", closepos);
+    }else {
+      prevbranches().push_back(
+          gatherInto<TemplateConcat>(std::move(curbranch()))
+      );
+      curbranch().clear();
+    }
+  };
+
   size_t lastPush = 0;  // Only used for error-reporting.
+  size_t lasttok = 0;
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
+    lasttok = tokstart;
     if(meta.empty()) {
       visit([&](auto& x){ curbranch().push_back(move_to_unique(x)); },
             part);
@@ -325,7 +340,8 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       if(curbranch().empty())
         return Error(ctx, tokstart, "Empty '[]' not allowed");
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
-      Template tmpl = gatherInto<TemplateConcat>(std::move(curbranch()));
+      close_curbranch(tokstart);
+      Template tmpl = gatherInto<TemplateOrList>(std::move(prevbranches()));
       openopts.pop_back();
       curbranch().push_back(
           move_to_unique(TemplateOptional{std::move(tmpl)})
@@ -333,7 +349,10 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
     }else Unimplemented("Metacharacter token {}", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
-  else return gatherInto<TemplateConcat>(std::move(curbranch()));
+  else {
+    close_curbranch(lasttok);
+    return gatherInto<TemplateOrList>(std::move(prevbranches()));
+  }
 }
 
 }  // namespace oalex
