@@ -603,10 +603,16 @@ void testTemplateSimpleConcat() {
   vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
   if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
-  // Test
-  Template observed = templatize(tops);
+  // Test subject
+  optional<Template> observed = templatize(tops);
+
+  // Expectations
+  if(!observed.has_value()) {
+    showDiags(ctx->diags);
+    BugMe("Template-making failed");
+  }
   TemplateMatcher expected = concatMatcher("foo", "+", "bar");
-  if(auto err = match(expected, observed)) BugMe("{}", *err);
+  if(auto err = match(expected, *observed)) BugMe("{}", *err);
 }
 
 void testTemplateSingleConcat() {
@@ -616,9 +622,15 @@ void testTemplateSingleConcat() {
   QuotedString s = fquote("foo");
   vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
 
-  // Test
-  Template observed = templatize(tops);
-  if(auto err = match("foo", observed)) BugMe("{}", *err);
+  // Test subject
+  optional<Template> observed = templatize(tops);
+
+  // Expect no single-node concat list.
+  if(!observed.has_value()) {
+    showDiags(ctx->diags);
+    BugMe("Template-making failed");
+  }
+  if(auto err = match("foo", *observed)) BugMe("{}", *err);
 }
 
 }  // namespace

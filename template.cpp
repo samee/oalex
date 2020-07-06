@@ -296,7 +296,8 @@ static Template unpackSingleton(vector<Template> parts) {
   return move_to_unique(TemplateConcat{std::move(parts)});
 }
 
-Template templatize(vector<TokenOrPart> tops) {
+auto templatize(vector<TokenOrPart> tops)
+  -> optional<Template> {
   vector<Template> rv;
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
