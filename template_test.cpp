@@ -679,10 +679,12 @@ void testTemplateMismatchedBrackets() {
   string inputs[] = {
     "int [ [const] * x;",
     "int [const] ] x;",
+    "int [const [ ] ] x;",
   };
   string_view expectedDiags[] = {
     "Unmatched '['",
     "Unmatched ']'",
+    "Empty '[]' not allowed",
   };
   static_assert(size(inputs) == size(expectedDiags));
   for(size_t i=0; i<size(inputs); ++i) {

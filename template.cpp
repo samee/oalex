@@ -322,6 +322,8 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       openopts.emplace_back();
       lastPush = tokstart;
     }else if(meta == "]") {
+      if(curbranch().empty())
+        return Error(ctx, tokstart, "Empty '[]' not allowed");
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
       Template tmpl = gatherInto<TemplateConcat>(std::move(curbranch()));
       openopts.pop_back();
