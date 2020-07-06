@@ -280,4 +280,32 @@ bool hasFusedTemplateOpers(InputDiags& ctx, const vector<TokenOrPart>& tops) {
   return rv;
 }
 
+static auto getIfMetaToken(const TokenOrPart& top)
+  -> pair<string_view, size_t> {
+  string_view s;
+  size_t start;
+  if(auto* p = get_if<WordToken>(&top)) { s = **p; start = p->stPos; }
+  if(auto* p = get_if<OperToken>(&top)) { s = **p; start = p->stPos; }
+  for(auto& meta : {"[", "]", "|", ",,,"}) if(s == meta) return {s, start};
+  return {};
+}
+
+
+static Template unpackSingleton(vector<Template> parts) {
+  if(parts.size() == 1) return std::move(parts[0]);
+  return move_to_unique(TemplateConcat{std::move(parts)});
+}
+
+Template templatize(vector<TokenOrPart> tops) {
+  vector<Template> rv;
+  for(auto& part : tops) {
+    auto [meta, tokstart] = getIfMetaToken(part);
+    if(meta.empty()) {
+      visit([&](auto& x){ rv.push_back(move_to_unique(x)); },
+            part);
+    }else Unimplemented("Metacharacter token {}", meta);
+  }
+  return unpackSingleton(std::move(rv));
+}
+
 }  // namespace oalex

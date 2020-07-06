@@ -15,6 +15,7 @@
 #include "template.h"
 #include "lexer.h"
 #include "lookahead_regex_io.h"
+#include "fmt/format.h"
 #include "runtime/input_view.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
@@ -25,24 +26,33 @@ using std::holds_alternative;
 using std::make_unique;
 using std::map;
 using std::optional;
+using std::nullopt;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
+using fmt::format;
 using oalex::Bug;
 using oalex::DelimPair;
+using oalex::get_if_unique;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::LabelOrPart;
+using oalex::labelParts;
 using oalex::LexDirective;
 using oalex::matchAllParts;
+using oalex::OperToken;
 using oalex::PartPattern;
 using oalex::Skipper;
-using oalex::OperToken;
+using oalex::Template;
+using oalex::TemplateConcat;
+using oalex::templatize;
 using oalex::TokenOrPart;
+using oalex::Unimplemented;
 using oalex::WordToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::NewlineChar;
@@ -516,6 +526,101 @@ void testUnmarkedTemplateOpers() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Token '|]' incorporates '|'");
 }
 
+class TemplateMatcher {
+ public:
+  enum class Type { leafToken, concat };
+  TemplateMatcher() = default;
+  TemplateMatcher(const char* d) : token_(d) {}  // implicit ctor
+  TemplateMatcher(string_view d) : token_(d) {}  // implicit ctor
+  TemplateMatcher(Type t, vector<TemplateMatcher> children)
+    : type_(t), children_(std::move(children)) {}
+  Type type() const { return type_; }
+  friend auto match(const TemplateMatcher& m, const Template& t)
+    -> optional<string>;
+ private:
+  Type type_ = Type::leafToken;
+  // Valid iff type_ == leafToken:
+  string_view token_;
+
+  // Valid iff type_ == orList or concat:
+  vector<TemplateMatcher> children_;
+};
+
+template <class ... Args> TemplateMatcher concatMatcher(Args ... args) {
+  return TemplateMatcher(TemplateMatcher::Type::concat, {args...});
+}
+
+template <class T>
+bool hasType(const Template& t) { return holds_alternative<unique_ptr<T>>(t); }
+
+string_view debugMatcherType(TemplateMatcher m) {
+  switch(m.type()) {
+    case TemplateMatcher::Type::leafToken: return "leafToken";
+    case TemplateMatcher::Type::concat:    return "concat";
+    default: Bug("Unknown matcher type {}", static_cast<int>(m.type()));
+  }
+}
+string_view debugType(const Template& t) {
+  if(hasType<WordToken>(t))   return "WordToken";
+  if(hasType<OperToken>(t))   return "OperToken";
+  if(hasType<TemplateConcat>(t))   return "TemplateConcat";
+  Bug("Unknown Template type of index {}", t.index());
+}
+
+auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
+  // Helpers.
+  auto typeError = [&t](string_view expected) {
+    return format("Expected {}, received {}", expected, debugType(t));
+  };
+  auto vectorMatch = [](const vector<TemplateMatcher>& vm,
+                        const vector<Template>& vt) -> optional<string> {
+    if(vm.size() != vt.size())
+      return format("Expected {} children, got {}", vm.size(), vt.size());
+    for(size_t i=0; i<vm.size(); ++i)
+      if(auto err = match(vm[i], vt[i])) return err;
+    return nullopt;
+  };
+
+  if(m.type_ == TemplateMatcher::Type::leafToken) {
+    const UnquotedToken* tok = get_if_unique<WordToken>(&t);
+    if(!tok) tok = get_if_unique<OperToken>(&t);
+    if(!tok) return typeError("leaf token");
+    if(**tok != m.token_)
+      return format("Failed to match '{}' with '{}'", m.token_, **tok);
+  }else if(m.type_ == TemplateMatcher::Type::concat) {
+    auto* concat = get_if_unique<TemplateConcat>(&t);
+    if(!concat) return typeError("concat list");
+    return vectorMatch(m.children_, concat->parts);
+  }else Unimplemented("Matching for matcher type '{}'", debugMatcherType(m));
+  return nullopt;
+}
+
+void testTemplateSimpleConcat() {
+  // Setup
+  char input[] = R"("foo + bar" "foo" "+" "bar")";
+  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  QuotedString s = fquote("foo + bar");
+  vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
+  if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
+
+  // Test
+  Template observed = templatize(tops);
+  TemplateMatcher expected = concatMatcher("foo", "+", "bar");
+  if(auto err = match(expected, observed)) BugMe("{}", *err);
+}
+
+void testTemplateSingleConcat() {
+  // Setup
+  char input[] = R"("foo")";
+  auto [ctx, fquote] = setupMatchTest(__func__, input);
+  QuotedString s = fquote("foo");
+  vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
+
+  // Test
+  Template observed = templatize(tops);
+  if(auto err = match("foo", observed)) BugMe("{}", *err);
+}
+
 }  // namespace
 
 int main() {
@@ -537,4 +642,6 @@ int main() {
   testKeepAllNewlines();
   testNoEndingNewline();
   testUnmarkedTemplateOpers();
+  testTemplateSimpleConcat();
+  testTemplateSingleConcat();
 }

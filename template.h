@@ -104,4 +104,6 @@ struct TemplateOptional { Template part; };
 struct TemplateRepeat   { Template part; };
 struct TemplateFold     { Template part, glue; };
 
+Template templatize(std::vector<TokenOrPart> tops);
+
 }  // namespace oalex
