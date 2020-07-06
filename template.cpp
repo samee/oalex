@@ -302,28 +302,31 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
 
   // Parsing stack: first entry is to construct the root node, while the
   // rest (if any) are for pending '[' brackets.
-  vector<TemplateConcat> openopts(1);
+  // At every nesting level, we have some possibly empty list of
+  // '|'-connected ORs, with concatenation still ongoing on the final branch.
+  vector<pair<TemplateOrList,TemplateConcat>> openopts(1);
 
+  auto curbranch    = [&]()->auto& { return openopts.back().second.parts; };
   size_t lastPush = 0;  // Only used for error-reporting.
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
     if(meta.empty()) {
-      visit([&](auto& x){ openopts.back().parts.push_back(move_to_unique(x)); },
+      visit([&](auto& x){ curbranch().push_back(move_to_unique(x)); },
             part);
     }else if(meta == "[") {
       openopts.emplace_back();
       lastPush = tokstart;
     }else if(meta == "]") {
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
-      Template tmpl = unpackSingleton(std::move(openopts.back().parts));
+      Template tmpl = unpackSingleton(std::move(curbranch()));
       openopts.pop_back();
-      openopts.back().parts.push_back(
+      curbranch().push_back(
           move_to_unique(TemplateOptional{std::move(tmpl)})
       );
     }else Unimplemented("Metacharacter token {}", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
-  else return unpackSingleton(std::move(openopts.back().parts));
+  else return unpackSingleton(std::move(curbranch()));
 }
 
 }  // namespace oalex
