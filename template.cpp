@@ -296,20 +296,32 @@ static Template unpackSingleton(vector<Template> parts) {
   return move_to_unique(TemplateConcat{std::move(parts)});
 }
 
-auto templatize(vector<TokenOrPart> tops)
+auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   -> optional<Template> {
   // Parsing stack: first entry is to construct the root node, while the
   // rest (if any) are for pending '[' brackets.
   vector<TemplateConcat> openopts(1);
 
+  size_t lastPush = 0;  // Only used for error-reporting.
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
     if(meta.empty()) {
       visit([&](auto& x){ openopts.back().parts.push_back(move_to_unique(x)); },
             part);
+    }else if(meta == "[") {
+      openopts.emplace_back();
+      lastPush = tokstart;
+    }else if(meta == "]") {
+      if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
+      Template tmpl = unpackSingleton(std::move(openopts.back().parts));
+      openopts.pop_back();
+      openopts.back().parts.push_back(
+          move_to_unique(TemplateOptional{std::move(tmpl)})
+      );
     }else Unimplemented("Metacharacter token {}", meta);
   }
-  return unpackSingleton(std::move(openopts.back().parts));
+  if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
+  else return unpackSingleton(std::move(openopts.back().parts));
 }
 
 }  // namespace oalex
