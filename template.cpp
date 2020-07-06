@@ -298,15 +298,18 @@ static Template unpackSingleton(vector<Template> parts) {
 
 auto templatize(vector<TokenOrPart> tops)
   -> optional<Template> {
-  vector<Template> rv;
+  // Parsing stack: first entry is to construct the root node, while the
+  // rest (if any) are for pending '[' brackets.
+  vector<TemplateConcat> openopts(1);
+
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
     if(meta.empty()) {
-      visit([&](auto& x){ rv.push_back(move_to_unique(x)); },
+      visit([&](auto& x){ openopts.back().parts.push_back(move_to_unique(x)); },
             part);
     }else Unimplemented("Metacharacter token {}", meta);
   }
-  return unpackSingleton(std::move(rv));
+  return unpackSingleton(std::move(openopts.back().parts));
 }
 
 }  // namespace oalex
