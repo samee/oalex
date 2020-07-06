@@ -15,10 +15,12 @@
 #include "template.h"
 #include <algorithm>
 #include <map>
+#include <type_traits>
 #include "fmt/format.h"
 #include "runtime/util.h"
 using fmt::format;
 using std::get_if;
+using std::is_same_v;
 using std::make_pair;
 using std::map;
 using std::max;
@@ -291,9 +293,11 @@ static auto getIfMetaToken(const TokenOrPart& top)
 }
 
 
-static Template unpackSingleton(vector<Template> parts) {
+template <class T> static
+Template gatherInto(vector<Template> parts) {
+  static_assert(is_same_v<T,TemplateConcat> || is_same_v<T,TemplateOrList>);
   if(parts.size() == 1) return std::move(parts[0]);
-  return move_to_unique(TemplateConcat{std::move(parts)});
+  return move_to_unique(T{std::move(parts)});
 }
 
 auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
@@ -318,7 +322,7 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       lastPush = tokstart;
     }else if(meta == "]") {
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
-      Template tmpl = unpackSingleton(std::move(curbranch()));
+      Template tmpl = gatherInto<TemplateConcat>(std::move(curbranch()));
       openopts.pop_back();
       curbranch().push_back(
           move_to_unique(TemplateOptional{std::move(tmpl)})
@@ -326,7 +330,7 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
     }else Unimplemented("Metacharacter token {}", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
-  else return unpackSingleton(std::move(curbranch()));
+  else return gatherInto<TemplateConcat>(std::move(curbranch()));
 }
 
 }  // namespace oalex
