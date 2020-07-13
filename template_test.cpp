@@ -53,6 +53,8 @@ using oalex::Template;
 using oalex::TemplateConcat;
 using oalex::TemplateOrList;
 using oalex::TemplateOptional;
+using oalex::TemplateRepeat;
+using oalex::TemplateFold;
 using oalex::templatize;
 using oalex::TokenOrPart;
 using oalex::Unimplemented;
@@ -531,7 +533,7 @@ void testUnmarkedTemplateOpers() {
 
 class TemplateMatcher {
  public:
-  enum class Type { leafToken, orList, concat, optional };
+  enum class Type { leafToken, orList, concat, optional, repeat, fold };
   TemplateMatcher() = default;
   TemplateMatcher(const char* d) : token_(d) {}  // implicit ctor
   TemplateMatcher(string_view d) : token_(d) {}  // implicit ctor
@@ -545,7 +547,10 @@ class TemplateMatcher {
   // Valid iff type_ == leafToken:
   string_view token_;
 
-  // Valid iff type_ == orList or concat:
+  // Valid iff type_ != leafToken.
+  //   size() is arbitrary but non-zero for type_ == orList or concat.
+  //   size() == 1 for type_ == optional or repeat
+  //   size() == 2 for type_ == fold
   vector<TemplateMatcher> children_;
 };
 
@@ -558,16 +563,24 @@ template <class ... Args> TemplateMatcher orListMatcher(Args ... args) {
 TemplateMatcher optionalMatcher(TemplateMatcher m) {
   return TemplateMatcher(TemplateMatcher::Type::optional, {m});
 }
+TemplateMatcher repeatMatcher(TemplateMatcher m) {
+  return TemplateMatcher(TemplateMatcher::Type::repeat, {m});
+}
+TemplateMatcher foldMatcher(TemplateMatcher part, TemplateMatcher glue) {
+  return TemplateMatcher(TemplateMatcher::Type::fold, {part,glue});
+}
 
 template <class T>
 bool hasType(const Template& t) { return holds_alternative<unique_ptr<T>>(t); }
 
-string_view debugMatcherType(TemplateMatcher m) {
+string_view debugMatcherType(const TemplateMatcher& m) {
   switch(m.type()) {
     case TemplateMatcher::Type::leafToken: return "leafToken";
     case TemplateMatcher::Type::orList:    return "orList";
     case TemplateMatcher::Type::concat:    return "concat";
     case TemplateMatcher::Type::optional:  return "optional";
+    case TemplateMatcher::Type::repeat:    return "repeat";
+    case TemplateMatcher::Type::fold:      return "fold";
     default: Bug("Unknown matcher type {}", static_cast<int>(m.type()));
   }
 }
@@ -620,6 +633,17 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
     auto* opt = get_if_unique<TemplateOptional>(&t);
     if(!opt) return typeError("optional node");
     return match(m.children_[0], opt->part);
+  }else if(m.type_ == TemplateMatcher::Type::repeat) {
+    if(auto err = checkChildCount(m, 1)) return err;
+    auto *rep = get_if_unique<TemplateRepeat>(&t);
+    if(!rep) return typeError("repeat node");
+    return match(m.children_[0], rep->part);
+  }else if(m.type_ == TemplateMatcher::Type::fold) {
+    if(auto err = checkChildCount(m, 2)) return err;
+    auto *fold = get_if_unique<TemplateFold>(&t);
+    if(!fold) return typeError("fold node");
+    if(auto err = match(m.children_[0], fold->part)) return err;
+    else return match(m.children_[1], fold->glue);
   }else Unimplemented("Matching for matcher type '{}'", debugMatcherType(m));
   return nullopt;
 }
@@ -663,7 +687,9 @@ void testTemplateSingleConcat() {
 }
 
 void testTemplateOperators() {
-  const string inputs[] = {"int [ [const | volatile] * ] x;" };
+  const string inputs[] = {"int [ [const | volatile] * ] x;",
+                           "var x = value, ... , x = value;",
+                           "stmt; ... stmt;"};
   TemplateMatcher expectations[] = {
     concatMatcher(
       "int",
@@ -671,6 +697,9 @@ void testTemplateOperators() {
         optionalMatcher(orListMatcher("const", "volatile")), "*"
       )),
       "x", ";"),
+    concatMatcher(
+      "var", foldMatcher(concatMatcher("x", "=", "value"), ","), ";"),
+    repeatMatcher(concatMatcher("stmt", ";")),
   };
   for(size_t i=0; i<size(inputs); ++i) {
     // Setups
@@ -699,6 +728,9 @@ void testTemplateErrorCases() {
     "int [const | volatile | ] x;",
     "| int [const | volatile ] x;",
     "int [const | volatile ] x; | ",
+    "value + ... + value + ... + value",
+    "a a ... a a",
+    "[x] ... [x]",
   };
   string_view expectedDiags[] = {
     "Unmatched '['",
@@ -707,6 +739,9 @@ void testTemplateErrorCases() {
     "group is already optional",
     "make this pattern optional in parent rules",
     "make this pattern optional in parent rules",
+    "Multiple ellipsis",
+    "It's unclear if this part should be repeated",
+    "No valid context",
   };
   static_assert(size(inputs) == size(expectedDiags));
   for(size_t i=0; i<size(inputs); ++i) {

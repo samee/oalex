@@ -14,21 +14,26 @@
 
 #include "template.h"
 #include <algorithm>
+#include <iterator>
 #include <map>
 #include <type_traits>
 #include "fmt/format.h"
 #include "runtime/util.h"
 using fmt::format;
 using std::get_if;
+using std::holds_alternative;
 using std::is_same_v;
 using std::make_pair;
 using std::map;
 using std::max;
+using std::min;
+using std::move_iterator;
 using std::nullopt;
 using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 using std::visit;
 using oalex::Error;
@@ -300,6 +305,135 @@ Template gatherInto(vector<Template> parts) {
   return move_to_unique(T{std::move(parts)});
 }
 
+static const UnquotedToken* getIfUnquotedToken(const Template* t) {
+  if(auto* p = get_if_unique<WordToken>(t)) return p;
+  if(auto* p = get_if_unique<OperToken>(t)) return p;
+  return nullptr;
+}
+
+static
+auto findEllipsis(const vector<Template>& parts, size_t pos)
+  -> pair<size_t, const UnquotedToken*> {
+  for(size_t i=pos; i<parts.size(); ++i) {
+    auto* p = getIfUnquotedToken(&parts[i]);
+    if(p && **p == "...") return {i, p};
+  }
+  return {};
+}
+
+static
+bool isAtomicToken(const Template& t) {
+  return holds_one_of_unique<WordToken,OperToken,NewlineChar,Ident>(t);
+}
+
+static
+size_t atomicSuffixStart(const vector<Template>& tv, size_t st, size_t en) {
+  for(size_t i=en; i>st; --i) if(!isAtomicToken(tv[i-1])) return i;
+  return st;
+}
+
+static
+size_t atomicPrefixEnd(const vector<Template>& tv, size_t st, size_t en) {
+  for(size_t i=st; i<en; ++i) if(!isAtomicToken(tv[i])) return i;
+  return en;
+}
+
+static
+bool areTokensAndEqual(const vector<Template>& tv,
+                       size_t st1, size_t st2, size_t n) {
+  for(size_t i=0; i<n; ++i) {
+    auto& p1 = tv[st1+i];
+    auto& p2 = tv[st2+i];
+    if(p1.index() != p2.index()) return false;
+
+    if(auto* w = get_if_unique<WordToken>(&p1)) {
+      if(**w != *get_unique<WordToken>(p2)) return false;
+    }
+    else if(auto* o = get_if_unique<OperToken>(&p1)) {
+      if(**o != *get_unique<OperToken>(p2)) return false;
+    }
+    else if(holds_alternative<unique_ptr<NewlineChar>>(p1))
+      continue;
+    else if(auto* id = get_if_unique<Ident>(&p1)) {
+      if(*id != get_unique<Ident>(p2)) return false;
+    }
+    else return false;
+  }
+  return true;
+}
+
+static
+auto getSurrounding(InputDiags& ctx, const vector<Template>& tv,
+                    size_t stMid, size_t enMid) -> optional<size_t> {
+  size_t lo = atomicSuffixStart(tv, 0, stMid);
+  size_t hi = atomicPrefixEnd(tv, enMid, tv.size());
+  size_t maxlen = min(stMid-lo, hi-enMid);
+  if(maxlen == 0) return 0;
+  optional<size_t> rv;
+  for(size_t i=1; i<=maxlen; ++i) {
+    if(!areTokensAndEqual(tv, stMid-i, enMid, i)) continue;
+    if(rv.has_value())
+      return Error(ctx, stMid - i, stMid - *rv,
+                   "It's unclear if this part should be repeated "
+                   "together with the next");
+    rv = i;
+  }
+  if(!rv.has_value()) return 0;
+  else return rv;
+}
+
+static
+auto spliceInCat(vector<Template> tv, size_t st, size_t en, Template elt)
+  -> vector<Template> {
+  if(st == en) Unimplemented("spliceInCat() for empty ranges");
+  tv.erase(tv.begin()+st+1, tv.begin()+en);
+  tv[st] = std::move(elt);
+  return tv;
+}
+
+// TODO allow multiple examples, like a,b,...,z, and return pairs of size.
+// Possibly by expanding the consumed range just before returning.
+// TODO there must not be any difference between these two:
+//   stmt; ... stmt;
+//   stmt; ... ; stmt;
+// They should both parse as Repeat{Concat{stmt, ";"}}. Right now, it doesn't.
+static
+auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Template> tv)
+  -> optional<vector<Template>> {
+  auto [idx, tokp] = findEllipsis(tv, 0);
+  if(!tokp) return tv;
+  auto [idx2, tok2p] = findEllipsis(tv, idx+1);
+  if(tok2p)
+    return Error(ctx, tok2p->stPos, "Multiple ellipsis are strung together");
+
+  optional<size_t> surround1 = getSurrounding(ctx, tv, idx, idx + 1);
+  if(!surround1) return nullopt;
+  if(*surround1 == 0) {
+    const UnquotedToken& tok = *getIfUnquotedToken(&tv[idx]);
+    return Error(ctx, tok.stPos, tok.enPos,
+                 "No valid context surrounding this ellipsis");
+  }
+  optional<size_t> surround2
+    = getSurrounding(ctx, tv, idx - *surround1, idx + 1 + *surround1);
+  if(!surround2) return nullopt;
+
+  auto backup = [&](size_t x) { return move_iterator(tv.begin()+idx-x); };
+  if(*surround2 > 0) {
+    TemplateFold tf;
+    tf.part = gatherInto<TemplateConcat>(vector(backup(*surround1+*surround2),
+                                                backup(*surround1)));
+    tf.glue = gatherInto<TemplateConcat>(vector(backup(*surround1),
+                                                backup(0)));
+    return spliceInCat(std::move(tv), idx - *surround1 - *surround2,
+                       idx + 1 + *surround1 + *surround2, move_to_unique(tf));
+  }else {
+    auto part = gatherInto<TemplateConcat>(vector(backup(*surround1),
+                                                  backup(0)));
+    return spliceInCat(std::move(tv), idx-*surround1, idx+1+*surround1,
+                       move_to_unique(TemplateRepeat{.part{std::move(part)}}));
+  }
+}
+
 auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   -> optional<Template> {
   if(tops.empty()) Bug("{} was not expecting an empty template", __func__);
@@ -324,9 +458,10 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       Error(ctx, closepos, errmsg);
       return false;
     }else {
-      prevbranches().push_back(
-          gatherInto<TemplateConcat>(std::move(curbranch()))
-      );
+      optional<vector<Template>> branch
+        = repeatFoldOnEllipsis(ctx, std::move(curbranch()));
+      if(!branch.has_value()) return false;
+      prevbranches().push_back(gatherInto<TemplateConcat>(std::move(*branch)));
       curbranch().clear();
       return true;
     }
@@ -337,7 +472,7 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   for(auto& part : tops) {
     auto [meta, tokstart] = getIfMetaToken(part);
     lasttok = tokstart;
-    if(meta.empty()) {
+    if(meta.empty() || meta == "...") {
       visit([&](auto& x){ curbranch().push_back(move_to_unique(x)); },
             part);
     }else if(meta == "[") {
@@ -355,7 +490,7 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       curbranch().push_back(
           move_to_unique(TemplateOptional{std::move(tmpl)})
       );
-    }else Unimplemented("Metacharacter token {}", meta);
+    }else Bug("Found unknown metacharacter '{}'", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
   if(!close_curbranch(lasttok)) return nullopt;
