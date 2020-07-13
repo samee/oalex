@@ -657,33 +657,33 @@ void testTemplateSingleConcat() {
   if(auto err = match("foo", *observed)) BugMe("{}", *err);
 }
 
-void testTemplateNester() {
-  // Setup some weird language where only pointers can be const.
-  char input[] = R"("int [ [const | volatile] * ] x;"
-                    // Expectations
-                    "int" "const" "volatile" "*" "x" ";")";
-  auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString s = fquote("int [ [const | volatile] * ] x;");
-  vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
-  if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
-
-  // Test subject
-  optional<Template> observed = templatize(*ctx, tops);
-
-  // Expectations
-  if(!observed.has_value()) {
-    showDiags(ctx->diags);
-    BugMe("Template-making failed");
-  }
-  TemplateMatcher expected =
+void testTemplateOperators() {
+  const string inputs[] = {"int [ [const | volatile] * ] x;" };
+  TemplateMatcher expectations[] = {
     concatMatcher(
       "int",
       optionalMatcher(concatMatcher(
-        optionalMatcher(orListMatcher("const", "volatile")),
-        "*"
+        optionalMatcher(orListMatcher("const", "volatile")), "*"
       )),
-      "x", ";");
-  if(auto err = match(expected, *observed)) BugMe("{}", *err);
+      "x", ";"),
+  };
+  for(size_t i=0; i<size(inputs); ++i) {
+    // Setups
+    auto [ctx, fquote] = setupMatchTest(__func__, '"' + inputs[i] + '"');
+    QuotedString s = fquote(inputs[i]);
+    vector<TokenOrPart> tops = tokenizeTemplate(labelParts(s, {}), lexopts);
+    if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
+
+    // Test subject
+    optional<Template> observed = templatize(*ctx, tops);
+
+    // Expectations
+    if(!observed.has_value()) {
+      showDiags(ctx->diags);
+      BugMe("Template-making failed");
+    }
+    if(auto err = match(expectations[i], *observed)) BugMe("{}", *err);
+  }
 }
 
 void testTemplateErrorCases() {
@@ -742,6 +742,6 @@ int main() {
   testUnmarkedTemplateOpers();
   testTemplateSimpleConcat();
   testTemplateSingleConcat();
-  testTemplateNester();
+  testTemplateOperators();
   testTemplateErrorCases();
 }
