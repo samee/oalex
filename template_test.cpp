@@ -593,6 +593,13 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
       if(auto err = match(vm[i], vt[i])) return err;
     return nullopt;
   };
+  auto checkChildCount = [](const TemplateMatcher& m,
+                            size_t count) -> optional<string> {
+    if(m.children_.size() != count)
+      return format("{} matcher should have {} children, found {}",
+                    debugMatcherType(m), count, m.children_.size());
+    else return nullopt;
+  };
 
   if(m.type_ == TemplateMatcher::Type::leafToken) {
     const UnquotedToken* tok = get_if_unique<WordToken>(&t);
@@ -609,9 +616,7 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
     if(!orList) return typeError("OR list");
     return vectorMatch(m.children_, orList->parts);
   }else if(m.type_ == TemplateMatcher::Type::optional) {
-    if(m.children_.size() != 1)
-      Bug("Optional matcher should have a single child, got {}",
-          m.children_.size());
+    if(auto err = checkChildCount(m, 1)) return err;
     auto* opt = get_if_unique<TemplateOptional>(&t);
     if(!opt) return typeError("optional node");
     return match(m.children_[0], opt->part);
