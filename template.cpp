@@ -289,7 +289,7 @@ static auto getIfMetaToken(const TokenOrPart& top)
   size_t start;
   if(auto* p = get_if<WordToken>(&top)) { s = **p; start = p->stPos; }
   if(auto* p = get_if<OperToken>(&top)) { s = **p; start = p->stPos; }
-  for(auto& meta : {"[", "]", "|", ",,,"}) if(s == meta) return {s, start};
+  for(auto& meta : {"[", "]", "|", "..."}) if(s == meta) return {s, start};
   return {};
 }
 
