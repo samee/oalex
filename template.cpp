@@ -359,35 +359,6 @@ bool areTokensAndEqual(const Template& t1, const Template& t2) {
 }
 
 static
-bool areAllTokensAndEqual(const vector<Template>& tv,
-                          size_t st1, size_t st2, size_t n) {
-  for(size_t i=0; i<n; ++i) {
-    if(!areTokensAndEqual(tv[st1+i], tv[st2+i])) return false;
-  }
-  return true;
-}
-
-static
-auto getSurrounding(InputDiags& ctx, const vector<Template>& tv,
-                    size_t stMid, size_t enMid) -> optional<size_t> {
-  size_t lo = atomicSuffixStart(tv, 0, stMid);
-  size_t hi = atomicPrefixEnd(tv, enMid, tv.size());
-  size_t maxlen = min(stMid-lo, hi-enMid);
-  if(maxlen == 0) return 0;
-  optional<size_t> rv;
-  for(size_t i=1; i<=maxlen; ++i) {
-    if(!areAllTokensAndEqual(tv, stMid-i, enMid, i)) continue;
-    if(rv.has_value())
-      return Error(ctx, stMid - i, stMid - *rv,
-                   "It's unclear if this part should be repeated "
-                   "together with the next");
-    rv = i;
-  }
-  if(!rv.has_value()) return 0;
-  else return rv;
-}
-
-static
 auto spliceInCat(vector<Template> tv, size_t st, size_t en, Template elt)
   -> vector<Template> {
   if(st == en) Unimplemented("spliceInCat() for empty ranges");
