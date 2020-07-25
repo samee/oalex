@@ -340,25 +340,29 @@ size_t atomicPrefixEnd(const vector<Template>& tv, size_t st, size_t en) {
 }
 
 static
-bool areTokensAndEqual(const vector<Template>& tv,
-                       size_t st1, size_t st2, size_t n) {
-  for(size_t i=0; i<n; ++i) {
-    auto& p1 = tv[st1+i];
-    auto& p2 = tv[st2+i];
-    if(p1.index() != p2.index()) return false;
+bool areTokensAndEqual(const Template& t1, const Template& t2) {
+  if(t1.index() != t2.index()) return false;
 
-    if(auto* w = get_if_unique<WordToken>(&p1)) {
-      if(**w != *get_unique<WordToken>(p2)) return false;
-    }
-    else if(auto* o = get_if_unique<OperToken>(&p1)) {
-      if(**o != *get_unique<OperToken>(p2)) return false;
-    }
-    else if(holds_alternative<unique_ptr<NewlineChar>>(p1))
-      continue;
-    else if(auto* id = get_if_unique<Ident>(&p1)) {
-      if(*id != get_unique<Ident>(p2)) return false;
-    }
-    else return false;
+  if(auto* w = get_if_unique<WordToken>(&t1)) {
+    if(**w != *get_unique<WordToken>(t2)) return false;
+  }
+  else if(auto* o = get_if_unique<OperToken>(&t1)) {
+    if(**o != *get_unique<OperToken>(t2)) return false;
+  }
+  else if(holds_alternative<unique_ptr<NewlineChar>>(t1))
+    return true;
+  else if(auto* id = get_if_unique<Ident>(&t1)) {
+    if(*id != get_unique<Ident>(t2)) return false;
+  }
+  else return false;
+  return true;
+}
+
+static
+bool areAllTokensAndEqual(const vector<Template>& tv,
+                          size_t st1, size_t st2, size_t n) {
+  for(size_t i=0; i<n; ++i) {
+    if(!areTokensAndEqual(tv[st1+i], tv[st2+i])) return false;
   }
   return true;
 }
@@ -372,7 +376,7 @@ auto getSurrounding(InputDiags& ctx, const vector<Template>& tv,
   if(maxlen == 0) return 0;
   optional<size_t> rv;
   for(size_t i=1; i<=maxlen; ++i) {
-    if(!areTokensAndEqual(tv, stMid-i, enMid, i)) continue;
+    if(!areAllTokensAndEqual(tv, stMid-i, enMid, i)) continue;
     if(rv.has_value())
       return Error(ctx, stMid - i, stMid - *rv,
                    "It's unclear if this part should be repeated "
