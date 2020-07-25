@@ -693,7 +693,9 @@ void testTemplateSingleConcat() {
 void testTemplateOperators() {
   const string inputs[] = {"int [ [const | volatile] * ] x;",
                            "var x = value, ... , x = value;",
-                           "stmt; ... stmt;"};
+                           "stmt; ... stmt;",
+                           "stmt; ... ; stmt;",
+                           "a a ... a a"};
   TemplateMatcher expectations[] = {
     concatMatcher(
       "int",
@@ -704,6 +706,8 @@ void testTemplateOperators() {
     concatMatcher(
       "var", foldMatcher(concatMatcher("x", "=", "value"), ","), ";"),
     repeatMatcher(concatMatcher("stmt", ";")),
+    repeatMatcher(concatMatcher("stmt", ";")),
+    repeatMatcher("a"),
   };
   for(size_t i=0; i<size(inputs); ++i) {
     // Setups
@@ -733,7 +737,6 @@ void testTemplateErrorCases() {
     "| int [const | volatile ] x;",
     "int [const | volatile ] x; | ",
     "value + ... + value + ... + value",
-    "a a ... a a",
     "[x] ... [x]",
   };
   string_view expectedDiags[] = {
@@ -744,8 +747,7 @@ void testTemplateErrorCases() {
     "make this pattern optional in parent rules",
     "make this pattern optional in parent rules",
     "Multiple ellipsis",
-    "It's unclear if this part should be repeated",
-    "No valid context",
+    "Nothing to repeat around ellipsis",
   };
   static_assert(size(inputs) == size(expectedDiags));
   for(size_t i=0; i<size(inputs); ++i) {

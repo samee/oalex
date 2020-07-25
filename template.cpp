@@ -577,12 +577,6 @@ RolloutEllipsisForTestResult rolloutEllipsisForTest(string s) {
           .glue{res.foldPoint, res.periodEnd}, .err{res.err}};
 }
 
-// TODO allow multiple examples, like a,b,...,z, and return pairs of size.
-// Possibly by expanding the consumed range just before returning.
-// TODO there must not be any difference between these two:
-//   stmt; ... stmt;
-//   stmt; ... ; stmt;
-// They should both parse as Repeat{Concat{stmt, ";"}}. Right now, it doesn't.
 static
 auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Template> tv)
   -> optional<vector<Template>> {
@@ -592,30 +586,28 @@ auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Template> tv)
   if(tok2p)
     return Error(ctx, tok2p->stPos, "Multiple ellipsis are strung together");
 
-  optional<size_t> surround1 = getSurrounding(ctx, tv, idx, idx + 1);
-  if(!surround1) return nullopt;
-  if(*surround1 == 0) {
-    const UnquotedToken& tok = *getIfUnquotedToken(&tv[idx]);
-    return Error(ctx, tok.stPos, tok.enPos,
-                 "No valid context surrounding this ellipsis");
-  }
-  optional<size_t> surround2
-    = getSurrounding(ctx, tv, idx - *surround1, idx + 1 + *surround1);
-  if(!surround2) return nullopt;
-
-  auto backup = [&](size_t x) { return move_iterator(tv.begin()+idx-x); };
-  if(*surround2 > 0) {
+  auto at = [&](size_t i) { return tv.begin()+i; };
+  size_t lo = atomicSuffixStart(tv, 0, idx);
+  size_t hi = atomicPrefixEnd(tv, idx+1, tv.size());
+  RolloutEllipsisResult<vector<Template>::iterator> rollout =
+    rolloutEllipsis(at(lo), at(idx), at(hi), areTokensAndEqual);
+  if(!rollout.err.empty()) return Error(ctx, tokp->stPos, rollout.err);
+  auto movetovec = [](auto a, auto b) {
+    return vector(move_iterator(a), move_iterator(b));
+  };
+  size_t cuti = rollout.exprBegin - tv.begin();
+  size_t cutj = rollout.exprEnd - tv.begin();
+  if(rollout.foldPoint < rollout.periodEnd) {
     TemplateFold tf;
-    tf.part = gatherInto<TemplateConcat>(vector(backup(*surround1+*surround2),
-                                                backup(*surround1)));
-    tf.glue = gatherInto<TemplateConcat>(vector(backup(*surround1),
-                                                backup(0)));
-    return spliceInCat(std::move(tv), idx - *surround1 - *surround2,
-                       idx + 1 + *surround1 + *surround2, move_to_unique(tf));
+    tf.part = gatherInto<TemplateConcat>(movetovec(rollout.periodBegin,
+                                                   rollout.foldPoint));
+    tf.glue = gatherInto<TemplateConcat>(movetovec(rollout.foldPoint,
+                                                   rollout.periodEnd));
+    return spliceInCat(std::move(tv), cuti, cutj, move_to_unique(tf));
   }else {
-    auto part = gatherInto<TemplateConcat>(vector(backup(*surround1),
-                                                  backup(0)));
-    return spliceInCat(std::move(tv), idx-*surround1, idx+1+*surround1,
+    auto part = gatherInto<TemplateConcat>(movetovec(rollout.periodBegin,
+                                                     rollout.periodEnd));
+    return spliceInCat(std::move(tv), cuti, cutj,
                        move_to_unique(TemplateRepeat{.part{std::move(part)}}));
   }
 }
