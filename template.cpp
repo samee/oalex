@@ -358,6 +358,8 @@ bool areTokensAndEqual(const Template& t1, const Template& t2) {
   return true;
 }
 
+// Dev-notes: It is important that this function takes in indices, and not
+// iterators into the tv argument that is passed into this function by value.
 static
 auto spliceInCat(vector<Template> tv, size_t st, size_t en, Template elt)
   -> vector<Template> {
