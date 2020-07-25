@@ -23,6 +23,7 @@
 #include "ident.h"
 #include "lexer.h"
 
+// TODO s/\<size_t/ssize_t/g
 namespace oalex {
 
 // For now, frontend should restrict wordChars to isprint() && !isspace().
@@ -106,5 +107,11 @@ struct TemplateFold     { Template part, glue; };
 
 auto templatize(InputDiags& ctx, std::vector<TokenOrPart> tops)
   -> std::optional<Template>;
+
+// templatize() helper, exposed for testing.
+struct RolloutEllipsisForTestResult {
+  std::string expr, part, glue, err;
+};
+RolloutEllipsisForTestResult rolloutEllipsisForTest(std::string s);
 
 }  // namespace oalex

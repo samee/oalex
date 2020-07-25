@@ -16,9 +16,10 @@
 #include "lexer.h"
 #include "lookahead_regex_io.h"
 #include "fmt/format.h"
-#include "runtime/input_view.h"
 #include "runtime/diags_test_util.h"
+#include "runtime/input_view.h"
 #include "runtime/test_util.h"
+#include "runtime/util.h"
 #include <map>
 #include <utility>
 using std::get_if;
@@ -42,12 +43,15 @@ using oalex::get_if_unique;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::isSubstr;
 using oalex::LabelOrPart;
 using oalex::labelParts;
 using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::OperToken;
 using oalex::PartPattern;
+using oalex::rolloutEllipsisForTest;
+using oalex::RolloutEllipsisForTestResult;
 using oalex::Skipper;
 using oalex::Template;
 using oalex::TemplateConcat;
@@ -759,6 +763,59 @@ void testTemplateErrorCases() {
   }
 }
 
+void assertEqual(string_view msg, const string& a, const string& b) {
+  if(a!=b) Bug("{}: '{}' != '{}'", msg, a, b);
+}
+
+void testRolloutEllipsis() {
+  pair<string, RolloutEllipsisForTestResult> goodCases[] = {
+    {"(a+...+a)", {"a+...+a", "a", "+", ""}},
+    {"fname a ... a", {" a ... a", " a", "", ""}},
+    {"(term + term + ... + term)", {"term + term + ... + term",
+                                    "term", " + ", ""}},
+    {"|arg...arg|", {"|arg...arg|", "|", "arg", ""}},
+    {"|a|...|a|", {"|a|...|a|", "|", "a", ""}},
+    {"|aa...|", {"aa...", "a", "", ""}},
+    {"do {stmt; ...; stmt; }", {"stmt; ...; stmt; ", "stmt; ", "", ""}},
+    {"do {stmt; ... stmt; }",  {"stmt; ... stmt; ",  "stmt; ", "", ""}},
+    {"do {stmt; stmt; ...; stmt; }", {"stmt; stmt; ...; stmt; ",
+                                      "stmt; ", "", ""}},
+    {"abcabc...bca", {"abcabc...bca", "a", "bc", ""}},
+    {"abcabc...", {"abcabc...", "abc", "", ""}},
+    {"abcabc...cab", {"abcabc...cab", "ab", "c", ""}},
+    {"abc...abcabcc", {"abc...abcabc", "abc", "", ""}},
+    {"abc...abcabccc", {"abc...abcabc", "abc", "", ""}},
+    {"abcabcc...cc", {"cc...cc", "c", "", ""}},
+  };
+  for(const auto& [input, expected] : goodCases) {
+    auto observed = rolloutEllipsisForTest(input);
+    assertEqual("err  for input "+input, "", observed.err);
+    assertEqual("expr for input "+input, expected.expr, observed.expr);
+    assertEqual("part for input "+input, expected.part, observed.part);
+    assertEqual("glue for input "+input, expected.glue, observed.glue);
+  }
+  pair<string, string> badCases[] = {
+    {"...abcabc", "Repeating parts need to appear before ellipsis as well"},
+    {"abc...xyz", "Every repeating part must appear at least twice"},
+    {"abcabc...a", "Repeating parts of an infix"},
+    {"abcab...", "Every repeating part must appear at least twice"},
+    {"abcabc...cc", "Ambiguous"},
+    {"abcabc...abcc", "Ambiguous"},  // Either abc abc, or c abc c ... c abc c
+    // Even though trailing repeats such as "...xyzxyz" would have been
+    // illegal anyway, this is still confusing to the human reader.
+    {"abcabc...xyzxyz", "Ambiguous"},
+  };
+  for(const auto& [input, errmsg] : badCases) {
+    auto observed = rolloutEllipsisForTest(input);
+    if(observed.err.empty())
+      BugMe("Was expecting error for input '{}', got part '{}', glue '{}'",
+            input, observed.part, observed.glue);
+    if(!isSubstr(errmsg, observed.err))
+      BugMe("On input '{}', observed error message '{}' "
+            "doesn't have the expected '{}'", input, observed.err, errmsg);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -784,4 +841,5 @@ int main() {
   testTemplateSingleConcat();
   testTemplateOperators();
   testTemplateErrorCases();
+  testRolloutEllipsis();
 }

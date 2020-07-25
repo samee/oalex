@@ -31,6 +31,7 @@ using std::move_iterator;
 using std::nullopt;
 using std::optional;
 using std::pair;
+using std::sort;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
@@ -389,6 +390,187 @@ auto spliceInCat(vector<Template> tv, size_t st, size_t en, Template elt)
   tv.erase(tv.begin()+st+1, tv.begin()+en);
   tv[st] = std::move(elt);
   return tv;
+}
+
+template <class Equal, class Iter> static
+Iter rolloutPrefix(Iter prefixBegin, Iter prefixEnd,
+                   ssize_t period, Equal eq) {
+  if(prefixEnd-prefixBegin <= period) return prefixBegin;
+  Iter cur = prefixEnd-period;
+  while(cur != prefixBegin) {
+    Iter prev = cur; --prev;
+    if(!eq(*prev, *(prev+period))) break;
+    cur = prev;
+  }
+  return cur;
+}
+
+template <class Equal, class Iter> static
+Iter rolloutSuffix(Iter suffixBegin, Iter suffixEnd,
+                   ssize_t period, Equal eq) {
+  if(suffixEnd-suffixBegin <= period) return suffixEnd;
+  Iter cur = suffixBegin+period;
+  while(cur != suffixEnd) {
+    if(!eq(*(cur-period), *cur)) break;
+    ++cur;
+  }
+  return cur;
+}
+
+// Takes two halves and tries gluing them together. Return value is glueLen,
+// or -1 if they can't be glued together.
+// Gluing always fails if total length is less than two periods.
+// Always returns the smallest valid glue.
+// Assumes period > 0, and exprBegin < ellipsis < exprEnd.
+template <class Equal, class Iter> static
+ssize_t tryGluing(Iter exprBegin, Iter ellipsis, Iter exprEnd,
+                  ssize_t period, Equal eq) {
+  auto equalsOuter = [&](Iter begin, Iter end, ssize_t maxLen) {
+    ssize_t t = end-ellipsis-1;
+    if(t < maxLen) return std::equal(ellipsis+1, end, begin+maxLen-t, eq);
+    else return std::equal(begin, min(begin+maxLen, ellipsis), end-maxLen, eq);
+  };
+  const ssize_t headLen = ellipsis-exprBegin;
+  const ssize_t tailLen = exprEnd-ellipsis-1;
+  if(headLen+tailLen < 2*period) return -1;
+  for(ssize_t glueLen=0; glueLen<period; ++glueLen) {
+    const ssize_t partLen = period-glueLen;
+    if(!equalsOuter(exprBegin, exprEnd, partLen)) continue;
+    if(headLen <= partLen || tailLen <= partLen) return glueLen;
+    if(!equalsOuter(exprBegin+partLen, exprEnd-partLen, glueLen)) continue;
+    return glueLen;
+  }
+  return -1;
+}
+
+template <class Iter>
+struct RolloutEllipsisResult {
+  Iter exprBegin, exprEnd;  // The start and end of the ellipsis expression.
+
+  // [periodBegin, foldPoint) == part, this will never be empty.
+  // [foldPoint, periodEnd) == glue, this can be empty.
+  // All of these will lie within [exprBegin, exprEnd]
+  Iter periodBegin, foldPoint, periodEnd;
+  string err;  // All other fields are invalid if !err.empty()
+};
+
+// Convenience helper
+struct EllipsisError{
+  string err;
+  template <class Iter> operator RolloutEllipsisResult<Iter>() && {
+    return {{}, {}, {}, {}, {}, .err{std::move(this->err)}};
+  }
+};
+
+template <class Iter>
+struct RolloutResultCandidate {
+  Iter exprBegin, exprEnd;
+  ssize_t period, glueLen;
+};
+
+template <class Iter> static
+bool subsumes(const RolloutResultCandidate<Iter>& a,
+              const RolloutResultCandidate<Iter>& b) {
+  return a.exprBegin <= b.exprBegin && a.exprEnd >= b.exprEnd;
+}
+
+template <class Iter> static
+bool subsumes(const RolloutResultCandidate<Iter>& a,
+              const vector<RolloutResultCandidate<Iter>>& bv) {
+  for(const auto& b : bv) if(subsumes(b, a)) return true;
+  return false;
+}
+
+template <class Iter> static
+void pushIfUseful(vector<RolloutResultCandidate<Iter>>& v,
+                  const RolloutResultCandidate<Iter>& c) {
+  if(c.exprEnd-c.exprBegin-1 >= 2*c.period && !subsumes(c, v)) v.push_back(c);
+}
+
+template <class Iter> static
+void sortCandidates(vector<RolloutResultCandidate<Iter>>& v) {
+  using ctype = RolloutResultCandidate<Iter>;
+  auto cmp = [](const ctype& a, const ctype& b) {
+    ssize_t lena = a.exprEnd - a.exprBegin;
+    ssize_t lenb = b.exprEnd - b.exprBegin;
+    if(lena != lenb) return lena > lenb;
+    else return a.period < b.period;
+  };
+  sort(v.begin(), v.end(), cmp);
+}
+
+// Removes everything subsumed by the first element.
+// Assumes !v.empty()
+template <class Iter> static
+void subsumeIntervals(vector<RolloutResultCandidate<Iter>>& v) {
+  auto redundant = [&v](const auto& a) { return subsumes(v[0], a); };
+  v.erase(std::remove_if(v.begin()+1, v.end(), redundant), v.end());
+}
+
+template <class Equal, class Iter> static
+auto rolloutEllipsis(Iter begin, Iter ellipsis, Iter end, Equal eq)
+  -> RolloutEllipsisResult<Iter> {
+  if(ellipsis == end) Bug("{}: Out of bound error", __func__);
+  ssize_t maxp = max(ellipsis-begin, end-ellipsis-1);
+  vector<RolloutResultCandidate<Iter>> candidates;
+  for(ssize_t p=1; p<=maxp; ++p) {
+    RolloutResultCandidate<Iter> cand;
+    // TODO limit max exprLen to something like 9*period.
+    cand.exprBegin = rolloutPrefix(begin, ellipsis, p, eq);
+    cand.exprEnd   = rolloutSuffix(ellipsis+1, end, p, eq);
+    cand.period = p;
+    if(cand.exprEnd - cand.exprBegin - 1 < 2 * p) continue;
+    if(subsumes(cand, candidates)) continue;
+    ssize_t glueLen = tryGluing(cand.exprBegin, ellipsis, cand.exprEnd,
+                                cand.period, eq);
+    if(glueLen == -1) {
+      pushIfUseful(candidates, RolloutResultCandidate<Iter>{
+          cand.exprBegin, ellipsis+1, cand.period, 0});
+      pushIfUseful(candidates, RolloutResultCandidate<Iter>{
+          ellipsis, cand.exprEnd, cand.period, 0});
+    }else {
+      cand.glueLen = glueLen;
+      candidates.push_back(cand);
+    }
+  }
+  if(candidates.empty()) {
+    if(maxp == 0)
+      return EllipsisError{"Nothing to repeat around ellipsis"};
+    else
+      return EllipsisError{"Every repeating part must appear at least twice"};
+  }
+  sortCandidates(candidates);
+  subsumeIntervals(candidates);
+  if(candidates.size() > 1)
+    return EllipsisError{"Ambiguous ellipsis"};  // TODO return more details
+
+  // Either we return the only remaining element, or nothing at all.
+  const auto& cand = candidates[0];
+  if(ellipsis-cand.exprBegin < cand.period)
+    return EllipsisError{"Repeating parts need to appear before ellipsis "
+                         "as well"};
+  if(cand.glueLen && cand.exprEnd-ellipsis-1 < cand.period)
+    return EllipsisError{
+      "Repeating parts of an infix expression need to appear after "
+      "ellipsis as well"
+    };
+  return {cand.exprBegin, cand.exprEnd, cand.exprBegin,
+          cand.exprBegin + cand.period - cand.glueLen,
+          cand.exprBegin + cand.period, {}};
+}
+
+RolloutEllipsisForTestResult rolloutEllipsisForTest(string s) {
+  size_t e = s.find("...");
+  if(e == s.npos) Bug("{}: No dash found", __func__);
+  s.replace(e, 3, 1, '-');  // This needs to be a single element.
+  RolloutEllipsisResult<string::const_iterator> res =
+    rolloutEllipsis(s.cbegin(), s.cbegin()+e, s.cend(), std::equal_to<char>());
+  string newExpr(res.exprBegin, res.exprEnd);
+  e = newExpr.find("-");
+  if(e != newExpr.npos) newExpr.replace(e, 1, "...");
+  return {.expr{std::move(newExpr)},
+          .part{res.periodBegin, res.foldPoint},
+          .glue{res.foldPoint, res.periodEnd}, .err{res.err}};
 }
 
 // TODO allow multiple examples, like a,b,...,z, and return pairs of size.
