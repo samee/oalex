@@ -37,17 +37,19 @@ struct JsonLoc {
   using Vector = std::vector<JsonLoc>;
   using Map = std::map<std::string,JsonLoc>;
   struct Placeholder { std::string key; };
-  using Value = std::variant<Placeholder,String,Vector,Map>;
+  using Value = std::variant<std::monostate,Placeholder,String,Vector,Map>;
 
   Value value;
   size_t stpos=npos, enpos=npos;
 
   // conversion constructors.
-  JsonLoc() : value() {}
+  JsonLoc() : value(std::monostate()) {}
   JsonLoc(Placeholder p) : value(p) {}
   JsonLoc(String s) : value(s) {}
   JsonLoc(Vector v) : value(v) {}
   JsonLoc(Map m) : value(m) {}
+
+  bool empty() const { return std::holds_alternative<std::monostate>(value); }
 
   // Note that allPlaceholders() is a non-const member method, since it returns
   // non-const JsonLoc pointers to various internal components. Pretty much any
