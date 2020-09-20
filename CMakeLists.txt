@@ -22,6 +22,10 @@ add_executable(lexer_test lexer.cpp lexer_matcher.cpp lexer_test.cpp)
 target_link_libraries(lexer_test oalex)
 add_test(lexer_test lexer_test)
 
+add_executable(codegen_test codegen.cpp codegen_test.cpp)
+target_link_libraries(codegen_test oalex)
+add_test(codegen_test codegen_test)
+
 add_executable(jsonloc_test lexer.cpp jsonloc_test.cpp jsonloc.cpp)
 target_link_libraries(jsonloc_test oalex)
 add_test(jsonloc_test jsonloc_test)
