@@ -19,6 +19,7 @@
 using std::back_inserter;
 using std::size;
 using std::string;
+using oalex::assertEqual;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::Rule;
@@ -29,21 +30,19 @@ namespace {
 
 void testSingleStringMatch() {
   const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
-  auto ctx = testInputDiags("hello-world");
+  const string msg = "hello-world";
+  auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  Rule rules[] = {"hello-world"};
+  Rule rules[] = {msg};
   RuleSet rs{{}, cskip};
   move(rules, rules+size(rules), back_inserter(rs.rules));
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(jsloc.empty()) BugMe("eval() was empty");
-  if(jsloc.stPos != 0 || jsloc.enPos != size("hello-world")-1)
-    BugMe("eval() produced unexpected offsets: ({}, {})",
-          jsloc.stPos, jsloc.enPos);
+  assertEqual(me("eval().stPos"), jsloc.stPos, size_t(0));
+  assertEqual(me("eval().enPos"), jsloc.enPos, msg.size());
   if(string* s = get_if<string>(&jsloc)) {
-    if(*s != "hello-world")
-      BugMe("eval() produced {} != 'hello-world'", *s);
+    assertEqual(me("eval() output value"), *s, msg);
   }else BugMe("eval() produced a non-string. Index: {}", jsloc.value.index());
-  // TODO assertEqual should be in test_util
 }
 
 }  // namespace

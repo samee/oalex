@@ -37,6 +37,7 @@ using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
 using fmt::format;
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::DelimPair;
 using oalex::get_if_unique;
@@ -765,10 +766,6 @@ void testTemplateErrorCases() {
   }
 }
 
-void assertEqual(string_view msg, const string& a, const string& b) {
-  if(a!=b) Bug("{}: '{}' != '{}'", msg, a, b);
-}
-
 void testRolloutEllipsis() {
   pair<string, RolloutEllipsisForTestResult> goodCases[] = {
     {"(a+...+a)", {"a+...+a", "a", "+", ""}},
@@ -791,7 +788,7 @@ void testRolloutEllipsis() {
   };
   for(const auto& [input, expected] : goodCases) {
     auto observed = rolloutEllipsisForTest(input);
-    assertEqual("err  for input "+input, "", observed.err);
+    assertEqual("err  for input "+input, ""s, observed.err);
     assertEqual("expr for input "+input, expected.expr, observed.expr);
     assertEqual("part for input "+input, expected.part, observed.part);
     assertEqual("glue for input "+input, expected.glue, observed.glue);

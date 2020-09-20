@@ -41,6 +41,12 @@ template <class ... Args> [[noreturn]] void
 }
 
 #define BugMe(...) oalex::BugMeImpl(__func__, __VA_ARGS__)
+#define me(msg) fmt::format("{}: {}", __func__, msg)
+
+template <class X>
+void assertEqual(std::string_view msg, const X& a, const X& b) {
+  if(a!=b) Bug("{}: '{}' != '{}'", msg, a, b);
+}
 
 // Useful as getch() callbacks in dfa.h and input_view.h.
 // Dev note: When reading from files, two things to note:
