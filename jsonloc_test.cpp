@@ -252,7 +252,7 @@ void testJsonLocPosition(const char input[], size_t endi) {
 
 }  // namespace
 
-// Note: none of these check JsonLoc::stpos or enpos of parse results, since we
+// Note: none of these check JsonLoc::stPos or enPos of parse results, since we
 // don't quite know how they will actually be used in practice, or what methods
 // are needed to support their use pattern. Avoiding overengineering for now.
 int main() {

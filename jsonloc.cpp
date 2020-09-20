@@ -65,19 +65,19 @@ size_t JsonLoc::substitute(const PlaceholderMap& pmap, string_view key,
   return rv;
 }
 
-// assumes (stpos == npos) == (enpos == npos)
+// assumes (stPos == npos) == (enPos == npos)
 static bool childIsGood(const JsonLoc& parent, const JsonLoc& child) {
   if(!child.substitutionsOk()) return false;
-  else if(child.stpos == JsonLoc::npos) return true;
-  else if(parent.stpos == JsonLoc::npos) return false;
-  else if(child.stpos < parent.stpos) return false;
-  else if(child.enpos > parent.enpos) return false;
+  else if(child.stPos == JsonLoc::npos) return true;
+  else if(parent.stPos == JsonLoc::npos) return false;
+  else if(child.stPos < parent.stPos) return false;
+  else if(child.enPos > parent.enPos) return false;
   else return true;
 }
 
 bool JsonLoc::substitutionsOk() const {
   if(holds_alternative<Placeholder>(this->value)) return false;
-  if((this->stpos==JsonLoc::npos) != (this->enpos==JsonLoc::npos)) return false;
+  if((this->stPos==JsonLoc::npos) != (this->enPos==JsonLoc::npos)) return false;
 
   if(auto* v = get_if<Vector>(&this->value)) {
     for(auto& elt : *v) if(!childIsGood(*this,elt)) return false;

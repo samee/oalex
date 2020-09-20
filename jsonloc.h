@@ -25,7 +25,7 @@ namespace oalex {
 
 // Even though we call it json, we don't in fact support numbers, booleans,
 // or null. It's all strings here, that's the only atomic datatype.
-// stpos and enpos can remain JsonLoc::npos, if they only have hardcoded values.
+// stPos and enPos can remain JsonLoc::npos, if they only have hardcoded values.
 // The other difference is that we treat strings as byte-strings, not utf-8.
 // This also causes a difference in our backslash escaping conventions.
 // prettyPrint() also returns something closer to protobufs than json.
@@ -40,7 +40,7 @@ struct JsonLoc {
   using Value = std::variant<std::monostate,Placeholder,String,Vector,Map>;
 
   Value value;
-  size_t stpos=npos, enpos=npos;
+  size_t stPos=npos, enPos=npos;
 
   // conversion constructors.
   JsonLoc() : value(std::monostate()) {}
@@ -65,7 +65,7 @@ struct JsonLoc {
   // Check if all placeholders have been substituted.
   // Check if child intervals are covered by parent intervals (ignoring npos).
   // Check if child has a valid interval, so does parent.
-  // Check if all (stpos==npos) == (enpos==npos).
+  // Check if all (stPos==npos) == (enPos==npos).
   // Typically, this should be checked after all substitutions are made.
   bool substitutionsOk() const;
 
