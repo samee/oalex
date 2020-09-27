@@ -24,20 +24,28 @@ static const Skipper& skipper(const RuleSet& ruleset, ssize_t ruleIndex) {
   }else return ruleset.skip;
 }
 
+static bool skip(InputDiags& ctx, ssize_t& i,
+                 const SkipPoint& sp) {
+  const Input& input = ctx.input;
+  const ssize_t oldi = i;
+  i = sp.stayWithinLine ? sp.skip->withinLine(input, i)
+                        : sp.skip->acrossLines(input, i);
+  if(i == ssize_t(string::npos)) {
+    ssize_t com = oldi;
+    // com = skipToComment(ctx.input, oldi); // TODO
+    Error(ctx, com, "Unfinished comment");
+  }
+  return i != ssize_t(string::npos);
+}
+
 // TODO move to runtime/oalex_runtime.h
 JsonLoc skipAndMatch(InputDiags& ctx, ssize_t& i,
-                     const Skipper& skip, const string& s) {
-  // TODO switch between acrossLines vs. withinLines.
-  size_t j = skip.acrossLines(ctx.input, i);
-  if(j == string::npos) {
-    // i = skipToComment(ctx.input, i);  // TODO
-    Error(ctx, i, "Unfinished comment");
-    return {};
-  }
-  if(!ctx.input.hasPrefix(j, s)) return {};
+                     const Skipper& sk, const string& s) {
+  if(!skip(ctx, i, SkipPoint{false, &sk})) return {};
+  if(!ctx.input.hasPrefix(i, s)) return {};
   JsonLoc rv = s;
-  rv.stPos = j;
-  i = rv.enPos = j+s.size();
+  rv.stPos = i;
+  i = rv.enPos = i+s.size();
   return rv;
 }
 
