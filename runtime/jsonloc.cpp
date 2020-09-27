@@ -15,7 +15,7 @@
 #include "jsonloc.h"
 
 #include "fmt/format.h"
-#include "runtime/util.h"
+#include "util.h"
 using fmt::format_to;
 using fmt::memory_buffer;
 using std::get_if;

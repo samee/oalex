@@ -6,11 +6,11 @@
 #include <string>
 #include <vector>
 
-#include "lexer.h"
-#include "runtime/diags_test_util.h"
-#include "runtime/input_view.h"
-#include "runtime/test_util.h"
-#include "runtime/util.h"
+#include "../lexer.h"
+#include "diags_test_util.h"
+#include "input_view.h"
+#include "test_util.h"
+#include "util.h"
 using std::get_if;
 using std::isalnum;
 using std::isdigit;

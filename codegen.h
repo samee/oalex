@@ -17,7 +17,7 @@
 #include <string_view>
 #include <vector>
 #include <utility>
-#include "jsonloc.h"
+#include "runtime/jsonloc.h"
 #include "runtime/lookahead_regex.h"  // TODO rename to regex.h, remove ns.
 #include "runtime/skipper.h"
 
@@ -45,8 +45,6 @@ struct RuleSet {
 using OutputStream = std::function<void(std::string_view)>;
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex, OutputStream& os);
 
-// TODO JsonLoc should move to runtime/, at least the type definition.
-//   Maybe not the parsing or printing parts.
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex);
 
