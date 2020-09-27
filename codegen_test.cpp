@@ -77,8 +77,6 @@ void testSkipFailsOnUnfinishedComment() {
   RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
   eval(ctx, pos, rs, 0);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Unfinished comment", 2);
-  // TODO
-  //assertEqual(me("eval().stPos"), ctx.diags[0].stPos, msg.find("/*"));
 }
 
 }  // namespace
