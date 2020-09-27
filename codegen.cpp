@@ -30,7 +30,8 @@ JsonLoc skipAndMatch(InputDiags& ctx, ssize_t& i,
   // TODO switch between acrossLines vs. withinLines.
   size_t j = skip.acrossLines(ctx.input, i);
   if(j == string::npos) {
-    Error(ctx, i, "Unfinished comment");  // TODO point to start of comment.
+    // i = skipToComment(ctx.input, i);  // TODO
+    Error(ctx, i, "Unfinished comment");
     return {};
   }
   if(!ctx.input.hasPrefix(j, s)) return {};
