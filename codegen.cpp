@@ -18,12 +18,6 @@ using std::string;
 
 namespace oalex {
 
-static const Skipper& skipper(const RuleSet& ruleset, ssize_t ruleIndex) {
-  if(auto* cr = get_if<ConcatRule>(&ruleset.rules[ruleIndex])) {
-    return cr->skip ? *cr->skip : ruleset.skip;
-  }else return ruleset.skip;
-}
-
 static bool skip(InputDiags& ctx, ssize_t& i,
                  const SkipPoint& sp) {
   const Input& input = ctx.input;
@@ -39,9 +33,7 @@ static bool skip(InputDiags& ctx, ssize_t& i,
 }
 
 // TODO move to runtime/oalex_runtime.h
-JsonLoc skipAndMatch(InputDiags& ctx, ssize_t& i,
-                     const Skipper& sk, const string& s) {
-  if(!skip(ctx, i, SkipPoint{false, &sk})) return {};
+JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
   if(!ctx.input.hasPrefix(i, s)) return {};
   JsonLoc rv = s;
   rv.stPos = i;
@@ -52,9 +44,8 @@ JsonLoc skipAndMatch(InputDiags& ctx, ssize_t& i,
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
-  if(const string* s = get_if<string>(&r)) {
-    return skipAndMatch(ctx, i, skipper(ruleset, ruleIndex), *s);
-  }else if(const auto* sp = get_if<SkipPoint>(&r)) {
+  if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
+  else if(const auto* sp = get_if<SkipPoint>(&r)) {
     skip(ctx, i, *sp);
     return {};
   }

@@ -30,7 +30,6 @@ struct ConcatRule {
   std::string name;
   std::vector<size_t> components;
   std::vector<std::string> outputPlaceholders;
-  Skipper* skip;  // Frequently nullptr, which defaults to RuleSet::skip.
   JsonLoc outputTmpl;
 };
 
