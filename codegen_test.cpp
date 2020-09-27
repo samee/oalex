@@ -51,6 +51,15 @@ void testSingleStringMatch() {
   }else BugMe("eval() produced a non-string. Index: {}", jsloc.value.index());
 }
 
+void testSingleStringMismatch() {
+  const string msg = "hello-world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  RuleSet rs = singletonRuleSet(msg + "!");
+  JsonLoc jsloc = eval(ctx, pos, rs, 0);
+  if(!jsloc.empty()) BugMe("Was expecting string match to fail");
+}
+
 void testSingleSkip() {
   const string msg = "  /* hello */ world";
   auto ctx = testInputDiags(msg);
@@ -61,10 +70,21 @@ void testSingleSkip() {
   assertEqual(me("eval() endpoint"), size_t(pos), msg.find("world"));
 }
 
+void testSkipFailsOnUnfinishedComment() {
+  const string msg = "  /* hello world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
+  eval(ctx, pos, rs, 0);
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Unfinished comment");
+}
+
 }  // namespace
 
 int main() {
   testSingleStringMatch();
+  testSingleStringMismatch();
   testSingleSkip();
+  testSkipFailsOnUnfinishedComment();
 }
 

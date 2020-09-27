@@ -35,6 +35,7 @@ static bool skip(InputDiags& ctx, ssize_t& i,
 // TODO move to runtime/oalex_runtime.h
 JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
   if(!ctx.input.hasPrefix(i, s)) return {};
+  // TODO figure out error reporting, based on whether match is tentative.
   JsonLoc rv = s;
   rv.stPos = i;
   i = rv.enPos = i+s.size();
