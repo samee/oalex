@@ -29,7 +29,6 @@ inline void assertHasDiagWithSubstr(std::string_view testName,
                                     const std::vector<oalex::Diag>& diags,
                                     std::string_view expectedDiag) {
   using oalex::Diag;
-  if(expectedDiag.empty()) return;  // Test succeeds even if we have no diags.
   for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
   showDiags(diags);
   oalex::Bug("{} didn't get the expected diag: {}",

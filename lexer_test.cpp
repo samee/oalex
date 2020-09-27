@@ -119,7 +119,8 @@ void headerFailureImpl(const char testInput[], const char testName[],
   optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
   if(res && ctx.diags.empty())
     Bug("Test {} succeeded unexpectedly", testName);
-  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+  if(!expectedDiag.empty())
+    assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
 }
 
 const char goodString[] = "\"Hello world\"";
