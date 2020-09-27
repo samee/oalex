@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include "util.h"
 using std::get_if;
 using std::string;
 
@@ -26,7 +27,8 @@ static bool skip(InputDiags& ctx, ssize_t& i,
                         : sp.skip->acrossLines(input, i);
   if(i == ssize_t(string::npos)) {
     ssize_t com = oldi;
-    // com = skipToComment(ctx.input, oldi); // TODO
+    while(ctx.input.sizeGt(com) && is_in(ctx.input[com], " \n\t")) ++com;
+    if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
   }
   return i != ssize_t(string::npos);

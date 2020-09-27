@@ -1,4 +1,4 @@
-/*  Copyright 2019 Google LLC
+/*  Copyright 2019-2020 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,6 +33,21 @@ inline void assertHasDiagWithSubstr(std::string_view testName,
   showDiags(diags);
   oalex::Bug("{} didn't get the expected diag: {}",
              testName, expectedDiag);
+}
+
+inline void assertHasDiagWithSubstrAt(std::string_view testName,
+                                      const std::vector<oalex::Diag>& diags,
+                                      std::string_view expectedDiag,
+                                      size_t expectedStPos) {
+  using oalex::Diag;
+  for(const Diag& d : diags) {
+    if(d.stPos != expectedStPos+1) continue;  // The +1 is from Diags() ctor
+    if(!oalex::isSubstr(expectedDiag, d.msg)) continue;
+    return;
+  }
+  showDiags(diags);
+  oalex::Bug("{} didn't get the expected diag at position {}: {}",
+             testName, expectedStPos, expectedDiag);
 }
 
 inline oalex::InputDiags testInputDiags(std::string_view s) {

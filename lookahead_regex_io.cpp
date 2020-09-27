@@ -17,6 +17,7 @@
 #include <cstring>
 #include "fmt/format.h"
 #include "lexer.h"
+#include "util.h"
 #include "runtime/util.h"
 using std::get_if;
 using std::isprint;
@@ -36,11 +37,6 @@ char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
   else if(ch <= 15) return ch-10+'a';
   else Bug("hexdigit({}) input is not a hex digit.", int(ch));
-}
-
-bool is_in(char ch, const char s[]) {
-  const char* c = strchr(s, ch);
-  return c && *c;
 }
 
 auto xlat(const char* from, const char* to, char ch) -> optional<char> {
