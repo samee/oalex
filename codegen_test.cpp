@@ -25,17 +25,23 @@ using oalex::JsonLoc;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
+using oalex::SkipPoint;
 
 namespace {
 
+const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
+
+RuleSet singletonRuleSet(Rule r) {
+  RuleSet rs{{}, cskip};
+  rs.rules.push_back(std::move(r));
+  return rs;
+}
+
 void testSingleStringMatch() {
-  const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
   const string msg = "hello-world";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  Rule rules[] = {msg};
-  RuleSet rs{{}, cskip};
-  move(rules, rules+size(rules), back_inserter(rs.rules));
+  RuleSet rs = singletonRuleSet(msg);
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(jsloc.empty()) BugMe("eval() was empty");
   assertEqual(me("eval().stPos"), jsloc.stPos, size_t(0));
@@ -45,9 +51,20 @@ void testSingleStringMatch() {
   }else BugMe("eval() produced a non-string. Index: {}", jsloc.value.index());
 }
 
+void testSingleSkip() {
+  const string msg = "  /* hello */ world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
+  eval(ctx, pos, rs, 0);
+  assertEmptyDiags(__func__, ctx.diags);
+  assertEqual(me("eval() endpoint"), size_t(pos), msg.find("world"));
+}
+
 }  // namespace
 
 int main() {
   testSingleStringMatch();
+  testSingleSkip();
 }
 

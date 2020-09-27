@@ -39,7 +39,6 @@ struct SkipPoint {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
-// TODO add explicit skip-point, rather than tacking it onto ConcatRule.
 using Rule = std::variant<std::string, regex::Regex, SkipPoint, ConcatRule>;
 
 struct RuleSet {

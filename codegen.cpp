@@ -54,6 +54,9 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   const Rule& r = ruleset.rules[ruleIndex];
   if(const string* s = get_if<string>(&r)) {
     return skipAndMatch(ctx, i, skipper(ruleset, ruleIndex), *s);
+  }else if(const auto* sp = get_if<SkipPoint>(&r)) {
+    skip(ctx, i, *sp);
+    return {};
   }
   Unimplemented("eval() for rule {}", r.index());
 }
