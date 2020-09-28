@@ -56,4 +56,8 @@ bool matchesCharSet(char ch, const CharSet& cset);
 bool startsWith(const Input& input, size_t i,
                 const Regex& regex, const RegexOptions& opts);
 
+// Not used for lookaheads. TODO rename this set of files.
+bool consumeGreedily(const Input& input, size_t& i,
+                     const Regex& regex, const RegexOptions& opts);
+
 }  // namespace oalex::regex

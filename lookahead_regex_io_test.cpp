@@ -14,9 +14,11 @@
 
 #include "lookahead_regex_io.h"
 #include <string_view>
+#include <tuple>
 #include <vector>
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
@@ -38,6 +40,7 @@ using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 
@@ -226,26 +229,31 @@ void testStripOuterParens() {
   }
 }
 
-void testRegexStartsWith() {
+void testRegexMatches() {
   RegexOptions opts{.word = parseCharSet("[0-9A-Za-z_]")};
-  const vector<pair<string,string>> testVectors{
-    {"//", "foo"},
-    {"/fo[ox]/", "fox"},
-    {"/foo?/", "fox"},
-    {"/(ab?c)+|.[xyz]+/", "abcacacabcfoo"},
-    {"/(ab?c)+|.[xyz]+/", "wx"},
-    {"/^foo$/", "foo"},
-    {"/\\bfoo\\b/", "foo "},
-    {"/$/", ""},
-    {"/^/", "foo"},
+  const vector<tuple<string,string,size_t>> testVectors{
+    {"//", "foo", 0},
+    {"/fo[ox]/", "fox", 3},
+    {"/foo?/", "fox", 2},
+    {"/(ab?c)+|.[xyz]+/", "abcacacabcfoo", 10},
+    {"/(ab?c)+|.[xyz]+/", "wx", 2},
+    {"/^foo$/", "foo", 3},
+    {"/\\bfoo\\b/", "foo ", 3},
+    {"/$/", "", 0},
+    {"/^/", "foo", 0},
   };
-  for(auto& [pattern, inputstr] : testVectors) {
+  for(auto& [pattern, inputstr, matchLen] : testVectors) {
     InputDiags regex_input{Input{pattern}};
     size_t i = 0;
     Regex regex = *regex::parse(regex_input, i);
     Input input{inputstr};
     if(!startsWith(input, 0, regex, opts))
       BugMe("\"{}\" was expected to startWith() {}", inputstr, pattern);
+    i = 0;
+    if(!consumeGreedily(input, i, regex, opts))
+      BugMe("consumeGreedily(\"{}\", {}) fails even though startsWith() passes",
+            inputstr, pattern);
+    assertEqual("Regex comsumption length", i, matchLen);
   }
   const vector<pair<string,string>> failVectors{
     {"/(ab?c)+|.[xyz]+/", "!abcacacabcfoo"},
@@ -261,6 +269,9 @@ void testRegexStartsWith() {
     Input input{inputstr};
     if(startsWith(input, 0, regex, opts))
       BugMe("\"{}\" was not expected to startWith() {}", inputstr, pattern);
+    i = 0;
+    if(consumeGreedily(input, i, regex, opts))
+      BugMe("\"{}\" was not expected to be consumed by {}", inputstr, pattern);
   };
 }
 
@@ -271,5 +282,5 @@ int main() {
   testParseAndPrint();
   testParseDiags();
   testStripOuterParens();
-  testRegexStartsWith();
+  testRegexMatches();
 }

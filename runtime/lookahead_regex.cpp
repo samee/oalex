@@ -47,6 +47,7 @@ MatchState init(const Regex& regex);
 void start(const Regex& regex, MatchState& state);
 void advance(const Regex& regex, unsigned char ch, MatchState& state);
 bool matched(const Regex& regex, const MatchState& state);
+bool might_match(const Regex& regex, const MatchState& state);
 
 auto partInit(const vector<Regex>& parts) {
   vector<MatchState> rv;
@@ -111,6 +112,20 @@ void start(const Regex& regex, MatchState& state) {
   }else Bug("Unknown index in start() {}", regex.index());
 }
 
+bool any(const vector<bool>& v) {
+  for(bool b : v) if(b) return true;
+  return false;
+}
+
+bool matches_any_part(const vector<Regex>& regexParts,
+                      const MatchState& stateVector,
+                      bool (*recurse)(const Regex&, const MatchState&)) {
+  size_t i = 0;
+  for(auto& part : get_unique<MatchStateVector>(stateVector).parts)
+    if(recurse(regexParts.at(i++), part)) return true;
+  return false;
+}
+
 bool matched(const Regex& regex, const MatchState& state) {
   if(holds_one_of_unique<CharSet, string, Anchor>(regex))
     return get_unique<vector<bool>>(state).back();
@@ -118,16 +133,28 @@ bool matched(const Regex& regex, const MatchState& state) {
     auto& optstate = get_unique<OptionalState>(state);
     return optstate.justStarted || matched(opt->part, optstate.part);
   }else if(auto* ors = get_if_unique<OrList>(&regex)) {
-    size_t i = 0;
-    for(auto& part : get_unique<MatchStateVector>(state).parts)
-      if(matched(ors->parts.at(i++), part)) return true;
-    return false;
+    return matches_any_part(ors->parts, state, matched);
   }else if(auto* rep = get_if_unique<Repeat>(&regex))
     return matched(rep->part, state);
   else if(auto* seq = get_if_unique<Concat>(&regex))
     return matched(seq->parts.back(),
         get_unique<MatchStateVector>(state).parts.back());
   else Bug("Unknown index in matched() {}", regex.index());
+}
+
+bool might_match(const Regex& regex, const MatchState& state) {
+  if(holds_one_of_unique<CharSet, string, Anchor>(regex))
+    return any(get_unique<vector<bool>>(state));
+  else if(auto* opt = get_if_unique<Optional>(&regex)) {
+    auto& optstate = get_unique<OptionalState>(state);
+    return optstate.justStarted || might_match(opt->part, optstate.part);
+  }else if(auto* ors = get_if_unique<OrList>(&regex))
+    return matches_any_part(ors->parts, state, might_match);
+  else if(auto* rep = get_if_unique<Repeat>(&regex))
+    return might_match(rep->part, state);
+  else if(auto* seq = get_if_unique<Concat>(&regex))
+    return matches_any_part(seq->parts, state, might_match);
+  else Bug("Unknown index in might_match() {}", regex.index());
 }
 
 void shiftRight(vector<bool>& v) {
@@ -240,6 +267,26 @@ bool startsWith(const Input& input, size_t i, const Regex& regex,
   }
   advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
   return matched(regex, state);
+}
+
+bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
+                     const RegexOptions& opts) {
+  MatchState state = init(regex);
+  char prev = '\n';
+  start(regex, state);
+  size_t j = i;
+  size_t last_matched = string::npos;
+
+  while(might_match(regex, state) && input.sizeGt(j)) {
+    advanceAnchor(regex, state, anchorBetweenChars(prev, input[j], opts));
+    if(matched(regex, state)) last_matched = j;
+    advance(regex, input[j], state);
+    prev = input[j++];
+  }
+  advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
+  if(matched(regex, state)) last_matched = j;
+  if(last_matched != string::npos) { i = last_matched; return true; }
+  else return false;
 }
 
 }  // namespace oalex::regex
