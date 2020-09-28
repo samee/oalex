@@ -25,7 +25,6 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
-// We skip before every component.
 struct ConcatRule {
   std::string name;
   std::vector<size_t> components;
