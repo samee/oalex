@@ -102,11 +102,11 @@ bool isPlainRange(const CharRange& range) {
 
 auto prettyPrintRec(const Regex& regex) -> string;
 
-bool hasAllChars(const CharSet& set) {
+bool hasAllChars(const RegexCharSet& set) {
   return set.negated && set.ranges.empty();
 }
 
-string prettyPrintSet(const CharSet& set) {
+string prettyPrintSet(const RegexCharSet& set) {
   if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
   fmt::memory_buffer buf;
@@ -138,7 +138,7 @@ string prettyPrintAnchor(RegexAnchor a) {
 }
 
 bool printsToNull(const Regex& regex) {
-  if(holds_one_of_unique<CharSet,RegexAnchor,
+  if(holds_one_of_unique<RegexCharSet,RegexAnchor,
                          RegexOptional,RegexRepeat,RegexOrList>(regex))
     return false;
   else if(auto* s = get_if_unique<string>(&regex)) return s->empty();
@@ -159,7 +159,7 @@ string prettyPrintSeq(const RegexConcat& seq) {
   fmt::memory_buffer buf;
   for(auto& part : seq.parts) {
     if(printsToNull(part)) format_to(buf, "()");
-    else surroundUnless<CharSet, string, RegexAnchor,
+    else surroundUnless<RegexCharSet, string, RegexAnchor,
                         RegexRepeat, RegexOptional>(buf, part);
   }
   return fmt::to_string(buf);
@@ -169,11 +169,11 @@ string prettyPrintOrs(const RegexOrList& ors) {
   if(ors.parts.empty()) return "";
   fmt::memory_buffer buf;
 
-  surroundUnless<CharSet, string, RegexAnchor,
+  surroundUnless<RegexCharSet, string, RegexAnchor,
                  RegexConcat, RegexRepeat, RegexOptional>(buf, ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
     format_to(buf, "|");
-    surroundUnless<CharSet, string, RegexAnchor,
+    surroundUnless<RegexCharSet, string, RegexAnchor,
                    RegexConcat, RegexRepeat, RegexOptional>(buf, ors.parts[i]);
   }
   return fmt::to_string(buf);
@@ -222,7 +222,8 @@ string prettyPrintRep(const RegexRepeat& rep) {
   */
 
 auto prettyPrintRec(const Regex& regex) -> string {
-  if(auto* set = get_if_unique<CharSet>(&regex)) return prettyPrintSet(*set);
+  if(auto* set = get_if_unique<RegexCharSet>(&regex))
+    return prettyPrintSet(*set);
   else if(auto* seq = get_if_unique<RegexConcat>(&regex))
     return prettyPrintSeq(*seq);
   else if(auto* s = get_if_unique<string>(&regex)) return escapedForString(*s);
@@ -294,11 +295,11 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   return ch;
 }
 
-auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<CharSet> {
+auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<RegexCharSet> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'['))
     Bug("parseCharSetUnq called at invalid location {}", i);
-  CharSet cset;
+  RegexCharSet cset;
   size_t j = i+1;
 
   cset.negated = parseCharSetNegation(input, j);
@@ -437,7 +438,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
       if(!repeatBack(ctx, j, concat)) return nullopt;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {
-      subres = move_to_unique(CharSet{{}, true});
+      subres = move_to_unique(RegexCharSet{{}, true});
       ++j;
     }else subres = parseSingleChar(ctx, j);
 
@@ -480,13 +481,13 @@ auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
 
-regex::CharSet parseCharSet(string input) {
+regex::RegexCharSet parseRegexCharSet(string input) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
   else {
     for(const auto& d : ctx.diags) BugWarn("{}", string(d));
-    Bug("parseCharSet() input was invalid: {}", input);
+    Bug("parseRegexCharSet() input was invalid: {}", input);
   }
 }
 

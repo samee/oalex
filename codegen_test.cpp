@@ -39,7 +39,7 @@ namespace {
 
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
 const RegexOptions regexOpts{
-  .word = oalex::parseCharSet("[0-9A-Za-z_]")
+  .word = oalex::parseRegexCharSet("[0-9A-Za-z_]")
 };
 
 RuleSet singletonRuleSet(Rule r) {

@@ -80,6 +80,6 @@ auto prettyPrint(const regex::Regex& regex) -> std::string;
 auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<regex::Regex>;
 
 // Used for test only. Dies on invalid input.
-regex::CharSet parseCharSet(std::string input);
+regex::RegexCharSet parseRegexCharSet(std::string input);
 
 }  // namespace oalex

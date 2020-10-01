@@ -28,7 +28,7 @@ namespace oalex::regex {
 namespace {
 
 using MatchState = variant<
-  unique_ptr<vector<bool>>,            // Used for CharSet and string
+  unique_ptr<vector<bool>>,            // Used for RegexCharSet and string
   unique_ptr<struct OptionalState>,    // Used only for Optional
   unique_ptr<struct MatchStateVector>  // Used for RegexOrList and RegexConcat
 >;                                     // RegexRepeat doesn't keep any
@@ -72,7 +72,7 @@ auto assertMatchStateVector(MatchState& state, size_t sz)
 }
 
 MatchState init(const Regex& regex) {
-  if(holds_one_of_unique<CharSet, RegexAnchor>(regex))
+  if(holds_one_of_unique<RegexCharSet, RegexAnchor>(regex))
     return make_unique<vector<bool>>(2, false);
   else if(auto* s = get_if_unique<string>(&regex))
     return make_unique<vector<bool>>(s->size()+1, false);
@@ -88,7 +88,7 @@ MatchState init(const Regex& regex) {
 }
 
 void start(const Regex& regex, MatchState& state) {
-  if(holds_one_of_unique<CharSet, string, RegexAnchor>(regex))
+  if(holds_one_of_unique<RegexCharSet, string, RegexAnchor>(regex))
     get_unique<vector<bool>>(state).at(0) = true;
   else if(auto* opt = get_if_unique<RegexOptional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);
@@ -128,7 +128,7 @@ bool matches_any_part(const vector<Regex>& regexParts,
 }
 
 bool matched(const Regex& regex, const MatchState& state) {
-  if(holds_one_of_unique<CharSet, string, RegexAnchor>(regex))
+  if(holds_one_of_unique<RegexCharSet, string, RegexAnchor>(regex))
     return get_unique<vector<bool>>(state).back();
   else if(auto* opt = get_if_unique<RegexOptional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);
@@ -144,7 +144,7 @@ bool matched(const Regex& regex, const MatchState& state) {
 }
 
 bool might_match(const Regex& regex, const MatchState& state) {
-  if(holds_one_of_unique<CharSet, string, RegexAnchor>(regex))
+  if(holds_one_of_unique<RegexCharSet, string, RegexAnchor>(regex))
     return any(get_unique<vector<bool>>(state));
   else if(auto* opt = get_if_unique<RegexOptional>(&regex)) {
     auto& optstate = get_unique<OptionalState>(state);
@@ -164,9 +164,9 @@ void shiftRight(vector<bool>& v) {
 }
 
 void advance(const Regex& regex, unsigned char ch, MatchState& state) {
-  if(auto* cset = get_if_unique<CharSet>(&regex)) {
+  if(auto* cset = get_if_unique<RegexCharSet>(&regex)) {
     auto& v = assertVectorBool(state, 2);
-    if(!matchesCharSet(ch, *cset)) v[0] = false;
+    if(!matchesRegexCharSet(ch, *cset)) v[0] = false;
     shiftRight(v);
   }else if(auto* s = get_if_unique<string>(&regex)) {
     auto& v = assertVectorBool(state, s->size()+1);
@@ -200,8 +200,8 @@ void advance(const Regex& regex, unsigned char ch, MatchState& state) {
 enum AnchorMatches { matchesWordEdge = 1, matchesBol = 2, matchesEol = 4 };
 
 AnchorMatches anchorBetweenChars(char from, char to, const RegexOptions& opts) {
-  bool w1 = matchesCharSet(from, opts.word);
-  bool w2 = matchesCharSet(to, opts.word);
+  bool w1 = matchesRegexCharSet(from, opts.word);
+  bool w2 = matchesRegexCharSet(to, opts.word);
   int rv = 0;
   if(w1 != w2) rv |= matchesWordEdge;
   if(from == '\n') rv |= matchesBol;
@@ -211,7 +211,7 @@ AnchorMatches anchorBetweenChars(char from, char to, const RegexOptions& opts) {
 
 // Only ever adds more true values to MatchState, never takes them away.
 void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
-  if(holds_one_of_unique<CharSet, string>(regex)) return;
+  if(holds_one_of_unique<RegexCharSet, string>(regex)) return;
   else if(auto* a = get_if_unique<RegexAnchor>(&regex)) {
     auto& v = assertVectorBool(state, 2);
     if(!v[0]) return;
@@ -249,7 +249,7 @@ void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
 
 }  // namespace
 
-bool matchesCharSet(char ch, const CharSet& cset) {
+bool matchesRegexCharSet(char ch, const RegexCharSet& cset) {
   for(auto& range : cset.ranges)
     if(range.from <= ch && ch <= range.to) return !cset.negated;
   return cset.negated;

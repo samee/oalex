@@ -202,9 +202,9 @@ auto labelParts(const QuotedString& s,
 static TokenOrPart lexTemplateToken(const QuotedString& s, size_t& i,
                              const LexDirective& opts) {
   const size_t st = i;
-  const bool isword = matchesCharSet(s[i], opts.wordChars);
+  const bool isword = matchesRegexCharSet(s[i], opts.wordChars);
   while(s.sizeGt(i) && !opts.skip.canStart(s, i)) {
-    if(isword != matchesCharSet(s[i], opts.wordChars)) break;
+    if(isword != matchesRegexCharSet(s[i], opts.wordChars)) break;
     ++i;
   }
   return isword ? TokenOrPart(WordToken(s.subqstr(st, i-st)))

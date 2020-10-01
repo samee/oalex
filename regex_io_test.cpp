@@ -24,14 +24,14 @@ using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::move_to_unique;
-using oalex::parseCharSet;
+using oalex::parseRegexCharSet;
 using oalex::parseRegex;
 using oalex::prettyPrint;
 using oalex::UserErrorEx;
 using oalex::regex::CharRange;
-using oalex::regex::CharSet;
 using oalex::regex::Regex;
 using oalex::regex::RegexAnchor;
+using oalex::regex::RegexCharSet;
 using oalex::regex::RegexConcat;
 using oalex::regex::RegexOptional;
 using oalex::regex::RegexOptions;
@@ -48,15 +48,15 @@ using std::vector;
 
 namespace {
 
-auto charSet(vector<CharRange> ranges) -> unique_ptr<CharSet> {
-  return make_unique<CharSet>(CharSet{std::move(ranges), false});
+auto charSet(vector<CharRange> ranges) -> unique_ptr<RegexCharSet> {
+  return make_unique<RegexCharSet>(RegexCharSet{std::move(ranges), false});
 }
 
-auto negatedSet(vector<CharRange> ranges) -> unique_ptr<CharSet> {
-  return make_unique<CharSet>(CharSet{std::move(ranges), true});
+auto negatedSet(vector<CharRange> ranges) -> unique_ptr<RegexCharSet> {
+  return make_unique<RegexCharSet>(RegexCharSet{std::move(ranges), true});
 }
 
-auto charSingle(unsigned char ch) -> unique_ptr<CharSet> {
+auto charSingle(unsigned char ch) -> unique_ptr<RegexCharSet> {
   return charSet({{ch,ch}});
 }
 
@@ -230,7 +230,7 @@ void testStripOuterParens() {
 }
 
 void testRegexMatches() {
-  RegexOptions opts{.word = parseCharSet("[0-9A-Za-z_]")};
+  RegexOptions opts{.word = parseRegexCharSet("[0-9A-Za-z_]")};
   const vector<tuple<string,string,size_t>> testVectors{
     {"//", "foo", 0},
     {"/fo[ox]/", "fox", 3},

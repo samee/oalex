@@ -50,7 +50,7 @@ using oalex::labelParts;
 using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::OperToken;
-using oalex::parseCharSet;
+using oalex::parseRegexCharSet;
 using oalex::PartPattern;
 using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
@@ -310,7 +310,7 @@ LexDirective mkLineLexOpts(LexDirective lexopts) {
   lexopts.keepAllNewlines = true;
   return lexopts;
 }
-const LexDirective lexopts{parseCharSet("[_a-zA-Z]"),
+const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
                            Skipper{ {{"/*","*/"},{"//","\n"}}, {} }, false};
 const LexDirective linelexopts = mkLineLexOpts(lexopts);
 
@@ -326,7 +326,8 @@ void testTokenizeNoLabel() {
     BugMe("Tokenization produced {} != {}", observed_strings, expected);
   for(const auto& tok : observed) {
     bool isword = isWord(__func__, tok);
-    if(isword != matchesCharSet(token(__func__, tok)[0], lexopts.wordChars))
+    if(isword != matchesRegexCharSet(token(__func__, tok)[0],
+                                     lexopts.wordChars))
       BugMe("'{}' {} expected to be a word, but it {} found to be so",
             token(__func__, tok),
             isword ? "wasn't" : "was", isword ? "was" : "wasn't");

@@ -28,7 +28,7 @@ namespace oalex::regex {
 enum struct RegexAnchor;
 
 using Regex = std::variant<
-  std::unique_ptr<struct CharSet>,
+  std::unique_ptr<struct RegexCharSet>,
   std::unique_ptr<std::string>,
   std::unique_ptr<RegexAnchor>,
   std::unique_ptr<struct RegexConcat>,
@@ -39,7 +39,7 @@ using Regex = std::variant<
 
 // Regex primitives. Likely to change if we ever switch to matching JsonLoc.
 struct CharRange { unsigned char from, to; };
-struct CharSet { std::vector<CharRange> ranges; bool negated = false; };
+struct RegexCharSet { std::vector<CharRange> ranges; bool negated = false; };
 enum struct RegexAnchor { wordEdge, bol, eol };
 
 struct RegexConcat { std::vector<Regex> parts; };
@@ -48,10 +48,10 @@ struct RegexOptional { Regex part; };
 struct RegexOrList { std::vector<Regex> parts; };
 
 struct RegexOptions {
-  CharSet word;  // Used for \b matches.
+  RegexCharSet word;  // Used for \b matches.
 };
 
-bool matchesCharSet(char ch, const CharSet& cset);
+bool matchesRegexCharSet(char ch, const RegexCharSet& cset);
 
 // Used for lookaheads
 bool startsWith(const Input& input, size_t i,
