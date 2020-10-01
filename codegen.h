@@ -37,12 +37,12 @@ struct SkipPoint {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
-using Rule = std::variant<std::string, regex::Regex, SkipPoint, ConcatRule>;
+using Rule = std::variant<std::string, Regex, SkipPoint, ConcatRule>;
 
 struct RuleSet {
   std::vector<Rule> rules;
   Skipper skip;  // TODO use this
-  regex::RegexOptions regexOpts;
+  RegexOptions regexOpts;
 };
 
 using OutputStream = std::function<void(std::string_view)>;

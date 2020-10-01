@@ -33,9 +33,6 @@ namespace oalex {
 
 namespace {
 
-// TODO remove this once we have finished flattening out regex.
-using namespace regex;
-
 char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
   else if(ch <= 15) return ch-10+'a';
@@ -423,7 +420,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
   size_t repdepth = 0;
-  regex::RegexConcat concat;
+  RegexConcat concat;
   optional<Regex> subres;
 
   while(input.sizeGt(j)) {
@@ -455,7 +452,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
-  regex::RegexOrList ors;
+  RegexOrList ors;
   optional<Regex> subres;
 
   while(input.sizeGt(j)) {
@@ -481,7 +478,7 @@ auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
 
-regex::RegexCharSet parseRegexCharSet(string input) {
+RegexCharSet parseRegexCharSet(string input) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
@@ -492,7 +489,7 @@ regex::RegexCharSet parseRegexCharSet(string input) {
 }
 
 // Current state: only parses concatenation of character sets.
-auto parseRegex(InputDiags& ctx, size_t& i) -> optional<regex::Regex> {
+auto parseRegex(InputDiags& ctx, size_t& i) -> optional<Regex> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;

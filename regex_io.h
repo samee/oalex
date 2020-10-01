@@ -76,10 +76,10 @@ Enforce usual rules about not allowing empty non-terminals being included.
 
 namespace oalex {
 
-auto prettyPrint(const regex::Regex& regex) -> std::string;
-auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<regex::Regex>;
+auto prettyPrint(const Regex& regex) -> std::string;
+auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
 
 // Used for test only. Dies on invalid input.
-regex::RegexCharSet parseRegexCharSet(std::string input);
+RegexCharSet parseRegexCharSet(std::string input);
 
 }  // namespace oalex

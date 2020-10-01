@@ -16,8 +16,8 @@
 #include <type_traits>
 #include <utility>
 #include "util.h"
-using oalex::regex::Regex;
-using oalex::regex::RegexOptions;
+using oalex::Regex;
+using oalex::RegexOptions;
 using std::exchange;
 using std::get_if;
 using std::string;

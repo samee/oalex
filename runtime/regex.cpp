@@ -23,7 +23,7 @@ using std::unique_ptr;
 using std::variant;
 using std::vector;
 
-namespace oalex::regex {
+namespace oalex {
 
 namespace {
 
@@ -290,4 +290,4 @@ bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
   else return false;
 }
 
-}  // namespace oalex::regex
+}  // namespace oalex

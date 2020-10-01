@@ -30,7 +30,7 @@ namespace oalex {
 // This will certainly cause problems if we ever want to support utf8, but we
 // can cross that bridge when we get there.
 struct LexDirective {
-  regex::RegexCharSet wordChars;
+  RegexCharSet wordChars;
   Skipper skip;  // Assume skip.valid(), verified at construction.
   bool keepAllNewlines;
 };

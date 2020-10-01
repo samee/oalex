@@ -28,12 +28,12 @@ using oalex::assertEqual;
 using oalex::Bug;
 using oalex::get_if;
 using oalex::JsonLoc;
+using oalex::Regex;
+using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
 using oalex::SkipPoint;
-using oalex::regex::Regex;
-using oalex::regex::RegexOptions;
 
 namespace {
 

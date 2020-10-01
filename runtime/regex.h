@@ -21,8 +21,7 @@
 #include "runtime/diags.h"
 #include "runtime/util.h"
 
-// TODO flatten namespace
-namespace oalex::regex {
+namespace oalex {
 
 // Forward decl.
 enum struct RegexAnchor;
@@ -61,4 +60,4 @@ bool startsWithRegex(const Input& input, size_t i,
 bool consumeGreedily(const Input& input, size_t& i,
                      const Regex& regex, const RegexOptions& opts);
 
-}  // namespace oalex::regex
+}  // namespace oalex
