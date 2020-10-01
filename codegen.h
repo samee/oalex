@@ -41,7 +41,8 @@ using Rule = std::variant<std::string, regex::Regex, SkipPoint, ConcatRule>;
 
 struct RuleSet {
   std::vector<Rule> rules;
-  Skipper skip;
+  Skipper skip;  // TODO use this
+  regex::RegexOptions regexOpts;
 };
 
 using OutputStream = std::function<void(std::string_view)>;

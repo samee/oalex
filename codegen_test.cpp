@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include "lookahead_regex_io.h"
 #include "fmt/format.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/skipper.h"
@@ -31,13 +32,18 @@ using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
 using oalex::SkipPoint;
+using oalex::regex::Regex;
+using oalex::regex::RegexOptions;
 
 namespace {
 
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
+const RegexOptions regexOpts{
+  .word = oalex::regex::parseCharSet("[0-9A-Za-z_]")
+};
 
 RuleSet singletonRuleSet(Rule r) {
-  RuleSet rs{{}, cskip};
+  RuleSet rs{{}, cskip, regexOpts};
   rs.rules.push_back(std::move(r));
   return rs;
 }
@@ -90,6 +96,16 @@ void testSkipFailsOnUnfinishedComment() {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Unfinished comment", 2);
 }
 
+void testRegexMatch() {
+  auto regex_input = testInputDiags("/[a-z]+/");
+  size_t pos = 0;
+  RuleSet rs = singletonRuleSet(*oalex::regex::parse(regex_input, pos));
+  ssize_t spos = 0;
+  auto ctx = testInputDiags("hello world");
+  JsonLoc jsloc = eval(ctx, spos, rs, 0);
+  assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+}
+
 }  // namespace
 
 int main() {
@@ -97,5 +113,6 @@ int main() {
   testSingleStringMismatch();
   testSingleSkip();
   testSkipFailsOnUnfinishedComment();
+  testRegexMatch();
 }
 

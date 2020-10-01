@@ -16,13 +16,15 @@
 #include <type_traits>
 #include <utility>
 #include "util.h"
+using oalex::regex::Regex;
+using oalex::regex::RegexOptions;
 using std::exchange;
 using std::get_if;
 using std::string;
 
 namespace oalex {
 
-static bool skip(InputDiags& ctx, ssize_t& i,
+static void skip(InputDiags& ctx, ssize_t& i,
                  const SkipPoint& sp) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
@@ -34,7 +36,6 @@ static bool skip(InputDiags& ctx, ssize_t& i,
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
   }
-  return i != ssize_t(string::npos);
 }
 
 static JsonLoc quote(string input, size_t stPos, size_t enPos) {
@@ -58,10 +59,18 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
   return reinterpret_cast<T>(ref);
 }
 
-// TODO move to runtime/oalex_runtime.h
+// TODO move all overloads to runtime/oalex_runtime.h
 JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
   if(!ctx.input.hasPrefix(i, s)) return {};
   return quote(s, exchange(i, i+s.size()), s.size());
+}
+
+JsonLoc match(InputDiags& ctx, ssize_t& i,
+              const Regex& regex, const RegexOptions& ropts) {
+  size_t oldi = i;
+  if(consumeGreedily(ctx.input, sign_cast<size_t&>(i), regex, ropts))
+    return quote(ctx.input.substr(oldi, i-oldi), oldi, i);
+  else return {};
 }
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
@@ -71,7 +80,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(const auto* sp = get_if<SkipPoint>(&r)) {
     skip(ctx, i, *sp);
     return {};
-  }
+  }else if(const auto* regex = get_if<Regex>(&r))
+    return match(ctx, i, *regex, ruleset.regexOpts);
   Unimplemented("eval() for rule {}", r.index());
 }
 
