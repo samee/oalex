@@ -24,7 +24,7 @@ have to capture subexpressions at some point.
 
 So what operations do I care about? Match prefix and null intersection:
 
-  startsWith(string, regex) -> bool
+  startsWithRegex(string, regex) -> bool
   prefixesBoth(regex1, regex2) -> optional<string>
 
 This means I will need to support negative lookaheads, at least in the end.
@@ -62,7 +62,7 @@ lookahead to check for eof.
 
 
 Okay, todo then:
-  startsWith(input_view, regex) -> bool
+  startsWithRegex(input_view, regex) -> bool
   unmatchedString(regex1, ..., regexn) -> optional<string>
   matchesNull(regex) -> bool
 

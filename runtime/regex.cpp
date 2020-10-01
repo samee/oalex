@@ -255,8 +255,8 @@ bool matchesRegexCharSet(char ch, const RegexCharSet& cset) {
   return cset.negated;
 }
 
-bool startsWith(const Input& input, size_t i, const Regex& regex,
-                const RegexOptions& opts) {
+bool startsWithRegex(const Input& input, size_t i, const Regex& regex,
+                     const RegexOptions& opts) {
   MatchState state = init(regex);
   char prev = '\n';
   start(regex, state);

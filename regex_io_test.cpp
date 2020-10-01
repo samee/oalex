@@ -247,12 +247,12 @@ void testRegexMatches() {
     size_t i = 0;
     Regex regex = *parseRegex(regex_input, i);
     Input input{inputstr};
-    if(!startsWith(input, 0, regex, opts))
-      BugMe("\"{}\" was expected to startWith() {}", inputstr, pattern);
+    if(!startsWithRegex(input, 0, regex, opts))
+      BugMe("\"{}\" was expected to startWithRegex() {}", inputstr, pattern);
     i = 0;
     if(!consumeGreedily(input, i, regex, opts))
-      BugMe("consumeGreedily(\"{}\", {}) fails even though startsWith() passes",
-            inputstr, pattern);
+      BugMe("consumeGreedily(\"{}\", {}) fails even though "
+            "startsWithRegex() passes", inputstr, pattern);
     assertEqual("Regex comsumption length", i, matchLen);
   }
   const vector<pair<string,string>> failVectors{
@@ -267,8 +267,9 @@ void testRegexMatches() {
     size_t i = 0;
     Regex regex = *parseRegex(regex_input, i);
     Input input{inputstr};
-    if(startsWith(input, 0, regex, opts))
-      BugMe("\"{}\" was not expected to startWith() {}", inputstr, pattern);
+    if(startsWithRegex(input, 0, regex, opts))
+      BugMe("\"{}\" was not expected to startWithRegex() {}",
+            inputstr, pattern);
     i = 0;
     if(consumeGreedily(input, i, regex, opts))
       BugMe("\"{}\" was not expected to be consumed by {}", inputstr, pattern);
