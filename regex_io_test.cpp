@@ -26,6 +26,7 @@ using oalex::InputDiags;
 using oalex::move_to_unique;
 using oalex::parseCharSet;
 using oalex::parseRegex;
+using oalex::prettyPrint;
 using oalex::UserErrorEx;
 using oalex::regex::Anchor;
 using oalex::regex::CharRange;
@@ -44,8 +45,6 @@ using std::string_view;
 using std::tuple;
 using std::unique_ptr;
 using std::vector;
-
-namespace regex = oalex::regex;
 
 namespace {
 
@@ -180,7 +179,7 @@ void testParseAndPrint() {
     optional<Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
-    string output = regex::prettyPrint(*parseResult);
+    string output = prettyPrint(*parseResult);
     if(input != output)
       BugMe("Regex has changed after pretty-printing: {} became {}",
             input, output);
@@ -223,7 +222,7 @@ void testStripOuterParens() {
     optional<Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
-    string output = regex::prettyPrint(*parseResult);
+    string output = prettyPrint(*parseResult);
     if(expected != output)
       BugMe("Regex is not just sans-parenthesis after printing: "
             "{} became {}", input, output);

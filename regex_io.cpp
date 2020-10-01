@@ -470,13 +470,9 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 
 }  // namespace
 
-namespace regex {
-
 auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
-
-}  // namespace regex
 
 regex::CharSet parseCharSet(string input) {
   InputDiags ctx{Input{input}};

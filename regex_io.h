@@ -75,12 +75,8 @@ Enforce usual rules about not allowing empty non-terminals being included.
 #include "runtime/diags.h"
 
 namespace oalex {
-namespace regex {
 
-auto prettyPrint(const Regex& regex) -> std::string;
-
-}  // namespace regex
-
+auto prettyPrint(const regex::Regex& regex) -> std::string;
 auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<regex::Regex>;
 
 // Used for test only. Dies on invalid input.
