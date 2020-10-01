@@ -23,8 +23,9 @@ using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
-using oalex::UserErrorEx;
 using oalex::move_to_unique;
+using oalex::parseRegex;
+using oalex::UserErrorEx;
 using oalex::regex::Anchor;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
@@ -176,7 +177,7 @@ void testParseAndPrint() {
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}};
     size_t i = 0;
-    optional<Regex> parseResult = regex::parse(ctx, i);
+    optional<Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = regex::prettyPrint(*parseResult);
@@ -208,7 +209,7 @@ void testParseDiags() {
     {"/a++++++/", "Too many consecutive repeat operators"},
   };
   for(auto& [input, msg] : testVectors) {
-    assertProducesDiag(__func__, input, msg, regex::parse);
+    assertProducesDiag(__func__, input, msg, parseRegex);
   }
 }
 
@@ -219,7 +220,7 @@ void testStripOuterParens() {
     string input = "/("+part+")/";
     InputDiags ctx{Input{input}};
     size_t i = 0;
-    optional<Regex> parseResult = regex::parse(ctx, i);
+    optional<Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = regex::prettyPrint(*parseResult);
@@ -245,7 +246,7 @@ void testRegexMatches() {
   for(auto& [pattern, inputstr, matchLen] : testVectors) {
     InputDiags regex_input{Input{pattern}};
     size_t i = 0;
-    Regex regex = *regex::parse(regex_input, i);
+    Regex regex = *parseRegex(regex_input, i);
     Input input{inputstr};
     if(!startsWith(input, 0, regex, opts))
       BugMe("\"{}\" was expected to startWith() {}", inputstr, pattern);
@@ -265,7 +266,7 @@ void testRegexMatches() {
   for(auto& [pattern, inputstr] : failVectors) {
     InputDiags regex_input{Input{pattern}};
     size_t i = 0;
-    Regex regex = *regex::parse(regex_input, i);
+    Regex regex = *parseRegex(regex_input, i);
     Input input{inputstr};
     if(startsWith(input, 0, regex, opts))
       BugMe("\"{}\" was not expected to startWith() {}", inputstr, pattern);

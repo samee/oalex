@@ -29,7 +29,8 @@ using std::string;
 using std::unique_ptr;
 using oalex::InputDiags;
 
-namespace oalex::regex {
+namespace oalex {
+namespace regex {
 
 namespace {
 
@@ -481,8 +482,12 @@ CharSet parseCharSet(string input) {
   }
 }
 
+}  // namespace regex
+
 // Current state: only parses concatenation of character sets.
-auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
+auto parseRegex(InputDiags& ctx, size_t& i) -> optional<regex::Regex> {
+  using regex::hasChar;
+  using regex::parseRec;
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;
@@ -495,4 +500,4 @@ auto parse(InputDiags& ctx, size_t& i) -> optional<Regex> {
   return rv;
 }
 
-}  // namespace oalex::regex
+}  // namespace oalex

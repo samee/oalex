@@ -99,7 +99,7 @@ void testSkipFailsOnUnfinishedComment() {
 void testRegexMatch() {
   auto regex_input = testInputDiags("/[a-z]+/");
   size_t pos = 0;
-  RuleSet rs = singletonRuleSet(*oalex::regex::parse(regex_input, pos));
+  RuleSet rs = singletonRuleSet(*oalex::parseRegex(regex_input, pos));
   ssize_t spos = 0;
   auto ctx = testInputDiags("hello world");
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
