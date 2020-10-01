@@ -104,6 +104,11 @@ void testRegexMatch() {
   auto ctx = testInputDiags("hello world");
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
   assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+
+  spos = 0;
+  auto ctx2 = testInputDiags("123");
+  jsloc = eval(ctx2, spos, rs, 0);
+  if(!jsloc.empty()) BugMe("Was expecting regex match to fail");
 }
 
 }  // namespace
