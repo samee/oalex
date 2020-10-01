@@ -30,9 +30,11 @@ using std::unique_ptr;
 using oalex::InputDiags;
 
 namespace oalex {
-namespace regex {
 
 namespace {
+
+// TODO remove this once we have finished flattening out regex.
+using namespace regex;
 
 char hexdigit(uint8_t ch) {
   if(ch <= 9) return '0' + ch;
@@ -468,11 +470,15 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 
 }  // namespace
 
+namespace regex {
+
 auto prettyPrint(const Regex& regex) -> string {
   return "/" + prettyPrintRec(regex) + "/";
 }
 
-CharSet parseCharSet(string input) {
+}  // namespace regex
+
+regex::CharSet parseCharSet(string input) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
   if(auto cs = parseCharSetUnq(ctx, i)) return *cs;
@@ -482,12 +488,8 @@ CharSet parseCharSet(string input) {
   }
 }
 
-}  // namespace regex
-
 // Current state: only parses concatenation of character sets.
 auto parseRegex(InputDiags& ctx, size_t& i) -> optional<regex::Regex> {
-  using regex::hasChar;
-  using regex::parseRec;
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullopt;
   size_t j = i+1;

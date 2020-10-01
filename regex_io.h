@@ -79,9 +79,11 @@ namespace regex {
 
 auto prettyPrint(const Regex& regex) -> std::string;
 
-// Used for test only. Dies on invalid input.
-CharSet parseCharSet(std::string input);
 }  // namespace regex
 
 auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<regex::Regex>;
+
+// Used for test only. Dies on invalid input.
+regex::CharSet parseCharSet(std::string input);
+
 }  // namespace oalex

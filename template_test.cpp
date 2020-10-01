@@ -50,6 +50,7 @@ using oalex::labelParts;
 using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::OperToken;
+using oalex::parseCharSet;
 using oalex::PartPattern;
 using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
@@ -69,7 +70,6 @@ using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexQuotedString;
-using oalex::regex::parseCharSet;
 
 namespace {
 
