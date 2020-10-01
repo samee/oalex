@@ -128,20 +128,21 @@ string prettyPrintSet(const CharSet& set) {
   return fmt::to_string(buf);
 }
 
-string prettyPrintAnchor(Anchor a) {
+string prettyPrintAnchor(RegexAnchor a) {
   switch(a) {
-    case Anchor::wordEdge: return "\\b";
-    case Anchor::bol: return "^";
-    case Anchor::eol: return "$";
-    default: Bug("Unknown Anchor type {}", static_cast<int>(a));
+    case RegexAnchor::wordEdge: return "\\b";
+    case RegexAnchor::bol: return "^";
+    case RegexAnchor::eol: return "$";
+    default: Bug("Unknown RegexAnchor type {}", static_cast<int>(a));
   }
 }
 
 bool printsToNull(const Regex& regex) {
-  if(holds_one_of_unique<CharSet,Anchor,Optional,Repeat,OrList>(regex))
+  if(holds_one_of_unique<CharSet,RegexAnchor,
+                         RegexOptional,RegexRepeat,RegexOrList>(regex))
     return false;
   else if(auto* s = get_if_unique<string>(&regex)) return s->empty();
-  else if(auto* seq = get_if_unique<Concat>(&regex)) {
+  else if(auto* seq = get_if_unique<RegexConcat>(&regex)) {
     for(const Regex& p : seq->parts) if(!printsToNull(p)) return false;
     return true;
   }else Bug("printsToNull() called with unknown index {}", regex.index());
@@ -154,25 +155,26 @@ void surroundUnless(fmt::memory_buffer& buf, const Regex& regex) {
   else format_to(buf, "{}", prettyPrintRec(regex));
 }
 
-string prettyPrintSeq(const Concat& seq) {
+string prettyPrintSeq(const RegexConcat& seq) {
   fmt::memory_buffer buf;
   for(auto& part : seq.parts) {
     if(printsToNull(part)) format_to(buf, "()");
-    else surroundUnless<CharSet, string, Anchor, Repeat, Optional>(buf, part);
+    else surroundUnless<CharSet, string, RegexAnchor,
+                        RegexRepeat, RegexOptional>(buf, part);
   }
   return fmt::to_string(buf);
 }
 
-string prettyPrintOrs(const OrList& ors) {
+string prettyPrintOrs(const RegexOrList& ors) {
   if(ors.parts.empty()) return "";
   fmt::memory_buffer buf;
 
-  surroundUnless<CharSet, string, Anchor,
-                 Concat, Repeat, Optional>(buf, ors.parts[0]);
+  surroundUnless<CharSet, string, RegexAnchor,
+                 RegexConcat, RegexRepeat, RegexOptional>(buf, ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
     format_to(buf, "|");
-    surroundUnless<CharSet, string, Anchor,
-                   Concat, Repeat, Optional>(buf, ors.parts[i]);
+    surroundUnless<CharSet, string, RegexAnchor,
+                   RegexConcat, RegexRepeat, RegexOptional>(buf, ors.parts[i]);
   }
   return fmt::to_string(buf);
 }
@@ -186,19 +188,19 @@ string prettyPrintRepeatPart(const Regex& part, char op) {
     if(s->size() == 1) return prettyPrintRec(part) + op_s;
     else return surround(prettyPrintRec(part)) + op_s;
   }
-  else if(holds_one_of_unique<Concat,Repeat,OrList>(part))
+  else if(holds_one_of_unique<RegexConcat,RegexRepeat,RegexOrList>(part))
     return surround(prettyPrintRec(part)) + op_s;
   else return prettyPrintRec(part) + op_s;
 }
 
-string prettyPrintOpt(const Optional& opt) {
+string prettyPrintOpt(const RegexOptional& opt) {
   // Collapse /(...)+?/ into /(...)*/
-  if(auto* rep = get_if_unique<Repeat>(&opt.part))
+  if(auto* rep = get_if_unique<RegexRepeat>(&opt.part))
     return prettyPrintRepeatPart(rep->part, '*');
   else return prettyPrintRepeatPart(opt.part, '?');
 }
 
-string prettyPrintRep(const Repeat& rep) {
+string prettyPrintRep(const RegexRepeat& rep) {
   return prettyPrintRepeatPart(rep.part, '+');
 }
 
@@ -206,28 +208,32 @@ string prettyPrintRep(const Repeat& rep) {
   using Regex = std::variant<
     CharRange,
     std::string,
-    std::unique_ptr<struct Concat>,
-    std::unique_ptr<struct Repeat>,
-    std::unique_ptr<struct Optional>,
-    std::unique_ptr<struct OrList>,
+    std::unique_ptr<struct RegexConcat>,
+    std::unique_ptr<struct RegexRepeat>,
+    std::unique_ptr<struct RegexOptional>,
+    std::unique_ptr<struct RegexOrList>,
   >;
 
-  struct Concat { std::vector<Regex> parts; };
-  struct Repeat { Regex part; };
-  struct Optional { Regex part; };
-  struct OrList { std::vector<Regex> parts; };
+  struct RegexConcat { std::vector<Regex> parts; };
+  struct RegexRepeat { Regex part; };
+  struct RegexOptional { Regex part; };
+  struct RegexOrList { std::vector<Regex> parts; };
 
   */
 
 auto prettyPrintRec(const Regex& regex) -> string {
   if(auto* set = get_if_unique<CharSet>(&regex)) return prettyPrintSet(*set);
-  else if(auto* seq = get_if_unique<Concat>(&regex))
+  else if(auto* seq = get_if_unique<RegexConcat>(&regex))
     return prettyPrintSeq(*seq);
   else if(auto* s = get_if_unique<string>(&regex)) return escapedForString(*s);
-  else if(auto* a = get_if_unique<Anchor>(&regex)) return prettyPrintAnchor(*a);
-  else if(auto* r = get_if_unique<Repeat>(&regex)) return prettyPrintRep(*r);
-  else if(auto* r = get_if_unique<Optional>(&regex)) return prettyPrintOpt(*r);
-  else if(auto* r = get_if_unique<OrList>(&regex)) return prettyPrintOrs(*r);
+  else if(auto* a = get_if_unique<RegexAnchor>(&regex))
+    return prettyPrintAnchor(*a);
+  else if(auto* r = get_if_unique<RegexRepeat>(&regex))
+    return prettyPrintRep(*r);
+  else if(auto* r = get_if_unique<RegexOptional>(&regex))
+    return prettyPrintOpt(*r);
+  else if(auto* r = get_if_unique<RegexOrList>(&regex))
+    return prettyPrintOrs(*r);
   else Unimplemented("prettyPrint(regex) for variant {}", regex.index());
 }
 
@@ -350,25 +356,25 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 bool startsRepeat(char ch) { return is_in(ch, "+*?{"); }
 
 auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
-  auto reta = [&i](Anchor a, size_t off) {
+  auto reta = [&i](RegexAnchor a, size_t off) {
     i += off;
-    return make_unique<Anchor>(a);
+    return make_unique<RegexAnchor>(a);
   };
   char ch = ctx.input[i];
   if(ch == '\\') {
-    if(hasChar(ctx.input,i+1,'b')) return reta(Anchor::wordEdge, 2);
+    if(hasChar(ctx.input,i+1,'b')) return reta(RegexAnchor::wordEdge, 2);
     else if(auto opt = parseEscapeCode(ctx, i, stringMeta))
       return make_unique<string>(1, *opt);
     else return nullopt;
   }
-  else if(ch == '^') return reta(Anchor::bol, 1);
-  else if(ch == '$') return reta(Anchor::eol, 1);
+  else if(ch == '^') return reta(RegexAnchor::bol, 1);
+  else if(ch == '$') return reta(RegexAnchor::eol, 1);
   else return make_unique<string>(1, ctx.input[i++]);
 }
 
 // Consequtive string parts get joined into a single string.
-auto contractStrings(Concat concat) -> Concat {
-  Concat rv;
+auto contractStrings(RegexConcat concat) -> RegexConcat {
+  RegexConcat rv;
   for(Regex& part: concat.parts) {
     string* s = get_if_unique<string>(&part);
     string* t = rv.parts.empty() ? nullptr
@@ -382,17 +388,17 @@ auto contractStrings(Concat concat) -> Concat {
 // op is assumed to be one of [+*?].
 Regex repeatWith(Regex regex, char op) {
   switch(op) {
-    case '+': return move_to_unique(Repeat{std::move(regex)});
-    case '?': return move_to_unique(Optional{std::move(regex)});
-    case '*': return move_to_unique(Optional{
-                       move_to_unique(Repeat{std::move(regex)})
+    case '+': return move_to_unique(RegexRepeat{std::move(regex)});
+    case '?': return move_to_unique(RegexOptional{std::move(regex)});
+    case '*': return move_to_unique(RegexOptional{
+                       move_to_unique(RegexRepeat{std::move(regex)})
                      });
     default: Bug("repeatWith called with invalid op: {}", op);
   }
 }
 
 // Assumes startsRepeat(ctx.input[i]) == true.
-bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
+bool repeatBack(InputDiags& ctx, size_t& i, RegexConcat& concat) {
   char ch = ctx.input[i];
   ++i;
   if(ch == '{') Unimplemented("'{{}}'");
@@ -404,7 +410,7 @@ bool repeatBack(InputDiags& ctx, size_t& i, Concat& concat) {
   return true;
 }
 
-// Used with T being one of Concat or OrList.
+// Used with T being one of RegexConcat or RegexOrList.
 template <class T>
 Regex unpackSingleton(T t) {
   if(t.parts.size() == 0) return make_unique<string>();
@@ -416,7 +422,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
   size_t repdepth = 0;
-  regex::Concat concat;
+  regex::RegexConcat concat;
   optional<Regex> subres;
 
   while(input.sizeGt(j)) {
@@ -448,7 +454,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth) -> optional<Regex> {
   const Input& input = ctx.input;
   size_t j = i;
-  regex::OrList ors;
+  regex::RegexOrList ors;
   optional<Regex> subres;
 
   while(input.sizeGt(j)) {

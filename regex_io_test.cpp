@@ -28,15 +28,15 @@ using oalex::parseCharSet;
 using oalex::parseRegex;
 using oalex::prettyPrint;
 using oalex::UserErrorEx;
-using oalex::regex::Anchor;
 using oalex::regex::CharRange;
 using oalex::regex::CharSet;
-using oalex::regex::Concat;
-using oalex::regex::Optional;
-using oalex::regex::OrList;
 using oalex::regex::Regex;
+using oalex::regex::RegexAnchor;
+using oalex::regex::RegexConcat;
+using oalex::regex::RegexOptional;
 using oalex::regex::RegexOptions;
-using oalex::regex::Repeat;
+using oalex::regex::RegexOrList;
+using oalex::regex::RegexRepeat;
 using std::make_unique;
 using std::optional;
 using std::pair;
@@ -71,25 +71,25 @@ void vector_helper(vector<Regex>& out, T t, Ts ... ts) {
 }
 
 template <class ... Ts>
-auto concat(Ts ... ts) -> unique_ptr<Concat> {
-  auto rv = make_unique<Concat>();
+auto concat(Ts ... ts) -> unique_ptr<RegexConcat> {
+  auto rv = make_unique<RegexConcat>();
   vector_helper(rv->parts, std::move(ts)...);
   return rv;
 }
 
 template <class ... Ts>
-auto orlist(Ts ... ts) -> unique_ptr<OrList> {
-  auto rv = make_unique<OrList>();
+auto orlist(Ts ... ts) -> unique_ptr<RegexOrList> {
+  auto rv = make_unique<RegexOrList>();
   vector_helper(rv->parts, std::move(ts)...);
   return rv;
 }
 
 Regex repeat(Regex part, char ch) {
-  if(ch == '+') return move_to_unique(Repeat{std::move(part)});
-  if(ch == '*') return move_to_unique(Optional{
-                         move_to_unique(Repeat{std::move(part)})
+  if(ch == '+') return move_to_unique(RegexRepeat{std::move(part)});
+  if(ch == '*') return move_to_unique(RegexOptional{
+                         move_to_unique(RegexRepeat{std::move(part)})
                        });
-  if(ch == '?') return move_to_unique(Optional{std::move(part)});
+  if(ch == '?') return move_to_unique(RegexOptional{std::move(part)});
   Bug("Don't know how to construct repeats of type {}", ch);
 }
 
@@ -142,10 +142,10 @@ void testPrettyPrint() {
     {charString("hello\n"), "/hello\\n/"},
     {charString("{in}/[brackets]"), "/\\{in}\\/\\[brackets]/"},
     {charString("\\slashes/"), "/\\\\slashes\\//"},
-    {concat(move_to_unique(Anchor::wordEdge), charString("hello"),
-            move_to_unique(Anchor::wordEdge)), "/\\bhello\\b/"},
-    {concat(move_to_unique(Anchor::bol), charString("hello"),
-            move_to_unique(Anchor::eol)), "/^hello$/"},
+    {concat(move_to_unique(RegexAnchor::wordEdge), charString("hello"),
+            move_to_unique(RegexAnchor::wordEdge)), "/\\bhello\\b/"},
+    {concat(move_to_unique(RegexAnchor::bol), charString("hello"),
+            move_to_unique(RegexAnchor::eol)), "/^hello$/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
