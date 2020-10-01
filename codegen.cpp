@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include <type_traits>
 #include "util.h"
 using std::get_if;
 using std::string;
@@ -32,6 +33,21 @@ static bool skip(InputDiags& ctx, ssize_t& i,
     Error(ctx, com, "Unfinished comment");
   }
   return i != ssize_t(string::npos);
+}
+
+template <class T>
+class ReverseSigned {
+  using unref = std::remove_reference_t<T>;
+ public:
+  static_assert(std::is_lvalue_reference_v<T> && std::is_integral_v<unref>,
+                "sign_cast only works on integer references");
+  using type = std::conditional_t<std::is_signed_v<unref>,
+                                  std::make_unsigned_t<unref>,
+                                  std::make_signed_t<unref>>;
+};
+
+template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
+  return reinterpret_cast<T>(ref);
 }
 
 // TODO move to runtime/oalex_runtime.h
