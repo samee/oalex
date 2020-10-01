@@ -14,7 +14,9 @@
 
 #include "codegen.h"
 #include <type_traits>
+#include <utility>
 #include "util.h"
+using std::exchange;
 using std::get_if;
 using std::string;
 
@@ -35,6 +37,12 @@ static bool skip(InputDiags& ctx, ssize_t& i,
   return i != ssize_t(string::npos);
 }
 
+static JsonLoc quote(string input, size_t stPos, size_t enPos) {
+  JsonLoc rv = std::move(input);
+  rv.stPos = stPos; rv.enPos = enPos;
+  return rv;
+}
+
 template <class T>
 class ReverseSigned {
   using unref = std::remove_reference_t<T>;
@@ -53,11 +61,7 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
 // TODO move to runtime/oalex_runtime.h
 JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
   if(!ctx.input.hasPrefix(i, s)) return {};
-  // TODO figure out error reporting, based on whether match is tentative.
-  JsonLoc rv = s;
-  rv.stPos = i;
-  i = rv.enPos = i+s.size();
-  return rv;
+  return quote(s, exchange(i, i+s.size()), s.size());
 }
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
