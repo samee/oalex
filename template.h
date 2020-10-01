@@ -19,7 +19,7 @@
 #include <vector>
 #include "runtime/diags.h"
 #include "runtime/skipper.h"
-#include "runtime/lookahead_regex.h"
+#include "runtime/regex.h"
 #include "ident.h"
 #include "lexer.h"
 

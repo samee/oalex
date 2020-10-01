@@ -18,7 +18,7 @@
 #include <vector>
 #include <utility>
 #include "runtime/jsonloc.h"
-#include "runtime/lookahead_regex.h"  // TODO rename to regex.h, remove ns.
+#include "runtime/regex.h"
 #include "runtime/skipper.h"
 
 namespace oalex {

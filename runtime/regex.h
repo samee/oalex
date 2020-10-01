@@ -21,6 +21,7 @@
 #include "runtime/diags.h"
 #include "runtime/util.h"
 
+// TODO flatten namespace
 namespace oalex::regex {
 
 // Forward decl.
@@ -56,7 +57,7 @@ bool matchesCharSet(char ch, const CharSet& cset);
 bool startsWith(const Input& input, size_t i,
                 const Regex& regex, const RegexOptions& opts);
 
-// Not used for lookaheads. TODO rename this set of files.
+// Not used for lookaheads.
 bool consumeGreedily(const Input& input, size_t& i,
                      const Regex& regex, const RegexOptions& opts);
 

@@ -23,21 +23,21 @@ target_link_libraries(lexer_test oalex)
 add_test(lexer_test lexer_test)
 
 add_executable(codegen_test codegen.cpp codegen_test.cpp
-               lookahead_regex_io.cpp lexer.cpp)
+                            lexer.cpp regex_io.cpp)
 target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 
-add_executable(lookahead_regex_io_test
-               lookahead_regex_io.cpp lookahead_regex_io_test.cpp lexer.cpp)
-target_link_libraries(lookahead_regex_io_test oalex)
-add_test(lookahead_regex_io_test lookahead_regex_io_test)
+add_executable(regex_io_test regex_io.cpp regex_io_test.cpp lexer.cpp)
+target_link_libraries(regex_io_test oalex)
+add_test(regex_io_test regex_io_test)
 
 add_executable(ident_test ident.cpp ident_test.cpp)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
-add_executable(template_test ident.cpp lexer.cpp lookahead_regex_io.cpp
-               template.cpp template_test.cpp)
+add_executable(template_test template.cpp template_test.cpp
+                             ident.cpp lexer.cpp regex_io.cpp)
+
 target_link_libraries(template_test oalex)
 add_test(template_test template_test)
 

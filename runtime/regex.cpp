@@ -13,8 +13,8 @@
     limitations under the License. */
 
 // Unit tests for the code here are outside the runtime/ folder, in
-// lookahead_regex_io_test.cc, since they use regex parsing functions.
-#include "lookahead_regex.h"
+// regex_io_test.cc, since they use regex parsing functions.
+#include "regex.h"
 #include "util.h"
 using std::get;
 using std::make_unique;

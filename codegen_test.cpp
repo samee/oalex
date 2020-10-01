@@ -13,7 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
-#include "lookahead_regex_io.h"
+#include "regex_io.h"
 #include "fmt/format.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/skipper.h"

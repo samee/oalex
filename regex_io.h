@@ -71,7 +71,7 @@ Enforce usual rules about not allowing empty non-terminals being included.
 #pragma once
 #include <optional>
 
-#include "runtime/lookahead_regex.h"
+#include "runtime/regex.h"
 #include "runtime/diags.h"
 
 namespace oalex::regex {
