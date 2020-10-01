@@ -13,13 +13,18 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include "fmt/format.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/skipper.h"
 #include <iterator>
+#include <string_view>
+using fmt::format;
 using std::back_inserter;
 using std::size;
 using std::string;
+using std::string_view;
 using oalex::assertEqual;
+using oalex::Bug;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::Rule;
@@ -37,18 +42,24 @@ RuleSet singletonRuleSet(Rule r) {
   return rs;
 }
 
+void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
+                           string_view s, size_t stPos, size_t enPos) {
+  if(jsloc.empty()) Bug("{}: eval() was empty", testName);
+  assertEqual(format("{}: eval().stPos", testName), jsloc.stPos, stPos);
+  assertEqual(format("{}: eval().enPos", testName), jsloc.enPos, enPos);
+  if(const string* t = get_if<string>(&jsloc))
+    assertEqual(format("{}: output value", testName), string_view(*t), s);
+  else Bug("{}: eval produced a non-string. Index: {}", testName,
+           jsloc.value.index());
+}
+
 void testSingleStringMatch() {
   const string msg = "hello-world";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
   RuleSet rs = singletonRuleSet(msg);
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
-  if(jsloc.empty()) BugMe("eval() was empty");
-  assertEqual(me("eval().stPos"), jsloc.stPos, size_t(0));
-  assertEqual(me("eval().enPos"), jsloc.enPos, msg.size());
-  if(string* s = get_if<string>(&jsloc)) {
-    assertEqual(me("eval() output value"), *s, msg);
-  }else BugMe("eval() produced a non-string. Index: {}", jsloc.value.index());
+  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
 }
 
 void testSingleStringMismatch() {
