@@ -23,7 +23,7 @@ target_link_libraries(lexer_test oalex)
 add_test(lexer_test lexer_test)
 
 add_executable(codegen_test codegen.cpp codegen_test.cpp
-                            lexer.cpp regex_io.cpp)
+                            jsonloc_io.cpp lexer.cpp regex_io.cpp)
 target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 

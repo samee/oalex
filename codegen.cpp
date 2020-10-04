@@ -24,7 +24,7 @@ using std::string;
 
 namespace oalex {
 
-static void skip(InputDiags& ctx, ssize_t& i,
+static JsonLoc skip(InputDiags& ctx, ssize_t& i,
                  const SkipPoint& sp) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
@@ -35,7 +35,8 @@ static void skip(InputDiags& ctx, ssize_t& i,
     while(ctx.input.sizeGt(com) && is_in(ctx.input[com], " \n\t")) ++com;
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
-  }
+    return {};
+  } else return JsonLoc::String();  // Make it non-empty
 }
 
 static JsonLoc quote(string input, size_t stPos, size_t enPos) {
@@ -73,15 +74,31 @@ JsonLoc match(InputDiags& ctx, ssize_t& i,
   else return {};
 }
 
+JsonLoc match(InputDiags& ctx, ssize_t& i,
+              const ConcatRule& seq, const RuleSet& rs) {
+  JsonLoc rv = seq.outputTmpl;
+  JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
+  ssize_t j = i;
+  for(auto& [idx, outname] : seq.comps) {
+    // TODO move this into substitute in the common case.
+    Debug("Processing name: {}", outname);
+    JsonLoc out = eval(ctx, j, rs, idx);
+    if(out.empty()) return {};
+    if(!outname.empty()) rv.substitute(pmap, outname, out);
+  }
+  i = j;
+  return rv;
+}
+
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
   if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
-  else if(const auto* sp = get_if<SkipPoint>(&r)) {
-    skip(ctx, i, *sp);
-    return {};
-  }else if(const auto* regex = get_if<Regex>(&r))
+  else if(const auto* sp = get_if<SkipPoint>(&r)) return skip(ctx, i, *sp);
+  else if(const auto* regex = get_if<Regex>(&r))
     return match(ctx, i, *regex, ruleset.regexOpts);
+  else if(const auto* seq = get_if<ConcatRule>(&r))
+    return match(ctx,i, *seq, ruleset);
   Unimplemented("eval() for rule {}", r.index());
 }
 

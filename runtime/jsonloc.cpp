@@ -138,6 +138,8 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, v);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
+  }else if(holds_alternative<std::monostate>(json.value)) {
+    format_to(buf, "(empty)");
   }else BugUnknownJsonType(json);
 }
 

@@ -13,21 +13,29 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include "jsonloc_io_test.h"
 #include "regex_io.h"
 #include "fmt/format.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/skipper.h"
 #include <iterator>
 #include <string_view>
+#include <vector>
 using fmt::format;
 using std::back_inserter;
+using std::optional;
+using std::pair;
 using std::size;
 using std::string;
 using std::string_view;
+using std::vector;
 using oalex::assertEqual;
 using oalex::Bug;
+using oalex::ConcatRule;
 using oalex::get_if;
 using oalex::JsonLoc;
+using oalex::makeVector;
+using oalex::parseJsonLoc;
 using oalex::Regex;
 using oalex::RegexOptions;
 using oalex::Rule;
@@ -111,6 +119,37 @@ void testRegexMatch() {
   if(!jsloc.empty()) BugMe("Was expecting regex match to fail");
 }
 
+// TODO move to some test_util.h
+Regex parseRegex(string_view s) {
+  size_t i = 0;
+  auto ctx = testInputDiags(s);
+  optional<Regex> rv = parseRegex(ctx, i);
+  if(!rv.has_value()) Bug("{} is not a valid regex", s);
+  else return std::move(*rv);
+}
+
+void testConcatMatch() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(parseRegex("/[a-zA-Z]+/"), "=",
+                              parseRegex("/[0-9]+/"), ";"),
+    .skip{cskip},
+    .regexOpts{regexOpts},
+  };
+  rs.rules.push_back(SkipPoint{false, &rs.skip});
+  rs.rules.push_back(ConcatRule{"asgn", {
+      {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
+    }, *parseJsonLoc(R"({ stmt: "asgn", lhs, rhs })")
+  });
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");
+  JsonLoc expected = *parseJsonLoc(R"({
+    stmt: "asgn", lhs: "orangeCount", rhs: "5"
+  })");
+  JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
+  assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+  // TODO jsonloc_io_test for parsing and printing "(empty)".
+}
+
 }  // namespace
 
 int main() {
@@ -119,5 +158,6 @@ int main() {
   testSingleSkip();
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
+  testConcatMatch();
 }
 

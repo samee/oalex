@@ -26,9 +26,10 @@ namespace oalex {
 // Some of this is not specific to codegen, and should move elsewhere.
 
 struct ConcatRule {
+  // empty outputPlaceholder means the component is discarded.
+  struct Component { ssize_t idx; std::string outputPlaceholder; };
   std::string name;
-  std::vector<size_t> components;
-  std::vector<std::string> outputPlaceholders;
+  std::vector<Component> comps;
   JsonLoc outputTmpl;
 };
 
@@ -37,6 +38,8 @@ struct SkipPoint {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
+// TODO other component types like RawString and Callback (with nested
+// components).
 using Rule = std::variant<std::string, Regex, SkipPoint, ConcatRule>;
 
 struct RuleSet {
