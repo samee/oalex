@@ -260,10 +260,11 @@ bool startsWithRegex(const Input& input, size_t i, const Regex& regex,
   MatchState state = init(regex);
   char prev = '\n';
   start(regex, state);
-  while(!matched(regex, state) && input.sizeGt(i)) {
+  while(input.sizeGt(i)) {
     advanceAnchor(regex, state, anchorBetweenChars(prev, input[i], opts));
     if(matched(regex, state)) return true;
     advance(regex, input[i], state);
+    if(matched(regex, state)) return true;
     prev = input[i++];
   }
   advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
@@ -278,14 +279,21 @@ bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
   size_t j = i;
   size_t last_matched = string::npos;
 
+  // Important invariants:
+  //   matches() implies might_match()
+  //   advanceAnchor() never makes match() or might_match() become false.
+  //   advance() can potentially make might_match() turn from true to false,
+  //     never the other way around.
   while(might_match(regex, state) && input.sizeGt(j)) {
     advanceAnchor(regex, state, anchorBetweenChars(prev, input[j], opts));
     if(matched(regex, state)) last_matched = j;
     advance(regex, input[j], state);
     prev = input[j++];
   }
-  advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
-  if(matched(regex, state)) last_matched = j;
+  if(!input.sizeGt(j)) {
+    advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
+    if(matched(regex, state)) last_matched = j;
+  }
   if(last_matched != string::npos) { i = last_matched; return true; }
   else return false;
 }

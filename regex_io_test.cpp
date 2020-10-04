@@ -238,6 +238,7 @@ void testRegexMatches() {
     {"/(ab?c)+|.[xyz]+/", "abcacacabcfoo", 10},
     {"/(ab?c)+|.[xyz]+/", "wx", 2},
     {"/^foo$/", "foo", 3},
+    {"/foo|[a-z]+$/", "foo1", 3},
     {"/\\bfoo\\b/", "foo ", 3},
     {"/$/", "", 0},
     {"/^/", "foo", 0},
