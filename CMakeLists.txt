@@ -27,6 +27,10 @@ add_executable(codegen_test codegen.cpp codegen_test.cpp
 target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 
+add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp lexer.cpp)
+target_link_libraries(jsonloc_io_test oalex)
+add_test(jsonloc_io_test jsonloc_io_test)
+
 add_executable(regex_io_test regex_io.cpp regex_io_test.cpp lexer.cpp)
 target_link_libraries(regex_io_test oalex)
 add_test(regex_io_test regex_io_test)
