@@ -34,6 +34,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Input;
@@ -49,7 +50,8 @@ void testSimpleSuccess() {
   const char input[] = R"( {
     # We support comments, another divergence from json.org.
     # Includes a trailing comma.
-    input: "hello world", output: ["hello", "world",], metadata: metadata } )";
+    input: "hello world", output: ["hello", "world",], metadata: metadata,
+    underscore_identifier: "done" } )";
   optional<JsonLoc> json = parseJsonLoc(input);
   string output = json->prettyPrint(2);
   const char expected[] = R"({
@@ -58,7 +60,8 @@ void testSimpleSuccess() {
     output: [
       "hello",
       "world"
-    ]
+    ],
+    underscore_identifier: "done"
   })";
   if(output != expected)
     BugMe("Unexpected output:\n{}", output);

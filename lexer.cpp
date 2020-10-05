@@ -264,13 +264,15 @@ string debugChar(char ch) {
   else return format("\\x{:02x}", int(ch));
 }
 
+bool isident(char ch) { return isalnum(ch) || ch == '_'; }
+
 // Returns false on eof. Throws on invalid language character.
 // TODO think more about how acrossLines() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   size_t j = skip.acrossLines(input, i);
   if(!input.sizeGt(j)) return false;
-  else if(isalnum(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
+  else if(isident(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
           isoperch(input[j])) { i=j; return true; }
   else Fatal(ctx, j, "Unexpected character " + debugChar(input[j]));
 }
@@ -280,9 +282,9 @@ string debugChar(char ch) {
 // But that's okay, we won't support floating-point or signed numerals.
 // TODO use generic word-lexing features.
 optional<UnquotedToken> lexWord(const Input& input, size_t& i) {
-  if(!input.sizeGt(i) || !isalnum(input[i])) return nullopt;
+  if(!input.sizeGt(i) || !isident(input[i])) return nullopt;
   size_t oldi = i;
-  while(input.sizeGt(i) && isalnum(input[i])) ++i;
+  while(input.sizeGt(i) && isident(input[i])) ++i;
   return UnquotedToken(oldi,i,input);
 }
 
@@ -477,7 +479,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
 static bool isSourceDelim(string_view delim) {
   if(delim.substr(0,3) != "```") return false;
   size_t i;
-  for(i=3; i<delim.size(); ++i) if(!isalnum(delim[i])) break;
+  for(i=3; i<delim.size(); ++i) if(!isident(delim[i])) break;
   for(   ; i<delim.size(); ++i) if(delim[i]!=' ' && delim[i]!='\t') break;
   return i == delim.size();
 }
