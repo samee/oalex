@@ -77,10 +77,10 @@ optional<UnquotedToken> parseIdent(InputDiags& ctx, const ExprToken& expr) {
   return *token;
 }
 
-bool isEmpty(const vector<ExprToken>& v) {
+bool isErrorValue(const vector<ExprToken>& v) {
   if(v.size() != 1) return false;
   auto* token = get_if<UnquotedToken>(&v[0]);
-  return token && token->token == "empty";
+  return token && token->token == "error_value";
 }
 
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
@@ -92,7 +92,7 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
     if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
     if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
     if(bg->type == BracketType::paren) {
-      if(isEmpty(bg->children)) return JsonLoc{};
+      if(isErrorValue(bg->children)) return JsonLoc::ErrorValue{};
       else return Error(ctx, bg->stPos, "Unexpected parenthesis");
     }
     Bug("Unknown BracketType: {}", int(bg->type));

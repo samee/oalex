@@ -109,6 +109,16 @@ void testSubstitution() {
     BugMe("Unexpected output:\n{}", output);
 }
 
+void testParseAndPrintError() {
+  const string input = R"({
+    input: (error_value),
+    msg: "hello world"
+  })";
+  optional<JsonLoc> json = parseJsonLoc(input);
+  string output = json->prettyPrint(2);
+  assertEqual(__func__, input, output);
+}
+
 void testJsonLocFailure(const char input[], const char errmsg[]) {
   InputDiags ctx = testInputDiags(input);
   size_t i = 0;
@@ -139,6 +149,7 @@ void testJsonLocPosition(const char input[], size_t endi) {
 int main() {
   testSimpleSuccess();
   testSubstitution();
+  testParseAndPrintError();
   testJsonLocPosition("(a,b)", 0);
   testJsonLocPosition("foo", 0);
   testJsonLocPosition("[a, b] foo", "[a, b]"s.size());

@@ -27,6 +27,7 @@ using std::string_view;
 
 namespace oalex {
 
+using ErrorValue = JsonLoc::ErrorValue;
 using Placeholder = JsonLoc::Placeholder;
 using String = JsonLoc::String;
 using Map = JsonLoc::Map;
@@ -138,8 +139,8 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, v);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
-  }else if(holds_alternative<std::monostate>(json.value)) {
-    format_to(buf, "(empty)");
+  }else if(holds_alternative<ErrorValue>(json.value)) {
+    format_to(buf, "(error_value)");
   }else BugUnknownJsonType(json);
 }
 

@@ -33,23 +33,25 @@ namespace oalex {
 struct JsonLoc {
 
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
+  struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonLoc>;
   using Map = std::map<std::string,JsonLoc>;
   struct Placeholder { std::string key; };
-  using Value = std::variant<std::monostate,Placeholder,String,Vector,Map>;
+  using Value = std::variant<ErrorValue,Placeholder,String,Vector,Map>;
 
   Value value;
   size_t stPos=npos, enPos=npos;
 
   // conversion constructors.
-  JsonLoc() : value(std::monostate()) {}
+  JsonLoc() = delete;
+  JsonLoc(ErrorValue) : value(ErrorValue{}) {}
   JsonLoc(Placeholder p) : value(p) {}
   JsonLoc(String s) : value(s) {}
   JsonLoc(Vector v) : value(v) {}
   JsonLoc(Map m) : value(m) {}
 
-  bool empty() const { return std::holds_alternative<std::monostate>(value); }
+  bool holdsError() const { return std::holds_alternative<ErrorValue>(value); }
 
   // Note that allPlaceholders() is a non-const member method, since it returns
   // non-const JsonLoc pointers to various internal components. Pretty much any

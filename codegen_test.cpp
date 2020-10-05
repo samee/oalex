@@ -58,7 +58,7 @@ RuleSet singletonRuleSet(Rule r) {
 
 void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
                            string_view s, size_t stPos, size_t enPos) {
-  if(jsloc.empty()) Bug("{}: eval() was empty", testName);
+  if(jsloc.holdsError()) Bug("{}: eval() produced error", testName);
   assertEqual(format("{}: eval().stPos", testName), jsloc.stPos, stPos);
   assertEqual(format("{}: eval().enPos", testName), jsloc.enPos, enPos);
   if(const string* t = get_if<string>(&jsloc))
@@ -82,7 +82,7 @@ void testSingleStringMismatch() {
   ssize_t pos = 0;
   RuleSet rs = singletonRuleSet(msg + "!");
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
-  if(!jsloc.empty()) BugMe("Was expecting string match to fail");
+  if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
 }
 
 void testSingleSkip() {
@@ -116,7 +116,7 @@ void testRegexMatch() {
   spos = 0;
   auto ctx2 = testInputDiags("123");
   jsloc = eval(ctx2, spos, rs, 0);
-  if(!jsloc.empty()) BugMe("Was expecting regex match to fail");
+  if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
 }
 
 // TODO move to some test_util.h
@@ -147,7 +147,6 @@ void testConcatMatch() {
   })");
   JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
   assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
-  // TODO jsonloc_io_test for parsing and printing "(empty)".
 }
 
 }  // namespace

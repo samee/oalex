@@ -35,8 +35,8 @@ static JsonLoc skip(InputDiags& ctx, ssize_t& i,
     while(ctx.input.sizeGt(com) && is_in(ctx.input[com], " \n\t")) ++com;
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
-    return {};
-  } else return JsonLoc::String();  // Make it non-empty
+    return JsonLoc::ErrorValue{};
+  } else return JsonLoc::String();  // Just something non-error.
 }
 
 static JsonLoc quote(string input, size_t stPos, size_t enPos) {
@@ -62,7 +62,7 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
 
 // TODO move all overloads to runtime/oalex_runtime.h
 JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
-  if(!ctx.input.hasPrefix(i, s)) return {};
+  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
   return quote(s, exchange(i, i+s.size()), s.size());
 }
 
@@ -71,7 +71,7 @@ JsonLoc match(InputDiags& ctx, ssize_t& i,
   size_t oldi = i;
   if(consumeGreedily(ctx.input, sign_cast<size_t&>(i), regex, ropts))
     return quote(ctx.input.substr(oldi, i-oldi), oldi, i);
-  else return {};
+  else return JsonLoc::ErrorValue{};
 }
 
 JsonLoc match(InputDiags& ctx, ssize_t& i,
@@ -83,7 +83,7 @@ JsonLoc match(InputDiags& ctx, ssize_t& i,
     // TODO move this into substitute in the common case.
     Debug("Processing name: {}", outname);
     JsonLoc out = eval(ctx, j, rs, idx);
-    if(out.empty()) return {};
+    if(out.holdsError()) return out;
     if(!outname.empty()) rv.substitute(pmap, outname, out);
   }
   i = j;
