@@ -140,13 +140,21 @@ void testConcatMatch() {
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: "asgn", lhs, rhs })")
   });
+  ssize_t concatIndex = rs.rules.size()-1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");
   JsonLoc expected = *parseJsonLoc(R"({
     stmt: "asgn", lhs: "orangeCount", rhs: "5"
   })");
-  JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
+  JsonLoc observed = eval(ctx, pos, rs, concatIndex);
   assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+
+  pos = 0;
+  ctx = testInputDiags("orangeCount = 5 missing-semicolon;");
+  observed = eval(ctx, pos, rs, concatIndex);
+  if(!observed.holdsError())
+    BugMe("Was expecting failure on missing semicolon. Got {}",
+          observed.prettyPrint());
 }
 
 }  // namespace

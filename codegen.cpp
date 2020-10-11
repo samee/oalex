@@ -81,7 +81,6 @@ JsonLoc match(InputDiags& ctx, ssize_t& i,
   ssize_t j = i;
   for(auto& [idx, outname] : seq.comps) {
     // TODO move this into substitute in the common case.
-    Debug("Processing name: {}", outname);
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsError()) return out;
     if(!outname.empty()) rv.substitute(pmap, outname, out);
