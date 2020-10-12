@@ -30,8 +30,7 @@ add_test(codegen_test codegen_test)
 add_executable(codegen_gen_test codegen_gen_test.cpp)
 target_link_libraries(codegen_gen_test fmt)
 add_custom_command(OUTPUT codegen_generated.cpp
-                   COMMAND ${CMAKE_BINARY_DIR}/codegen_gen_test
-                     -o ${CMAKE_BINARY_DIR}/codegen_generated.cpp
+                   COMMAND codegen_gen_test -o codegen_generated.cpp
                    DEPENDS codegen_gen_test)
 add_executable(codegen_run_test codegen_run_test.cpp
                codegen_generated.cpp)
