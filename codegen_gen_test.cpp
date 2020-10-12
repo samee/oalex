@@ -12,15 +12,17 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include <unistd.h>
 #include "runtime/util.h"
 #include <cstdio>
 #include <memory>
 #include <string>
+#include <unistd.h>
 using oalex::Bug;
 using oalex::UserError;
-using std::unique_ptr;
 using std::string;
+using std::unique_ptr;
+
+namespace {
 
 string parseCmdLine(int argc, char* argv[]) {
   int opt;
@@ -41,11 +43,18 @@ string parseCmdLine(int argc, char* argv[]) {
   return rv;
 }
 
+auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
+  unique_ptr<FILE, decltype(&fclose)> fp(fopen(s.c_str(), "w"), fclose);
+  if(!fp) UserError("Couldn't write to file {}", s);
+  return fp;
+}
+
+}  // namespace
+
 int main(int argc, char* argv[]) {
   try {
     string outfile = parseCmdLine(argc, argv);
-    unique_ptr<FILE, decltype(&fclose)> fp(fopen(outfile.c_str(), "w"), fclose);
-    if(!fp) UserError("Couldn't write to file {}", outfile);
+    auto fp = fopenw(outfile);
     fputs("bool goodFunc() { return true; }\n", fp.get());
     fputs("bool badFunc()  { return false; }\n", fp.get());
     return 0;
