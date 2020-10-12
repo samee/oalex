@@ -33,8 +33,9 @@ string parseCmdLine(int argc, char* argv[]) {
       rv = optarg;
     }else if(opt == '?') UserError("Please check the command line");
     else {
-     if(optarg) Bug("Got unexpected parameter {}", optarg);
-     return "";
+     if(optarg && *optarg)
+       Bug("Got unexpected parameter -{} {}", char(opt), optarg);
+     else Bug("Got unexpected option -{}", char(opt));
     }
   }
   if(rv.empty()) UserError("Missing -o option for output filename");
