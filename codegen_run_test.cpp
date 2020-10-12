@@ -12,11 +12,9 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
+#include "codegen_generated.h"
 #include "runtime/util.h"
 using oalex::Bug;
-// TODO automatically generate header files.
-extern bool goodFunc();
-extern bool badFunc();
 
 int main() {
   if(!goodFunc()) Bug("goodFunc() returned false");

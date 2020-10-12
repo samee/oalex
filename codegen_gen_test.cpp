@@ -25,7 +25,7 @@ using std::unique_ptr;
 namespace {
 
 struct CmdLineOpts {
-  string outputCppPath;
+  string outputCppPath, outputHPath;
 };
 
 CmdLineOpts parseCmdLine(int argc, char* argv[]) {
@@ -45,7 +45,8 @@ CmdLineOpts parseCmdLine(int argc, char* argv[]) {
   if(rv.empty()) UserError("Missing -o option for output filename");
   if(optind < argc) UserError("Extra parameter: {}", argv[optind]);
   if(optind > argc) Bug("getopt() produced too large an optind");
-  return CmdLineOpts{.outputCppPath = rv + ".cpp"};
+  return CmdLineOpts{.outputCppPath = rv + ".cpp",
+                     .outputHPath = rv + ".h"};
 }
 
 auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
@@ -59,9 +60,13 @@ auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
 int main(int argc, char* argv[]) {
   try {
     CmdLineOpts opts = parseCmdLine(argc, argv);
-    auto fp = fopenw(opts.outputCppPath);
-    fputs("bool goodFunc() { return true; }\n", fp.get());
-    fputs("bool badFunc()  { return false; }\n", fp.get());
+    auto cppfp = fopenw(opts.outputCppPath);
+    auto hfp = fopenw(opts.outputHPath);
+    fputs("#pragma once\n\n"
+          "extern bool goodFunc();\n"
+          "extern bool badFunc();\n", hfp.get());
+    fputs("bool goodFunc() { return true; }\n"
+          "bool badFunc()  { return false; }\n", cppfp.get());
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());
