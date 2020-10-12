@@ -27,6 +27,17 @@ add_executable(codegen_test codegen.cpp codegen_test.cpp
 target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 
+add_executable(codegen_gen_test codegen_gen_test.cpp)
+target_link_libraries(codegen_gen_test fmt)
+add_custom_command(OUTPUT codegen_generated.cpp
+                   COMMAND ${CMAKE_BINARY_DIR}/codegen_gen_test
+                     -o ${CMAKE_BINARY_DIR}/codegen_generated.cpp
+                   DEPENDS codegen_gen_test)
+add_executable(codegen_run_test codegen_run_test.cpp
+               codegen_generated.cpp)
+target_link_libraries(codegen_run_test fmt)
+add_test(codegen_run_test codegen_run_test)
+
 add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp lexer.cpp)
 target_link_libraries(jsonloc_io_test oalex)
 add_test(jsonloc_io_test jsonloc_io_test)
