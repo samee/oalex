@@ -24,7 +24,11 @@ using std::unique_ptr;
 
 namespace {
 
-string parseCmdLine(int argc, char* argv[]) {
+struct CmdLineOpts {
+  string outputCppPath;
+};
+
+CmdLineOpts parseCmdLine(int argc, char* argv[]) {
   int opt;
   string rv;
   while((opt = getopt(argc, argv, "o:")) != -1) {
@@ -41,7 +45,7 @@ string parseCmdLine(int argc, char* argv[]) {
   if(rv.empty()) UserError("Missing -o option for output filename");
   if(optind < argc) UserError("Extra parameter: {}", argv[optind]);
   if(optind > argc) Bug("getopt() produced too large an optind");
-  return rv;
+  return CmdLineOpts{.outputCppPath = rv + ".cpp"};
 }
 
 auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
@@ -54,8 +58,8 @@ auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
 
 int main(int argc, char* argv[]) {
   try {
-    string outfile = parseCmdLine(argc, argv);
-    auto fp = fopenw(outfile);
+    CmdLineOpts opts = parseCmdLine(argc, argv);
+    auto fp = fopenw(opts.outputCppPath);
     fputs("bool goodFunc() { return true; }\n", fp.get());
     fputs("bool badFunc()  { return false; }\n", fp.get());
     return 0;
