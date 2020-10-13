@@ -83,11 +83,20 @@ int main(int argc, char* argv[]) {
     auto cppfp = fopenw(opts.outputCppPath);
     auto hfp = fopenw(opts.outputHPath);
     fputs("#pragma once\n"
+          "#include <cstdint>\n"
           "#include <oalex.h>\n\n"
+          "extern oalex::JsonLoc\n"
+          "  parseAsgnStmt(oalex::InputDiags& ctx, size_t& i);\n"
           "extern bool goodFunc();\n"
           "extern bool badFunc();\n", hfp.get());
     fprintf(cppfp.get(),
-            "#include \"%s\"\n\n"
+            "#include \"%s\"\n"
+            "using oalex::InputDiags;\n"
+            "using oalex::JsonLoc;\n\n"
+            "JsonLoc parseAsgnStmt(InputDiags&, size_t&) {\n"
+            "  // Unimplemented\n"
+            "  return JsonLoc::ErrorValue{};\n"
+            "}\n\n"
             "bool goodFunc() { return true; }\n"
             "bool badFunc()  { return false; }\n",
             opts.hPathAsIncluded.c_str());

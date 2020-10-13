@@ -13,10 +13,18 @@
     limitations under the License. */
 
 #include "codegen_generated.h"
+#include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::Bug;
+using oalex::JsonLoc;
 
 int main() {
   if(!goodFunc()) Bug("goodFunc() returned false");
   if(badFunc()) Bug("badFunc() returned true");
+
+  auto ctx = testInputDiags("x = 5;");
+  size_t pos = 0;
+  JsonLoc res = parseAsgnStmt(ctx, pos);
+  if(!res.holdsError())
+    Bug("parseAsgn() returning success, but is unimplemented!");
 }
