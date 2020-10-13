@@ -35,7 +35,7 @@ add_custom_command(OUTPUT codegen_generated.cpp codegen_generated.h
 add_executable(codegen_run_test codegen_run_test.cpp
                codegen_generated.cpp)
 target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
-target_link_libraries(codegen_run_test fmt)
+target_link_libraries(codegen_run_test oalex)
 add_test(codegen_run_test codegen_run_test)
 
 add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp lexer.cpp)

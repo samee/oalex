@@ -82,7 +82,8 @@ int main(int argc, char* argv[]) {
     CmdLineOpts opts = parseCmdLine(argc, argv);
     auto cppfp = fopenw(opts.outputCppPath);
     auto hfp = fopenw(opts.outputHPath);
-    fputs("#pragma once\n\n"
+    fputs("#pragma once\n"
+          "#include <oalex.h>\n\n"
           "extern bool goodFunc();\n"
           "extern bool badFunc();\n", hfp.get());
     fprintf(cppfp.get(),

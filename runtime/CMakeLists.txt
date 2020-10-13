@@ -4,6 +4,7 @@ project(runtime)
 add_library(oalex diags.cpp input_view.cpp jsonloc.cpp
                   regex.cpp skipper.cpp)
 target_link_libraries(oalex INTERFACE fmt)
+target_include_directories(oalex INTERFACE .)
 
 add_executable(input_view_test input_view_test.cpp)
 target_link_libraries(input_view_test oalex)
