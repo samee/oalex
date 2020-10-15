@@ -20,3 +20,28 @@
 #include "jsonloc.h"
 #include "regex.h"
 #include "skipper.h"
+
+namespace oalex {
+
+inline static JsonLoc quote(std::string input, size_t stPos, size_t enPos) {
+  JsonLoc rv = std::move(input);
+  rv.stPos = stPos; rv.enPos = enPos;
+  return rv;
+}
+
+// We might move these into a separate file if we no longer depend on most
+// of the runtime headers.
+inline JsonLoc match(InputDiags& ctx, ssize_t& i, const std::string& s) {
+  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
+  return quote(s, std::exchange(i, i+s.size()), s.size());
+}
+
+inline JsonLoc match(InputDiags& ctx, ssize_t& i,
+              const Regex& regex, const RegexOptions& ropts) {
+  size_t oldi = i;
+  if(consumeGreedily(ctx.input, sign_cast<size_t&>(i), regex, ropts))
+    return quote(ctx.input.substr(oldi, i-oldi), oldi, i);
+  else return JsonLoc::ErrorValue{};
+}
+
+}

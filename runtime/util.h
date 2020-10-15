@@ -140,4 +140,23 @@ inline bool isSubstr(std::string_view s, std::string_view t) {
   return t.find(s) != std::string_view::npos;
 }
 
+
+// sign_cast<int>(). Eqiuvalent to reinterpret_cast, but constrained.
+
+template <class T>
+class ReverseSigned {
+  using unref = std::remove_reference_t<T>;
+ public:
+  static_assert(std::is_lvalue_reference_v<T> && std::is_integral_v<unref>,
+                "sign_cast only works on integer references");
+  using type = std::conditional_t<std::is_signed_v<unref>,
+                                  std::make_unsigned_t<unref>,
+                                  std::make_signed_t<unref>>;
+};
+
+template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
+  return reinterpret_cast<T>(ref);
+}
+
+
 }  // namespace oalex

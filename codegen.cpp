@@ -16,6 +16,7 @@
 #include <type_traits>
 #include <utility>
 #include "util.h"
+#include "oalex.h"
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
@@ -39,43 +40,8 @@ static JsonLoc skip(InputDiags& ctx, ssize_t& i,
   } else return JsonLoc::String();  // Just something non-error.
 }
 
-static JsonLoc quote(string input, size_t stPos, size_t enPos) {
-  JsonLoc rv = std::move(input);
-  rv.stPos = stPos; rv.enPos = enPos;
-  return rv;
-}
-
-template <class T>
-class ReverseSigned {
-  using unref = std::remove_reference_t<T>;
- public:
-  static_assert(std::is_lvalue_reference_v<T> && std::is_integral_v<unref>,
-                "sign_cast only works on integer references");
-  using type = std::conditional_t<std::is_signed_v<unref>,
-                                  std::make_unsigned_t<unref>,
-                                  std::make_signed_t<unref>>;
-};
-
-template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
-  return reinterpret_cast<T>(ref);
-}
-
-// TODO move all overloads to runtime/oalex_runtime.h
-JsonLoc match(InputDiags& ctx, ssize_t& i, const string& s) {
-  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
-  return quote(s, exchange(i, i+s.size()), s.size());
-}
-
-JsonLoc match(InputDiags& ctx, ssize_t& i,
-              const Regex& regex, const RegexOptions& ropts) {
-  size_t oldi = i;
-  if(consumeGreedily(ctx.input, sign_cast<size_t&>(i), regex, ropts))
-    return quote(ctx.input.substr(oldi, i-oldi), oldi, i);
-  else return JsonLoc::ErrorValue{};
-}
-
-JsonLoc match(InputDiags& ctx, ssize_t& i,
-              const ConcatRule& seq, const RuleSet& rs) {
+JsonLoc eval(InputDiags& ctx, ssize_t& i,
+             const ConcatRule& seq, const RuleSet& rs) {
   JsonLoc rv = seq.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   ssize_t j = i;
@@ -97,7 +63,7 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(const auto* regex = get_if<Regex>(&r))
     return match(ctx, i, *regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
-    return match(ctx,i, *seq, ruleset);
+    return eval(ctx,i, *seq, ruleset);
   Unimplemented("eval() for rule {}", r.index());
 }
 
