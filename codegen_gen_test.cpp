@@ -12,18 +12,28 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
+#include "codegen.h"
+#include "codegen_test_util.h"
+
 #include "runtime/util.h"
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <libgen.h>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <unistd.h>
 #include <utility>
 using oalex::Bug;
+using oalex::OutputStream;
+using oalex::RuleSet;
 using oalex::UserError;
+using oalex::test::singletonRuleSet;
+using std::bind;
 using std::pair;
 using std::string;
+using std::string_view;
 using std::unique_ptr;
 
 namespace {
@@ -75,6 +85,17 @@ auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
   return fp;
 }
 
+auto writeOrFail(FILE* fp, string_view s) {
+  if(fwrite(s.data(), s.size(), 1, fp) < 1)
+    UserError("File write error");
+}
+
+void generateSingleStringTest(const OutputStream& cppos,
+                              const OutputStream& hos) {
+  RuleSet rs = singletonRuleSet("hello");
+  codegen(rs, 0, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -88,7 +109,7 @@ int main(int argc, char* argv[]) {
           "extern oalex::JsonLoc\n"
           "  parseAsgnStmt(oalex::InputDiags& ctx, size_t& i);\n"
           "extern bool goodFunc();\n"
-          "extern bool badFunc();\n", hfp.get());
+          "extern bool badFunc();\n\n", hfp.get());
     fprintf(cppfp.get(),
             "#include \"%s\"\n"
             "using oalex::InputDiags;\n"
@@ -98,8 +119,12 @@ int main(int argc, char* argv[]) {
             "  return JsonLoc::ErrorValue{};\n"
             "}\n\n"
             "bool goodFunc() { return true; }\n"
-            "bool badFunc()  { return false; }\n",
+            "bool badFunc()  { return false; }\n\n",
             opts.hPathAsIncluded.c_str());
+    using std::placeholders::_1;
+    auto cppos = bind(writeOrFail, cppfp.get(), _1);
+    auto hos = bind(writeOrFail, hfp.get(), _1);
+    generateSingleStringTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

@@ -27,13 +27,14 @@ add_executable(codegen_test codegen.cpp codegen_test.cpp codegen_test_util.cpp
 target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 
-add_executable(codegen_gen_test codegen_gen_test.cpp)
-target_link_libraries(codegen_gen_test fmt)
+add_executable(codegen_gen_test codegen_gen_test.cpp codegen.cpp
+               codegen_test_util.cpp lexer.cpp regex_io.cpp)
+target_link_libraries(codegen_gen_test oalex)
 add_custom_command(OUTPUT codegen_generated.cpp codegen_generated.h
                    COMMAND codegen_gen_test -o codegen_generated
                    DEPENDS codegen_gen_test)
-add_executable(codegen_run_test codegen_run_test.cpp
-               codegen_generated.cpp)
+add_executable(codegen_run_test codegen_run_test.cpp codegen_test_util.cpp
+               codegen_generated.cpp regex_io.cpp lexer.cpp)
 target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(codegen_run_test oalex)
 add_test(codegen_run_test codegen_run_test)

@@ -51,7 +51,8 @@ struct RuleSet {
 };
 
 using OutputStream = std::function<void(std::string_view)>;
-void codegen(const RuleSet& ruleset, ssize_t ruleIndex, OutputStream& os);
+void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
+             const OutputStream& cppos, const OutputStream& hos);
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex);

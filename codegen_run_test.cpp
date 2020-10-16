@@ -13,10 +13,33 @@
     limitations under the License. */
 
 #include "codegen_generated.h"
+#include "codegen_test_util.h"
+
 #include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::Bug;
 using oalex::JsonLoc;
+using oalex::test::assertJsonLocIsString;
+using std::string;
+
+namespace {
+
+void runSingleStringTest() {
+  string msg = "hello";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc jsloc = start(ctx, pos);
+
+  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+
+  msg = "goodbye";
+  ctx = testInputDiags(msg);
+  pos = 0;
+  jsloc = start(ctx, pos);
+  if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
+}
+
+}  // namespace
 
 int main() {
   if(!goodFunc()) Bug("goodFunc() returned false");
@@ -27,4 +50,6 @@ int main() {
   JsonLoc res = parseAsgnStmt(ctx, pos);
   if(!res.holdsError())
     Bug("parseAsgn() returning success, but is unimplemented!");
+
+  runSingleStringTest();
 }

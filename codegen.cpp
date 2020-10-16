@@ -17,6 +17,8 @@
 #include <utility>
 #include "util.h"
 #include "oalex.h"
+#include "fmt/format.h"
+using fmt::format;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
@@ -24,6 +26,9 @@ using std::get_if;
 using std::string;
 
 namespace oalex {
+
+// eval()
+// ------
 
 static JsonLoc skip(InputDiags& ctx, ssize_t& i,
                  const SkipPoint& sp) {
@@ -65,6 +70,53 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(const auto* seq = get_if<ConcatRule>(&r))
     return eval(ctx,i, *seq, ruleset);
   Unimplemented("eval() for rule {}", r.index());
+}
+
+
+// codegen()
+// ---------
+
+static string cEscaped(const string& s) {
+  string rv;
+  for(char c : s) switch(c) {
+    // Technically, we should only need \", \n, and \\, but this should help
+    // readability.
+    case '"' : rv += "\\\""; continue;
+    case '\\': rv += "\\\\"; continue;
+    case '\a': rv += "\\a"; continue;
+    case '\b': rv += "\\b"; continue;
+    case '\f': rv += "\\f"; continue;
+    case '\n': rv += "\\n"; continue;
+    case '\r': rv += "\\r"; continue;
+    case '\t': rv += "\\t"; continue;
+    case '\v': rv += "\\v"; continue;
+    case '\0': rv += "\\0"; continue;
+    // TODO hex code for bytes > 0x7f
+    default: rv += c;
+  }
+  return rv;
+}
+
+/*
+// TODO: Implement this. It should generate an inlined call to oalex::match()
+// when possible, but falls back to the main codegen() for other cases.
+static void codegenInlineOneLiners(const RuleSet& ruleset, ssize_t ruleIndex,
+                                   OutputStream& os);
+*/
+
+void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
+             const OutputStream& cppos, const OutputStream& hos) {
+  const Rule& r = ruleset.rules[ruleIndex];
+  // TODO generate better names than just `start()`.
+  if(const auto* s = get_if<string>(&r)) {
+    hos("oalex::JsonLoc start(oalex::InputDiags& ctx, ssize_t& i);\n");
+
+    cppos("oalex::JsonLoc start(oalex::InputDiags& ctx, ssize_t& i) {\n");
+    cppos(format("  return oalex::match(ctx, i, \"{}\");\n", cEscaped(*s)));
+    cppos("}\n");
+    return;
+  }
+  Unimplemented("codegen() for rule {}", r.index());
 }
 
 }  // namespace oalex
