@@ -13,11 +13,11 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include "codegen_test_util.h"
 #include "jsonloc_io_test.h"
 #include "regex_io.h"
 #include "fmt/format.h"
 #include "runtime/diags_test_util.h"
-#include "runtime/skipper.h"
 #include <iterator>
 #include <string_view>
 #include <vector>
@@ -37,35 +37,15 @@ using oalex::JsonLoc;
 using oalex::makeVector;
 using oalex::parseJsonLoc;
 using oalex::Regex;
-using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
-using oalex::Skipper;
 using oalex::SkipPoint;
+using oalex::test::assertJsonLocIsString;
+using oalex::test::cskip;
+using oalex::test::regexOpts;
+using oalex::test::singletonRuleSet;
 
 namespace {
-
-const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
-const RegexOptions regexOpts{
-  .word = oalex::parseRegexCharSet("[0-9A-Za-z_]")
-};
-
-RuleSet singletonRuleSet(Rule r) {
-  RuleSet rs{{}, cskip, regexOpts};
-  rs.rules.push_back(std::move(r));
-  return rs;
-}
-
-void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
-                           string_view s, size_t stPos, size_t enPos) {
-  if(jsloc.holdsError()) Bug("{}: eval() produced error", testName);
-  assertEqual(format("{}: eval().stPos", testName), jsloc.stPos, stPos);
-  assertEqual(format("{}: eval().enPos", testName), jsloc.enPos, enPos);
-  if(const string* t = get_if<string>(&jsloc))
-    assertEqual(format("{}: output value", testName), string_view(*t), s);
-  else Bug("{}: eval produced a non-string. Index: {}", testName,
-           jsloc.value.index());
-}
 
 void testSingleStringMatch() {
   const string msg = "hello-world";
