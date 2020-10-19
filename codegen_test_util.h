@@ -30,6 +30,11 @@ inline RuleSet singletonRuleSet(Rule r) {
   return rs;
 }
 
+// X is expected to be one of the variants of Rule::specifics.
+template <class X> RuleSet singletonRuleSet(X x) {
+  return singletonRuleSet(Rule{std::move(x)});
+}
+
 void assertJsonLocIsString(std::string_view testName, const JsonLoc& jsloc,
                            std::string_view s, size_t stPos, size_t enPos);
 

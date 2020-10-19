@@ -111,16 +111,16 @@ Regex parseRegex(string_view s) {
 
 void testConcatMatch() {
   RuleSet rs{
-    .rules = makeVector<Rule>(parseRegex("/[a-zA-Z]+/"), "=",
-                              parseRegex("/[0-9]+/"), ";"),
+    .rules = makeVector<Rule>(Rule{parseRegex("/[a-zA-Z]+/")}, Rule{"="},
+                              Rule{parseRegex("/[0-9]+/")}, Rule{";"}),
     .skip{cskip},
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(SkipPoint{false, &rs.skip});
-  rs.rules.push_back(ConcatRule{"asgn", {
+  rs.rules.push_back({SkipPoint{false, &rs.skip}});
+  rs.rules.push_back({ConcatRule{"asgn", {
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: "asgn", lhs, rhs })")
-  });
+  }});
   ssize_t concatIndex = rs.rules.size()-1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");

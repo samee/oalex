@@ -76,6 +76,7 @@ void makeVectorImpl(std::vector<V>& v, FirstArg&& fa, RestArgs&& ... ra) {
 template <class V>
 void makeVectorImpl(std::vector<V>&) {}
 
+// Allows construction of a vector from a list of move-only objects.
 template <class V, class ... Args> std::vector<V>
 makeVector(Args ... args) {
   std::vector<V> rv;

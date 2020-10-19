@@ -40,9 +40,20 @@ struct SkipPoint {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
-// TODO other component types like RawString and Callback (with nested
-// components).
-using Rule = std::variant<std::string, Regex, SkipPoint, ConcatRule>;
+struct Rule {
+  // TODO other component types like RawString and Callback (with nested
+  // components).
+  std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics;
+  size_t index() const { return specifics.index(); }
+};
+
+template <class X> X* get_if(Rule* rule) {
+  return std::get_if<X>(&rule->specifics);
+}
+
+template <class X> const X* get_if(const Rule* rule) {
+  return std::get_if<X>(&rule->specifics);
+}
 
 struct RuleSet {
   std::vector<Rule> rules;
