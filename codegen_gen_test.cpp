@@ -27,6 +27,7 @@
 #include <utility>
 using oalex::Bug;
 using oalex::OutputStream;
+using oalex::Rule;
 using oalex::RuleSet;
 using oalex::UserError;
 using oalex::test::singletonRuleSet;
@@ -92,7 +93,7 @@ auto writeOrFail(FILE* fp, string_view s) {
 
 void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
-  RuleSet rs = singletonRuleSet("hello");
+  RuleSet rs = singletonRuleSet(Rule{"hello", "helloKeyword"});
   codegen(rs, 0, cppos, hos);
 }
 

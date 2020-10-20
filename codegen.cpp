@@ -119,11 +119,14 @@ static void codegenInlineOneLiners(const RuleSet& ruleset, ssize_t ruleIndex,
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleset.rules[ruleIndex];
-  // TODO generate better names than just `start()`.
+  // TODO check if some rule already uses the name start().
+  string fname = (r.name().has_value() ? *r.name() : "start");
   if(const auto* s = get_if<string>(&r)) {
-    hos("oalex::JsonLoc start(oalex::InputDiags& ctx, ssize_t& i);\n");
+    hos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
+               fname));
 
-    cppos("oalex::JsonLoc start(oalex::InputDiags& ctx, ssize_t& i) {\n");
+    cppos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i) {{\n",
+                 fname));
     cppos(format("  return oalex::match(ctx, i, \"{}\");\n", cEscaped(*s)));
     cppos("}\n");
     return;
