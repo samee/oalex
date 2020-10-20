@@ -23,6 +23,7 @@ using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::makeVector;
 using oalex::move_to_unique;
 using oalex::parseRegexCharSet;
 using oalex::parseRegex;
@@ -62,26 +63,14 @@ auto charSingle(unsigned char ch) -> unique_ptr<RegexCharSet> {
 
 auto charString(string s) { return make_unique<string>(std::move(s)); }
 
-void vector_helper(vector<Regex>&) {}
-
-template <class T, class ... Ts>
-void vector_helper(vector<Regex>& out, T t, Ts ... ts) {
-  out.push_back(std::move(t));
-  vector_helper(out, std::move(ts)...);
-}
-
 template <class ... Ts>
 auto concat(Ts ... ts) -> unique_ptr<RegexConcat> {
-  auto rv = make_unique<RegexConcat>();
-  vector_helper(rv->parts, std::move(ts)...);
-  return rv;
+  return move_to_unique(RegexConcat{makeVector<Regex>(std::move(ts)...)});
 }
 
 template <class ... Ts>
 auto orlist(Ts ... ts) -> unique_ptr<RegexOrList> {
-  auto rv = make_unique<RegexOrList>();
-  vector_helper(rv->parts, std::move(ts)...);
-  return rv;
+  return move_to_unique(RegexOrList{makeVector<Regex>(std::move(ts)...)});
 }
 
 Regex repeat(Regex part, char ch) {
