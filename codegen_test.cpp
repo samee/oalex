@@ -120,7 +120,7 @@ void testConcatMatch() {
   rs.rules.push_back(Rule{ConcatRule{{
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: "asgn", lhs, rhs })")
-  }});
+  }, "asgn"});
   ssize_t concatIndex = rs.rules.size()-1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");

@@ -69,7 +69,7 @@ static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 
 string Rule::specifics_typename() const {
   return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
-                    this->specifics);
+                    this->specifics_);
 }
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,

@@ -42,18 +42,27 @@ struct SkipPoint {
 struct Rule {
   // TODO other component types like RawString and Callback (with nested
   // components).
-  std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics;
-  std::string name;  // Might be empty. TODO make this private.
-  template <class X> explicit Rule(X x) : specifics(std::move(x)), name() {}
+  template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
+  template <class X> Rule(X x, std::string name) :
+    specifics_(std::move(x)), name_(std::move(name)) {}
   std::string specifics_typename() const;  // Used for debugging/logging.
+  std::optional<std::string> name() const {
+    if(name_.empty()) return std::nullopt; else return name_;
+  }
+
+  template <class X> friend X* get_if(Rule* rule);
+  template <class X> friend const X* get_if(const Rule* rule);
+ private:
+  std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics_;
+  std::string name_;
 };
 
 template <class X> X* get_if(Rule* rule) {
-  return std::get_if<X>(&rule->specifics);
+  return std::get_if<X>(&rule->specifics_);
 }
 
 template <class X> const X* get_if(const Rule* rule) {
-  return std::get_if<X>(&rule->specifics);
+  return std::get_if<X>(&rule->specifics_);
 }
 
 struct RuleSet {
