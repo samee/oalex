@@ -23,6 +23,7 @@ using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
 using std::get_if;
+using std::holds_alternative;
 using std::string;
 
 namespace oalex {
@@ -60,6 +61,17 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
+// Using std::visit(), since we want to catch missing types at compile-time.
+static string specifics_typename(const string&) { return "string"; }
+static string specifics_typename(const Regex&) { return "Regex"; }
+static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
+static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
+
+string Rule::specifics_typename() const {
+  return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
+                    this->specifics);
+}
+
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
@@ -69,7 +81,7 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
     return match(ctx, i, *regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
     return eval(ctx,i, *seq, ruleset);
-  Unimplemented("eval() for rule {}", r.index());
+  Unimplemented("eval() for {} rule", r.specifics_typename());
 }
 
 
@@ -116,7 +128,7 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos("}\n");
     return;
   }
-  Unimplemented("codegen() for rule {}", r.index());
+  Unimplemented("codegen() for {} rule", r.specifics_typename());
 }
 
 }  // namespace oalex

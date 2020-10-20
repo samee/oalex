@@ -44,7 +44,7 @@ struct Rule {
   // TODO other component types like RawString and Callback (with nested
   // components).
   std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics;
-  size_t index() const { return specifics.index(); }
+  std::string specifics_typename() const;  // Used for debugging/logging.
 };
 
 template <class X> X* get_if(Rule* rule) {
