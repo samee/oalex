@@ -30,7 +30,6 @@ namespace oalex {
 struct ConcatRule {
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
-  std::string name;
   std::vector<Component> comps;
   JsonLoc outputTmpl;
 };
@@ -44,6 +43,8 @@ struct Rule {
   // TODO other component types like RawString and Callback (with nested
   // components).
   std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics;
+  std::string name;  // Might be empty. TODO make this private.
+  template <class X> explicit Rule(X x) : specifics(std::move(x)), name() {}
   std::string specifics_typename() const;  // Used for debugging/logging.
 };
 

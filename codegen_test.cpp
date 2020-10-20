@@ -116,8 +116,8 @@ void testConcatMatch() {
     .skip{cskip},
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back({SkipPoint{false, &rs.skip}});
-  rs.rules.push_back({ConcatRule{"asgn", {
+  rs.rules.push_back(Rule{SkipPoint{false, &rs.skip}});
+  rs.rules.push_back(Rule{ConcatRule{{
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: "asgn", lhs, rhs })")
   }});
