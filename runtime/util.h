@@ -83,6 +83,11 @@ auto move_to_unique(T&& t) -> std::unique_ptr<T> {
 }
 
 // variant utilities, specially geared towards variant<unique_ptr<...>,...>.
+template <class ... T> using variant_unique =
+  std::variant<std::unique_ptr<T>...>;
+template <class ... T> using variant_unique_const =
+  std::variant<std::unique_ptr<const T>...>;
+
 template <class T>
 struct is_variant { static constexpr bool value = false; };
 template <class ... Ts>
@@ -110,6 +115,9 @@ template <class ... Ts, class V> bool holds_one_of(const V& v) {
 }
 template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
   return holds_one_of<std::unique_ptr<Ts>...>(v);
+}
+template <class ... Ts, class V> bool holds_one_of_unique_const(const V& v) {
+  return holds_one_of<std::unique_ptr<const Ts>...>(v);
 }
 
 template <class T, class V, class = std::enable_if_t<!std::is_const_v<V>>>

@@ -135,11 +135,11 @@ string prettyPrintAnchor(RegexAnchor a) {
 }
 
 bool printsToNull(const Regex& regex) {
-  if(holds_one_of_unique<RegexCharSet,RegexAnchor,
-                         RegexOptional,RegexRepeat,RegexOrList>(regex))
+  if(holds_one_of_unique_const<RegexCharSet,RegexAnchor,
+                               RegexOptional,RegexRepeat,RegexOrList>(regex))
     return false;
-  else if(auto* s = get_if_unique<string>(&regex)) return s->empty();
-  else if(auto* seq = get_if_unique<RegexConcat>(&regex)) {
+  else if(auto* s = get_if_unique<const string>(&regex)) return s->empty();
+  else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
     for(const Regex& p : seq->parts) if(!printsToNull(p)) return false;
     return true;
   }else Bug("printsToNull() called with unknown index {}", regex.index());
@@ -147,7 +147,7 @@ bool printsToNull(const Regex& regex) {
 
 template <class ... Ts>
 void surroundUnless(fmt::memory_buffer& buf, const Regex& regex) {
-  if(!holds_one_of_unique<Ts...>(regex))
+  if(!holds_one_of_unique_const<Ts...>(regex))
     format_to(buf, "({})", prettyPrintRec(regex));
   else format_to(buf, "{}", prettyPrintRec(regex));
 }
@@ -181,18 +181,18 @@ string surround(string s) { return "(" + s + ")"; }
 // `op` can be one of [?+*{], where '{' indicates numeric repeat.
 string prettyPrintRepeatPart(const Regex& part, char op) {
   string op_s(1, op);
-  if(auto* s = get_if_unique<string>(&part)) {
+  if(auto* s = get_if_unique<const string>(&part)) {
     if(s->size() == 1) return prettyPrintRec(part) + op_s;
     else return surround(prettyPrintRec(part)) + op_s;
   }
-  else if(holds_one_of_unique<RegexConcat,RegexRepeat,RegexOrList>(part))
+  else if(holds_one_of_unique_const<RegexConcat,RegexRepeat,RegexOrList>(part))
     return surround(prettyPrintRec(part)) + op_s;
   else return prettyPrintRec(part) + op_s;
 }
 
 string prettyPrintOpt(const RegexOptional& opt) {
   // Collapse /(...)+?/ into /(...)*/
-  if(auto* rep = get_if_unique<RegexRepeat>(&opt.part))
+  if(auto* rep = get_if_unique<const RegexRepeat>(&opt.part))
     return prettyPrintRepeatPart(rep->part, '*');
   else return prettyPrintRepeatPart(opt.part, '?');
 }
@@ -219,18 +219,19 @@ string prettyPrintRep(const RegexRepeat& rep) {
   */
 
 auto prettyPrintRec(const Regex& regex) -> string {
-  if(auto* set = get_if_unique<RegexCharSet>(&regex))
+  if(auto* set = get_if_unique<const RegexCharSet>(&regex))
     return prettyPrintSet(*set);
-  else if(auto* seq = get_if_unique<RegexConcat>(&regex))
+  else if(auto* seq = get_if_unique<const RegexConcat>(&regex))
     return prettyPrintSeq(*seq);
-  else if(auto* s = get_if_unique<string>(&regex)) return escapedForString(*s);
-  else if(auto* a = get_if_unique<RegexAnchor>(&regex))
+  else if(auto* s = get_if_unique<const string>(&regex))
+    return escapedForString(*s);
+  else if(auto* a = get_if_unique<const RegexAnchor>(&regex))
     return prettyPrintAnchor(*a);
-  else if(auto* r = get_if_unique<RegexRepeat>(&regex))
+  else if(auto* r = get_if_unique<const RegexRepeat>(&regex))
     return prettyPrintRep(*r);
-  else if(auto* r = get_if_unique<RegexOptional>(&regex))
+  else if(auto* r = get_if_unique<const RegexOptional>(&regex))
     return prettyPrintOpt(*r);
-  else if(auto* r = get_if_unique<RegexOrList>(&regex))
+  else if(auto* r = get_if_unique<const RegexOrList>(&regex))
     return prettyPrintOrs(*r);
   else Unimplemented("prettyPrint(regex) for variant {}", regex.index());
 }
@@ -373,13 +374,18 @@ auto parseSingleChar(InputDiags& ctx, size_t& i) -> optional<Regex> {
 // Consequtive string parts get joined into a single string.
 auto contractStrings(RegexConcat concat) -> RegexConcat {
   RegexConcat rv;
+  unique_ptr<string> acc;
   for(Regex& part: concat.parts) {
-    string* s = get_if_unique<string>(&part);
-    string* t = rv.parts.empty() ? nullptr
-                                 : get_if_unique<string>(&rv.parts.back());
-    if(!s || !t) rv.parts.push_back(std::move(part));
-    else t->append(std::move(*s));
+    const string* s = get_if_unique<const string>(&part);
+    if(s) {
+      if(acc) acc->append(*s);
+      else acc = make_unique<string>(*s);
+    }else {
+      if(acc) rv.parts.push_back(std::move(acc));
+      rv.parts.push_back(std::move(part));
+    }
   }
+  if(acc) rv.parts.push_back(std::move(acc));
   return rv;
 }
 

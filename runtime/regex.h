@@ -26,14 +26,14 @@ namespace oalex {
 // Forward decl.
 enum struct RegexAnchor;
 
-using Regex = std::variant<
-  std::unique_ptr<struct RegexCharSet>,
-  std::unique_ptr<std::string>,
-  std::unique_ptr<RegexAnchor>,
-  std::unique_ptr<struct RegexConcat>,
-  std::unique_ptr<struct RegexRepeat>,
-  std::unique_ptr<struct RegexOptional>,
-  std::unique_ptr<struct RegexOrList>
+using Regex = variant_unique_const<
+  struct RegexCharSet,
+  std::string,
+  RegexAnchor,
+  struct RegexConcat,
+  struct RegexRepeat,
+  struct RegexOptional,
+  struct RegexOrList
 >;
 
 // Regex primitives. Likely to change if we ever switch to matching JsonLoc.
