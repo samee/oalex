@@ -28,14 +28,14 @@ void runSingleStringTest() {
   string msg = "hello";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  JsonLoc jsloc = helloKeyword(ctx, pos);
+  JsonLoc jsloc = parseHelloKeyword(ctx, pos);
 
   assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
 
   msg = "goodbye";
   ctx = testInputDiags(msg);
   pos = 0;
-  jsloc = helloKeyword(ctx, pos);
+  jsloc = parseHelloKeyword(ctx, pos);
   if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
 }
 

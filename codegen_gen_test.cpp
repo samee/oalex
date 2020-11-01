@@ -93,7 +93,7 @@ auto writeOrFail(FILE* fp, string_view s) {
 
 void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
-  RuleSet rs = singletonRuleSet(Rule{"hello", "helloKeyword"});
+  RuleSet rs = singletonRuleSet(Rule{"hello", "HelloKeyword"});
   codegen(rs, 0, cppos, hos);
 }
 

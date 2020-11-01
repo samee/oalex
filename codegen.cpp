@@ -122,10 +122,11 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   // TODO check if some rule already uses the name start().
   string fname = (r.name().has_value() ? *r.name() : "start");
   if(const auto* s = get_if<string>(&r)) {
-    hos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
+    hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
                fname));
 
-    cppos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i) {{\n",
+    cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
+                                        "ssize_t& i) {{\n",
                  fname));
     cppos(format("  return oalex::match(ctx, i, \"{}\");\n", cEscaped(*s)));
     cppos("}\n");
