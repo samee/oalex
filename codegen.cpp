@@ -138,9 +138,9 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
       br();
     }
     cppos(")}})");
-  }else if(auto* rep = get_if_unique<const RegexOptional>(&regex)) {
+  }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
     cppos("move_to_unique(RegexOptional{.part{");
-    genRegexComponents(rep->part, cppos, indent);
+    genRegexComponents(opt->part, cppos, indent);
     cppos("}})");
   }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
     cppos("move_to_unique(RegexRepeat{.part{");
