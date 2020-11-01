@@ -126,10 +126,26 @@ static string anchorName(RegexAnchor a) {
   }
 }
 
+static void linebreak(const OutputStream& cppos, ssize_t indent) {
+  cppos("\n" + string(indent, ' '));
+}
+
+static void genRegexCharSet(const RegexCharSet& cset,
+                            const OutputStream& cppos, ssize_t indent) {
+  auto br = [&]() { linebreak(cppos, indent); };
+  cppos("RegexCharSet{.ranges = {"); br();
+  for(auto& range : cset.ranges) {
+    cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
+    br();
+  }
+  cppos(format("}}, .negated = {}}}",
+               cset.negated ? "true" : "false"));
+}
+
 static void
 genRegexComponents(const Regex& regex, const OutputStream& cppos,
                    ssize_t indent) {
-  auto br = [&]() { cppos("\n" + string(indent, ' ')); };
+  auto br = [&]() { linebreak(cppos, indent); };
   auto listparts = [&](const vector<Regex>& parts) {
     for(auto& p : parts) {
       cppos("  ");
@@ -139,13 +155,9 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
     }
   };
   if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
-    cppos("move_to_unique(RegexCharSet{.ranges = {"); br();
-    for(auto& range : cset->ranges) {
-      cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
-      br();
-    }
-    cppos(format("}}, .negated = {}}})",
-                 cset->negated ? "true" : "false"));
+    cppos("move_to_unique(");
+    genRegexCharSet(*cset, cppos, indent);
+    cppos(")");
   }else if(auto* s = get_if_unique<const string>(&regex)) {
     cppos("move_to_unique(\"");  cppos(cEscaped(*s)); cppos("\"s)");
   }else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
