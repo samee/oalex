@@ -117,6 +117,15 @@ static string cEscaped(const string& s) {
 
 static string squoted(char ch) { return format("'{}'", cEscaped(ch)); }
 
+static string anchorName(RegexAnchor a) {
+  switch(a) {
+    case RegexAnchor::wordEdge: Unimplemented("RegexOpts generation");
+    case RegexAnchor::bol: return "bol";
+    case RegexAnchor::eol: return "eol";
+    default: Bug("Unknown RegexAnchor of type {}", static_cast<int>(a));
+  }
+}
+
 static void
 genRegexComponents(const Regex& regex, const OutputStream& cppos,
                    ssize_t indent) {
@@ -139,6 +148,8 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
                  cset->negated ? "true" : "false"));
   }else if(auto* s = get_if_unique<const string>(&regex)) {
     cppos("move_to_unique(\"");  cppos(cEscaped(*s)); cppos("\"s)");
+  }else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
+    cppos(format("move_to_unique(RegexAnchor::{})", anchorName(*a)));
   }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
     cppos("move_to_unique(RegexConcat{.parts{makeVector<Regex>("); br();
     listparts(seq->parts);
@@ -169,6 +180,7 @@ codegen(const Regex& regex, const string& rname,
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
+  cppos("  using oalex::RegexAnchor;\n");
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexConcat;\n");
   cppos("  using oalex::RegexOptional;\n");

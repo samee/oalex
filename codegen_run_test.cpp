@@ -54,6 +54,7 @@ void runSingleRegexTest() {
     {"foood", parseLongFood},
     {"abc", parseAbcXyz},
     {"xyyyz", parseAbcXyz},
+    {"abc", parseAbcWholeLine},
   };
   for(auto& [msg, parseMsg] : inputs) {
     auto ctx = testInputDiags(msg);
@@ -67,6 +68,7 @@ void runSingleRegexTest() {
     {"fort", parseFooOrFox},
     {"fod", parseFooOrFox},
     {"abxyz", parseAbcXyz},
+    {"abcd", parseAbcWholeLine},
   };
   for(auto& [msg, parseMsg] : bad_inputs) {
     auto ctx = testInputDiags(msg);

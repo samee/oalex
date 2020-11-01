@@ -106,6 +106,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
     {"/fo[ox]/", "FooOrFox"},
     {"/foo+d/", "LongFood"},
     {"/abc|xy+z/", "AbcXyz"},
+    {"/^abc$/", "AbcWholeLine"},
   };
   for(auto& [pat, fname] : inputs) {
     InputDiags regex_input{Input{pat}};
