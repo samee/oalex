@@ -56,6 +56,7 @@ void runSingleRegexTest() {
     {"abcde", parseAbcXyz, 3},
     {"xyyyz", parseAbcXyz, 5},
     {"abc", parseAbcWholeLine, 3},
+    {"abc+", parseAbcWord, 3},
   };
   for(auto& [msg, parseMsg, len] : inputs) {
     auto ctx = testInputDiags(msg);
@@ -70,6 +71,7 @@ void runSingleRegexTest() {
     {"fod", parseFooOrFox},
     {"abxyz", parseAbcXyz},
     {"abcd", parseAbcWholeLine},
+    {"abc+", parseAbcWholeLine},
   };
   for(auto& [msg, parseMsg] : bad_inputs) {
     auto ctx = testInputDiags(msg);

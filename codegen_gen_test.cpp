@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <utility>
 using oalex::Bug;
+using oalex::codegenDefaultRegexOptions;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::OutputStream;
@@ -34,6 +35,8 @@ using oalex::parseRegex;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::UserError;
+using oalex::test::cskip;
+using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
 using std::pair;
@@ -108,6 +111,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
     {"/foo+d/", "LongFood"},
     {"/abc|xy+z/", "AbcXyz"},
     {"/^abc$/", "AbcWholeLine"},
+    {"/^abc\\b/", "AbcWord"},
   };
   for(auto& [pat, fname] : inputs) {
     InputDiags regex_input{Input{pat}};
@@ -150,8 +154,11 @@ int main(int argc, char* argv[]) {
     auto hos = bind(writeOrFail, hfp.get(), _1);
     auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
+    // TODO first-class support for multiple RuleSets in a file.
     linebreaks(); generateSingleStringTest(cppos, hos);
-    linebreaks(); generateSingleRegexTest(cppos, hos);
+    linebreaks();
+    codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
+    generateSingleRegexTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

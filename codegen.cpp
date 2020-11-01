@@ -119,7 +119,7 @@ static string squoted(char ch) { return format("'{}'", cEscaped(ch)); }
 
 static string anchorName(RegexAnchor a) {
   switch(a) {
-    case RegexAnchor::wordEdge: Unimplemented("RegexOpts generation");
+    case RegexAnchor::wordEdge: return "wordEdge";
     case RegexAnchor::bol: return "bol";
     case RegexAnchor::eol: return "eol";
     default: Bug("Unknown RegexAnchor of type {}", static_cast<int>(a));
@@ -181,6 +181,18 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
   }else Unimplemented("Regex codegen for index {}", regex.index());
 }
 
+void codegenDefaultRegexOptions(const RuleSet& ruleset,
+                                const OutputStream& cppos) {
+  cppos("const oalex::RegexOptions& defaultRegexOpts() {\n");
+  cppos("  using oalex::RegexCharSet;\n");
+  cppos("  using oalex::RegexOptions;\n");
+  cppos("  static const RegexOptions *opts = new RegexOptions{.word =\n");
+  genRegexCharSet(ruleset.regexOpts.word, cppos, 4);
+  cppos("\n  };\n");
+  cppos("  return *opts;\n");
+  cppos("}\n");
+}
+
 static void
 codegen(const Regex& regex, const string& rname,
         const OutputStream& cppos, const OutputStream& hos) {
@@ -188,7 +200,6 @@ codegen(const Regex& regex, const string& rname,
              rname));
   cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
                                       "ssize_t& i) {{\n", rname));
-  // TODO move to global using.
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
@@ -200,12 +211,10 @@ codegen(const Regex& regex, const string& rname,
   cppos("  using oalex::RegexOrList;\n");
   cppos("  using oalex::RegexRepeat;\n");
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
-  // TODO fill in for \w to work
-  cppos("  static RegexOptions *opts = new RegexOptions{};\n");
   cppos("  static Regex *r = new Regex{\n    ");
   genRegexComponents(regex, cppos, 4);
   cppos("\n  };\n");
-  cppos("  return oalex::match(ctx, i, *r, *opts);\n");
+  cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
   cppos("}\n");
 }
 
