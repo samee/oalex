@@ -52,6 +52,8 @@ void runSingleRegexTest() {
   const pair<string, JsonLoc(*)(InputDiags&, ssize_t&)> inputs[] = {
     {"fox", parseFooOrFox},
     {"foood", parseLongFood},
+    {"abc", parseAbcXyz},
+    {"xyyyz", parseAbcXyz},
   };
   for(auto& [msg, parseMsg] : inputs) {
     auto ctx = testInputDiags(msg);
@@ -64,6 +66,7 @@ void runSingleRegexTest() {
   const pair<string, JsonLoc(*)(InputDiags&, ssize_t&)> bad_inputs[] = {
     {"fort", parseFooOrFox},
     {"fod", parseFooOrFox},
+    {"abxyz", parseAbcXyz},
   };
   for(auto& [msg, parseMsg] : bad_inputs) {
     auto ctx = testInputDiags(msg);

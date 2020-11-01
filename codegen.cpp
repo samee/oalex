@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include <type_traits>
 #include <utility>
+#include <vector>
 #include "util.h"
 #include "oalex.h"
 #include "fmt/format.h"
@@ -25,6 +26,7 @@ using std::exchange;
 using std::get_if;
 using std::holds_alternative;
 using std::string;
+using std::vector;
 
 namespace oalex {
 
@@ -119,6 +121,14 @@ static void
 genRegexComponents(const Regex& regex, const OutputStream& cppos,
                    ssize_t indent) {
   auto br = [&]() { cppos("\n" + string(indent, ' ')); };
+  auto listparts = [&](const vector<Regex>& parts) {
+    for(auto& p : parts) {
+      cppos("  ");
+      genRegexComponents(p, cppos, indent+2);
+      if(&p != &parts.back()) cppos(",");
+      br();
+    }
+  };
   if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
     cppos("move_to_unique(RegexCharSet{.ranges = {"); br();
     for(auto& range : cset->ranges) {
@@ -131,12 +141,7 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
     cppos("move_to_unique(\"");  cppos(cEscaped(*s)); cppos("\"s)");
   }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
     cppos("move_to_unique(RegexConcat{.parts{makeVector<Regex>("); br();
-    for(auto& p : seq->parts) {
-      cppos("  ");
-      genRegexComponents(p, cppos, indent+2);
-      if(&p != &seq->parts.back()) cppos(",");
-      br();
-    }
+    listparts(seq->parts);
     cppos(")}})");
   }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
     cppos("move_to_unique(RegexOptional{.part{");
@@ -146,6 +151,10 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
     cppos("move_to_unique(RegexRepeat{.part{");
     genRegexComponents(rep->part, cppos, indent);
     cppos("}})");
+  }else if(auto ors = get_if_unique<const RegexOrList>(&regex)) {
+    cppos("move_to_unique(RegexOrList{.parts{makeVector<Regex>("); br();
+    listparts(ors->parts);
+    cppos(")}})");
   }else Unimplemented("Regex codegen for index {}", regex.index());
 }
 
@@ -164,6 +173,7 @@ codegen(const Regex& regex, const string& rname,
   cppos("  using oalex::RegexConcat;\n");
   cppos("  using oalex::RegexOptional;\n");
   cppos("  using oalex::RegexOptions;\n");
+  cppos("  using oalex::RegexOrList;\n");
   cppos("  using oalex::RegexRepeat;\n");
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   // TODO fill in for \w to work

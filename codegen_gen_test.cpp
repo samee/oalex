@@ -105,6 +105,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
   const pair<string,string> inputs[] = {
     {"/fo[ox]/", "FooOrFox"},
     {"/foo+d/", "LongFood"},
+    {"/abc|xy+z/", "AbcXyz"},
   };
   for(auto& [pat, fname] : inputs) {
     InputDiags regex_input{Input{pat}};
