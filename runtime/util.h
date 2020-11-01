@@ -166,5 +166,22 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
   return reinterpret_cast<T>(ref);
 }
 
+// makeVector<V>(...). Allows construction of a vector with move-only elements.
+
+template <class V, class FirstArg, class ... RestArgs>
+void makeVectorImpl(std::vector<V>& v, FirstArg&& fa, RestArgs&& ... ra) {
+  v.push_back(std::move(fa));
+  makeVectorImpl(v, std::move(ra)...);
+}
+
+template <class V>
+void makeVectorImpl(std::vector<V>&) {}
+
+template <class V, class ... Args> std::vector<V>
+makeVector(Args ... args) {
+  std::vector<V> rv;
+  makeVectorImpl(rv, std::move(args)...);
+  return rv;
+}
 
 }  // namespace oalex
