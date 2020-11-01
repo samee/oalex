@@ -113,6 +113,68 @@ static string cEscaped(const string& s) {
   return rv;
 }
 
+static string squoted(char ch) { return format("'{}'", cEscaped(ch)); }
+
+static void
+genRegexComponents(const Regex& regex, const OutputStream& cppos,
+                   ssize_t indent) {
+  auto br = [&]() { cppos("\n" + string(indent, ' ')); };
+  if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
+    cppos("move_to_unique(RegexCharSet{.ranges = {"); br();
+    for(auto& range : cset->ranges) {
+      cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
+      br();
+    }
+    cppos(format("}}, .negated = {}}})",
+                 cset->negated ? "true" : "false"));
+  }else if(auto* s = get_if_unique<const string>(&regex)) {
+    cppos("move_to_unique(\"");  cppos(cEscaped(*s)); cppos("\"s)");
+  }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
+    cppos("move_to_unique(RegexConcat{.parts{makeVector<Regex>("); br();
+    for(auto& p : seq->parts) {
+      cppos("  ");
+      genRegexComponents(p, cppos, indent+2);
+      if(&p != &seq->parts.back()) cppos(",");
+      br();
+    }
+    cppos(")}})");
+  }else if(auto* rep = get_if_unique<const RegexOptional>(&regex)) {
+    cppos("move_to_unique(RegexOptional{.part{");
+    genRegexComponents(rep->part, cppos, indent);
+    cppos("}})");
+  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
+    cppos("move_to_unique(RegexRepeat{.part{");
+    genRegexComponents(rep->part, cppos, indent);
+    cppos("}})");
+  }else Unimplemented("Regex codegen for index {}", regex.index());
+}
+
+static void
+codegen(const Regex& regex, const string& rname,
+        const OutputStream& cppos, const OutputStream& hos) {
+  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
+             rname));
+  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
+                                      "ssize_t& i) {{\n", rname));
+  // TODO move to global using.
+  cppos("  using oalex::makeVector;\n");
+  cppos("  using oalex::move_to_unique;\n");
+  cppos("  using oalex::Regex;\n");
+  cppos("  using oalex::RegexCharSet;\n");
+  cppos("  using oalex::RegexConcat;\n");
+  cppos("  using oalex::RegexOptional;\n");
+  cppos("  using oalex::RegexOptions;\n");
+  cppos("  using oalex::RegexRepeat;\n");
+  cppos("  using std::literals::string_literals::operator\"\"s;\n");
+  // TODO fill in for \w to work
+  cppos("  static RegexOptions *opts = new RegexOptions{};\n");
+  cppos("  static Regex *r = new Regex{\n    ");
+  genRegexComponents(regex, cppos, 4);
+  cppos("\n  };\n");
+  cppos("  return oalex::match(ctx, i, *r, *opts);\n");
+  cppos("}\n");
+}
+
 /*
 // TODO: Implement this. It should generate an inlined call to oalex::match()
 // when possible, but falls back to the main codegen() for other cases.
@@ -134,9 +196,9 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
                  fname));
     cppos(format("  return oalex::match(ctx, i, \"{}\");\n", cEscaped(*s)));
     cppos("}\n");
-    return;
-  }
-  Unimplemented("codegen() for {} rule", r.specifics_typename());
+  }else if(const auto* regex = get_if<Regex>(&r)) {
+    codegen(*regex, fname, cppos, hos);
+  }else Unimplemented("codegen() for {} rule", r.specifics_typename());
 }
 
 }  // namespace oalex

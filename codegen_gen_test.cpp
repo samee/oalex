@@ -15,7 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
-#include "runtime/util.h"
+#include "runtime/oalex.h"
 #include <cstdio>
 #include <cstring>
 #include <functional>
@@ -26,7 +26,10 @@
 #include <unistd.h>
 #include <utility>
 using oalex::Bug;
+using oalex::Input;
+using oalex::InputDiags;
 using oalex::OutputStream;
+using oalex::parseRegex;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::UserError;
@@ -97,6 +100,21 @@ void generateSingleStringTest(const OutputStream& cppos,
   codegen(rs, 0, cppos, hos);
 }
 
+void generateSingleRegexTest(const OutputStream& cppos,
+                             const OutputStream& hos) {
+  const pair<string,string> inputs[] = {
+    {"/fo[ox]/", "FooOrFox"},
+    {"/foo+d/", "LongFood"},
+  };
+  for(auto& [pat, fname] : inputs) {
+    InputDiags regex_input{Input{pat}};
+    size_t i = 0;
+    cppos("\n");
+    RuleSet rs = singletonRuleSet(Rule{*parseRegex(regex_input, i), fname});
+    codegen(rs, 0, cppos, hos);
+  }
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -125,7 +143,10 @@ int main(int argc, char* argv[]) {
     using std::placeholders::_1;
     auto cppos = bind(writeOrFail, cppfp.get(), _1);
     auto hos = bind(writeOrFail, hfp.get(), _1);
-    generateSingleStringTest(cppos, hos);
+    auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
+
+    linebreaks(); generateSingleStringTest(cppos, hos);
+    linebreaks(); generateSingleRegexTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());
