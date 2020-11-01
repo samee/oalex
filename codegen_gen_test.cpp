@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
+#include "runtime/diags_test_util.h"
 #include "runtime/oalex.h"
 #include <cstdio>
 #include <cstring>
@@ -112,7 +113,9 @@ void generateSingleRegexTest(const OutputStream& cppos,
     InputDiags regex_input{Input{pat}};
     size_t i = 0;
     cppos("\n");
-    RuleSet rs = singletonRuleSet(Rule{*parseRegex(regex_input, i), fname});
+    auto regex = parseRegex(regex_input, i);
+    assertEmptyDiags(__func__, regex_input.diags);
+    RuleSet rs = singletonRuleSet(Rule{std::move(*regex), fname});
     codegen(rs, 0, cppos, hos);
   }
 }
