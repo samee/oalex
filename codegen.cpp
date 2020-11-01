@@ -88,24 +88,28 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 // codegen()
 // ---------
 
-static string cEscaped(const string& s) {
-  string rv;
-  for(char c : s) switch(c) {
+static string cEscaped(char c) {
+  switch(c) {
     // Technically, we should only need \", \n, and \\, but this should help
     // readability.
-    case '"' : rv += "\\\""; continue;
-    case '\\': rv += "\\\\"; continue;
-    case '\a': rv += "\\a"; continue;
-    case '\b': rv += "\\b"; continue;
-    case '\f': rv += "\\f"; continue;
-    case '\n': rv += "\\n"; continue;
-    case '\r': rv += "\\r"; continue;
-    case '\t': rv += "\\t"; continue;
-    case '\v': rv += "\\v"; continue;
-    case '\0': rv += "\\0"; continue;
+    case '"' : return "\\\"";
+    case '\\': return "\\\\";
+    case '\a': return "\\a";
+    case '\b': return "\\b";
+    case '\f': return "\\f";
+    case '\n': return "\\n";
+    case '\r': return "\\r";
+    case '\t': return "\\t";
+    case '\v': return "\\v";
+    case '\0': return "\\0";
     // TODO hex code for bytes > 0x7f
-    default: rv += c;
+    default: return string(1, c);
   }
+}
+
+static string cEscaped(const string& s) {
+  string rv;
+  for(char c : s) rv += cEscaped(c);
   return rv;
 }
 
