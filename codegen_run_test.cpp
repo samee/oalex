@@ -30,6 +30,7 @@ using oalex::JsonLoc;
 using oalex::test::assertJsonLocIsString;
 using std::pair;
 using std::string;
+using std::tuple;
 
 namespace {
 
@@ -49,18 +50,18 @@ void runSingleStringTest() {
 }
 
 void runSingleRegexTest() {
-  const pair<string, JsonLoc(*)(InputDiags&, ssize_t&)> inputs[] = {
-    {"fox", parseFooOrFox},
-    {"foood", parseLongFood},
-    {"abc", parseAbcXyz},
-    {"xyyyz", parseAbcXyz},
-    {"abc", parseAbcWholeLine},
+  const tuple<string, JsonLoc(*)(InputDiags&, ssize_t&), size_t> inputs[] = {
+    {"fox", parseFooOrFox, 3},
+    {"foood", parseLongFood, 5},
+    {"abcde", parseAbcXyz, 3},
+    {"xyyyz", parseAbcXyz, 5},
+    {"abc", parseAbcWholeLine, 3},
   };
-  for(auto& [msg, parseMsg] : inputs) {
+  for(auto& [msg, parseMsg, len] : inputs) {
     auto ctx = testInputDiags(msg);
     ssize_t pos = 0;
     JsonLoc jsloc = parseMsg(ctx, pos);
-    assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+    assertJsonLocIsString(__func__, jsloc, string(msg, 0, len), 0, len);
   }
 
 
