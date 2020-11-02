@@ -186,7 +186,7 @@ void codegenDefaultRegexOptions(const RuleSet& ruleset,
   cppos("const oalex::RegexOptions& defaultRegexOpts() {\n");
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexOptions;\n");
-  cppos("  static const RegexOptions *opts = new RegexOptions{.word =\n");
+  cppos("  static const RegexOptions *opts = new RegexOptions{.word =\n  ");
   genRegexCharSet(ruleset.regexOpts.word, cppos, 4);
   cppos("\n  };\n");
   cppos("  return *opts;\n");
