@@ -24,7 +24,8 @@
 namespace oalex {
 
 // Even though we call it json, we don't in fact support numbers, booleans,
-// or null. It's all strings here, that's the only atomic datatype.
+// or null. We do support an error type. Together with strings, those two are
+// the only atomic types.
 // stPos and enPos can remain JsonLoc::npos, if they only have hardcoded values.
 // The other difference is that we treat strings as byte-strings, not utf-8.
 // This also causes a difference in our backslash escaping conventions.
