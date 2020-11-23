@@ -104,6 +104,15 @@ void generateSingleStringTest(const OutputStream& cppos,
   codegen(rs, 0, cppos, hos);
 }
 
+Rule regexRule(const string& testName,
+               const string& regex_pattern, const string& fname) {
+  InputDiags regex_input{Input{regex_pattern}};
+  size_t i = 0;
+  auto regex = parseRegex(regex_input, i);
+  assertEmptyDiags(testName, regex_input.diags);
+  return Rule{std::move(*regex), fname};
+}
+
 void generateSingleRegexTest(const OutputStream& cppos,
                              const OutputStream& hos) {
   const pair<string,string> inputs[] = {
@@ -114,12 +123,8 @@ void generateSingleRegexTest(const OutputStream& cppos,
     {"/^abc\\b/", "AbcWord"},
   };
   for(auto& [pat, fname] : inputs) {
-    InputDiags regex_input{Input{pat}};
-    size_t i = 0;
     cppos("\n");
-    auto regex = parseRegex(regex_input, i);
-    assertEmptyDiags(__func__, regex_input.diags);
-    RuleSet rs = singletonRuleSet(Rule{std::move(*regex), fname});
+    RuleSet rs = singletonRuleSet(regexRule(__func__, pat, fname));
     codegen(rs, 0, cppos, hos);
   }
 }
