@@ -138,7 +138,7 @@ static void linebreak(const OutputStream& cppos, ssize_t indent) {
 static void genRegexCharSet(const RegexCharSet& cset,
                             const OutputStream& cppos, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  cppos("RegexCharSet{.ranges = {"); br();
+  cppos("RegexCharSet{.ranges {"); br();
   for(auto& range : cset.ranges) {
     cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
     br();
@@ -179,13 +179,13 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
                   }, br, cppos);
     cppos("}})");
   }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    cppos("move_to_unique(RegexOptional{.part{");
-    genRegexComponents(opt->part, cppos, indent);
-    cppos("}})");
+    cppos("move_to_unique(RegexOptional{.part{"); br(); cppos("  ");
+    genRegexComponents(opt->part, cppos, indent+2);
+    br(); cppos("}})");
   }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
-    cppos("move_to_unique(RegexRepeat{.part{");
-    genRegexComponents(rep->part, cppos, indent);
-    cppos("}})");
+    cppos("move_to_unique(RegexRepeat{.part{"); br(); cppos("  ");
+    genRegexComponents(rep->part, cppos, indent+2);
+    br(); cppos("}})");
   }else if(auto ors = get_if_unique<const RegexOrList>(&regex)) {
     cppos("move_to_unique(RegexOrList{.parts{"); br();
     genMakeVector("Regex", ors->parts, [&](auto& part) {
