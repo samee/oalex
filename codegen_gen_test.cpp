@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
+#include "jsonloc_io_test.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/oalex.h"
 #include <cstdio>
@@ -28,9 +29,12 @@
 #include <utility>
 using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
+using oalex::ConcatRule;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::JsonLoc;
 using oalex::OutputStream;
+using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::Rule;
 using oalex::RuleSet;
@@ -129,6 +133,23 @@ void generateSingleRegexTest(const OutputStream& cppos,
   }
 }
 
+void generateConcatTest(const OutputStream& cppos,
+                        const OutputStream& hos) {
+  RuleSet rs { oalex::makeVector<Rule>(
+    Rule{"int ", "Type"},  // Exactly one space, as expected in codegen_run_test
+    regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*/", "Identifier"),
+    Rule{"=", "EqualSign"},
+    regexRule(__func__, "/-?[0-9]+/", "IntegerLiteral"),
+    Rule{";", "SemiColon"},
+    Rule{ConcatRule{{{0,""}, {1,"id"}, {2,""}, {3,"value"}, {4,""}},
+                    *parseJsonLoc("{id, value}")},
+         "Definition"}
+    ), cskip, regexOpts
+  };
+  for(size_t i=0; i<size(rs.rules); ++i)
+    codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -164,6 +185,7 @@ int main(int argc, char* argv[]) {
     linebreaks();
     codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
     generateSingleRegexTest(cppos, hos);
+    generateConcatTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

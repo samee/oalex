@@ -14,6 +14,7 @@
 
 #include "codegen.h"
 #include <functional>
+#include <map>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -27,6 +28,8 @@ using std::exchange;
 using std::function;
 using std::get_if;
 using std::holds_alternative;
+using std::map;
+using std::optional;
 using std::string;
 using std::vector;
 
@@ -229,6 +232,63 @@ codegen(const Regex& regex, const string& rname,
   cppos("}\n");
 }
 
+static void
+codegen(const JsonLoc& jsloc, const OutputStream& cppos,
+        const map<string,string>& placeholders, ssize_t indent) {
+  auto br = [&]() { linebreak(cppos, indent); };
+  if(auto* p = get_if<JsonLoc::Placeholder>(&jsloc)) {
+    auto v = placeholders.find(p->key);
+    if(v == placeholders.end())
+      Bug("Undefined placeholder in codegen: {}", p->key);
+    cppos(format("std::move({})", v->second));
+  }else if(auto* s = get_if<JsonLoc::String>(&jsloc)) {
+    cppos(format("\"{}\"", cEscaped(*s)));
+  }else if(auto* v = get_if<JsonLoc::Vector>(&jsloc)) {
+    cppos("JsonLoc::Vector{");
+    genMakeVector("JsonLoc", *v, [&](auto& child) {
+                   codegen(child, cppos, placeholders, indent+2);
+                 }, br, cppos);
+    cppos("}");
+  }else if(auto* m = get_if<JsonLoc::Map>(&jsloc)) {
+    cppos("JsonLoc::Map{"); br();
+    for(const auto& [k, v] : *m) {
+      cppos(format("  {{\"{}\", ", cEscaped(k)));
+      codegen(v, cppos, placeholders, indent+4);
+      cppos("},"); br();
+    }
+    cppos("}");
+  }else cppos("JsonLoc::ErrorValue{}");
+}
+
+static void
+codegen(const ConcatRule& concatRule, const string& rname,
+        const OutputStream& cppos, const OutputStream& hos,
+        function<optional<string>(ssize_t)> rulename) {
+  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
+             rname));
+  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
+                                      "ssize_t& i) {{\n", rname));
+  cppos("  using oalex::JsonLoc;\n");
+  cppos("  ssize_t j = i;\n\n");
+  map<string,string> placeholders;
+  for(auto& comp : concatRule.comps) {
+    const optional<string> nm = rulename(comp.idx);
+    if(!nm.has_value()) Unimplemented("Nameless concat component");
+    string resvar = "res" + *nm;
+    cppos(format("  JsonLoc {} = parse{}(ctx, j);\n", resvar, *nm));
+    cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
+    if(!comp.outputPlaceholder.empty() &&
+       !placeholders.insert({comp.outputPlaceholder, resvar}).second)
+      // This uniqueness is also used in codegen(JsonLoc).
+      Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
+  }
+  cppos("\n  i = j;\n");
+  cppos("  return ");
+    codegen(concatRule.outputTmpl, cppos, placeholders, 2);
+    cppos(";\n");
+  cppos("}\n");
+}
+
 /*
 // TODO: Implement this. It should generate an inlined call to oalex::match()
 // when possible, but falls back to the main codegen() for other cases.
@@ -241,10 +301,12 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   const Rule& r = ruleset.rules[ruleIndex];
   // TODO check if some rule already uses the name start().
   string fname = (r.name().has_value() ? *r.name() : "start");
+  auto rulename = [&](ssize_t i) { return ruleset.rules[i].name(); };
   if(const auto* s = get_if<string>(&r)) {
     hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
                fname));
 
+    // TODO complex parsers should have comments with the source line.
     cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
                                         "ssize_t& i) {{\n",
                  fname));
@@ -252,6 +314,9 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos("}\n");
   }else if(const auto* regex = get_if<Regex>(&r)) {
     codegen(*regex, fname, cppos, hos);
+  }else if(const auto* seq = get_if<ConcatRule>(&r)) {
+    codegen(*seq, fname, cppos, hos, rulename);
+  // TODO Implement SkipPoint, errors, OrListRule
   }else Unimplemented("codegen() for {} rule", r.specifics_typename());
 }
 

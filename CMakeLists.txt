@@ -28,7 +28,7 @@ target_link_libraries(codegen_test oalex)
 add_test(codegen_test codegen_test)
 
 add_executable(codegen_gen_test codegen_gen_test.cpp codegen.cpp
-               codegen_test_util.cpp lexer.cpp regex_io.cpp)
+               codegen_test_util.cpp lexer.cpp regex_io.cpp jsonloc_io.cpp)
 target_link_libraries(codegen_gen_test oalex)
 add_custom_command(OUTPUT codegen_generated.cpp codegen_generated.h
                    COMMAND codegen_gen_test -o codegen_generated

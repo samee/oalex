@@ -24,6 +24,7 @@
 #include <utility>
 #include "runtime/diags_test_util.h"
 #include "runtime/util.h"
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::InputDiags;
 using oalex::JsonLoc;
@@ -81,6 +82,18 @@ void runSingleRegexTest() {
   }
 }
 
+void runConcatTest() {
+  auto ctx = testInputDiags("int x=5;");  // Exactly one space after int.
+  ssize_t pos = 0;
+  JsonLoc jsloc = parseDefinition(ctx, pos);
+  const string expected = R"({
+    id: "x",
+    value: "5"
+  })";
+  if(jsloc.holdsError()) BugMe("parse failed");
+  assertEqual(__func__, expected, jsloc.prettyPrint(2));
+}
+
 }  // namespace
 
 int main() {
@@ -95,4 +108,5 @@ int main() {
 
   runSingleStringTest();
   runSingleRegexTest();
+  runConcatTest();
 }
