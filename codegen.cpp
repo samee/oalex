@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include <functional>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -23,6 +24,7 @@ using fmt::format;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
+using std::function;
 using std::get_if;
 using std::holds_alternative;
 using std::string;
@@ -142,18 +144,23 @@ static void genRegexCharSet(const RegexCharSet& cset,
                cset.negated ? "true" : "false"));
 }
 
+template <class T, class Cb> static void
+genMakeVector(const string& eltType, const vector<T>& vec,
+              Cb genElt, function<void()> br,
+              const OutputStream& cppos) {
+  cppos(format("makeVector<{}>(", eltType)); br();
+  for(const T& elt : vec) {
+    cppos("  "); genElt(elt);
+    if(&elt != &vec.back()) cppos(",");
+    br();
+  }
+  cppos(")");
+}
+
 static void
 genRegexComponents(const Regex& regex, const OutputStream& cppos,
                    ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  auto listparts = [&](const vector<Regex>& parts) {
-    for(auto& p : parts) {
-      cppos("  ");
-      genRegexComponents(p, cppos, indent+2);
-      if(&p != &parts.back()) cppos(",");
-      br();
-    }
-  };
   if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
     cppos("move_to_unique(");
     genRegexCharSet(*cset, cppos, indent);
@@ -163,9 +170,11 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
   }else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
     cppos(format("move_to_unique(RegexAnchor::{})", anchorName(*a)));
   }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
-    cppos("move_to_unique(RegexConcat{.parts{makeVector<Regex>("); br();
-    listparts(seq->parts);
-    cppos(")}})");
+    cppos("move_to_unique(RegexConcat{.parts{");
+    genMakeVector("Regex", seq->parts, [&](auto& part) {
+                    genRegexComponents(part, cppos, indent+2);
+                  }, br, cppos);
+    cppos("}})");
   }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
     cppos("move_to_unique(RegexOptional{.part{");
     genRegexComponents(opt->part, cppos, indent);
@@ -175,9 +184,11 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
     genRegexComponents(rep->part, cppos, indent);
     cppos("}})");
   }else if(auto ors = get_if_unique<const RegexOrList>(&regex)) {
-    cppos("move_to_unique(RegexOrList{.parts{makeVector<Regex>("); br();
-    listparts(ors->parts);
-    cppos(")}})");
+    cppos("move_to_unique(RegexOrList{.parts{"); br();
+    genMakeVector("Regex", ors->parts, [&](auto& part) {
+                    genRegexComponents(part, cppos, indent+2);
+                  }, br, cppos);
+    cppos("}})");
   }else Unimplemented("Regex codegen for index {}", regex.index());
 }
 
