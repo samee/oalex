@@ -45,8 +45,7 @@ static JsonLoc skip(InputDiags& ctx, ssize_t& i,
   i = sp.stayWithinLine ? sp.skip->withinLine(input, i)
                         : sp.skip->acrossLines(input, i);
   if(i == ssize_t(string::npos)) {
-    ssize_t com = oldi;
-    while(ctx.input.sizeGt(com) && is_in(ctx.input[com], " \n\t")) ++com;
+    ssize_t com = sp.skip->whitespace(input, oldi);
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
     return JsonLoc::ErrorValue{};

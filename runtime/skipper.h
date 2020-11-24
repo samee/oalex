@@ -152,6 +152,14 @@ struct Skipper {
 
   // Tests if we can start skipping from pos.
   bool canStart(const InputPiece& input, size_t pos) const;
+
+  /*
+  Skips only over ' ', '\n', and '\t'. This is often used to find the start
+  of an incomplete comment for error-reporting, in case acrossLines() or
+  withinLines() returns Input::npos. If it's all whitespace till eof, it returns
+  some x that makes input.sizeGt(x) false.
+  */
+  size_t whitespace(const InputPiece& input, size_t pos) const;
 };
 
 // Returns true iff ch is found in s.

@@ -165,4 +165,9 @@ bool Skipper::canStart(const InputPiece& input, size_t pos) const {
       || skipComments(*this, input, pos, Input::npos);
 }
 
+size_t Skipper::whitespace(const InputPiece& input, size_t pos) const {
+  while(input.sizeGt(pos) && is_in(input[pos], " \t\n")) ++pos;
+  return pos;
+}
+
 }  // namespace oalex
