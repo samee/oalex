@@ -184,7 +184,9 @@ int main(int argc, char* argv[]) {
     linebreaks(); generateSingleStringTest(cppos, hos);
     linebreaks();
     codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
+    linebreaks();
     generateSingleRegexTest(cppos, hos);
+    linebreaks();
     generateConcatTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
