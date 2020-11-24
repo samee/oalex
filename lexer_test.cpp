@@ -25,7 +25,6 @@
 #include "runtime/util.h"
 using fmt::format;
 using fmt::print;
-using std::endl;
 using std::get;
 using std::get_if;
 using std::nullopt;
