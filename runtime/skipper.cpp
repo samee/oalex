@@ -28,10 +28,6 @@ using namespace std::literals::string_view_literals;
 
 namespace oalex {
 
-static bool isin(char ch,string_view s) {
-  return s.find(ch) != string_view::npos;
-}
-
 // To be replaced with C++20 std::string_view::starts_with.
 static bool starts_with(string_view a, string_view b) {
   return a.substr(0,b.size()) == b;
@@ -39,7 +35,7 @@ static bool starts_with(string_view a, string_view b) {
 
 static optional<string> validPair(string_view st, string_view en) {
     if(st.empty() || en.empty()) return "Comment delimiters cannot be empty";
-    if(isin(st[0], " \t\n"))
+    if(is_in(st[0], " \t\n"))
       return "Whitespace at the start of comments will be skipped over";
     if(st.find("\n") != string_view::npos ||
        en.substr(0,en.size()-1).find("\n") != string_view::npos)
@@ -135,7 +131,7 @@ size_t Skipper::withinLine(const InputPiece& input, size_t pos) const {
   while(true) {
     // Check if we still have room to skip.
     if(!input.sizeGt(i) || i>=end) return i;
-    else if(isin(input[i], " \t\n")) ++i;
+    else if(is_in(input[i], " \t\n")) ++i;
     else if(skipComments(*this, input, i, end)) {
       if(i == Input::npos) return i;
     }else return i;
@@ -147,7 +143,7 @@ size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
   bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
   while(true) {
     if(!input.sizeGt(i)) return i;
-    else if(isin(input[i], " \t")) ++i;
+    else if(is_in(input[i], " \t")) ++i;
     else if(skipComments(*this, input, i, Input::npos)) {
       if(i == Input::npos) return i;
       lineBlank = (i == input.bol(i));
@@ -165,7 +161,7 @@ size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
 
 bool Skipper::canStart(const InputPiece& input, size_t pos) const {
   if(!input.sizeGt(pos)) return false;
-  return isin(input[pos], " \t\n")
+  return is_in(input[pos], " \t\n")
       || skipComments(*this, input, pos, Input::npos);
 }
 

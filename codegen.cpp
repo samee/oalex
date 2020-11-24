@@ -18,10 +18,10 @@
 #include <type_traits>
 #include <utility>
 #include <vector>
-#include "util.h"
 #include "oalex.h"
 #include "fmt/format.h"
 using fmt::format;
+using oalex::is_in;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;

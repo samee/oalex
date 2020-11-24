@@ -17,8 +17,7 @@
 #include <cstring>
 #include "fmt/format.h"
 #include "lexer.h"
-#include "util.h"
-#include "runtime/util.h"
+#include "oalex.h"
 using std::get_if;
 using std::isprint;
 using std::make_unique;
@@ -28,6 +27,7 @@ using std::strchr;
 using std::string;
 using std::unique_ptr;
 using oalex::InputDiags;
+using oalex::is_in;
 
 namespace oalex {
 

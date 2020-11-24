@@ -14,6 +14,7 @@
 
 #pragma once
 #include <string>
+#include <string_view>
 #include "input_view.h"
 
 namespace oalex {
@@ -152,5 +153,10 @@ struct Skipper {
   // Tests if we can start skipping from pos.
   bool canStart(const InputPiece& input, size_t pos) const;
 };
+
+// Returns true iff ch is found in s.
+inline bool is_in(char ch, std::string_view s) {
+  return s.find(ch) != std::string_view::npos;
+}
 
 }  // namespace oalex
