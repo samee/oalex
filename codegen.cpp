@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include <functional>
 #include <map>
+#include <string_view>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -31,6 +32,7 @@ using std::holds_alternative;
 using std::map;
 using std::optional;
 using std::string;
+using std::string_view;
 using std::vector;
 
 namespace oalex {
@@ -113,13 +115,14 @@ static string cEscaped(char c) {
   }
 }
 
-static string cEscaped(const string& s) {
+static string cEscaped(string_view s) {
   string rv;
   for(char c : s) rv += cEscaped(c);
   return rv;
 }
 
 static string squoted(char ch) { return format("'{}'", cEscaped(ch)); }
+static string dquoted(string_view s) { return format("\"{}\"", cEscaped(s)); }
 
 static string anchorName(RegexAnchor a) {
   switch(a) {
@@ -168,7 +171,7 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
     genRegexCharSet(*cset, cppos, indent);
     cppos(")");
   }else if(auto* s = get_if_unique<const string>(&regex)) {
-    cppos("move_to_unique(\"");  cppos(cEscaped(*s)); cppos("\"s)");
+    cppos(format("move_to_unique({}s)", dquoted(*s)));
   }else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
     cppos(format("move_to_unique(RegexAnchor::{})", anchorName(*a)));
   }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
@@ -241,7 +244,7 @@ codegen(const JsonLoc& jsloc, const OutputStream& cppos,
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(format("std::move({})", v->second));
   }else if(auto* s = get_if<JsonLoc::String>(&jsloc)) {
-    cppos(format("\"{}\"", cEscaped(*s)));
+    cppos(format("{}", dquoted(*s)));
   }else if(auto* v = get_if<JsonLoc::Vector>(&jsloc)) {
     cppos("JsonLoc::Vector{");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
@@ -251,7 +254,7 @@ codegen(const JsonLoc& jsloc, const OutputStream& cppos,
   }else if(auto* m = get_if<JsonLoc::Map>(&jsloc)) {
     cppos("JsonLoc::Map{"); br();
     for(const auto& [k, v] : *m) {
-      cppos(format("  {{\"{}\", ", cEscaped(k)));
+      cppos(format("  {{{}, ", dquoted(k)));
       codegen(v, cppos, placeholders, indent+4);
       cppos("},"); br();
     }
@@ -309,7 +312,7 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
                                         "ssize_t& i) {{\n",
                  fname));
-    cppos(format("  return oalex::match(ctx, i, \"{}\");\n", cEscaped(*s)));
+    cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
     cppos("}\n");
   }else if(const auto* regex = get_if<Regex>(&r)) {
     codegen(*regex, fname, cppos, hos);
