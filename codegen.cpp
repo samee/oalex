@@ -137,6 +137,8 @@ static void linebreak(const OutputStream& cppos, ssize_t indent) {
   cppos("\n" + string(indent, ' '));
 }
 
+static const char* alphabool(bool b) { return b ? "true" : "false"; }
+
 static void genRegexCharSet(const RegexCharSet& cset,
                             const OutputStream& cppos, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
@@ -145,8 +147,7 @@ static void genRegexCharSet(const RegexCharSet& cset,
     cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
     br();
   }
-  cppos(format("}}, .negated = {}}}",
-               cset.negated ? "true" : "false"));
+  cppos(format("}}, .negated = {}}}", alphabool(cset.negated)));
 }
 
 template <class T, class Cb> static void
