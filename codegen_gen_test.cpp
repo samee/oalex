@@ -44,6 +44,7 @@ using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
 using std::pair;
+using std::size;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
@@ -141,13 +142,23 @@ void generateConcatTest(const OutputStream& cppos,
     Rule{"=", "EqualSign"},
     regexRule(__func__, "/-?[0-9]+/", "IntegerLiteral"),
     Rule{";", "SemiColon"},
-    Rule{ConcatRule{{{0,""}, {1,"id"}, {2,""}, {3,"value"}, {4,""}},
-                    *parseJsonLoc("{id, value}")},
-         "Definition"}
+    Rule{"", ""}
     ), cskip, regexOpts
   };
-  for(size_t i=0; i<size(rs.rules); ++i)
+  // Produce the helpers: all but the last rule.
+  for(size_t i=0; i<size(rs.rules)-1; ++i)
     codegen(rs, i, cppos, hos);
+
+  Rule testRules[] = {
+    {ConcatRule{{{0,""}, {1,"id"}, {2,""}, {3,"value"}, {4,""}},
+                *parseJsonLoc("{id, value}")}, "Definition"},
+    {ConcatRule{{{1,"lhs"}, {2,""}, {1,"rhs"}, {4,""}},
+                *parseJsonLoc("{rhs, lhs}")}, "Assignment"},
+  };
+  for(size_t i=0; i<size(testRules); ++i) {
+    rs.rules[size(rs.rules)-1] = std::move(testRules[i]);
+    codegen(rs, size(rs.rules)-1, cppos, hos);
+  }
 }
 
 }  // namespace

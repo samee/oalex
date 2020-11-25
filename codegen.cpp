@@ -262,6 +262,12 @@ codegen(const JsonLoc& jsloc, const OutputStream& cppos,
   }else cppos("JsonLoc::ErrorValue{}");
 }
 
+static bool
+hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
+  for(auto& comp : comps) if(comp.outputPlaceholder.empty()) return true;
+  return false;
+}
+
 static void
 codegen(const ConcatRule& concatRule, const string& rname,
         const OutputStream& cppos, const OutputStream& hos,
@@ -273,18 +279,24 @@ codegen(const ConcatRule& concatRule, const string& rname,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   map<string,string> placeholders;
+  if(hasEmptyPlaceholder(concatRule.comps))
+    cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
   for(auto& comp : concatRule.comps) {
+    const string resvar = "res" + comp.outputPlaceholder;
+    const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
+
     const optional<string> nm = rulename(comp.idx);
     if(!nm.has_value()) Unimplemented("Nameless concat component");
-    string resvar = "res" + *nm;
-    cppos(format("  JsonLoc {} = parse{}(ctx, j);\n", resvar, *nm));
-    cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
     if(!comp.outputPlaceholder.empty() &&
        !placeholders.insert({comp.outputPlaceholder, resvar}).second)
       // This uniqueness is also used in codegen(JsonLoc).
       Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
+
+    cppos(format("  {}{} = parse{}(ctx, j);\n", decl, resvar, *nm));
+    cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
   }
   cppos("\n  i = j;\n");
+  // TODO add source location.
   cppos("  return ");
     codegen(concatRule.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");

@@ -86,11 +86,21 @@ void runConcatTest() {
   auto ctx = testInputDiags("int x=5;");  // Exactly one space after int.
   ssize_t pos = 0;
   JsonLoc jsloc = parseDefinition(ctx, pos);
-  const string expected = R"({
+  string expected = R"({
     id: "x",
     value: "5"
   })";
-  if(jsloc.holdsError()) BugMe("parse failed");
+  if(jsloc.holdsError()) BugMe("parseDefinition() failed");
+  assertEqual(__func__, expected, jsloc.prettyPrint(2));
+
+  ctx = testInputDiags("y=x;");
+  pos = 0;
+  jsloc = parseAssignment(ctx, pos);
+  expected = R"({
+    lhs: "y",
+    rhs: "x"
+  })";
+  if(jsloc.holdsError()) BugMe("parseAssignment() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 }
 
