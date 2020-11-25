@@ -99,6 +99,7 @@ static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
 }
 
 // TODO: Produce error message for every `return nullopt` here.
+// Disallows empty patt.
 auto matchAllParts(const PartPattern& patt, const QuotedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
   if(auto* spatt = get_if<QuotedString>(&patt)) return matchAllParts(*spatt, s);
@@ -154,11 +155,13 @@ static const QuotedString& pattStart(const PartPattern& patt) {
 }
 
 auto labelParts(const QuotedString& s,
-                const map<Ident,PartPattern>& partPatterns)
+                const map<Ident,PartPattern>& partPatterns,
+                const RegexCharSet& wordChars)
     -> vector<LabelOrPart> {
   bool matchError = false;
   // Find patterns, make IntervalMap.
   IntervalMap m;
+  auto isword = [&](char ch) { return matchesRegexCharSet(ch, wordChars); };
   for(auto& [id,patt] : partPatterns) {
     auto matches = matchAllParts(patt, s);
     if(!matches) { matchError = true; continue; }
@@ -175,6 +178,20 @@ auto labelParts(const QuotedString& s,
                      locationString(s, ovlap->first, ovlap->second.first)));
         matchError = true;
       }
+      // Disallow labels chopping up a word into two.
+      if(st != 0 && isword(s[st-1]) && isword(s[st]))
+        Error(s, st-1, format(
+                "Part '{}' starts a run-on word. "
+                "Either rename the word, or add a space before it",
+                debug(patt)));
+      if(en <= st)
+        Bug("matchAllPatterns() is producing empty intervals for pattern '{}'",
+            debug(patt));
+      if(s.sizeGt(en) && isword(s[en-1]) && isword(s[en]))
+        Error(s, en-1, format(
+                "Part '{}' ends a run-on word. "
+                "Either rename the word, or add a space after it",
+                debug(patt)));
     }
   }
   if(matchError) return {};
@@ -271,7 +288,8 @@ static auto tokenizeLabelledTemplate(
 auto tokenizeTemplate(const QuotedString& s,
                       const map<Ident,PartPattern>& partPatterns,
                       const LexDirective& lexopts) -> vector<TokenOrPart> {
-  return tokenizeLabelledTemplate(labelParts(s, partPatterns), lexopts);
+  return tokenizeLabelledTemplate(
+      labelParts(s, partPatterns, lexopts.wordChars), lexopts);
 }
 
 static bool isStrictSubstr(string_view s, string_view t) {

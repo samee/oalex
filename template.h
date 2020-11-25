@@ -45,6 +45,9 @@ auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
 // Params:
 //   s: The string that needs to be split up.
 //   partPatterns: The user-specified patterns to be replaced with Placeholders.
+//   wordChars: To disallow the returned placeholders from splitting up a
+//     word into multiple pieces. It can still combine multiple words and other
+//     symbols into a single placeholder. Use {} to not perform any checks.
 //
 // On error, we return an empty vector. An empty `s` input will produce a
 // vector with a single empty QuotedString.
@@ -53,7 +56,8 @@ auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
 using LabelOrPart = std::variant<lex::QuotedString, Ident>;
 auto labelParts(
     const lex::QuotedString& s,
-    const std::map<Ident,PartPattern>& partPatterns)
+    const std::map<Ident,PartPattern>& partPatterns,
+    const RegexCharSet& wordChars)
     -> std::vector<LabelOrPart>;
 
 // Strong typedefs.

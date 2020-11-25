@@ -52,6 +52,7 @@ using oalex::matchAllParts;
 using oalex::OperToken;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
+using oalex::RegexCharSet;
 using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
 using oalex::Skipper;
@@ -209,13 +210,12 @@ void testUnfinishedMatch() {
 }
 
 Ident findIdent(string_view testName, InputDiags& ctx, string_view id) {
-  size_t i = findSubstr(ctx.input, id);
-  if(i == string::npos) Bug("{} not found in {} input", id, testName);
-  Ident rv = Ident::parse(ctx, i);
-  if(rv.preserveCase() != id)
-    Bug("findIdent() cannot perform whole-word matches. Found "
-        "{} instead of {}", rv.preserveCase(), id);
-  return rv;
+  for(size_t i=0; ctx.input.sizeGt(i); ++i) if(ctx.input.hasPrefix(i, id)) {
+    size_t j = i;
+    Ident rv = Ident::parse(ctx, j);
+    if(rv.preserveCase() == id) return rv;
+  }
+  Bug("Word {} not found in {} input", id, testName);
 }
 
 auto setupLabelTest(string testName, string fileBody) {
@@ -240,7 +240,7 @@ void testLabelParts() {
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
   vector<variant<QuotedString,Ident>> expected{
     tmpl.subqstr(0,4), fid("condexpr"), tmpl.subqstr(8,2),
     fid("stmt"), tmpl.subqstr(17,6), fid("stmt"),
@@ -261,7 +261,7 @@ void testCrossLabelOverlapFails() {
     {findIdent(__func__, *ctx, "index"), DelimPair{fquote("["), fquote("]")}},
     {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
   };
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
   if(!observed.empty()) BugMe("Was expecting an empty vector on error");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part '] ... [' overlaps with '[ ... ]'");
@@ -273,7 +273,7 @@ void testNoMatchWarns() {
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "foo"), fquote("foo")},
   };
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec);
+  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
   vector<variant<QuotedString,Ident>> expected{tmpl};
   if(observed != expected) BugMe("Didn't get the unsplit string");
   assertHasDiagWithSubstr(__func__, ctx->diags,
@@ -282,7 +282,7 @@ void testNoMatchWarns() {
 
 void testEmptySuccess() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("")");
-  vector observed = labelParts(fquote(""), {});
+  vector observed = labelParts(fquote(""), {}, {});
   if(observed.empty()) BugMe("Failed on empty input");
   if(observed.size() != 1)
     BugMe("Split empty string to get {} pieces, was expecting 1",
@@ -290,6 +290,36 @@ void testEmptySuccess() {
   if(debug(observed[0]) != "")
     BugMe("Split empty string to obtain non-empty output: {}",
           debug(observed[0]));
+}
+
+void testNoWordSplit() {
+  auto [ctx, fquote, fid] = setupLabelTest(__func__,
+      R"("foobar" "w-foo-bar-w" "foo" "bar" "-foo-")");
+  QuotedString tmpl = fquote("foobar");
+  RegexCharSet wordChars = parseRegexCharSet("[_a-zA-Z]");
+  map<Ident,PartPattern> partspec{ {fid("foo"), fquote("foo")} };
+  labelParts(tmpl, partspec, wordChars);
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Part 'foo' ends a run-on word");
+
+  ctx->diags.clear();
+  // tmpl unchanged
+  partspec = { {fid("bar"), fquote("bar")} };
+  labelParts(tmpl, partspec, wordChars);
+  assertHasDiagWithSubstr(__func__, ctx->diags,
+                          "Part 'bar' starts a run-on word");
+
+  ctx->diags.clear();
+  tmpl = fquote("w-foo-bar-w");
+  partspec = { {fid("foo"), fquote("foo")}, {fid("bar"), fquote("bar")} };
+  labelParts(tmpl, partspec, wordChars);
+  assertEmptyDiags(__func__, ctx->diags);
+
+  ctx->diags.clear();
+  // tmpl unchanged
+  partspec = { {fid("foo"), fquote("-foo-")}, {fid("bar"), fquote("bar")} };
+  labelParts(tmpl, partspec, wordChars);
+  assertEmptyDiags(__func__, ctx->diags);
 }
 
 string_view token(string_view testName, const TokenOrPart& tok) {
@@ -825,6 +855,7 @@ int main() {
   testCrossLabelOverlapFails();
   testNoMatchWarns();
   testEmptySuccess();
+  testNoWordSplit();
   testTokenizeNoLabel();
   testTokenizeNoLabelRunoffComment();
   testTokenizeSuccess();
