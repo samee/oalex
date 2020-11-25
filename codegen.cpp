@@ -304,6 +304,39 @@ codegen(const ConcatRule& concatRule, const string& rname,
   cppos("}\n");
 }
 
+static void
+codegen(const SkipPoint& sp, const string& rname,
+        const OutputStream& cppos, const OutputStream& hos) {
+  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
+             rname));
+  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
+                                       "ssize_t& i) {{\n", rname));
+  cppos("  using oalex::Skipper;\n");
+  cppos("  static Skipper* skip = new Skipper{\n");
+  cppos("    .unnestedComments{\n");
+  for(auto& [st,en] : sp.skip->unnestedComments)
+    cppos(format("     {{ {}, {} }},\n", dquoted(st), dquoted(en)));
+  cppos("    },\n");
+  if(sp.skip->nestedComment.has_value()) {
+    auto& [st,en] = *sp.skip->nestedComment;
+    cppos(format("    .nestedComment{{ {{ {}, {} }} }},\n",
+                 dquoted(st), dquoted(en)));
+  }else {
+    cppos("    .nestedComment{}, \n");
+  }
+  cppos(format("    .indicateBlankLines = {},\n",
+               alphabool(sp.skip->indicateBlankLines)));
+  cppos("  };\n");
+  if(sp.stayWithinLine)
+    cppos("  ssize_t j = skip->withinLine(ctx.input, i);\n");
+  else cppos("  ssize_t j = skip->acrossLines(ctx.input, i);\n");
+  cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
+  cppos("    i = j;\n");
+  cppos("    return oalex::JsonLoc::String();  // dummy non-error value\n");
+  cppos("  }else return oalex::JsonLoc::ErrorValue();\n");
+  cppos("}\n");
+}
+
 /*
 // TODO: Implement this. It should generate an inlined call to oalex::match()
 // when possible, but falls back to the main codegen() for other cases.
@@ -329,6 +362,8 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos("}\n");
   }else if(const auto* regex = get_if<Regex>(&r)) {
     codegen(*regex, fname, cppos, hos);
+  }else if(const auto* sp = get_if<SkipPoint>(&r)) {
+    codegen(*sp, fname, cppos, hos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
     codegen(*seq, fname, cppos, hos, rulename);
   // TODO Implement SkipPoint, errors, OrListRule

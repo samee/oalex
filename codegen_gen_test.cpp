@@ -38,6 +38,7 @@ using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::Rule;
 using oalex::RuleSet;
+using oalex::SkipPoint;
 using oalex::UserError;
 using oalex::test::cskip;
 using oalex::test::regexOpts;
@@ -137,11 +138,12 @@ void generateSingleRegexTest(const OutputStream& cppos,
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVector<Rule>(
-    Rule{"int ", "Type"},  // Exactly one space, as expected in codegen_run_test
+    Rule{"int", "Type"},
     regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*/", "Identifier"),
     Rule{"=", "EqualSign"},
     regexRule(__func__, "/-?[0-9]+/", "IntegerLiteral"),
     Rule{";", "SemiColon"},
+    Rule{SkipPoint{false, &rs.skip}, "CommentsAndWhitespace"},
     Rule{"", ""}
     ), cskip, regexOpts
   };
@@ -150,9 +152,10 @@ void generateConcatTest(const OutputStream& cppos,
     codegen(rs, i, cppos, hos);
 
   Rule testRules[] = {
-    {ConcatRule{{{0,""}, {1,"id"}, {2,""}, {3,"value"}, {4,""}},
+    {ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
+                 {3,"value"}, {5,""}, {4,""}},
                 *parseJsonLoc("{id, value}")}, "Definition"},
-    {ConcatRule{{{1,"lhs"}, {2,""}, {1,"rhs"}, {4,""}},
+    {ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""}, {4,""}},
                 *parseJsonLoc("{rhs, lhs}")}, "Assignment"},
   };
   for(size_t i=0; i<size(testRules); ++i) {

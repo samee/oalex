@@ -83,7 +83,7 @@ void runSingleRegexTest() {
 }
 
 void runConcatTest() {
-  auto ctx = testInputDiags("int x=5;");  // Exactly one space after int.
+  auto ctx = testInputDiags("int x = 5;  // A declaration");
   ssize_t pos = 0;
   JsonLoc jsloc = parseDefinition(ctx, pos);
   string expected = R"({
