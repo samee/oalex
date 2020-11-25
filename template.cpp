@@ -246,7 +246,7 @@ static auto tokenizeTemplateKeepNewlines(const QuotedString& s,
   return rv;
 }
 
-auto tokenizeTemplate(
+static auto tokenizeLabelledTemplate(
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
   vector<TokenOrPart> rv;
@@ -266,6 +266,12 @@ auto tokenizeTemplate(
               __func__, lorp.index());
   }
   return rv;
+}
+
+auto tokenizeTemplate(const QuotedString& s,
+                      const map<Ident,PartPattern>& partPatterns,
+                      const LexDirective& lexopts) -> vector<TokenOrPart> {
+  return tokenizeLabelledTemplate(labelParts(s, partPatterns), lexopts);
 }
 
 static bool isStrictSubstr(string_view s, string_view t) {

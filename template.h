@@ -48,6 +48,8 @@ auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
 //
 // On error, we return an empty vector. An empty `s` input will produce a
 // vector with a single empty QuotedString.
+// Note: this function can be used either on templates that skip over
+// whitespaces, or those who do not.
 using LabelOrPart = std::variant<lex::QuotedString, Ident>;
 auto labelParts(
     const lex::QuotedString& s,
@@ -77,9 +79,9 @@ auto tokenizeTemplateWithoutLabels(
 
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizeTemplate(
-    const std::vector<LabelOrPart>& lblParts,
-    const LexDirective& lexopts) -> std::vector<TokenOrPart>;
+auto tokenizeTemplate(const lex::QuotedString& s,
+                      const std::map<Ident,PartPattern>& partPatterns,
+                      const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 // Exposed for testing only.
 bool hasFusedTemplateOpers(InputDiags& ctx,
