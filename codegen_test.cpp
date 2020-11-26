@@ -49,12 +49,12 @@ using oalex::test::singletonRuleSet;
 namespace {
 
 void testSingleStringMatch() {
-  const string msg = "hello-world";
+  const string msg = " hello-world";
   auto ctx = testInputDiags(msg);
-  ssize_t pos = 0;
-  RuleSet rs = singletonRuleSet(msg);
+  ssize_t pos = 1;
+  RuleSet rs = singletonRuleSet(msg.substr(1));
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
-  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+  assertJsonLocIsString(__func__, jsloc, msg.substr(1), 1, msg.size());
 }
 
 void testSingleStringMismatch() {
