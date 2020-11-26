@@ -141,10 +141,10 @@ void generateSingleRegexTest(const OutputStream& cppos,
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVector<Rule>(
-    Rule{"int", "Type"},
-    regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*/", "Identifier"),
+    Rule{WordPreserving{"int"}, "Type"},
+    regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
     Rule{"=", "EqualSign"},
-    regexRule(__func__, "/-?[0-9]+/", "IntegerLiteral"),
+    regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
     Rule{";", "SemiColon"},
     Rule{SkipPoint{false, &rs.skip}, "CommentsAndWhitespace"},
     Rule{"", ""}

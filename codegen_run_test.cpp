@@ -93,6 +93,11 @@ void runConcatTest() {
   if(jsloc.holdsError()) BugMe("parseDefinition() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 
+  ctx = testInputDiags("intx = 5;");
+  pos = 0;
+  jsloc = parseAssignment(ctx, pos);
+  if(!jsloc.holdsError()) BugMe("run-on word matched unexpectedly");
+
   ctx = testInputDiags("y=x;");
   pos = 0;
   jsloc = parseAssignment(ctx, pos);
@@ -102,7 +107,6 @@ void runConcatTest() {
   })";
   if(jsloc.holdsError()) BugMe("parseAssignment() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
-  // TODO "intx = 5" needs to be rejected. Implement word boundaries.
 }
 
 }  // namespace
