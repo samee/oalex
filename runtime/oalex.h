@@ -31,9 +31,9 @@ inline static JsonLoc quote(std::string input, size_t stPos, size_t enPos) {
 
 // We might move these into a separate file if we no longer depend on most
 // of the runtime headers.
-inline JsonLoc match(InputDiags& ctx, ssize_t& i, const std::string& s) {
+inline JsonLoc match(InputDiags& ctx, ssize_t& i, std::string_view s) {
   if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
-  return quote(s, std::exchange(i, i+s.size()), s.size());
+  return quote(std::string(s), std::exchange(i, i+s.size()), s.size());
 }
 
 inline JsonLoc match(InputDiags& ctx, ssize_t& i,
