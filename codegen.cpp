@@ -215,12 +215,21 @@ void codegenDefaultRegexOptions(const RuleSet& ruleset,
 }
 
 static void
-codegen(const Regex& regex, const string& rname,
-        const OutputStream& cppos, const OutputStream& hos) {
+parserHeaders(const string& rname,
+              const OutputStream& cppos, const OutputStream& hos) {
   hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
              rname));
+
+  // TODO complex parsers should have comments with the source line.
   cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
-                                      "ssize_t& i) {{\n", rname));
+                                      "ssize_t& i) ",
+               rname));
+}
+
+static void
+codegen(const Regex& regex, const string& rname,
+        const OutputStream& cppos, const OutputStream& hos) {
+  parserHeaders(rname, cppos, hos); cppos("{\n");
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
@@ -277,10 +286,7 @@ static void
 codegen(const ConcatRule& concatRule, const string& rname,
         const OutputStream& cppos, const OutputStream& hos,
         function<optional<string>(ssize_t)> rulename) {
-  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             rname));
-  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
-                                      "ssize_t& i) {{\n", rname));
+  parserHeaders(rname, cppos, hos); cppos("{\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   map<string,string> placeholders;
@@ -311,10 +317,7 @@ codegen(const ConcatRule& concatRule, const string& rname,
 static void
 codegen(const SkipPoint& sp, const string& rname,
         const OutputStream& cppos, const OutputStream& hos) {
-  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             rname));
-  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
-                                       "ssize_t& i) {{\n", rname));
+  parserHeaders(rname, cppos, hos); cppos("{\n");
   cppos("  using oalex::Skipper;\n");
   cppos("  static Skipper* skip = new Skipper{\n");
   cppos("    .unnestedComments{\n");
@@ -341,6 +344,15 @@ codegen(const SkipPoint& sp, const string& rname,
   cppos("}\n");
 }
 
+static void
+codegen(const WordPreserving& wp, const string& rname,
+        const OutputStream& cppos, const OutputStream& hos) {
+  parserHeaders(rname, cppos, hos); cppos("{\n");
+  cppos(format("  return oalex::match(ctx, i, defaultRegexOpts().word, {});\n",
+               dquoted(*wp)));
+  cppos("}\n");
+}
+
 /*
 // TODO: Implement this. It should generate an inlined call to oalex::match()
 // when possible, but falls back to the main codegen() for other cases.
@@ -355,15 +367,11 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   string fname = (r.name().has_value() ? *r.name() : "start");
   auto rulename = [&](ssize_t i) { return ruleset.rules[i].name(); };
   if(const auto* s = get_if<string>(&r)) {
-    hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-               fname));
-
-    // TODO complex parsers should have comments with the source line.
-    cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
-                                        "ssize_t& i) {{\n",
-                 fname));
+    parserHeaders(fname, cppos, hos); cppos("{\n");
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
     cppos("}\n");
+  }else if(const auto* wp = get_if<WordPreserving>(&r)) {
+    codegen(*wp, fname, cppos, hos);
   }else if(const auto* regex = get_if<Regex>(&r)) {
     codegen(*regex, fname, cppos, hos);
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {

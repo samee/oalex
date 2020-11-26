@@ -40,6 +40,7 @@ using oalex::Rule;
 using oalex::RuleSet;
 using oalex::SkipPoint;
 using oalex::UserError;
+using oalex::WordPreserving;
 using oalex::test::cskip;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
@@ -106,7 +107,9 @@ auto writeOrFail(FILE* fp, string_view s) {
 
 void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
-  RuleSet rs = singletonRuleSet(Rule{"hello", "HelloKeyword"});
+  RuleSet rs = singletonRuleSet(Rule{"hello", "HelloPrefix"});
+  codegen(rs, 0, cppos, hos);
+  rs = singletonRuleSet(Rule{WordPreserving{"hello"}, "HelloKeyword"});
   codegen(rs, 0, cppos, hos);
 }
 
@@ -195,9 +198,9 @@ int main(int argc, char* argv[]) {
     auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
     // TODO first-class support for multiple RuleSets in a file.
+    codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
     linebreaks(); generateSingleStringTest(cppos, hos);
     linebreaks();
-    codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
     linebreaks();
     generateSingleRegexTest(cppos, hos);
     linebreaks();
