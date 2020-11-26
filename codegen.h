@@ -39,6 +39,22 @@ struct SkipPoint {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
+// Just a strong typedef of std::string. It is used as a Rule variant, in case
+// we want a word-preserving match. That is a match that doesn't break an input
+// word into two.
+// Someday, it might become a more complex struct with customizable
+// RegexWordChar*. For now, it just uses the default one in RuleSet.
+struct WordPreserving {
+  std::string s;
+  WordPreserving() {}
+  explicit WordPreserving(std::string_view init) : s(init) {}
+  explicit operator std::string& () { return s; }
+  explicit operator const std::string& () const { return s; }
+  explicit operator std::string_view () const { return s; }
+  const std::string& operator*() const { return s; }
+  const std::string* operator->() const { return &s; }
+};
+
 struct Rule {
   // TODO other component types like RawString and Callback (with nested
   // components).
@@ -53,7 +69,8 @@ struct Rule {
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
  private:
-  std::variant<std::string, Regex, SkipPoint, ConcatRule> specifics_;
+  std::variant<std::string, WordPreserving,
+               Regex, SkipPoint, ConcatRule> specifics_;
   std::string name_;
 };
 

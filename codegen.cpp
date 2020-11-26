@@ -71,6 +71,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 
 // Using std::visit(), since we want to catch missing types at compile-time.
 static string specifics_typename(const string&) { return "string"; }
+static string specifics_typename(const WordPreserving&)
+  { return "WordPreserving"; }
 static string specifics_typename(const Regex&) { return "Regex"; }
 static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }

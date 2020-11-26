@@ -102,6 +102,7 @@ void runConcatTest() {
   })";
   if(jsloc.holdsError()) BugMe("parseAssignment() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
+  // TODO "intx = 5" needs to be rejected. Implement word boundaries.
 }
 
 }  // namespace
