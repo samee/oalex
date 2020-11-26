@@ -86,6 +86,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
   if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
+  else if(const auto* wp = get_if<WordPreserving>(&r))
+    return match(ctx, i, ruleset.regexOpts.word, **wp);
   else if(const auto* sp = get_if<SkipPoint>(&r)) return skip(ctx, i, *sp);
   else if(const auto* regex = get_if<Regex>(&r))
     return match(ctx, i, *regex, ruleset.regexOpts);

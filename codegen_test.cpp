@@ -41,6 +41,7 @@ using oalex::Regex;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::SkipPoint;
+using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
 using oalex::test::regexOpts;
@@ -83,6 +84,20 @@ void testSkipFailsOnUnfinishedComment() {
   RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
   eval(ctx, pos, rs, 0);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Unfinished comment", 2);
+}
+
+void testSingleWordPreserving() {
+  const string msg = "hello world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  RuleSet rs = singletonRuleSet(WordPreserving{"hello"});
+  JsonLoc jsloc = eval(ctx, pos, rs, 0);
+  assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+
+  ctx = testInputDiags("hello_word");
+  pos = 0;
+  jsloc = eval(ctx, pos, rs, 0);
+  if(!jsloc.holdsError()) BugMe("Was expecting WordPreserving match to fail");
 }
 
 void testRegexMatch() {
@@ -144,6 +159,7 @@ int main() {
   testSingleStringMatch();
   testSingleStringMismatch();
   testSingleSkip();
+  testSingleWordPreserving();
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
   testConcatMatch();

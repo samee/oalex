@@ -44,4 +44,19 @@ inline JsonLoc match(InputDiags& ctx, ssize_t& i,
   else return JsonLoc::ErrorValue{};
 }
 
+// This version discards matches if it is appearing to split a word into two.
+// Providing an empty wordChars {} here is equivalent to calling it without
+// wordChars.
+inline JsonLoc match(InputDiags& ctx, ssize_t& i,
+                     const RegexCharSet& wordChars,
+                     std::string_view s) {
+  if(s.empty()) return quote("", i, 0);  // Frontend should disallow this.
+  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
+  const ssize_t j = i+s.size();
+  if(ctx.input.sizeGt(j) && matchesRegexCharSet(ctx.input[j-1], wordChars)
+                         && matchesRegexCharSet(ctx.input[j], wordChars))
+    return JsonLoc::ErrorValue{};
+  return quote(std::string(s), std::exchange(i, j), j);
+}
+
 }
