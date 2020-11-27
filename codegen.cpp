@@ -227,9 +227,7 @@ parserHeaders(const string& rname,
 }
 
 static void
-codegen(const Regex& regex, const string& rname,
-        const OutputStream& cppos, const OutputStream& hos) {
-  parserHeaders(rname, cppos, hos); cppos("{\n");
+codegen(const Regex& regex, const OutputStream& cppos) {
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
@@ -245,7 +243,6 @@ codegen(const Regex& regex, const string& rname,
   genRegexComponents(regex, cppos, 4);
   cppos("\n  };\n");
   cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
-  cppos("}\n");
 }
 
 static void
@@ -283,10 +280,8 @@ hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
 }
 
 static void
-codegen(const ConcatRule& concatRule, const string& rname,
-        const OutputStream& cppos, const OutputStream& hos,
+codegen(const ConcatRule& concatRule, const OutputStream& cppos,
         function<optional<string>(ssize_t)> rulename) {
-  parserHeaders(rname, cppos, hos); cppos("{\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   map<string,string> placeholders;
@@ -311,13 +306,10 @@ codegen(const ConcatRule& concatRule, const string& rname,
   cppos("  return ");
     codegen(concatRule.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");
-  cppos("}\n");
 }
 
 static void
-codegen(const SkipPoint& sp, const string& rname,
-        const OutputStream& cppos, const OutputStream& hos) {
-  parserHeaders(rname, cppos, hos); cppos("{\n");
+codegen(const SkipPoint& sp, const OutputStream& cppos) {
   cppos("  using oalex::Skipper;\n");
   cppos("  static Skipper* skip = new Skipper{\n");
   cppos("    .unnestedComments{\n");
@@ -341,16 +333,12 @@ codegen(const SkipPoint& sp, const string& rname,
   cppos("    i = j;\n");
   cppos("    return oalex::JsonLoc::String();  // dummy non-error value\n");
   cppos("  }else return oalex::JsonLoc::ErrorValue();\n");
-  cppos("}\n");
 }
 
 static void
-codegen(const WordPreserving& wp, const string& rname,
-        const OutputStream& cppos, const OutputStream& hos) {
-  parserHeaders(rname, cppos, hos); cppos("{\n");
+codegen(const WordPreserving& wp, const OutputStream& cppos) {
   cppos(format("  return oalex::match(ctx, i, defaultRegexOpts().word, {});\n",
                dquoted(*wp)));
-  cppos("}\n");
 }
 
 /*
@@ -366,20 +354,20 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   // TODO check if some rule already uses the name start().
   string fname = (r.name().has_value() ? *r.name() : "start");
   auto rulename = [&](ssize_t i) { return ruleset.rules[i].name(); };
+  parserHeaders(fname, cppos, hos); cppos("{\n");
   if(const auto* s = get_if<string>(&r)) {
-    parserHeaders(fname, cppos, hos); cppos("{\n");
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
-    cppos("}\n");
   }else if(const auto* wp = get_if<WordPreserving>(&r)) {
-    codegen(*wp, fname, cppos, hos);
+    codegen(*wp, cppos);
   }else if(const auto* regex = get_if<Regex>(&r)) {
-    codegen(*regex, fname, cppos, hos);
+    codegen(*regex, cppos);
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {
-    codegen(*sp, fname, cppos, hos);
+    codegen(*sp, cppos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
-    codegen(*seq, fname, cppos, hos, rulename);
+    codegen(*seq, cppos, rulename);
   // TODO Implement errors, OrListRule
   }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
+  cppos("}\n");
 }
 
 }  // namespace oalex
