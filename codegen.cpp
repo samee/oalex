@@ -345,12 +345,6 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
                dquoted(*wp)));
 }
 
-/*
-// TODO: Implement this. It should generate an inlined call to oalex::match()
-// when possible, but falls back to the main codegen() for other cases.
-static void codegenInlineOneLiners(const RuleSet& ruleset, ssize_t ruleIndex,
-                                   OutputStream& os);
-*/
 // Generate an inlined call to oalex::match() when possible, but falls back to
 // the main parser for other cases.
 void codegenParserCall(const Rule& rule, string_view posVar,
