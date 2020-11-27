@@ -143,16 +143,16 @@ void generateConcatTest(const OutputStream& cppos,
   RuleSet rs { oalex::makeVector<Rule>(
     Rule{WordPreserving{"int"}, "Type"},
     regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
-    Rule{"=", "EqualSign"},
+    Rule{"=", ""},
     regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
-    Rule{";", "SemiColon"},
+    Rule{";", ""},
     Rule{SkipPoint{false, &rs.skip}, "CommentsAndWhitespace"},
     Rule{"", ""}
     ), cskip, regexOpts
   };
   // Produce the helpers: all but the last rule.
   for(size_t i=0; i<size(rs.rules)-1; ++i)
-    codegen(rs, i, cppos, hos);
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 
   Rule testRules[] = {
     {ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},

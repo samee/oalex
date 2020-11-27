@@ -100,6 +100,10 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 // codegen()
 // ---------
 
+// Forward declaration.
+static void codegenParserCall(const Rule& rule, string_view posVar,
+                              const OutputStream& cppos);
+
 static string cEscaped(char c) {
   switch(c) {
     // Technically, we should only need \", \n, and \\, but this should help
@@ -291,14 +295,14 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
     const string resvar = "res" + comp.outputPlaceholder;
     const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
 
-    const optional<string> nm = ruleset.rules[comp.idx].name();
-    if(!nm.has_value()) Unimplemented("Nameless concat component");
     if(!comp.outputPlaceholder.empty() &&
        !placeholders.insert({comp.outputPlaceholder, resvar}).second)
       // This uniqueness is also used in codegen(JsonLoc).
       Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
 
-    cppos(format("  {}{} = parse{}(ctx, j);\n", decl, resvar, *nm));
+    cppos(format("  {}{} = ", decl, resvar));
+      codegenParserCall(ruleset.rules[comp.idx], "j", cppos);
+      cppos(";\n");
     cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
   }
   cppos("\n  i = j;\n");
@@ -347,7 +351,21 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
 static void codegenInlineOneLiners(const RuleSet& ruleset, ssize_t ruleIndex,
                                    OutputStream& os);
 */
+// Generate an inlined call to oalex::match() when possible, but falls back to
+// the main parser for other cases.
+void codegenParserCall(const Rule& rule, string_view posVar,
+                       const OutputStream& cppos) {
+  if(const auto* s = get_if<string>(&rule))
+    cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(*s)));
+  else if(optional<string> rname = rule.name())
+    cppos(format("parse{}(ctx, {})", *rname, posVar));
+  else Unimplemented("nameless component of type", rule.specifics_typename());
+}
 
+// TODO make OutputStream directly accept format() strings. Perhaps with
+// an OutputStream::unfmt() for brace-heavy output. Additionally, figure out
+// nested formatters.  I.e.
+//   format("Hello {}", anotherFormattedStringProducer());
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleset.rules[ruleIndex];
