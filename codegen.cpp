@@ -93,7 +93,7 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
     return match(ctx, i, *regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
     return eval(ctx,i, *seq, ruleset);
-  Unimplemented("eval() for {} rule", r.specifics_typename());
+  Bug("Unknown rule type {} in eval", r.specifics_typename());
 }
 
 
@@ -199,7 +199,7 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
                     genRegexComponents(part, cppos, indent+2);
                   }, br, cppos);
     cppos("}})");
-  }else Unimplemented("Regex codegen for index {}", regex.index());
+  }else Bug("Unknown regex type index {} in codegen", regex.index());
 }
 
 void codegenDefaultRegexOptions(const RuleSet& ruleset,
@@ -378,8 +378,8 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(*sp, fname, cppos, hos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
     codegen(*seq, fname, cppos, hos, rulename);
-  // TODO Implement SkipPoint, errors, OrListRule
-  }else Unimplemented("codegen() for {} rule", r.specifics_typename());
+  // TODO Implement errors, OrListRule
+  }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
 }
 
 }  // namespace oalex
