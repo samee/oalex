@@ -280,8 +280,8 @@ hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
 }
 
 static void
-codegen(const ConcatRule& concatRule, const OutputStream& cppos,
-        function<optional<string>(ssize_t)> rulename) {
+codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
+        const OutputStream& cppos) {
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   map<string,string> placeholders;
@@ -291,7 +291,7 @@ codegen(const ConcatRule& concatRule, const OutputStream& cppos,
     const string resvar = "res" + comp.outputPlaceholder;
     const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
 
-    const optional<string> nm = rulename(comp.idx);
+    const optional<string> nm = ruleset.rules[comp.idx].name();
     if(!nm.has_value()) Unimplemented("Nameless concat component");
     if(!comp.outputPlaceholder.empty() &&
        !placeholders.insert({comp.outputPlaceholder, resvar}).second)
@@ -353,7 +353,6 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   const Rule& r = ruleset.rules[ruleIndex];
   // TODO check if some rule already uses the name start().
   string fname = (r.name().has_value() ? *r.name() : "start");
-  auto rulename = [&](ssize_t i) { return ruleset.rules[i].name(); };
   parserHeaders(fname, cppos, hos); cppos("{\n");
   if(const auto* s = get_if<string>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
@@ -364,7 +363,7 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {
     codegen(*sp, cppos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
-    codegen(*seq, cppos, rulename);
+    codegen(ruleset, *seq, cppos);
   // TODO Implement errors, OrListRule
   }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
   cppos("}\n");
