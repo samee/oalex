@@ -22,13 +22,19 @@
 
 #include <string>
 #include <utility>
+#include "lexer.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::assertEqual;
 using oalex::Bug;
+using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::Skipper;
+using oalex::sign_cast;
+using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
+using std::optional;
 using std::pair;
 using std::string;
 using std::tuple;
@@ -111,6 +117,45 @@ void runConcatTest() {
 
 }  // namespace
 
+// This one needs to be extern for linking to generated code.
+JsonLoc parseIndentedTmpl(InputDiags& ctx, ssize_t& i) {
+  static const Skipper *shskip = new Skipper{ {{"#", "\n"}}, {} };
+  const Input& input = ctx.input;
+  ssize_t j = shskip->whitespace(ctx.input, i);
+  size_t bol = input.bol(j);
+  oalex::Debug("i = {}, bol = {}, j = {}", i, bol, j);
+  if(bol == input.bol(i)) return JsonLoc::ErrorValue{};
+  string indent = input.substr(bol, j-bol);
+  j = bol;
+  optional<string> res = lexIndentedSource(ctx, sign_cast<size_t&>(j), indent);
+  if(res.has_value()) return JsonLoc::String{std::move(*res)};
+  else return JsonLoc::ErrorValue{};
+}
+
+namespace {
+
+void runExternParserDeclaration() {
+  const char msg[] =
+  R"(let some_text:    # Comment ignored
+
+        loren
+        ipsum
+
+  # Tail comment
+  )";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc jsloc = parseExtTmpl(ctx, pos);
+  string expected = R"({
+    id: "some_text",
+    tmpl: "loren\nipsum\n\n"
+  })";
+  if(jsloc.holdsError()) BugMe("parseExtTmpl() failed");
+  assertEqual(__func__, expected, jsloc.prettyPrint(2));
+}
+
+}  // namespace
+
 int main() {
   if(!goodFunc()) Bug("goodFunc() returned false");
   if(badFunc()) Bug("badFunc() returned true");
@@ -124,4 +169,5 @@ int main() {
   runSingleStringTest();
   runSingleRegexTest();
   runConcatTest();
+  runExternParserDeclaration();
 }

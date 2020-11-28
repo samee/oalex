@@ -73,6 +73,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 static string specifics_typename(const string&) { return "string"; }
 static string specifics_typename(const WordPreserving&)
   { return "WordPreserving"; }
+static string specifics_typename(const ExternParser&)
+  { return "ExternParser"; }
 static string specifics_typename(const Regex&) { return "Regex"; }
 static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
@@ -88,6 +90,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
   else if(const auto* wp = get_if<WordPreserving>(&r))
     return match(ctx, i, ruleset.regexOpts.word, **wp);
+  else if(holds_alternative<ExternParser>(r))  // use dlopen() someday
+    UserError("eval() doesn't support 'extern' parsers");
   else if(const auto* sp = get_if<SkipPoint>(&r)) return skip(ctx, i, *sp);
   else if(const auto* regex = get_if<Regex>(&r))
     return match(ctx, i, *regex, ruleset.regexOpts);
@@ -352,9 +356,22 @@ codegenParserCall(const Rule& rule, string_view posVar,
                   const OutputStream& cppos) {
   if(const auto* s = get_if<string>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(*s)));
-  else if(optional<string> rname = rule.name())
-    cppos(format("parse{}(ctx, {})", *rname, posVar));
-  else Unimplemented("nameless component of type", rule.specifics_typename());
+  else if(const auto* wp = get_if<WordPreserving>(&rule))
+    cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
+                 posVar, dquoted(**wp)));
+  else if(optional<string> rname = rule.name()) {
+    if(holds_alternative<ExternParser>(rule))
+      cppos(format("{}(ctx, {});", *rname, posVar));
+    else cppos(format("parse{}(ctx, {})", *rname, posVar));
+  }
+  else Unimplemented("nameless component of type {}",
+                     rule.specifics_typename());
+}
+
+static void
+genExternDeclaration(const OutputStream& hos, const string& rname) {
+  hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& j);\n",
+             rname));
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
@@ -367,6 +384,10 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
   string rname = *r.name();
 
+  if(holds_alternative<ExternParser>(r)) {
+    genExternDeclaration(hos, rname);
+    return;
+  }
   parserHeaders(rname, cppos, hos); cppos("{\n");
   if(const auto* s = get_if<string>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));

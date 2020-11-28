@@ -30,6 +30,7 @@
 using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
 using oalex::ConcatRule;
+using oalex::ExternParser;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
@@ -38,6 +39,7 @@ using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::Rule;
 using oalex::RuleSet;
+using oalex::Skipper;
 using oalex::SkipPoint;
 using oalex::UserError;
 using oalex::WordPreserving;
@@ -167,6 +169,23 @@ void generateConcatTest(const OutputStream& cppos,
   }
 }
 
+void generateExternParserDeclaration(const OutputStream& cppos,
+                                     const OutputStream& hos) {
+  const Skipper shskip{ {{"#", "\n"}}, {} };
+  RuleSet rs { oalex::makeVector<Rule>(
+      Rule{WordPreserving{"let"}, ""},
+      regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
+      Rule{":", ""},
+      Rule{ExternParser{}, "parseIndentedTmpl"},
+      Rule{SkipPoint{.stayWithinLine=true, &rs.skip}, "ExtSpace"},
+      Rule{ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
+                       {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl"}
+    ), shskip, regexOpts
+  };
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -205,6 +224,8 @@ int main(int argc, char* argv[]) {
     generateSingleRegexTest(cppos, hos);
     linebreaks();
     generateConcatTest(cppos, hos);
+    linebreaks();
+    generateExternParserDeclaration(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

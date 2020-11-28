@@ -55,6 +55,9 @@ struct WordPreserving {
   const std::string* operator->() const { return &s; }
 };
 
+// Note: we currently don't support ExternParser in tentative contexts.
+struct ExternParser { };
+
 struct Rule {
   // TODO other component types like RawString and Callback (with nested
   // components).
@@ -70,7 +73,7 @@ struct Rule {
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
  private:
-  std::variant<std::string, WordPreserving,
+  std::variant<std::string, WordPreserving, ExternParser,
                Regex, SkipPoint, ConcatRule> specifics_;
   std::string name_;
 };
