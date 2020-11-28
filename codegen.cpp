@@ -347,8 +347,9 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
 
 // Generate an inlined call to oalex::match() when possible, but falls back to
 // the main parser for other cases.
-void codegenParserCall(const Rule& rule, string_view posVar,
-                       const OutputStream& cppos) {
+static void
+codegenParserCall(const Rule& rule, string_view posVar,
+                  const OutputStream& cppos) {
   if(const auto* s = get_if<string>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(*s)));
   else if(optional<string> rname = rule.name())
@@ -363,9 +364,10 @@ void codegenParserCall(const Rule& rule, string_view posVar,
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleset.rules[ruleIndex];
-  // TODO check if some rule already uses the name start().
-  string fname = (r.name().has_value() ? *r.name() : "start");
-  parserHeaders(fname, cppos, hos); cppos("{\n");
+  if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
+  string rname = *r.name();
+
+  parserHeaders(rname, cppos, hos); cppos("{\n");
   if(const auto* s = get_if<string>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
   }else if(const auto* wp = get_if<WordPreserving>(&r)) {

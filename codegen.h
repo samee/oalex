@@ -66,6 +66,7 @@ struct Rule {
     if(name_.empty()) return std::nullopt; else return name_;
   }
 
+  template <class X> friend bool holds_alternative(const Rule& rule);
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
  private:
@@ -73,6 +74,10 @@ struct Rule {
                Regex, SkipPoint, ConcatRule> specifics_;
   std::string name_;
 };
+
+template <class X> bool holds_alternative(const Rule& rule) {
+  return std::holds_alternative<X>(rule.specifics_);
+}
 
 template <class X> X* get_if(Rule* rule) {
   return std::get_if<X>(&rule->specifics_);
