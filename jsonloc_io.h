@@ -20,6 +20,9 @@
 
 namespace oalex {
 
+// Note: this does not support a bare string or keyword, outside of square
+// brackets or braces. Without those indicators, it is hard to know when to
+// stop.
 std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 
 }  // namespace oalex
