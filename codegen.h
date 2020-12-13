@@ -34,6 +34,12 @@ struct ConcatRule {
   JsonLoc outputTmpl;
 };
 
+struct OrRule {
+  // The tmpl must have at most a single placeholder, called 'child'.
+  struct Component { ssize_t idx; JsonLoc tmpl; };
+  std::vector<Component> comps;
+};
+
 struct SkipPoint {
   bool stayWithinLine = false;  // If true, skip comments should end in '\n'
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
@@ -74,7 +80,7 @@ struct Rule {
   template <class X> friend const X* get_if(const Rule* rule);
  private:
   std::variant<std::string, WordPreserving, ExternParser,
-               Regex, SkipPoint, ConcatRule> specifics_;
+               Regex, SkipPoint, ConcatRule, OrRule> specifics_;
   std::string name_;
 };
 

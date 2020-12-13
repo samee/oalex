@@ -78,6 +78,7 @@ static string specifics_typename(const ExternParser&)
 static string specifics_typename(const Regex&) { return "Regex"; }
 static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
+static string specifics_typename(const OrRule&) { return "OrRule"; }
 
 string Rule::specifics_typename() const {
   return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
