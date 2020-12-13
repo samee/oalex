@@ -285,7 +285,7 @@ codegen(const JsonLoc& jsloc, const OutputStream& cppos,
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(format("std::move({})", v->second));
   }else if(auto* s = get_if<JsonLoc::String>(&jsloc)) {
-    cppos(format("{}", dquoted(*s)));
+    cppos(format("{}s", dquoted(*s)));
   }else if(auto* v = get_if<JsonLoc::Vector>(&jsloc)) {
     cppos("JsonLoc::Vector{");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
@@ -336,6 +336,22 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
   cppos("  return ");
     codegen(concatRule.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");
+}
+
+static void
+codegen(const RuleSet& ruleset, const OrRule& orRule,
+        const OutputStream& cppos) {
+  cppos("  using std::literals::string_literals::operator\"\"s;\n");
+  cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
+  for(auto& [idx, tmpl] : orRule.comps) {
+    cppos("  res = ");
+      codegenParserCall(ruleset.rules[idx], "i", cppos);
+      cppos(";\n");
+    cppos("  if(!res.holdsError()) return ");
+      codegen(tmpl, cppos, {{"child", "res"}}, 2);
+      cppos(";\n");
+  }
+  cppos("  return res;\n");
 }
 
 static void
@@ -421,7 +437,9 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(*sp, cppos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
     codegen(ruleset, *seq, cppos);
-  // TODO Implement errors, OrListRule
+  }else if(const auto* ors = get_if<OrRule>(&r)) {
+    codegen(ruleset, *ors, cppos);
+  // TODO Implement errors, error-recovery scanner.
   }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
   cppos("}\n");
 }

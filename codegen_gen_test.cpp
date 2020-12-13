@@ -34,7 +34,9 @@ using oalex::ExternParser;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::makeVector;
 using oalex::OutputStream;
+using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::Rule;
@@ -186,6 +188,21 @@ void generateExternParserDeclaration(const OutputStream& cppos,
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
+                              regexRule(__func__, "/[0-9]+/", "OrCompNumber")),
+    .skip{cskip},
+    .regexOpts{regexOpts},
+  };
+  rs.rules.push_back(Rule{OrRule{{
+      {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
+      {2, *parseJsonLoc("{number: child}")},
+  }}, "OneWordOrList"});
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -226,6 +243,8 @@ int main(int argc, char* argv[]) {
     generateConcatTest(cppos, hos);
     linebreaks();
     generateExternParserDeclaration(cppos, hos);
+    linebreaks();
+    generateOrTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

@@ -23,6 +23,7 @@
 #include <string>
 #include <utility>
 #include "lexer.h"
+#include "jsonloc_io_test.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::assertEqual;
@@ -30,6 +31,7 @@ using oalex::Bug;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::parseJsonLoc;
 using oalex::Skipper;
 using oalex::sign_cast;
 using oalex::lex::lexIndentedSource;
@@ -154,6 +156,26 @@ void runExternParserDeclaration() {
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 }
 
+void runOrTest() {
+  const pair<string, JsonLoc> goodInputOutputPairs[] = {
+    {"if", JsonLoc{"if"}}, {"while", JsonLoc{"while"}},
+    {"42", *parseJsonLoc(R"({number: "42"})")},
+  };
+  for(auto& [msg, expected] : goodInputOutputPairs) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = parseOneWordOrList(ctx, pos);
+    assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+  }
+
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("do");
+  JsonLoc observed = parseOneWordOrList(ctx, pos);
+  if(!observed.holdsError())
+    BugMe("Was expecting failure on keyword 'do'. Got {}",
+          observed.prettyPrint());
+}
+
 }  // namespace
 
 int main() {
@@ -170,4 +192,5 @@ int main() {
   runSingleRegexTest();
   runConcatTest();
   runExternParserDeclaration();
+  runOrTest();
 }
