@@ -69,6 +69,25 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
+static JsonLoc subtituteOnePlaceholder(JsonLoc tmpl, string_view key,
+                                       const JsonLoc& value) {
+  ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
+  if(count > 1) Bug("OrRule wasn't expected to have more than one child");
+  return tmpl;  // Assumes substitutionsOk();
+}
+
+JsonLoc eval(InputDiags& ctx, ssize_t& i,
+             const OrRule& ors, const RuleSet& rs) {
+  ssize_t j = i;
+  if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
+  JsonLoc out{JsonLoc::ErrorValue{}};
+  for(auto& [idx, tmpl]: ors.comps) {
+    out = eval(ctx, j, rs, idx);
+    if(!out.holdsError()) return subtituteOnePlaceholder(tmpl, "child", out);
+  }
+  return out;  // Return the last error.
+}
+
 // Using std::visit(), since we want to catch missing types at compile-time.
 static string specifics_typename(const string&) { return "string"; }
 static string specifics_typename(const WordPreserving&)
@@ -97,7 +116,9 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(const auto* regex = get_if<Regex>(&r))
     return match(ctx, i, *regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
-    return eval(ctx,i, *seq, ruleset);
+    return eval(ctx, i, *seq, ruleset);
+  else if(const auto* ors = get_if<OrRule>(&r))
+    return eval(ctx, i, *ors, ruleset);
   Bug("Unknown rule type {} in eval", r.specifics_typename());
 }
 

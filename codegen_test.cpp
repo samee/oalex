@@ -36,6 +36,7 @@ using oalex::ConcatRule;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::makeVector;
+using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::Regex;
 using oalex::Rule;
@@ -153,6 +154,38 @@ void testConcatMatch() {
           observed.prettyPrint());
 }
 
+void testKeywordsOrNumber() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
+                              Rule{parseRegex("/[0-9]+/")}),
+    .skip{cskip},
+    .regexOpts{regexOpts},
+  };
+  rs.rules.push_back(Rule{OrRule{{
+      {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
+      {2, *parseJsonLoc("{number: child}")},
+  }}});
+  const ssize_t orListIndex = rs.rules.size()-1;
+
+  const pair<string, JsonLoc> goodInputOutputPairs[] = {
+    {"if", JsonLoc{"if"}}, {"while", JsonLoc{"while"}},
+    {"42", *parseJsonLoc(R"({number: "42"})")},
+  };
+  for(auto& [msg, expected] : goodInputOutputPairs) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = eval(ctx, pos, rs, orListIndex);
+    assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+  }
+
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("do");
+  JsonLoc observed = eval(ctx, pos, rs, orListIndex);
+  if(!observed.holdsError())
+    BugMe("Was expecting failure on keyword 'do'. Got {}",
+          observed.prettyPrint());
+}
+
 }  // namespace
 
 int main() {
@@ -163,5 +196,6 @@ int main() {
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
   testConcatMatch();
+  testKeywordsOrNumber();
 }
 
