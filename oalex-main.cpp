@@ -19,17 +19,55 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 */
 
 #include <cstdio>
+#include <string>
+#include <vector>
+using std::string;
+using std::vector;
+
+namespace {
 
 const char usage[] = R"(
-Usage:  oalex [eval] filename...                 # Parses stdin
-        oalex [eval] test filename...            # Runs all examples
+Usage:  oalex [eval] filename                    # Parses stdin
+        oalex [eval] test filename               # Runs all examples
         oalex build [--cpp-out=outname.cpp] [--h-out=outname.h] \
-              filename...                        # Generate all parsers
-        oalex build test [--cpp-out=outname.cpp] [--h-out=outname.h] \
-              [--test-cpp-out=outname_test.cpp]  # Generate test drivers
+              filename                           # Generate all parsers
+        oalex build test [--cpp-out=outname.cpp] \
+                         [--h-out=outname.h] \
+                         [--test-cpp-out=outname_test.cpp] \
+                         filename                # Generate test drivers
         oalex --help                             # This message
         oalex help                               #
 )";
+
+enum class CmdMode { eval, evalTest, build, buildTest };
+
+struct CmdlineOptions {
+  CmdMode mode;
+  string filename;  // TODO support more than a single filename.
+  string cppoutFilename;
+  string houtFilename;
+  string testoutFilename;
+};
+
+struct CmdModeTableEntry {
+  vector<string> selectors;
+  CmdMode mode;
+  CmdMode (*parse)(int argc, char *argv[]);
+};
+
+CmdMode getRulesetFilename(int, char **) { return {}; }  // TODO
+CmdMode getInputOutputFilenames(int, char **) { return {}; }  // TODO
+
+CmdModeTableEntry cmdModeTable[] = {
+  { {"oalex"}, CmdMode::eval, getRulesetFilename },
+  { {"oalex", "eval"}, CmdMode::eval, getRulesetFilename },
+  { {"oalex", "test"}, CmdMode::evalTest, getRulesetFilename },
+  { {"oalex", "eval", "test"}, CmdMode::evalTest, getRulesetFilename },
+  { {"oalex", "build"}, CmdMode::build, getInputOutputFilenames },
+  { {"oalex", "build", "test"}, CmdMode::buildTest, getInputOutputFilenames },
+};
+
+}  // namespace
 
 int main(int argc, char *argv[]) {
   if(argc > 1 && argv) fprintf(stderr, "Nothing is implemented yet.\n");
