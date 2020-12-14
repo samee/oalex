@@ -59,3 +59,6 @@ add_test(template_test template_test)
 
 add_subdirectory(archived)
 add_subdirectory(runtime)
+
+add_executable(oalex-bin oalex-main.cpp)
+set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
