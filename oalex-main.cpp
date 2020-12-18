@@ -19,8 +19,13 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 */
 
 #include <cstdio>
+#include <optional>
 #include <string>
 #include <vector>
+#include <libgen.h>
+using std::nullopt;
+using std::optional;
+using std::size;
 using std::string;
 using std::vector;
 
@@ -52,13 +57,26 @@ struct CmdlineOptions {
 struct CmdModeTableEntry {
   vector<string> selectors;
   CmdMode mode;
-  CmdMode (*parse)(int argc, char *argv[]);
+  optional<CmdlineOptions> (*parse)(int argc, char *argv[]);
 };
 
-CmdMode getRulesetFilename(int, char **) { return {}; }  // TODO
-CmdMode getInputOutputFilenames(int, char **) { return {}; }  // TODO
+// TODO
+optional<CmdlineOptions>
+getRulesetFilename(int, char **) {
+  return CmdlineOptions{};
+}
 
-CmdModeTableEntry cmdModeTable[] = {
+// TODO
+optional<CmdlineOptions>
+getInputOutputFilenames(int, char **) {
+  return CmdlineOptions{};
+}
+
+// This table is matched from bottom to top in parseCmdlineOptions. So the most
+// specific command prefix should appear at the end.
+// TODO `oalex help`
+const CmdModeTableEntry
+cmdModeTable[] = {
   { {"oalex"}, CmdMode::eval, getRulesetFilename },
   { {"oalex", "eval"}, CmdMode::eval, getRulesetFilename },
   { {"oalex", "test"}, CmdMode::evalTest, getRulesetFilename },
@@ -67,10 +85,26 @@ CmdModeTableEntry cmdModeTable[] = {
   { {"oalex", "build", "test"}, CmdMode::buildTest, getInputOutputFilenames },
 };
 
+optional<CmdlineOptions>
+parseCmdlineOptions(int argc, char *argv[]) {
+  if(argc > 0 && argv[0]) argv[0] = basename(argv[0]);  // my/oalex --> oalex
+  for(int i=size(cmdModeTable)-1; i>=0; --i) {
+    auto& entry = cmdModeTable[i];
+    int n = entry.selectors.size();
+    if(argc < n) continue;
+    if(!equal(entry.selectors.begin(), entry.selectors.end(), argv)) continue;
+    optional<CmdlineOptions> rv = entry.parse(argc-n, argv+n);
+    if(rv.has_value()) rv->mode = entry.mode;
+    return rv;
+  }
+  return nullopt;
+}
+
 }  // namespace
 
 int main(int argc, char *argv[]) {
-  if(argc > 1 && argv) fprintf(stderr, "Nothing is implemented yet.\n");
+  optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
+  if(cmdlineOpts.has_value()) fprintf(stderr, "Nothing is implemented yet.\n");
   fprintf(stderr, "%s\n", usage);
   return 1;
 }
