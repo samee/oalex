@@ -163,11 +163,33 @@ parseCmdlineOptions(int argc, char *argv[]) {
   return nullopt;
 }
 
+bool validate(const CmdlineOptions& opts) {
+  if(opts.mode == CmdMode::build) {
+    if(!opts.testOutFilename.empty()) {
+      fprintf(stderr, "'oalex build' doesn't use a --test-cpp-out flag\n");
+      return false;
+    }else if(opts.cppOutFilename.empty() != opts.hOutFilename.empty()) {
+      fprintf(stderr, "Both --cpp-out and --h-out must be provided, "
+                      "or neither should be\n");
+      return false;
+    }
+  }else if(opts.mode == CmdMode::buildTest) {
+    if(opts.cppOutFilename.empty() != opts.hOutFilename.empty() ||
+       opts.cppOutFilename.empty() != opts.testOutFilename.empty()) {
+      fprintf(stderr, "All of --cpp-out, --h-out, and --test-cpp-out must be "
+                      "specified, or none of them should be.\n");
+      return false;
+    }
+  }
+  return true;
+}
+
 }  // namespace
 
 int main(int argc, char *argv[]) {
   const optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
   if(cmdlineOpts.has_value()) {
+    if(!validate(*cmdlineOpts)) return 1;
     auto& in = cmdlineOpts->inFilename;
     auto& cpp = cmdlineOpts->cppOutFilename;
     auto& h = cmdlineOpts->hOutFilename;
