@@ -48,10 +48,10 @@ enum class CmdMode { eval, evalTest, build, buildTest };
 
 struct CmdlineOptions {
   CmdMode mode;
-  string filename;  // TODO support more than a single filename.
-  string cppoutFilename;
-  string houtFilename;
-  string testoutFilename;
+  string inFilename;  // TODO support more than a single filename.
+  string cppOutFilename;
+  string hOutFilename;
+  string testOutFilename;
 };
 
 struct CmdModeTableEntry {
@@ -60,10 +60,18 @@ struct CmdModeTableEntry {
   optional<CmdlineOptions> (*parse)(int argc, char *argv[]);
 };
 
-// TODO
 optional<CmdlineOptions>
-getRulesetFilename(int, char **) {
-  return CmdlineOptions{};
+getRulesetFilename(int argc, char *argv[]) {
+  if(argc > 1) {
+    fprintf(stderr, "oalex currently supports only a single input file\n");
+    return nullopt;
+  }else if(argc < 1) {
+    fprintf(stderr, "Input filename missing\n");
+    return nullopt;
+  }
+  CmdlineOptions rv;
+  rv.inFilename = argv[0];
+  return rv;
 }
 
 // TODO
@@ -97,14 +105,30 @@ parseCmdlineOptions(int argc, char *argv[]) {
     if(rv.has_value()) rv->mode = entry.mode;
     return rv;
   }
+  fprintf(stderr, "%s\n", usage);
   return nullopt;
 }
 
 }  // namespace
 
 int main(int argc, char *argv[]) {
-  optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
-  if(cmdlineOpts.has_value()) fprintf(stderr, "Nothing is implemented yet.\n");
-  fprintf(stderr, "%s\n", usage);
+  const optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
+  if(cmdlineOpts.has_value()) {
+    auto& in = cmdlineOpts->inFilename;
+    auto& cpp = cmdlineOpts->cppOutFilename;
+    auto& h = cmdlineOpts->hOutFilename;
+    auto& test = cmdlineOpts->testOutFilename;
+    if(!in.empty())
+      fprintf(stderr, "Input file: \"%s\"\n", in.c_str());
+    if(!cpp.empty() || !h.empty() || !test.empty())
+      fprintf(stderr, "Output files:\n");
+    if(!cpp.empty())
+      fprintf(stderr, "  Parser .cpp file: \"%s\"\n", cpp.c_str());
+    if(!h.empty())
+      fprintf(stderr, "  Parser .h file: \"%s\"\n", h.c_str());
+    if(!test.empty())
+      fprintf(stderr, "  Test-driver .cpp file: \"%s\"\n", test.c_str());
+    fprintf(stderr, "Nothing is implemented yet.\n");
+  }
   return 1;
 }
