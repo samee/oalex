@@ -62,3 +62,6 @@ add_subdirectory(runtime)
 
 add_executable(oalex-bin oalex_main.cpp)
 set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
+add_test(NAME oalex_main_test
+         COMMAND ${CMAKE_SOURCE_DIR}/oalex_main_test.py
+                 --bin $<TARGET_FILE:oalex-bin>)
