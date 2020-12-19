@@ -184,16 +184,33 @@ bool validate(const CmdlineOptions& opts) {
   return true;
 }
 
+string_view tryRemovingSuffix(string_view s, string_view suff) {
+  if(s.size() < suff.size() || s.substr(s.size()-suff.size()) != suff)
+    return s;
+  else return s.substr(0, s.size()-suff.size());
+}
+
+void fillOutputFilenames(CmdlineOptions& opts) {
+  if(opts.mode != CmdMode::build && opts.mode != CmdMode::buildTest) return;
+  string sansExt{tryRemovingSuffix(opts.inFilename, ".oalex")};
+  opts.cppOutFilename = sansExt + ".cpp";
+  opts.hOutFilename = sansExt + ".h";
+  if(opts.mode == CmdMode::buildTest)
+    opts.testOutFilename = std::move(sansExt) + "_test.cpp";
+}
+
 }  // namespace
 
+// TODO shell test for error-checking.
 int main(int argc, char *argv[]) {
-  const optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
+  optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
   if(cmdlineOpts.has_value()) {
-    if(!validate(*cmdlineOpts)) return 1;
     auto& in = cmdlineOpts->inFilename;
     auto& cpp = cmdlineOpts->cppOutFilename;
     auto& h = cmdlineOpts->hOutFilename;
     auto& test = cmdlineOpts->testOutFilename;
+    if(!validate(*cmdlineOpts)) return 1;
+    if(cpp.empty()) fillOutputFilenames(*cmdlineOpts);
     if(!in.empty())
       fprintf(stderr, "Input file: \"%s\"\n", in.c_str());
     if(!cpp.empty() || !h.empty() || !test.empty())
