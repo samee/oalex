@@ -22,6 +22,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include <optional>
 #include <string>
 #include <vector>
+#include <getopt.h>
 #include <libgen.h>
 using std::nullopt;
 using std::optional;
@@ -57,11 +58,12 @@ struct CmdlineOptions {
 struct CmdModeTableEntry {
   vector<string> selectors;
   CmdMode mode;
-  optional<CmdlineOptions> (*parse)(int argc, char *argv[]);
+  optional<CmdlineOptions> (*parse)(int argc, char *argv[], int start);
 };
 
 optional<CmdlineOptions>
-getRulesetFilename(int argc, char *argv[]) {
+getRulesetFilename(int argc, char *argv[], int start) {
+  argc-=start; argv+=start;
   if(argc > 1) {
     fprintf(stderr, "oalex currently supports only a single input file\n");
     return nullopt;
@@ -76,8 +78,33 @@ getRulesetFilename(int argc, char *argv[]) {
 
 // TODO
 optional<CmdlineOptions>
-getInputOutputFilenames(int, char **) {
-  return CmdlineOptions{};
+getInputOutputFilenames(int argc, char *argv[], int start) {
+  enum : int { cppOutFlag, hOutFlag, testOutFlag };
+  const struct option opts[] = {
+    {"cpp-out",  required_argument, nullptr, cppOutFlag},
+    {"h-out",    required_argument, nullptr, hOutFlag},
+    {"test-out", required_argument, nullptr, testOutFlag},
+    {0, 0, 0, 0}
+  };
+  optind = start;
+  CmdlineOptions rv{};
+  while(1) {
+    int c = getopt_long(argc, argv, "", opts, nullptr);
+    switch(c) {
+      case -1: return rv;
+      case cppOutFlag:
+        rv.cppOutFilename = optarg;
+        break;
+      case hOutFlag:
+        rv.hOutFilename = optarg;
+        break;
+      case testOutFlag:
+        rv.testOutFilename = optarg;
+        break;
+      default:
+        return nullopt;
+    }
+  }
 }
 
 // This table is matched from bottom to top in parseCmdlineOptions. So the most
@@ -101,7 +128,7 @@ parseCmdlineOptions(int argc, char *argv[]) {
     int n = entry.selectors.size();
     if(argc < n) continue;
     if(!equal(entry.selectors.begin(), entry.selectors.end(), argv)) continue;
-    optional<CmdlineOptions> rv = entry.parse(argc-n, argv+n);
+    optional<CmdlineOptions> rv = entry.parse(argc, argv, n);
     if(rv.has_value()) rv->mode = entry.mode;
     return rv;
   }
