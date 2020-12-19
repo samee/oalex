@@ -19,8 +19,10 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 */
 
 #include <cstdio>
+#include <cstring>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <getopt.h>
 #include <libgen.h>
@@ -28,6 +30,7 @@ using std::nullopt;
 using std::optional;
 using std::size;
 using std::string;
+using std::string_view;
 using std::vector;
 
 namespace {
@@ -76,6 +79,29 @@ getRulesetFilename(int argc, char *argv[], int start) {
   return rv;
 }
 
+bool knownArg(string_view arg, const struct option *opts) {
+  arg = arg.substr(2);  // Assume first two chars are "--".
+  for(int i=0; opts[i].name; ++i) {
+    if(opts[i].name == arg) return true;
+    size_t n = strlen(opts[i].name);
+    if(arg.substr(0, n) == opts[i].name && arg.size() > n && arg[n]=='=')
+      return true;
+  }
+  return false;
+}
+
+// getopt() allows prefixes that we want to disallow. E.g. --test-out can
+// be shortened to just --test. getopt() accepts it, but we don't.
+bool hasUnknownArg(int argc, char *argv[], int start,
+                   const struct option *opts) {
+  for(int i=start; i<argc; ++i)
+    if(string_view(argv[i]).substr(0, 2) == "--" && !knownArg(argv[i], opts)) {
+      fprintf(stderr, "Unknown option '%s'\n", argv[i]);
+      return true;
+    }
+  return false;
+}
+
 // TODO
 optional<CmdlineOptions>
 getInputOutputFilenames(int argc, char *argv[], int start) {
@@ -88,6 +114,7 @@ getInputOutputFilenames(int argc, char *argv[], int start) {
   };
   optind = start;
   CmdlineOptions rv{};
+  if(hasUnknownArg(argc, argv, start, opts)) return nullopt;
   while(1) {
     int c = getopt_long(argc, argv, "", opts, nullptr);
     switch(c) {
