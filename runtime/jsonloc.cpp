@@ -115,7 +115,8 @@ static string_view assertIdent(string_view ctx, string_view s) {
 }
 
 static void prettyPrint(fmt::memory_buffer& buf,
-                        size_t indent, const JsonLoc& json) {
+                        size_t indent, const JsonLoc& json,
+                        bool quoteMapKeys) {
   if(auto* p = get_if<Placeholder>(&json))
     format_to(buf, "{}", assertIdent(__func__, p->key));
   else if(auto* s = get_if<String>(&json)) printString(buf, *s);
@@ -126,7 +127,7 @@ static void prettyPrint(fmt::memory_buffer& buf,
       if(!first) format_to(buf, ",\n");
       first = false;
       format_to(buf, "{:{}}", "", indent+2);
-      prettyPrint(buf, indent+2, elt);
+      prettyPrint(buf, indent+2, elt, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}]", "", indent);
   }else if(auto* m = get_if<Map>(&json)) {
@@ -135,8 +136,12 @@ static void prettyPrint(fmt::memory_buffer& buf,
     for(auto& [k,v] : *m) {
       if(!first) format_to(buf, ",\n");
       first = false;
-      format_to(buf, "{:{}}{}: ", "", indent+2, assertIdent(__func__,k));
-      prettyPrint(buf, indent+2, v);
+      if(quoteMapKeys) {
+        format_to(buf, "{:{}}\"{}\": ", "", indent+2, assertIdent(__func__,k));
+      }else {
+        format_to(buf, "{:{}}{}: ", "", indent+2, assertIdent(__func__,k));
+      }
+      prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
   }else if(holds_alternative<ErrorValue>(json.value)) {
@@ -146,7 +151,13 @@ static void prettyPrint(fmt::memory_buffer& buf,
 
 string JsonLoc::prettyPrint(size_t indent) const {
   fmt::memory_buffer buf;
-  oalex::prettyPrint(buf, indent, *this);
+  oalex::prettyPrint(buf, indent, *this, false);
+  return fmt::to_string(buf);
+}
+
+string JsonLoc::prettyPrintJson(size_t indent) const {
+  fmt::memory_buffer buf;
+  oalex::prettyPrint(buf, indent, *this, true);
   return fmt::to_string(buf);
 }
 

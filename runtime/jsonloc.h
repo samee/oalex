@@ -76,6 +76,7 @@ struct JsonLoc {
   // Corollary: String and Placeholders are never indented,
   //   and are not newline-terminated.
   std::string prettyPrint(size_t indent=0) const;
+  std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 };
 
