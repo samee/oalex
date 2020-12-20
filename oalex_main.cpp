@@ -102,7 +102,6 @@ bool hasUnknownArg(int argc, char *argv[], int start,
   return false;
 }
 
-// TODO
 optional<CmdlineOptions>
 getInputOutputFilenames(int argc, char *argv[], int start) {
   enum : int { cppOutFlag, hOutFlag, testOutFlag };
@@ -206,7 +205,6 @@ void fillOutputFilenames(CmdlineOptions& opts) {
 
 }  // namespace
 
-// TODO shell test for error-checking.
 int main(int argc, char *argv[]) {
   optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
   if(!cmdlineOpts.has_value()) return 1;
