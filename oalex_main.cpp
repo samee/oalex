@@ -204,24 +204,24 @@ void fillOutputFilenames(CmdlineOptions& opts) {
 // TODO shell test for error-checking.
 int main(int argc, char *argv[]) {
   optional<CmdlineOptions> cmdlineOpts = parseCmdlineOptions(argc, argv);
-  if(cmdlineOpts.has_value()) {
-    auto& in = cmdlineOpts->inFilename;
-    auto& cpp = cmdlineOpts->cppOutFilename;
-    auto& h = cmdlineOpts->hOutFilename;
-    auto& test = cmdlineOpts->testOutFilename;
-    if(!validate(*cmdlineOpts)) return 1;
-    if(cpp.empty()) fillOutputFilenames(*cmdlineOpts);
-    if(!in.empty())
-      fprintf(stderr, "Input file: \"%s\"\n", in.c_str());
-    if(!cpp.empty() || !h.empty() || !test.empty())
-      fprintf(stderr, "Output files:\n");
-    if(!cpp.empty())
-      fprintf(stderr, "  Parser .cpp file: \"%s\"\n", cpp.c_str());
-    if(!h.empty())
-      fprintf(stderr, "  Parser .h file: \"%s\"\n", h.c_str());
-    if(!test.empty())
-      fprintf(stderr, "  Test-driver .cpp file: \"%s\"\n", test.c_str());
-    fprintf(stderr, "Nothing is implemented yet.\n");
-  }
+  if(!cmdlineOpts.has_value()) return 1;
+
+  auto& in = cmdlineOpts->inFilename;
+  auto& cpp = cmdlineOpts->cppOutFilename;
+  auto& h = cmdlineOpts->hOutFilename;
+  auto& test = cmdlineOpts->testOutFilename;
+  if(!validate(*cmdlineOpts)) return 1;
+  if(cpp.empty()) fillOutputFilenames(*cmdlineOpts);
+  if(!in.empty())
+    fprintf(stderr, "Input file: \"%s\"\n", in.c_str());
+  if(!cpp.empty() || !h.empty() || !test.empty())
+    fprintf(stderr, "Output files:\n");
+  if(!cpp.empty())
+    fprintf(stderr, "  Parser .cpp file: \"%s\"\n", cpp.c_str());
+  if(!h.empty())
+    fprintf(stderr, "  Parser .h file: \"%s\"\n", h.c_str());
+  if(!test.empty())
+    fprintf(stderr, "  Test-driver .cpp file: \"%s\"\n", test.c_str());
+  fprintf(stderr, "Nothing is implemented yet.\n");
   return 1;
 }
