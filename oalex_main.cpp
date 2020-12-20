@@ -30,6 +30,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include "codegen.h"
 #include "oalex.h"
 using oalex::Input;
+using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::RuleSet;
 using std::nullopt;
@@ -248,7 +249,16 @@ auto parseOalexFile(const string& filename) -> optional<RuleSet> {
   return nullopt;
 }
 
-JsonLoc processStdin(const RuleSet&) { return JsonLoc::ErrorValue{}; }
+JsonLoc processStdin(const RuleSet&) {
+  InputDiags ctx(
+    Input{[]() { int ch = getchar(); return ch == EOF ? -1 : ch; }}
+  );
+  if(ctx.input.hasPrefix(0, "Hello!\n"))
+    return JsonLoc::Map{{"msg", JsonLoc{"Hello!"}}};
+  Error(ctx, 0, "Failed at politeness test");
+  for(const auto d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
+  return JsonLoc::ErrorValue{};
+}
 
 }  // namespace
 
@@ -268,7 +278,7 @@ int main(int argc, char *argv[]) {
     if(!rs.has_value()) return 1;
     JsonLoc res = processStdin(*rs);
     printf("%s\n", res.prettyPrintJson().c_str());
-    return 0;
+    return res.holdsError() ? 1 : 0;
   }else {
     fprintf(stderr, "This mode isn't implmented yet");
     return 1;

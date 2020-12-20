@@ -42,7 +42,16 @@ for cmd, error_re in errorcases:
 result = subprocess.run(
            [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
            input=b"Hello!\n", capture_output=True)
+output = json.loads(result.stdout.decode('utf-8'))
+expected = json.loads('{"msg": "Hello!"}')
 assert result.returncode == 0, "1-good.oalex exited with non-zero result"
+
+result = subprocess.run(
+           [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
+           input=b"Go away!\n", capture_output=True)
+if not re.search("Failed at politeness", result.stderr.decode('utf-8')):
+  print("Failed to detect rudeness in 1-good.oalex")
+  sys.exit(1)
 
 result = subprocess.run(
            [sysargs.bin, os.path.join(sysargs.testdata, "1-bad.oalex")],
