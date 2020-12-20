@@ -29,10 +29,15 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include <libgen.h>
 #include "codegen.h"
 #include "oalex.h"
+#include "regex_io.h"
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::parseRegexCharSet;
+using oalex::RegexOptions;
+using oalex::Rule;
 using oalex::RuleSet;
+using oalex::Skipper;
 using std::nullopt;
 using std::optional;
 using std::size;
@@ -241,20 +246,31 @@ optional<string> fileContents(const string& filename) {
 }
 
 auto parseOalexFile(const string& filename) -> optional<RuleSet> {
+  static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
+  static const auto* userRegexOpts = new RegexOptions{
+    // Do not use user-supplied input. See regex_io.h for details.
+    .word = parseRegexCharSet("[0-9A-Za-z_]")
+  };
+
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
-  Input in(*s);
-  if(in.hasPrefix(0, "require_politeness\n")) return RuleSet{};
+  Input in{*s};
+  if(in.hasPrefix(0, "require_politeness\n")) {
+    RuleSet rs{{}, *userSkip, *userRegexOpts};
+    rs.rules.push_back(Rule{"Hello!"});
+    return rs;
+  }
   fprintf(stderr, "Doesn't insist on politeness\n");
   return nullopt;
 }
 
-JsonLoc processStdin(const RuleSet&) {
+JsonLoc processStdin(const RuleSet& rs) {
   InputDiags ctx(
     Input{[]() { int ch = getchar(); return ch == EOF ? -1 : ch; }}
   );
-  if(ctx.input.hasPrefix(0, "Hello!\n"))
-    return JsonLoc::Map{{"msg", JsonLoc{"Hello!"}}};
+  ssize_t pos = 0;
+  JsonLoc jsloc = eval(ctx, pos, rs, 0);
+  if(!jsloc.holdsError()) return JsonLoc::Map{{"msg", std::move(jsloc)}};
   Error(ctx, 0, "Failed at politeness test");
   for(const auto d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
