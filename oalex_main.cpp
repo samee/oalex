@@ -118,7 +118,12 @@ getInputOutputFilenames(int argc, char *argv[], int start) {
   while(1) {
     int c = getopt_long(argc, argv, "", opts, nullptr);
     switch(c) {
-      case -1: return rv;
+      case -1: {
+        optional<CmdlineOptions> in = getRulesetFilename(argc, argv, optind);
+        if(!in.has_value()) return nullopt;
+        rv.inFilename = std::move(in->inFilename);
+        return rv;
+      }
       case cppOutFlag:
         rv.cppOutFilename = optarg;
         break;

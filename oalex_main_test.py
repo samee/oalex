@@ -22,8 +22,10 @@ def split_args(s: str) -> List[str]:
 # with args.bin in split_args().
 errorcases = [
     ("oalex", "Input filename missing"),
-    ("oalex build --h-out test.h", "Both .* or neither"),
-    ("oalex build test --h-out test.h", "All .* or none"),
+    ("oalex build --h-out test.h", "Input filename missing"),
+    ("oalex build --h-out test.h test.oalex", "Both .* or neither"),
+    ("oalex build test --h-out test.h", "Input filename missing"),
+    ("oalex build test --h-out test.h test.oalex", "All .* or none"),
 ]
 
 for cmd, error_re in errorcases:
