@@ -26,6 +26,10 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include <vector>
 #include <getopt.h>
 #include <libgen.h>
+#include "codegen.h"
+#include "oalex.h"
+using oalex::JsonLoc;
+using oalex::RuleSet;
 using std::nullopt;
 using std::optional;
 using std::size;
@@ -203,6 +207,12 @@ void fillOutputFilenames(CmdlineOptions& opts) {
     opts.testOutFilename = std::move(sansExt) + "_test.cpp";
 }
 
+auto parseOalexFile(string_view) -> optional<RuleSet> {
+  return nullopt;
+}
+
+JsonLoc processStdin(const RuleSet&) { return JsonLoc::ErrorValue{}; }
+
 }  // namespace
 
 int main(int argc, char *argv[]) {
@@ -215,6 +225,19 @@ int main(int argc, char *argv[]) {
   auto& test = cmdlineOpts->testOutFilename;
   if(!validate(*cmdlineOpts)) return 1;
   if(cpp.empty()) fillOutputFilenames(*cmdlineOpts);
+
+  if(cmdlineOpts->mode == CmdMode::eval) {
+    optional<RuleSet> rs = parseOalexFile(cmdlineOpts->inFilename);
+    if(!rs.has_value()) return 1;
+    JsonLoc res = processStdin(*rs);
+    printf("%s\n", res.prettyPrintJson().c_str());
+    return 0;
+  }else {
+    fprintf(stderr, "This mode isn't implmented yet");
+    return 1;
+  }
+
+  // Parsing result, to be removed once we have proper tests that use files.
   if(!in.empty())
     fprintf(stderr, "Input file: \"%s\"\n", in.c_str());
   if(!cpp.empty() || !h.empty() || !test.empty())
