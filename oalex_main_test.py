@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
+import os
 import re
 import subprocess
 import sys
@@ -8,6 +10,7 @@ from typing import List
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--bin", help="Path to the oalex binary")
+parser.add_argument("-t", "--testdata", help="Path to directory of testdata")
 sysargs = parser.parse_args()
 
 def split_args(s: str) -> List[str]:
@@ -34,3 +37,15 @@ for cmd, error_re in errorcases:
     print(f"Couldn't find the expected error for command: {cmd}")
     print(f"Expected '{error_re}'\nGot {result.stderr!r}")
     sys.exit(1)
+
+# Dummy input test case
+result = subprocess.run(
+           [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
+           input=b"Hello!\n", capture_output=True)
+assert result.returncode == 0, "1-good.oalex exited with non-zero result"
+
+result = subprocess.run(
+           [sysargs.bin, os.path.join(sysargs.testdata, "1-bad.oalex")],
+           capture_output=True)
+assert result.returncode != 0, "1-bad.oalex was expected to cause failure"
+assert re.search("Doesn't insist on politeness", result.stderr.decode('utf-8'))

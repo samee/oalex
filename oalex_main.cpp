@@ -20,6 +20,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 
 #include <cstdio>
 #include <cstring>
+#include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -28,6 +29,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include <libgen.h>
 #include "codegen.h"
 #include "oalex.h"
+using oalex::Input;
 using oalex::JsonLoc;
 using oalex::RuleSet;
 using std::nullopt;
@@ -35,6 +37,7 @@ using std::optional;
 using std::size;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 
 namespace {
@@ -207,7 +210,41 @@ void fillOutputFilenames(CmdlineOptions& opts) {
     opts.testOutFilename = std::move(sansExt) + "_test.cpp";
 }
 
-auto parseOalexFile(string_view) -> optional<RuleSet> {
+optional<string> fileContents(const string& filename) {
+  unique_ptr<FILE, decltype(&fclose)> fp(
+      fopen(filename.c_str(), "r"), &fclose
+  );
+  if(!fp) {
+    fprintf(stderr, "Could not open %s for reading\n", filename.c_str());
+    return nullopt;
+  }
+  if(fseek(&*fp, 0, SEEK_END) != 0) {
+    fprintf(stderr, "Seeking failed for file %s\n", filename.c_str());
+    return nullopt;
+  }
+  long off = ftell(&*fp);
+  if(off == -1) {
+    fprintf(stderr, "Couldn't find the filesize of %s\n", filename.c_str());
+    return nullopt;
+  }
+  if(fseek(&*fp, 0, SEEK_SET) != 0) {
+    fprintf(stderr, "Seekback failed for file %s\n", filename.c_str());
+    return nullopt;
+  }
+  string s(off, ' ');
+  if(fread(s.data(), 1, off, &*fp) < size_t(off)) {
+    fprintf(stderr, "Failed to read from file %s\n", filename.c_str());
+    return nullopt;
+  }
+  return s;
+}
+
+auto parseOalexFile(const string& filename) -> optional<RuleSet> {
+  optional<string> s = fileContents(filename);
+  if(!s.has_value()) return nullopt;
+  Input in(*s);
+  if(in.hasPrefix(0, "require_politeness\n")) return RuleSet{};
+  fprintf(stderr, "Doesn't insist on politeness\n");
   return nullopt;
 }
 
