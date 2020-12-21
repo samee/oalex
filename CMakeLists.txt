@@ -18,7 +18,8 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 include_directories(${fmt_SOURCE_DIR}/include)
 
-add_executable(lexer_test lexer.cpp lexer_matcher.cpp lexer_test.cpp)
+add_executable(lexer_test lexer.cpp lexer_matcher.cpp lexer_test.cpp
+                          regex_io.cpp)
 target_link_libraries(lexer_test oalex)
 add_test(lexer_test lexer_test)
 
@@ -39,7 +40,8 @@ target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(codegen_run_test oalex)
 add_test(codegen_run_test codegen_run_test)
 
-add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp lexer.cpp)
+add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp
+                               regex_io.cpp lexer.cpp)
 target_link_libraries(jsonloc_io_test oalex)
 add_test(jsonloc_io_test jsonloc_io_test)
 

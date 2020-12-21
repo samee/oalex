@@ -277,14 +277,18 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
   else Fatal(ctx, j, "Unexpected character " + debugChar(input[j]));
 }
 
+static bool isWordChar(char ch) {
+  return matchesRegexCharSet(ch, regexOpts.word);
+}
+
 // Careful on numbers: a -12.34e+55 will be decomposed as
-//   ["-","12", ".", "34", "e", "+", "56"]
+//   ["-","12", ".", "34e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
 // TODO use generic word-lexing features.
 optional<UnquotedToken> lexWord(const Input& input, size_t& i) {
-  if(!input.sizeGt(i) || !isident(input[i])) return nullopt;
+  if(!input.sizeGt(i) || !isWordChar(input[i])) return nullopt;
   size_t oldi = i;
-  while(input.sizeGt(i) && isident(input[i])) ++i;
+  while(input.sizeGt(i) && isWordChar(input[i])) ++i;
   return UnquotedToken(oldi,i,input);
 }
 

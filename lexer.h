@@ -17,6 +17,7 @@
 #include <variant>
 #include <vector>
 #include "segment.h"
+#include "regex_io.h"
 #include "runtime/diags.h"
 #include "runtime/input_view.h"
 #include "runtime/skipper.h"
@@ -166,6 +167,10 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
 // We will need to change that if we add more comment delimitters here later.
 inline Skipper skip{{{"#","\n"}}, {}};
 inline Skipper wskip{};
+inline RegexOptions regexOpts{
+  // Do not use user-supplied input. See regex_io.h for details.
+  .word = parseRegexCharSet("[0-9A-Za-z_]")
+};
 
 std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
 std::optional<std::vector<UnquotedToken>>
