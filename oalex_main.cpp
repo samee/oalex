@@ -28,12 +28,12 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include <getopt.h>
 #include <libgen.h>
 #include "codegen.h"
+#include "frontend.h"
 #include "oalex.h"
-#include "regex_io.h"
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
-using oalex::parseRegexCharSet;
+using oalex::parseOalexSource;
 using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
@@ -246,22 +246,13 @@ optional<string> fileContents(const string& filename) {
 }
 
 auto parseOalexFile(const string& filename) -> optional<RuleSet> {
-  static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
-  static const auto* userRegexOpts = new RegexOptions{
-    // Do not use user-supplied input. See regex_io.h for details.
-    .word = parseRegexCharSet("[0-9A-Za-z_]")
-  };
-
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
-  Input in{*s};
-  if(in.hasPrefix(0, "require_politeness\n")) {
-    RuleSet rs{{}, *userSkip, *userRegexOpts};
-    rs.rules.push_back(Rule{"Hello!"});
-    return rs;
-  }
-  fprintf(stderr, "Doesn't insist on politeness\n");
-  return nullopt;
+  InputDiags ctx{Input{*s}};
+  auto rv = parseOalexSource(ctx);
+  for(const auto& d : ctx.diags)
+    fprintf(stderr, "%s\n", string(d).c_str());
+  return rv;
 }
 
 JsonLoc processStdin(const RuleSet& rs) {

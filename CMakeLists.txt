@@ -60,7 +60,8 @@ add_test(template_test template_test)
 add_subdirectory(archived)
 add_subdirectory(runtime)
 
-add_executable(oalex-bin oalex_main.cpp codegen.cpp lexer.cpp regex_io.cpp)
+add_executable(oalex-bin oalex_main.cpp
+               codegen.cpp frontend.cpp lexer.cpp regex_io.cpp)
 target_include_directories(oalex-bin PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(oalex-bin oalex)
 set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
