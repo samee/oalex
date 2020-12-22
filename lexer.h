@@ -180,6 +180,7 @@ std::optional<QuotedString> lexDelimitedSource(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexIndentedSource(InputDiags& lex, size_t& i,
     std::string_view parindent);
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
+std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<UnquotedToken> lookahead(InputDiags& lex, size_t i);

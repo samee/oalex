@@ -586,4 +586,35 @@ optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
   return rv;
 }
 
+// TODO reuse this inside lexBracketGroup.
+optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
+  if(auto sopt = lexQuotedString(ctx,i))
+    return std::move(*sopt);
+  else if(auto wordopt = lexWord(ctx.input,i))
+    return std::move(*wordopt);
+  else if(auto operopt = lexOperator(ctx.input,i))
+    return std::move(*operopt);
+  else return nullopt;
+}
+
+// TODO lexQuotedString() needs to support single-quoted strings as well.
+optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
+  if(i != ctx.input.bol(i)) return nullopt;
+  Resetter rst(ctx, i);
+  while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
+
+  vector<ExprToken> rv;
+  const size_t lineStart = i;
+  for(i=oalexSkip.withinLine(ctx.input, lineStart);
+      ctx.input.bol(i) == lineStart;
+      i=oalexSkip.withinLine(ctx.input,i)) {
+    optional<ExprToken> tok = lexSingleToken(ctx, i);
+    if(!tok.has_value()) return nullopt;
+    rv.push_back(*tok);
+    i = enPos(*tok);
+  }
+  rst.markUsed(i);
+  return rv;
+}
+
 }  // namespace oalex::lex

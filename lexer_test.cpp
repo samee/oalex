@@ -34,6 +34,7 @@ using std::string;
 using std::string_view;
 using std::vector;
 using namespace std::string_literals;
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
@@ -48,6 +49,7 @@ using oalex::lex::UnquotedToken;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexDelimitedSource;
 using oalex::lex::lexIndentedSource;
+using oalex::lex::lexNextLine;
 using oalex::lex::lexQuotedString;
 using oalex::lex::lexSectionHeader;
 using oalex::lex::lookahead;
@@ -477,6 +479,57 @@ void newlinePositionIsCorrect() {
     BugMe("Newline was recorded at the wrong position: {} != {}", ch.stPos, j);
 }
 
+const char goodLine[] = R"(
+# Comment to be skipped
+
+var := "Hello!"
+more stuff ignored
+)";
+
+const char badLine[] = R"(
+var "unfinished
+
+)";
+
+void nextLineSuccessImpl(
+    string_view testInput, const char testName[],
+    vector<string> expectedResult) {
+  InputDiags ctx{testInputDiags(testInput)};
+  size_t pos = 0;
+  optional<vector<ExprToken>> observedResult = lexNextLine(ctx, pos);
+  if(!observedResult.has_value())
+    Bug("{} failed: Couldn't process input:\n{}", testName, testInput);
+  if(observedResult->size() != expectedResult.size())
+    Bug("{} failed: output size unexpected: {} != {}", testName,
+        observedResult->size(), expectedResult.size());
+  for(size_t i=0; i<observedResult->size(); ++i) {
+    const ExprToken& o = observedResult->at(i);
+    const string& e = expectedResult.at(i);
+    if(auto* tok = get_if<UnquotedToken>(&o)) {
+      if(!e.empty() && (e[0] == '"' || e[0] == '\''))
+        Bug("{} failed: Expecting quoted token at position {}", testName, i);
+      assertEqual(testName, e, **tok);
+    }else if(auto* s = get_if<QuotedString>(&o)) {
+      if(e.empty() || (e[0] != '"' && e[0] != '\''))
+        Bug("{} failed: Expecting unquoted token at position {}", testName, i);
+      if(e[0] != e.back())
+        Bug("{} failed: Expectation {} has mismatching quotes", testName, i);
+      assertEqual(testName, e.substr(1, e.size()-2), string(*s));
+    }else Bug("{} failed: Unknown result type {}", testName, o.index());
+  }
+}
+
+void nextLineFailureImpl(
+    const char testInput[], const char testName[],
+    string_view expectedDiag) {
+  InputDiags ctx{testInputDiags(testInput)};
+  size_t i = 0;
+  optional<vector<ExprToken>> res = lexNextLine(ctx, i);
+  if(res.has_value() || ctx.diags.empty())
+    Bug("Test {} succeeded unexpectedly", testName);
+  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+}
+
 }  // namespace
 
 #define headerSuccess(test, expected) \
@@ -497,6 +550,10 @@ void newlinePositionIsCorrect() {
   indentedSourceBlockFailureImpl(test, #test, expected)
 #define bracketGroupFailure(test, input, expected) \
   bracketGroupFailureImpl("bracketGroupFailure" #test, input, expected)
+#define nextLineSuccess(test, expected) \
+  nextLineSuccessImpl(test, #test, expected)
+#define nextLineFailure(test, expected) \
+  nextLineFailureImpl(test, #test, expected)
 
 int main() {
   headerSuccess(goodHeader1, (vector<string>{"Header", "at", "top"}));
@@ -538,4 +595,7 @@ int main() {
   bracketGroupThrows("@","Unexpected character '@'");
 
   newlinePositionIsCorrect();
+
+  nextLineSuccess(goodLine, (vector<string>{"var", ":=", "\"Hello!\""}));
+  nextLineFailure(badLine, "Unexpected end of line");
 }
