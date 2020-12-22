@@ -53,14 +53,26 @@ if "Failed at politeness" not in result.stderr.decode('utf-8'):
   print("Failed to detect rudeness in 1-good.oalex")
   sys.exit(1)
 
-errorcases = [
-    ("1-bad.oalex", "was expecting require_politeness"),
-    ("2-bad.oalex", "Doesn't insist on politeness"),
-    ("3-bad.oalex", "Was expecting eof"),
-]
-for filename, error_str in errorcases:
+
+def find_expected_error(filename: str) -> str:
+  directive = "# Expected syntax error:"
+  with open(os.path.join(sysargs.testdata, filename), mode='r') as f:
+    for line in f:
+      if line.startswith(directive):
+        return line[len(directive):].strip()
+  raise SyntaxError(f"Syntax error directive not found in {str}")
+
+# TODO merge good and bad tests when we have examples working.
+# TODO traverse directory to find files.
+errorcases = [ "1-bad.oalex", "2-bad.oalex", "3-bad.oalex" ]
+
+for filename in errorcases:
+  expected_error = find_expected_error(filename)
   result = subprocess.run(
              [sysargs.bin, os.path.join(sysargs.testdata, filename)],
-             capture_output=True)
+             input="", capture_output=True)
   assert result.returncode != 0, f"{filename} was expected to cause failure"
-  assert error_str in result.stderr.decode('utf-8')
+  observed_error = result.stderr.decode('utf-8')
+  assert expected_error in observed_error, \
+         f"Was expecting '{expected_error}' in '{filename}'\n" + \
+         ("Got this instead:\n" + observed_error if observed_error else "")
