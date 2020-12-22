@@ -165,9 +165,9 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
 
 // Note: right now, we don't worry about unterminated comments in lexer.cpp.
 // We will need to change that if we add more comment delimitters here later.
-inline Skipper skip{{{"#","\n"}}, {}};
-inline Skipper wskip{};
-inline RegexOptions regexOpts{
+inline Skipper oalexSkip{{{"#","\n"}}, {}};
+inline Skipper oalexWSkip{};
+inline RegexOptions oalexRegexOpts{
   // Do not use user-supplied input. See regex_io.h for details.
   .word = parseRegexCharSet("[0-9A-Za-z_]")
 };

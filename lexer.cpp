@@ -79,7 +79,7 @@ bool isSectionHeaderNonSpace(char ch) {
 
 optional<size_t>
 skipBlankLine(InputDiags& ctx, size_t i) {
-  size_t j = skip.withinLine(ctx.input, i);
+  size_t j = oalexSkip.withinLine(ctx.input, i);
   if(ctx.input.bol(i) == ctx.input.bol(j)) return nullopt;
   else return j;
 }
@@ -102,7 +102,7 @@ optional<UnquotedToken> lexHeaderWord(InputDiags& ctx, size_t& i) {
 //   * We know enough to raise an error. Note: not all diags are errors.
 //     But errors should prevent lexing from proceeding to parsing.
 //     Fatal errors are just exceptions.
-// Never invokes forgetBefore() or skip.acrossLines().
+// Never invokes forgetBefore() or oalexSkip.acrossLines().
 //
 // From the above, we can now settle on two different kinds of parsing
 // functions:
@@ -128,9 +128,9 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx, i);
   vector<UnquotedToken> rv;
   // TODO reduce bsearch overhead.
-  for(i = skip.withinLine(input, i);
+  for(i = oalexSkip.withinLine(input, i);
       input.bol(i) == input.bol(rst.start());
-      i = skip.withinLine(input, i)) {
+      i = oalexSkip.withinLine(input, i)) {
     if(isSectionHeaderNonSpace(input[i])) {
       if(optional<UnquotedToken> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
@@ -149,11 +149,11 @@ optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   Resetter rst(ctx, i);
-  i = skip.withinLine(ctx.input, i);
+  i = oalexSkip.withinLine(ctx.input, i);
   if(input.bol(i) != input.bol(rst.start()) || input[i]!='-') return nullopt;
   size_t dashStart = i;
   while(input.sizeGt(i) && input[i]=='-') ++i;
-  i = skip.withinLine(input, i);
+  i = oalexSkip.withinLine(input, i);
   if(input.bol(i) == input.bol(rst.start())) return nullopt;
   else { rst.markUsed(i); return dashStart; }
 }
@@ -216,7 +216,7 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
-  size_t j = wskip.withinLine(input, i);
+  size_t j = oalexWSkip.withinLine(input, i);
 
   // Whitespaces don't matter for blank lines.
   if(input.bol(j) != input.bol(i)) { i = j; return ""; }
@@ -270,7 +270,7 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
 // TODO think more about how acrossLines() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  size_t j = skip.acrossLines(input, i);
+  size_t j = oalexSkip.acrossLines(input, i);
   if(!input.sizeGt(j)) return false;
   else if(isident(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
           isoperch(input[j])) { i=j; return true; }
@@ -278,7 +278,7 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
 }
 
 static bool isWordChar(char ch) {
-  return matchesRegexCharSet(ch, regexOpts.word);
+  return matchesRegexCharSet(ch, oalexRegexOpts.word);
 }
 
 // Careful on numbers: a -12.34e+55 will be decomposed as

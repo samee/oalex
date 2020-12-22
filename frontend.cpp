@@ -23,6 +23,7 @@
 using fmt::format;
 using oalex::parseRegexCharSet;
 using oalex::lex::lookahead;
+using oalex::lex::oalexSkip;
 using oalex::lex::UnquotedToken;
 using std::optional;
 using std::string_view;
@@ -44,7 +45,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
                  format("Unexpected '{}', was expecting require_politeness",
                         **next));
   i = next->enPos;
-  ssize_t j = oalex::lex::skip.acrossLines(ctx.input, i);
+  ssize_t j = oalexSkip.acrossLines(ctx.input, i);
   if(ctx.input.sizeGt(j)) return Error(ctx, j, "Was expecting eof");
 
   RuleSet rs{{}, *userSkip, *userRegexOpts};
