@@ -49,12 +49,18 @@ assert result.returncode == 0, "1-good.oalex exited with non-zero result"
 result = subprocess.run(
            [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
            input=b"Go away!\n", capture_output=True)
-if not re.search("Failed at politeness", result.stderr.decode('utf-8')):
+if "Failed at politeness" not in result.stderr.decode('utf-8'):
   print("Failed to detect rudeness in 1-good.oalex")
   sys.exit(1)
 
-result = subprocess.run(
-           [sysargs.bin, os.path.join(sysargs.testdata, "1-bad.oalex")],
-           capture_output=True)
-assert result.returncode != 0, "1-bad.oalex was expected to cause failure"
-assert re.search("Doesn't insist on politeness", result.stderr.decode('utf-8'))
+errorcases = [
+    ("1-bad.oalex", "was expecting require_politeness"),
+    ("2-bad.oalex", "Doesn't insist on politeness"),
+    ("3-bad.oalex", "Was expecting eof"),
+]
+for filename, error_str in errorcases:
+  result = subprocess.run(
+             [sysargs.bin, os.path.join(sysargs.testdata, filename)],
+             capture_output=True)
+  assert result.returncode != 0, f"{filename} was expected to cause failure"
+  assert error_str in result.stderr.decode('utf-8')

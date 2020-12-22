@@ -13,9 +13,19 @@
     limitations under the License. */
 
 #include "frontend.h"
+
+#include <string_view>
+#include "fmt/format.h"
+
+#include "lexer.h"
 #include "regex_io.h"
+
+using fmt::format;
 using oalex::parseRegexCharSet;
+using oalex::lex::lookahead;
+using oalex::lex::UnquotedToken;
 using std::optional;
+using std::string_view;
 
 namespace oalex {
 
@@ -26,12 +36,20 @@ auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
     .word = parseRegexCharSet("[0-9A-Za-z_]")
   };
 
-  if(ctx.input.hasPrefix(0, "require_politeness\n")) {
-    RuleSet rs{{}, *userSkip, *userRegexOpts};
-    rs.rules.push_back(Rule{"Hello!"});
-    return rs;
-  }
-  return Error(ctx, 0, "Doesn't insist on politeness\n");
+  ssize_t i = 0;
+  optional<UnquotedToken> next = lookahead(ctx, i);
+  if(!next) return Error(ctx, 0, "Doesn't insist on politeness");
+  if(**next != "require_politeness")
+    return Error(ctx, next->stPos, next->enPos,
+                 format("Unexpected '{}', was expecting require_politeness",
+                        **next));
+  i = next->enPos;
+  ssize_t j = oalex::lex::skip.acrossLines(ctx.input, i);
+  if(ctx.input.sizeGt(j)) return Error(ctx, j, "Was expecting eof");
+
+  RuleSet rs{{}, *userSkip, *userRegexOpts};
+  rs.rules.push_back(Rule{"Hello!"});
+  return rs;
 }
 
 }  // namespace oalex
