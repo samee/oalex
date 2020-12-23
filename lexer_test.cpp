@@ -491,6 +491,13 @@ var "unfinished
 
 )";
 
+// Failed lexQuotedString() commits if input starts with a quote character,
+// and tries pretty hard to recover. In those cases, we should not try
+// an alternate parsing assuming the cursor is still unchanged.
+const char badEagerRecovery[] = "\"\\x\"die\n";
+
+const char invalidCharInput[] = "hello \x01 world";
+
 void nextLineSuccessImpl(
     string_view testInput, const char testName[],
     vector<string> expectedResult) {
@@ -598,4 +605,6 @@ int main() {
 
   nextLineSuccess(goodLine, (vector<string>{"var", ":=", "\"Hello!\""}));
   nextLineFailure(badLine, "Unexpected end of line");
+  nextLineFailure(badEagerRecovery, "Invalid hex code");
+  nextLineFailure(invalidCharInput, "Invalid source character");
 }

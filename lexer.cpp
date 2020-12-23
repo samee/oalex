@@ -587,26 +587,26 @@ optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
 }
 
 // TODO reuse this inside lexBracketGroup.
-optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
-  if(auto sopt = lexQuotedString(ctx,i))
-    return std::move(*sopt);
-  else if(auto wordopt = lexWord(ctx.input,i))
-    return std::move(*wordopt);
-  else if(auto operopt = lexOperator(ctx.input,i))
-    return std::move(*operopt);
-  else return nullopt;
+// This function never returns nullopt silently. It will either return
+// a value, or add something to ctx.diags.
+static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
+  if(!ctx.input.sizeGt(i)) FatalBug(ctx, i, "lexSingleToken() Out of bound");
+  else if(isquote(ctx.input[i])) return lexQuotedString(ctx, i);
+  else if(isWordChar(ctx.input[i])) return lexWord(ctx.input, i);
+  else if(isoperch(ctx.input[i])) return lexOperator(ctx.input, i);
+  else return Error(ctx, i, "Invalid source character");
 }
 
 // TODO lexQuotedString() needs to support single-quoted strings as well.
 optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
-  if(i != ctx.input.bol(i)) return nullopt;
+  if(i != ctx.input.bol(i)) FatalBug(ctx, i, "lexNextLine() must start at bol");
   Resetter rst(ctx, i);
   while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
 
   vector<ExprToken> rv;
   const size_t lineStart = i;
   for(i=oalexSkip.withinLine(ctx.input, lineStart);
-      ctx.input.bol(i) == lineStart;
+      ctx.input.sizeGt(i) && ctx.input.bol(i) == lineStart;
       i=oalexSkip.withinLine(ctx.input,i)) {
     optional<ExprToken> tok = lexSingleToken(ctx, i);
     if(!tok.has_value()) return nullopt;
