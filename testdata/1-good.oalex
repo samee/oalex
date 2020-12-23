@@ -1,3 +1,4 @@
 # Some comment
 
 require_politeness
+another_string := "something else"

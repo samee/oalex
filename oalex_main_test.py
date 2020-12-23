@@ -64,7 +64,8 @@ def find_expected_error(filename: str) -> str:
 
 # TODO merge good and bad tests when we have examples working.
 # TODO traverse directory to find files.
-errorcases = [ "1-bad.oalex", "2-bad.oalex", "3-bad.oalex" ]
+errorcases = [ "1-bad.oalex", "2-bad.oalex", "3-bad.oalex", "4-bad.oalex",
+               "5-bad.oalex", "6-bad.oalex", "7-bad.oalex" ]
 
 for filename in errorcases:
   expected_error = find_expected_error(filename)

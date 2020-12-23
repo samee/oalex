@@ -1,0 +1,5 @@
+# Expected syntax error: Expected end of line
+
+x := "Hello!" and more
+
+

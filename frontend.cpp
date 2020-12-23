@@ -14,7 +14,8 @@
 
 #include "frontend.h"
 
-#include <string_view>
+#include <optional>
+#include <vector>
 #include "fmt/format.h"
 
 #include "lexer.h"
@@ -22,13 +23,34 @@
 
 using fmt::format;
 using oalex::parseRegexCharSet;
-using oalex::lex::lookahead;
-using oalex::lex::oalexSkip;
+using oalex::lex::enPos;
+using oalex::lex::ExprToken;
+using oalex::lex::isToken;
+using oalex::lex::lexNextLine;
+using oalex::lex::QuotedString;
+using oalex::lex::stPos;
 using oalex::lex::UnquotedToken;
+using std::nullopt;
 using std::optional;
-using std::string_view;
+using std::string;
+using std::vector;
 
 namespace oalex {
+
+static string debug(const ExprToken& x) {
+  if(auto* tok = get_if<UnquotedToken>(&x)) return **tok;
+  else if(auto* s = get_if<QuotedString>(&x)) return "\"" + string(*s) + "\"";
+  else return "(bracket group)";
+}
+
+static auto getIfIdent(const ExprToken& x) -> optional<string> {
+  auto* tok = get_if<UnquotedToken>(&x);
+  if(!tok) return nullopt;
+  const string& s = **tok;
+  if(s.empty() || isdigit(s[0])) return nullopt;
+  for(char ch : s) if(!isalnum(ch) && ch != '_') return nullopt;
+  return s;
+}
 
 auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
   static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
@@ -37,19 +59,54 @@ auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
     .word = parseRegexCharSet("[0-9A-Za-z_]")
   };
 
-  ssize_t i = 0;
-  optional<UnquotedToken> next = lookahead(ctx, i);
-  if(!next) return Error(ctx, 0, "Doesn't insist on politeness");
-  if(**next != "require_politeness")
-    return Error(ctx, next->stPos, next->enPos,
-                 format("Unexpected '{}', was expecting require_politeness",
-                        **next));
-  i = next->enPos;
-  ssize_t j = oalexSkip.acrossLines(ctx.input, i);
-  if(ctx.input.sizeGt(j)) return Error(ctx, j, "Was expecting eof");
-
+  size_t i = 0;
   RuleSet rs{{}, *userSkip, *userRegexOpts};
-  rs.rules.push_back(Rule{"Hello!"});
+  while(ctx.input.sizeGt(i)) {
+    if(i != ctx.input.bol(i))
+      FatalBug(ctx, i, "Rules must start at bol()");
+    const optional<vector<ExprToken>> linetoks_opt = lexNextLine(ctx, i);
+    if(!linetoks_opt.has_value()) return nullopt;
+    auto& linetoks = *linetoks_opt;
+
+    // Any `continue` after this point results in the following lines
+    // being processed.
+    if(linetoks.empty()) {
+      if(ctx.input.sizeGt(i))
+        FatalBug(ctx, i, "lexNextLine() returned empty before EOF");
+      else break;
+    }
+    if(linetoks.size() >= 2 && isToken(linetoks[1], ":=")) {
+      const optional<string> ident = getIfIdent(linetoks[0]);
+      if(!ident.has_value()) {
+        Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
+              "Identifier expected");
+        continue;
+      }
+      if(linetoks.size() < 3) {
+        Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
+              "Rule's right-hand side missing");
+        continue;
+      }
+      const auto* literal = get_if<QuotedString>(&linetoks[2]);
+      if(!literal) {
+        Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
+              "Expected string literal");
+        continue;
+      }
+      if(linetoks.size() > 3) {
+        Error(ctx, stPos(linetoks[3]), "Expected end of line");
+        continue;
+      }
+      rs.rules.push_back(Rule{std::move(*literal), std::move(*ident)});
+    }else if(isToken(linetoks[0], "require_politeness")) {
+      if(linetoks.size() == 1) rs.rules.push_back(Rule{"Hello!"});
+      else Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
+    }else
+      return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
+                   format("Unexpected '{}', was expecting require_politeness",
+                          debug(linetoks[0])));
+  }
+  if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
   return rs;
 }
 
