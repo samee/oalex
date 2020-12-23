@@ -60,7 +60,7 @@ class Input final : public InputPiece {
   explicit Input(std::function<int16_t()> getch)
     : getch_(getch), size_(npos) { peekTo(0); }
   explicit Input(std::string s)
-    : buf_(std::move(s)), size_(buf_.size()) {}
+    : buf_(std::move(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
   Input(const Input&) = delete;
   Input(Input&&) = default;
   Input& operator=(const Input&) = delete;
@@ -118,6 +118,7 @@ class Input final : public InputPiece {
   void peekTo(size_t last) const;
   void peekAndBoundCharAt(size_t i) const;
   bool endSeen() const { return size_ < npos; }
+  static std::vector<size_t> allNewlines(std::string_view s);
 };
 
 }  // namespace oalex

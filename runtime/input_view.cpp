@@ -18,6 +18,7 @@ using std::make_pair;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::vector;
 
 namespace oalex {
 
@@ -107,6 +108,12 @@ pair<size_t,size_t> Input::rowCol(size_t i) const {
   size_t prev = lower_bound(newlines_.begin(), newlines_.end(), i)
                 - newlines_.begin() - 1;
   return make_pair(prev+2, i-newlines_[prev]);
+}
+
+auto Input::allNewlines(string_view s) -> vector<size_t> {
+  vector<size_t> rv;
+  for(size_t i=0; i<s.size(); ++i) if(s[i] == '\n') rv.push_back(i);
+  return rv;
 }
 
 }  // namespace oalex

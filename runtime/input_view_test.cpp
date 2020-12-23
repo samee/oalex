@@ -25,6 +25,7 @@ using std::pair;
 using std::string;
 using std::uniform_int_distribution;
 
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::GetFromString;
 using oalex::Input;
@@ -120,6 +121,17 @@ void testLineTooLong() {
   input2[input2.maxLineLength()];  // No exceptions.
 }
 
+// Newline computation is slightly different for Input::Input(getch) and
+// Input::Input(string). Other tests already check the getch() version, by using
+// GetFromString(). This checks the second version too, since we just
+// encountered this bug.
+void testAllNewlinesRecorded() {
+  Input input("hello\n\nworld");
+  assertEqual(__func__, input.rowCol(0).first, size_t{1});
+  assertEqual(__func__, input.rowCol(sizeof("hello")).first, size_t{2});
+  assertEqual(__func__, input.rowCol(sizeof("hello")+1).first, size_t{3});
+}
+
 void testForgottenBol() {
   string s(100,'-');
   Input input{GetFromString(s)};
@@ -136,5 +148,6 @@ int main() {
   const size_t linelen=50;
   testDataMatchesString(randomString(linelen,1000), 2*linelen);
   testLineTooLong();
+  testAllNewlinesRecorded();
   testForgottenBol();
 }
