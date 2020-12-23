@@ -125,7 +125,6 @@ JsonLoc parseIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   const Input& input = ctx.input;
   ssize_t j = shskip->whitespace(ctx.input, i);
   size_t bol = input.bol(j);
-  oalex::Debug("i = {}, bol = {}, j = {}", i, bol, j);
   if(bol == input.bol(i)) return JsonLoc::ErrorValue{};
   string indent = input.substr(bol, j-bol);
   j = bol;
