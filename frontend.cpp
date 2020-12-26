@@ -70,6 +70,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
 
   size_t i = 0;
   RuleSet rs{{}, *userSkip, *userRegexOpts};
+  vector<Example> examples;
   while(ctx.input.sizeGt(i)) {
     if(i != ctx.input.bol(i))
       FatalBug(ctx, i, "Rules must start at bol()");
@@ -108,7 +109,12 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       }
       rs.rules.push_back(Rule{std::move(*literal), std::move(*ident)});
     }else if(isToken(linetoks[0], "require_politeness")) {
-      if(linetoks.size() == 1) rs.rules.push_back(Rule{"Hello!"});
+      if(linetoks.size() == 1) {
+        rs.rules.push_back(Rule{"Hello!", "required_hello"});
+        examples.push_back({"required_hello", "Hello!",
+                            Expectation::Succeeds});
+        // TODO codegen.h needs error-producing rules.
+      }
       else Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
     }else
       return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
@@ -116,7 +122,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
-  return ParsedSource{std::move(rs), {}};
+  return ParsedSource{std::move(rs), std::move(examples)};
 }
 
 }  // namespace oalex
