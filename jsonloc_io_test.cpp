@@ -48,10 +48,10 @@ namespace {
 
 void testSimpleSuccess() {
   const char input[] = R"( {
-    # We support comments, another divergence from json.org.
-    # Includes a trailing comma.
-    input: "hello world", output: ["hello", "world",], metadata: metadata,
-    underscore_identifier: "done" } )";
+    # We support comments and single-quotes, among other divergences from
+    # json.org.  Includes a trailing comma.
+    input: 'hello world', output: ['hello', 'world',], metadata: metadata,
+    underscore_identifier: 'done' } )";
   optional<JsonLoc> json = parseJsonLoc(input);
   string output = json->prettyPrint(2);
   const char expected[] = R"({
@@ -70,7 +70,7 @@ void testSimpleSuccess() {
 void testSubstitution() {
   const char input[] = R"({
     input,
-    list: ["item 1", input, "item 2"],   # Duplicate keyword nestled somewhere.
+    list: ['item 1', input, 'item 2'],   # Duplicate keyword nestled somewhere.
     input2,  # Lone keyword.
   })";
   optional<JsonLoc> json = parseJsonLoc(input);

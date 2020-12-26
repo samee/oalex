@@ -238,9 +238,17 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
   return getline(ctx, i);
 }
 
-bool isquote(char ch) { return ch=='"'; }
+bool isquote(char ch) { return ch=='"' || ch=='\''; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
 bool isoperch(char ch) { return strchr(":,=|~.", ch) != NULL; }
+
+auto toCtor(char ch) -> GluedString::Ctor {
+  switch(ch) {
+    case '"':  return GluedString::Ctor::dquoted;
+    case '\'': return GluedString::Ctor::squoted;
+    default: Bug("toCtor() called with invalid char '{}'", ch);
+  }
+}
 
 optional<BracketType> lexOpenBracket(const Input& input, size_t& i) {
   switch(input[i]) {
@@ -464,7 +472,8 @@ optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
 // of an unexpected end of line, beyond the next newline.
 optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  if(!input.sizeGt(i) || input[i]!='"') return nullopt;
+  if(!input.sizeGt(i) || !isquote(input[i])) return nullopt;
+  const char quote = input[i];
   Resetter rst(ctx, i);
   string s;
   vector<IndexRelation> imap;
@@ -472,10 +481,10 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   ++i;
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
   while(input.sizeGt(i) && input[i] != '\n') {
-    if(input[i] == '"') {
+    if(input[i] == quote) {
       rst.markUsed(++i);
       if(!error)
-        return GluedString(rst.start(), i, s, GluedString::Ctor::dquoted,
+        return GluedString(rst.start(), i, s, toCtor(quote),
                            &ctx, std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
