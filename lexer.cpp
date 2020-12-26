@@ -383,6 +383,14 @@ size_t GluedString::bol(size_t i) const {
   }
 }
 
+optional<WholeSegment> GluedString::getSegment() const {
+  if(index_map_.size() == 1) return WholeSegment(this->stPos, this->enPos, s_);
+  else if(index_map_.empty())
+    Bug("GluedString should never have an empty index");
+  else return nullopt;
+  // Corner case when s_ ends with a '\n'. FIXME
+}
+
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
 // are just parsing the "hh" part. `i` points to what should be the first hex
 // digit.

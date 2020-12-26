@@ -196,6 +196,17 @@ void stringPosMap() {
   compareSubqstrIndexPos(*res, 1, 0);
 }
 
+void getSegmentTest(const char testInput[], bool expectedSuccess) {
+  InputDiags ctx{testInputDiags(testInput)};
+  size_t i = 0;
+  optional<GluedString> res = lexQuotedString(ctx, i);
+  if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
+  if(expectedSuccess && !res->getSegment())
+    BugMe("getSegment() return nullopt for {}", testInput);
+  if(!expectedSuccess && res->getSegment())
+    BugMe("getSegment() succeeded unexpectedly for {}", testInput);
+}
+
 const char fencedSourceBlock[] = R"(```
 I can write whatever here I want to. Including
 ``` as long as
@@ -581,6 +592,9 @@ int main() {
   stringFailure(incompleteHex, "Incomplete hex");
   stringFailure(invalidHex, "Invalid hex");
   stringPosMap();
+
+  getSegmentTest(R"("Hello world")", true);
+  getSegmentTest(R"("Hello\nworld")", false);
 
   fencedSourceBlockSuccess(fencedSourceBlock);
   fencedSourceBlockSuccess(fencedSourceBlockCustom);

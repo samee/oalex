@@ -72,6 +72,7 @@ struct WholeSegment : LexSegment {
 //   * rcmap.pos are provided in strictly increasing order.
 //   * rcmap[i].pos < rcmap[j].pos iff
 //       (rcmap[i].row, rcmap[i].col) < (rcmap[j].row, rcmap[j].col)
+// Being able to calculate all of the above means index_map_ is never empty.
 //
 // Alternate approaches:
 //   Q: Why don't we just keep the entire file in memory, representing strings
@@ -115,6 +116,9 @@ class GluedString final : public LexSegment, public InputPiece {
     { return s_.find(ch, st); }
   size_t bol(size_t i) const final;
 
+  // Doesn't support trailing newlines yet.
+  std::optional<WholeSegment> getSegment() const;
+
   operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:
   std::string s_;  // escape codes already interpreted.
@@ -124,6 +128,7 @@ class GluedString final : public LexSegment, public InputPiece {
                InputDiags* ctx, std::vector<IndexRelation> imap)
     : LexSegment(st,en,type_tag), s_(s),
       ctx_(ctx), index_map_(std::move(imap)) {}
+  GluedString() = delete;
 };
 
 inline bool operator==(const GluedString& a, const GluedString& b) {
