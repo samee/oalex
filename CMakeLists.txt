@@ -18,54 +18,51 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 include_directories(${fmt_SOURCE_DIR}/include)
 
-add_executable(lexer_test lexer.cpp lexer_matcher.cpp lexer_test.cpp
-                          regex_io.cpp)
-target_link_libraries(lexer_test oalex)
+add_library(oalex-bin-lib STATIC codegen.cpp jsonloc_io.cpp lexer.cpp
+                                 regex_io.cpp template.cpp)
+target_link_libraries(oalex-bin-lib oalex)
+
+add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp)
+target_link_libraries(lexer_test oalex-bin-lib)
 add_test(lexer_test lexer_test)
 
-add_executable(codegen_test codegen.cpp codegen_test.cpp codegen_test_util.cpp
-                            jsonloc_io.cpp lexer.cpp regex_io.cpp)
-target_link_libraries(codegen_test oalex)
+add_executable(codegen_test codegen_test.cpp codegen_test_util.cpp)
+target_link_libraries(codegen_test oalex-bin-lib)
 add_test(codegen_test codegen_test)
 
-add_executable(codegen_gen_test codegen_gen_test.cpp codegen.cpp
-               codegen_test_util.cpp lexer.cpp regex_io.cpp jsonloc_io.cpp)
-target_link_libraries(codegen_gen_test oalex)
+add_executable(codegen_gen_test codegen_gen_test.cpp codegen_test_util.cpp)
+target_link_libraries(codegen_gen_test oalex-bin-lib)
 add_custom_command(OUTPUT codegen_generated.cpp codegen_generated.h
                    COMMAND codegen_gen_test -o codegen_generated
                    DEPENDS codegen_gen_test)
 add_executable(codegen_run_test codegen_run_test.cpp codegen_test_util.cpp
-               codegen_generated.cpp jsonloc_io.cpp regex_io.cpp lexer.cpp)
+               codegen_generated.cpp)
 target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
-target_link_libraries(codegen_run_test oalex)
+target_link_libraries(codegen_run_test oalex-bin-lib)
 add_test(codegen_run_test codegen_run_test)
 
-add_executable(jsonloc_io_test jsonloc_io.cpp jsonloc_io_test.cpp
-                               regex_io.cpp lexer.cpp)
-target_link_libraries(jsonloc_io_test oalex)
+add_executable(jsonloc_io_test jsonloc_io_test.cpp)
+target_link_libraries(jsonloc_io_test oalex-bin-lib)
 add_test(jsonloc_io_test jsonloc_io_test)
 
-add_executable(regex_io_test regex_io.cpp regex_io_test.cpp lexer.cpp)
-target_link_libraries(regex_io_test oalex)
+add_executable(regex_io_test regex_io_test.cpp)
+target_link_libraries(regex_io_test oalex-bin-lib)
 add_test(regex_io_test regex_io_test)
 
 add_executable(ident_test ident.cpp ident_test.cpp)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
-add_executable(template_test template.cpp template_test.cpp
-                             ident.cpp lexer.cpp regex_io.cpp)
-
-target_link_libraries(template_test oalex)
+add_executable(template_test template_test.cpp ident.cpp)
+target_link_libraries(template_test oalex-bin-lib)
 add_test(template_test template_test)
 
 add_subdirectory(archived)
 add_subdirectory(runtime)
 
-add_executable(oalex-bin oalex_main.cpp
-               codegen.cpp frontend.cpp lexer.cpp regex_io.cpp)
+add_executable(oalex-bin oalex_main.cpp frontend.cpp)
 target_include_directories(oalex-bin PRIVATE ${CMAKE_BINARY_DIR})
-target_link_libraries(oalex-bin oalex)
+target_link_libraries(oalex-bin oalex-bin-lib)
 set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
 add_test(NAME oalex_main_test
          COMMAND ${CMAKE_SOURCE_DIR}/oalex_main_test.py
