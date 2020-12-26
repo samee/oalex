@@ -26,4 +26,10 @@ inline std::optional<JsonLoc> parseJsonLoc(std::string_view s) {
   return parseJsonLoc(ctx,i);
 }
 
+inline std::optional<JsonLoc> parseJsonLocFlexQuote(std::string_view s) {
+  size_t i = 0;
+  InputDiags ctx = testInputDiags(s);
+  return parseJsonLocFlexQuote(ctx,i);
+}
+
 }  // namespace oalex

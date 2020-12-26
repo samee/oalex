@@ -41,6 +41,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::parseJsonLoc;
+using oalex::parseJsonLocFlexQuote;
 using oalex::Resetter;
 using oalex::uniqueKeys;
 
@@ -81,7 +82,7 @@ void testSubstitution() {
           expected_blanks);
 
   // Try one substitution.
-  optional<JsonLoc> part1 = parseJsonLoc(R"({key: "value"})");
+  optional<JsonLoc> part1 = parseJsonLoc(R"({key: 'value'})");
   json->substitute(blanks, "input", *part1);
   if(json->substitutionsOk())
     BugMe("Unexpectedly okay with substitution after only 1 of 2 subs");
@@ -114,7 +115,7 @@ void testParseAndPrintError() {
     input: (error_value),
     msg: "hello world"
   })";
-  optional<JsonLoc> json = parseJsonLoc(input);
+  optional<JsonLoc> json = parseJsonLocFlexQuote(input);
   string output = json->prettyPrint(2);
   assertEqual(__func__, input, output);
 }

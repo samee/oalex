@@ -19,6 +19,7 @@
 #include "runtime/util.h"
 using oalex::Bug;
 using oalex::InputDiags;
+using oalex::InputDiagsRef;
 using oalex::JsonLoc;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -26,6 +27,7 @@ using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
 using oalex::lex::WholeSegment;
 using oalex::lex::lexBracketGroup;
+using std::holds_alternative;
 using std::get_if;
 using std::map;
 using std::nullopt;
@@ -162,12 +164,41 @@ optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiags& ctx,
   Bug("Unknown BracketType: {}", int(bg.type));
 }
 
+bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
+  if(holds_alternative<WholeSegment>(expr)) return true;
+  if(auto* qs = get_if<GluedString>(&expr)) {
+    if(qs->ctor() != GluedString::Ctor::squoted) {
+      Error(ctx, qs->stPos, qs->enPos,
+            "Output strings must be single-quoted");
+      return false;
+    }
+    return true;
+  }
+  if(auto* bg = get_if<BracketGroup>(&expr)) {
+    for(const auto& c : bg->children)
+      if(!allStringsSingleQuoted(ctx, c)) return false;
+    return true;
+  }
+  Bug("Unknown ExprToken type {}", expr.index());
+}
+
 }  // namespace
 
 namespace oalex {
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
+  Resetter rst(ctx,i);
+  optional<BracketGroup> bg = lexBracketGroup(ctx, i);
+  if(!bg.has_value()) return nullopt;
+  auto rv = parseJsonLocFromBracketGroup(ctx, *bg);
+  if(rv.has_value() && allStringsSingleQuoted(ctx, *bg)) {
+    rst.markUsed(i);
+    return rv;
+  }else return nullopt;
+}
+
+optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);
   optional<BracketGroup> bg = lexBracketGroup(ctx, i);
   if(!bg.has_value()) return nullopt;

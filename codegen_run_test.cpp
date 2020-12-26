@@ -158,7 +158,7 @@ void runExternParserDeclaration() {
 void runOrTest() {
   const pair<string, JsonLoc> goodInputOutputPairs[] = {
     {"if", JsonLoc{"if"}}, {"while", JsonLoc{"while"}},
-    {"42", *parseJsonLoc(R"({number: "42"})")},
+    {"42", *parseJsonLoc(R"({number: '42'})")},
   };
   for(auto& [msg, expected] : goodInputOutputPairs) {
     ssize_t pos = 0;

@@ -25,4 +25,8 @@ namespace oalex {
 // stop.
 std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 
+// Same as above, but it is more forgiving about how things are quoted. This
+// is useful in tests. Later, we may extend it to support actual json, e.g.
+// those produced by JsonLoc::prettyPrintJson().
+std::optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i);
 }  // namespace oalex
