@@ -154,6 +154,14 @@ optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
+optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiags& ctx,
+                                               const BracketGroup& bg) {
+  if(bg.type == BracketType::paren) return nullopt;
+  if(bg.type == BracketType::square) return parseVector(ctx, bg.children);
+  if(bg.type == BracketType::brace) return parseMap(ctx, bg.children);
+  Bug("Unknown BracketType: {}", int(bg.type));
+}
+
 }  // namespace
 
 namespace oalex {
@@ -163,11 +171,9 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);
   optional<BracketGroup> bg = lexBracketGroup(ctx, i);
   if(!bg.has_value()) return nullopt;
-  if(bg->type == BracketType::paren) return nullopt;
-  rst.markUsed(i);
-  if(bg->type == BracketType::square) return parseVector(ctx, bg->children);
-  if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);
-  Bug("Unknown BracketType: {}", int(bg->type));
+  auto rv = parseJsonLocFromBracketGroup(ctx, *bg);
+  if(rv.has_value()) rst.markUsed(i);
+  return rv;
 }
 
 }  // namespace oalex
