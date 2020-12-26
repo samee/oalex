@@ -36,10 +36,10 @@ struct LexDirective {
 };
 
 // TODO Use this in Skipper as well.
-struct DelimPair { lex::QuotedString st, en; };
-using PartPattern = std::variant<lex::QuotedString, DelimPair>;
+struct DelimPair { lex::GluedString st, en; };
+using PartPattern = std::variant<lex::GluedString, DelimPair>;
 
-auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
+auto matchAllParts(const PartPattern& patt, const lex::GluedString& s)
   -> std::optional<std::vector<std::pair<size_t, size_t>>>;
 
 // Params:
@@ -50,22 +50,22 @@ auto matchAllParts(const PartPattern& patt, const lex::QuotedString& s)
 //     symbols into a single placeholder. Use {} to not perform any checks.
 //
 // On error, we return an empty vector. An empty `s` input will produce a
-// vector with a single empty QuotedString.
+// vector with a single empty GluedString.
 // Note: this function can be used either on templates that skip over
 // whitespaces, or those who do not.
-using LabelOrPart = std::variant<lex::QuotedString, Ident>;
+using LabelOrPart = std::variant<lex::GluedString, Ident>;
 auto labelParts(
-    const lex::QuotedString& s,
+    const lex::GluedString& s,
     const std::map<Ident,PartPattern>& partPatterns,
     const RegexCharSet& wordChars)
     -> std::vector<LabelOrPart>;
 
 // Strong typedefs.
 struct WordToken : public lex::WholeSegment {
-  explicit WordToken(const lex::QuotedString& s) : WholeSegment(s) {}
+  explicit WordToken(const lex::GluedString& s) : WholeSegment(s) {}
 };
 struct OperToken : public lex::WholeSegment {
-  explicit OperToken(const lex::QuotedString& s) : WholeSegment(s) {}
+  explicit OperToken(const lex::GluedString& s) : WholeSegment(s) {}
 };
 
 using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
@@ -77,13 +77,13 @@ using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizeTemplateWithoutLabels(
-    const lex::QuotedString& s, const LexDirective& opts,
+    const lex::GluedString& s, const LexDirective& opts,
     std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizeTemplate(const lex::QuotedString& s,
+auto tokenizeTemplate(const lex::GluedString& s,
                       const std::map<Ident,PartPattern>& partPatterns,
                       const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 

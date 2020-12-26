@@ -24,7 +24,7 @@
 
 namespace oalex::lex {
 
-class QuotedString;
+class GluedString;
 
 struct IndexRelation {
   size_t inputPos;
@@ -34,7 +34,7 @@ struct IndexRelation {
 enum class LexSegmentTag {
   wholeSegment = Segment::lastReservedTag + 1,
   section,
-  quotedString,
+  gluedString,
   bracketGroup,
   newlineChar,
 };
@@ -46,7 +46,7 @@ struct LexSegment : Segment {
 };
 
 struct NewlineChar : LexSegment {
-  explicit NewlineChar(const QuotedString& s, size_t pos);
+  explicit NewlineChar(const GluedString& s, size_t pos);
 };
 
 // These tokens never have embedded newlines, unless it's a newline all
@@ -63,7 +63,7 @@ struct WholeSegment : LexSegment {
 
   // This should only be used for short and simple tokens without newlines or
   // escape codes embedded in it, since that will mess up location-tracking.
-  explicit WholeSegment(const QuotedString& s);
+  explicit WholeSegment(const GluedString& s);
   const std::string& operator*() const { return data; }
   const std::string* operator->() const { return &data; }
 };
@@ -81,19 +81,19 @@ struct WholeSegment : LexSegment {
 //   Q: Okay, then why don't we make our own simple string_view class that uses
 //      file indices instead of pointers? We already have rowCol() map for those
 //      offsets in class Input.
-//   A: QuotedString often represents processed strings, after escape codes
+//   A: GluedString often represents processed strings, after escape codes
 //      and other quoted constructs have been decoded. Bytes in the input file
-//      do not always correspond to bytes in a QuotedString.
-class QuotedString final : public LexSegment, public InputPiece {
+//      do not always correspond to bytes in a GluedString.
+class GluedString final : public LexSegment, public InputPiece {
  public:
-  static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
-    -> std::optional<QuotedString>;
+    -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)
-    -> std::optional<QuotedString>;
+    -> std::optional<GluedString>;
   friend auto lexIndentedSource(InputDiags& ctx, size_t& i,
                                 std::string_view parindent)
-    -> std::optional<QuotedString>;
+    -> std::optional<GluedString>;
 
   char operator[](size_t pos) const final { return s_[pos]; }
   bool sizeGt(size_t pos) const final { return s_.size() > pos; }
@@ -108,7 +108,7 @@ class QuotedString final : public LexSegment, public InputPiece {
     { return substr(pos, s.size()) == s; }
   std::string_view substr(size_t pos, size_t len) const
     { return std::string_view(s_).substr(pos, len); }
-  QuotedString subqstr(size_t pos, size_t len) const;
+  GluedString subqstr(size_t pos, size_t len) const;
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }
   size_t find(char ch, size_t st=0) const noexcept final
@@ -120,23 +120,23 @@ class QuotedString final : public LexSegment, public InputPiece {
   std::string s_;  // escape codes already interpreted.
   InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
   std::vector<IndexRelation> index_map_;
-  QuotedString(size_t st, size_t en, std::string_view s,
+  GluedString(size_t st, size_t en, std::string_view s,
                InputDiags* ctx, std::vector<IndexRelation> imap)
     : LexSegment(st,en,type_tag), s_(s),
       ctx_(ctx), index_map_(std::move(imap)) {}
 };
 
-inline bool operator==(const QuotedString& a, const QuotedString& b) {
+inline bool operator==(const GluedString& a, const GluedString& b) {
   return std::string_view(a) == std::string_view(b);
 }
-inline bool operator!=(const QuotedString& a, const QuotedString& b) {
+inline bool operator!=(const GluedString& a, const GluedString& b) {
   return std::string_view(a) != std::string_view(b);
 }
 
 struct BracketGroup;
 
-using ExprToken = std::variant<WholeSegment, QuotedString, BracketGroup>;
-enum class ExprType { wholeSegment, quotedString, bracketGroup };
+using ExprToken = std::variant<WholeSegment, GluedString, BracketGroup>;
+enum class ExprType { wholeSegment, gluedString, bracketGroup };
 
 enum class BracketType { square, brace, paren, };
 
@@ -175,9 +175,9 @@ inline RegexOptions oalexRegexOpts{
 std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
 std::optional<std::vector<WholeSegment>>
   lexSectionHeader(InputDiags& lex, size_t& i);
-std::optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i);
-std::optional<QuotedString> lexFencedSource(InputDiags& lex, size_t& i);
-std::optional<QuotedString> lexIndentedSource(InputDiags& lex, size_t& i,
+std::optional<GluedString> lexQuotedString(InputDiags& lex, size_t& i);
+std::optional<GluedString> lexFencedSource(InputDiags& lex, size_t& i);
+std::optional<GluedString> lexIndentedSource(InputDiags& lex, size_t& i,
     std::string_view parindent);
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);

@@ -32,15 +32,15 @@ Intended usage: mostly for tests.
 namespace oalex::lex::matcher {
 
 struct WholeSegmentMatcher;
-struct QuotedMatcher;
+struct GluedMatcher;
 struct BracketGroupMatcher;
 
 using ExprMatcher = std::variant<WholeSegmentMatcher,
-                                 QuotedMatcher, BracketGroupMatcher>;
+                                 GluedMatcher, BracketGroupMatcher>;
 
-struct QuotedMatcher { std::string s; };
-inline QuotedMatcher quoted(std::string s)
-  { return QuotedMatcher{std::move(s)}; }
+struct GluedMatcher { std::string s; };
+inline GluedMatcher glued(std::string s)
+  { return GluedMatcher{std::move(s)}; }
 
 struct WholeSegmentMatcher {
   std::string data;
@@ -59,7 +59,7 @@ template <class T> inline const bool false_value = false;
 
 inline ExprMatcher exprMatcher(BracketGroupMatcher bm) { return bm; }
 inline ExprMatcher exprMatcher(WholeSegmentMatcher wm) { return wm; }
-inline ExprMatcher exprMatcher(QuotedMatcher qm) { return qm; }
+inline ExprMatcher exprMatcher(GluedMatcher gm) { return gm; }
 
 }  // namespace internal
 
@@ -84,7 +84,7 @@ std::optional<std::string> match(ExprMatcher pattern, ExprToken expr);
 // Remove this when we have something in lexer_test.cpp
 namespace test {
   inline const ExprMatcher m =
-    squareBrackets("a", "+", squareBrackets("b",",",quoted("c")));
+    squareBrackets("a", "+", squareBrackets("b",",",glued("c")));
 
 }  // namespace test
 

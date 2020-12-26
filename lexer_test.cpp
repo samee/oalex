@@ -43,8 +43,8 @@ using oalex::UserErrorEx;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
+using oalex::lex::GluedString;
 using oalex::lex::NewlineChar;
-using oalex::lex::QuotedString;
 using oalex::lex::WholeSegment;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexFencedSource;
@@ -56,7 +56,7 @@ using oalex::lex::lookahead;
 using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
 using oalex::lex::matcher::parens;
-using oalex::lex::matcher::quoted;
+using oalex::lex::matcher::glued;
 using oalex::lex::matcher::squareBrackets;
 namespace matcher = oalex::lex::matcher;
 
@@ -137,7 +137,7 @@ void stringSuccessImpl(const char testInput[], const char testName[],
                        string_view expected) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexQuotedString(ctx, i);
+  optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
     Bug("{} failed", testName);
@@ -151,7 +151,7 @@ void stringFailureImpl(const char testInput[], const char testName[],
                        string_view expectedDiag) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexQuotedString(ctx, i);
+  optional<GluedString> res = lexQuotedString(ctx, i);
   if(res && ctx.diags.empty())
     Bug("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
@@ -166,8 +166,8 @@ void assertEq(string_view errmsg, const T& a, const T& b) {
   if(a != b) Bug("{}: {} != {}", errmsg, debug(a), debug(b));
 }
 
-void compareSubqstrIndexPos(const QuotedString& a, size_t pos, size_t len) {
-  const QuotedString b = a.subqstr(pos, len);
+void compareSubqstrIndexPos(const GluedString& a, size_t pos, size_t len) {
+  const GluedString b = a.subqstr(pos, len);
   for(size_t i=0; i<=b.size(); ++i) if(a.inputPos(i+pos) != b.inputPos(i))
     Bug("Substring inputPos mismatch between '{}' and '{}': "
            "a.inputPos({}) = {}  !=  b.inputPos({}) = {}", string_view(a),
@@ -178,7 +178,7 @@ void stringPosMap() {
   const char testInput[] = R"("foo\nbar")";
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexQuotedString(ctx, i);
+  optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
   assertEq(__func__ + " rowCol mismatch"s, res->rowCol(0),
            pair<size_t,size_t>(1, 2));
@@ -220,7 +220,7 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
 
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexFencedSource(ctx, i);
+  optional<GluedString> res = lexFencedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print("{}\n", string(d));
     Bug("{} failed", testName);
@@ -277,7 +277,7 @@ void indentedSourceBlockSuccessImpl(
     optional<string> expectedResult) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
+  optional<GluedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
     Bug("{} failed", testName);
@@ -344,7 +344,7 @@ void indentedSourceBlockFailureImpl(
     string_view expectedDiag) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexIndentedSource(ctx, i, "  ");
+  optional<GluedString> res = lexIndentedSource(ctx, i, "  ");
   if(res && ctx.diags.empty())
     Bug("Test {} succeeded unexpectedly", testName);
   assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
@@ -388,7 +388,7 @@ void bracketGroupSuccess() {
   const string input = "{A := (B.C word [#comment\n\"hello\" \"world\"])}";
   const BracketGroupMatcher expected = braces("A", ":=",
         parens("B", ".", "C", "word",
-               squareBrackets(quoted("hello"), quoted("world"))));
+               squareBrackets(glued("hello"), glued("world"))));
   InputDiags ctx{testInputDiags(input)};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
@@ -416,8 +416,8 @@ void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
     format_to(buf, "{}", tok->data);
     return;
   }
-  if(const auto* qs = get_if<QuotedString>(&expr)) {
-    format_to(buf, "quoted({})", string_view(*qs));
+  if(const auto* qs = get_if<GluedString>(&expr)) {
+    format_to(buf, "glued({})", string_view(*qs));
     return;
   }
   const BracketGroup& bg = get<BracketGroup>(expr);
@@ -469,7 +469,7 @@ void newlinePositionIsCorrect() {
     BugMe("Input doesn't have '\\n' where expected");
 
   size_t temp = i;
-  optional<QuotedString> s = lexQuotedString(ctx, temp);
+  optional<GluedString> s = lexQuotedString(ctx, temp);
   if(!s.has_value()) BugMe("Couldn't parse string literal");
   if((*s)[j-i-1] != '\n')
     BugMe("Parsed literal doesn't have '\\n' at position {}: '{}'",
@@ -517,7 +517,7 @@ void nextLineSuccessImpl(
       if(!e.empty() && (e[0] == '"' || e[0] == '\''))
         Bug("{} failed: Expecting quoted token at position {}", testName, i);
       assertEqual(testName, e, **tok);
-    }else if(auto* s = get_if<QuotedString>(&o)) {
+    }else if(auto* s = get_if<GluedString>(&o)) {
       if(e.empty() || (e[0] != '"' && e[0] != '\''))
         Bug("{} failed: Expecting a whole segment at position {}", testName, i);
       if(e[0] != e.back())

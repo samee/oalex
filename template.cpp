@@ -39,22 +39,22 @@ using std::vector;
 using std::visit;
 using oalex::Error;
 using oalex::lex::NewlineChar;
-using oalex::lex::QuotedString;
+using oalex::lex::GluedString;
 using oalex::lex::WholeSegment;
 
 namespace oalex {
 
-static string debug(const QuotedString& qs) { return qs; }
+static string debug(const GluedString& qs) { return qs; }
 static string debug(const DelimPair& dp) {
   return format("{} ... {}", string(dp.st), string(dp.en));
 }
 static string debug(const PartPattern& pp) {
-  if(auto* p = get_if<QuotedString>(&pp)) return debug(*p);
+  if(auto* p = get_if<GluedString>(&pp)) return debug(*p);
   if(auto* p = get_if<DelimPair>(&pp)) return debug(*p);
   Bug("Unknown PartPattern with index {}", pp.index());
 }
 
-static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
+static auto matchAllParts(const GluedString& spatt, const GluedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
   if(spatt.empty())
     return Error(spatt, 0, spatt.size(), "Placeholder pattern cannot be empty");
@@ -70,10 +70,10 @@ static auto matchAllParts(const QuotedString& spatt, const QuotedString& s)
   return rv;
 }
 
-static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
+static auto matchAllParts(const DelimPair& dpatt, const GluedString& s)
   -> optional<vector<pair<size_t,size_t>>> {
   if(dpatt.st.empty() || dpatt.en.empty()) {
-    const QuotedString& qs = (dpatt.st.empty() ? dpatt.st : dpatt.en);
+    const GluedString& qs = (dpatt.st.empty() ? dpatt.st : dpatt.en);
     return Error(qs, 0, qs.size(), "Placeholder pattern cannot be empty");
   }
   if(dpatt.st.find(dpatt.en, 1) != string::npos)
@@ -100,9 +100,9 @@ static auto matchAllParts(const DelimPair& dpatt, const QuotedString& s)
 
 // TODO: Produce error message for every `return nullopt` here.
 // Disallows empty patt.
-auto matchAllParts(const PartPattern& patt, const QuotedString& s)
+auto matchAllParts(const PartPattern& patt, const GluedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
-  if(auto* spatt = get_if<QuotedString>(&patt)) return matchAllParts(*spatt, s);
+  if(auto* spatt = get_if<GluedString>(&patt)) return matchAllParts(*spatt, s);
   if(auto* dpatt = get_if<DelimPair>(&patt)) return matchAllParts(*dpatt, s);
   Bug("matchAllParts() called with unknown variant: index {}", patt.index());
 }
@@ -137,24 +137,24 @@ insert(IntervalMap& m, const IntervalMap::value_type& x)
 }
 
 static size_t stPattPos(const PartPattern& patt) {
-  if(auto* q = get_if<QuotedString>(&patt)) return stPos(*q);
+  if(auto* q = get_if<GluedString>(&patt)) return stPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return stPos(dp->st);
   Bug("stPattPos() called with unknown index {}", patt.index());
 }
 
 static size_t enPattPos(const PartPattern& patt) {
-  if(auto* q = get_if<QuotedString>(&patt)) return enPos(*q);
+  if(auto* q = get_if<GluedString>(&patt)) return enPos(*q);
   if(auto* dp = get_if<DelimPair>(&patt)) return enPos(dp->st);
   Bug("enPattPos() called with unknown index {}", patt.index());
 }
 
-static const QuotedString& pattStart(const PartPattern& patt) {
-  if(auto* q = get_if<QuotedString>(&patt)) return *q;
+static const GluedString& pattStart(const PartPattern& patt) {
+  if(auto* q = get_if<GluedString>(&patt)) return *q;
   if(auto* dp = get_if<DelimPair>(&patt)) return dp->st;
   Bug("pattStart() called with unknown index {}", patt.index());
 }
 
-auto labelParts(const QuotedString& s,
+auto labelParts(const GluedString& s,
                 const map<Ident,PartPattern>& partPatterns,
                 const RegexCharSet& wordChars)
     -> vector<LabelOrPart> {
@@ -216,7 +216,7 @@ auto labelParts(const QuotedString& s,
 }
 
 // This function assumes we are starting with ctx.input.sizeGt(i).
-static TokenOrPart lexTemplateToken(const QuotedString& s, size_t& i,
+static TokenOrPart lexTemplateToken(const GluedString& s, size_t& i,
                              const LexDirective& opts) {
   const size_t st = i;
   const bool isword = matchesRegexCharSet(s[i], opts.wordChars);
@@ -228,7 +228,7 @@ static TokenOrPart lexTemplateToken(const QuotedString& s, size_t& i,
                 : TokenOrPart(OperToken(s.subqstr(st, i-st)));
 }
 
-auto tokenizeTemplateWithoutLabels(const QuotedString& s,
+auto tokenizeTemplateWithoutLabels(const GluedString& s,
                                    const LexDirective& opts,
                                    string_view comment_end_error)
                                    -> vector<TokenOrPart> {
@@ -245,7 +245,7 @@ auto tokenizeTemplateWithoutLabels(const QuotedString& s,
   return rv;
 }
 
-static auto tokenizeTemplateKeepNewlines(const QuotedString& s,
+static auto tokenizeTemplateKeepNewlines(const GluedString& s,
     const LexDirective& opts, string_view comment_end_error)
     -> vector<TokenOrPart> {
   size_t i=0, lastBol=0;
@@ -273,7 +273,7 @@ static auto tokenizeLabelledTemplate(
     Bug("skip.indicateBlankLines and keepAllNewlines cannot both be set");
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
-    else if(auto* qs = get_if<QuotedString>(&lorp)) {
+    else if(auto* qs = get_if<GluedString>(&lorp)) {
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
       vector<TokenOrPart> toks
@@ -285,7 +285,7 @@ static auto tokenizeLabelledTemplate(
   return rv;
 }
 
-auto tokenizeTemplate(const QuotedString& s,
+auto tokenizeTemplate(const GluedString& s,
                       const map<Ident,PartPattern>& partPatterns,
                       const LexDirective& lexopts) -> vector<TokenOrPart> {
   return tokenizeLabelledTemplate(

@@ -25,9 +25,9 @@ using fmt::format;
 using oalex::parseRegexCharSet;
 using oalex::lex::enPos;
 using oalex::lex::ExprToken;
+using oalex::lex::GluedString;
 using oalex::lex::isToken;
 using oalex::lex::lexNextLine;
-using oalex::lex::QuotedString;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::nullopt;
@@ -39,7 +39,7 @@ namespace oalex {
 
 static string debug(const ExprToken& x) {
   if(auto* tok = get_if<WholeSegment>(&x)) return **tok;
-  else if(auto* s = get_if<QuotedString>(&x)) return "\"" + string(*s) + "\"";
+  else if(auto* s = get_if<GluedString>(&x)) return "\"" + string(*s) + "\"";
   else return "(bracket group)";
 }
 
@@ -87,7 +87,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
               "Rule's right-hand side missing");
         continue;
       }
-      const auto* literal = get_if<QuotedString>(&linetoks[2]);
+      const auto* literal = get_if<GluedString>(&linetoks[2]);
       if(!literal) {
         Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
               "Expected string literal");

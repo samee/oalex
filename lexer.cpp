@@ -326,11 +326,11 @@ char closeBracket(BracketType bt) {
 
 }  // namespace
 
-NewlineChar::NewlineChar(const QuotedString& s, size_t pos)
+NewlineChar::NewlineChar(const GluedString& s, size_t pos)
   : LexSegment(s.inputPos(pos), s.inputPos(pos)+1,
                tagint_t(LexSegmentTag::newlineChar)) {}
 
-WholeSegment::WholeSegment(const QuotedString& s)
+WholeSegment::WholeSegment(const GluedString& s)
   : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
     data(string(s)) { }
 
@@ -347,8 +347,8 @@ static auto upperBound(const vector<IndexRelation>& index_map, size_t qpos) {
   return it;
 }
 
-QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
-  if(pos > size()) Bug("QuotedString::subqstr() invoked with invalid pos");
+GluedString GluedString::subqstr(size_t pos, size_t len) const {
+  if(pos > size()) Bug("GluedString::subqstr() invoked with invalid pos");
   len = min(len, size() - pos);
 
   // Find the subrange for the new index_map_.
@@ -361,19 +361,19 @@ QuotedString QuotedString::subqstr(size_t pos, size_t len) const {
   for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
-  return QuotedString(st, en, this->substr(pos, len), ctx_, std::move(imap));
+  return GluedString(st, en, this->substr(pos, len), ctx_, std::move(imap));
 }
 
-pair<size_t,size_t> QuotedString::rowCol(size_t pos) const {
+pair<size_t,size_t> GluedString::rowCol(size_t pos) const {
   return ctx_->input.rowCol(this->inputPos(pos));
 }
 
-size_t QuotedString::inputPos(size_t pos) const {
+size_t GluedString::inputPos(size_t pos) const {
   auto it = --upperBound(index_map_, pos);
   return it->inputPos + pos - it->quotePos;
 }
 
-size_t QuotedString::bol(size_t i) const {
+size_t GluedString::bol(size_t i) const {
   auto it = upperBound(index_map_, i);
   while(true) {
     --it;
@@ -453,7 +453,7 @@ optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
 // either return a valid string, or nullopt with errors added to ctx.diags. In
 // this case, increment `i` beyond the end of the next unescaped '"', or in case
 // of an unexpected end of line, beyond the next newline.
-optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
+optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || input[i]!='"') return nullopt;
   Resetter rst(ctx, i);
@@ -466,7 +466,7 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
     if(input[i] == '"') {
       rst.markUsed(++i);
       if(!error)
-        return QuotedString(rst.start(), i, s, &ctx, std::move(imap));
+        return GluedString(rst.start(), i, s, &ctx, std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
@@ -488,7 +488,7 @@ static bool isSourceFence(string_view fence) {
   return i == fence.size();
 }
 
-optional<QuotedString> lexFencedSource(InputDiags& ctx, size_t& i) {
+optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
   Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
@@ -507,7 +507,7 @@ optional<QuotedString> lexFencedSource(InputDiags& ctx, size_t& i) {
     size_t lineStart = i;
     string line = getline(ctx, i);
     if(line == fence) {
-      QuotedString s(fenceStart, i-1,
+      GluedString s(fenceStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
                      &ctx, std::move(imap));
       rst.markUsed(i);
@@ -521,7 +521,7 @@ optional<QuotedString> lexFencedSource(InputDiags& ctx, size_t& i) {
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
 // source line, strictly less indented than parindent.
-optional<QuotedString>
+optional<GluedString>
 lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
   string rv;
@@ -544,7 +544,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   }
   if(allblank) return nullopt;
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = rv.size()});
-  QuotedString qs(rst.start(), i, std::move(rv), &ctx, std::move(imap));
+  GluedString qs(rst.start(), i, std::move(rv), &ctx, std::move(imap));
   rst.markUsed(i);
   return qs;
 }

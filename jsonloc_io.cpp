@@ -23,7 +23,7 @@ using oalex::JsonLoc;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
-using oalex::lex::QuotedString;
+using oalex::lex::GluedString;
 using oalex::lex::WholeSegment;
 using oalex::lex::lexBracketGroup;
 using std::get_if;
@@ -86,7 +86,7 @@ bool isErrorValue(const vector<ExprToken>& v) {
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
   if(auto seg = parseIdent(ctx,expr))
     return JsonLoc(JsonLoc::Placeholder{seg->data});
-  if(auto* qs = get_if<QuotedString>(&expr))
+  if(auto* qs = get_if<GluedString>(&expr))
     return JsonLoc(*qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
     if(bg->type == BracketType::brace) return parseMap(ctx, bg->children);

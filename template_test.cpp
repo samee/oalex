@@ -68,7 +68,7 @@ using oalex::Unimplemented;
 using oalex::WordToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::NewlineChar;
-using oalex::lex::QuotedString;
+using oalex::lex::GluedString;
 using oalex::lex::WholeSegment;
 using oalex::lex::lexQuotedString;
 
@@ -88,7 +88,7 @@ size_t findSubstr(const Input& input, string_view s) {
   return string::npos;
 }
 
-QuotedString findQuote(string_view testName, InputDiags& ctx,
+GluedString findQuote(string_view testName, InputDiags& ctx,
                        string s) {
   s = '"' + s + '"';
   size_t i = findSubstr(ctx.input, s);
@@ -134,7 +134,7 @@ void testMatchAll() {
     "{" "}"
   )");
 
-  const QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
+  const GluedString tmpl = fquote("if (cond) { ... } else { ... }");
 
   // Test a single match.
   optional<vector<pair<size_t, size_t>>> out
@@ -159,8 +159,8 @@ void testMatchAll() {
 
 void testEmptyPatternsFail() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("foo" "")");
-  QuotedString tmpl = fquote("foo");
-  QuotedString empty = fquote("");
+  GluedString tmpl = fquote("foo");
+  GluedString empty = fquote("");
 
   auto res1 = matchAllParts(empty, tmpl);
   if(res1) BugMe("succeeded unexpectedly with an empty pattern");
@@ -187,7 +187,7 @@ void testConfusingPatterns() {
 void testMatchAllFailsOnOverlap() {
   auto [ctx, fquote] = setupMatchTest(__func__,
                                       R"("ababa { { } }" "aba" "{" "}")");
-  QuotedString tmpl = fquote("ababa { { } }");
+  GluedString tmpl = fquote("ababa { { } }");
 
   auto res1 = matchAllParts(fquote("aba"), tmpl);
   if(res1) BugMe("succeeded unexpectedly while matching 'aba'");
@@ -203,7 +203,7 @@ void testMatchAllFailsOnOverlap() {
 
 void testUnfinishedMatch() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("{} {" "{" "}")");
-  QuotedString tmpl = fquote("{} {");
+  GluedString tmpl = fquote("{} {");
   auto res = matchAllParts(DelimPair{fquote("{"), fquote("}")}, fquote("{} {"));
   if(!res) BugMe("Was expecting a match in spite of error");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Unterminated segment");
@@ -226,9 +226,9 @@ auto setupLabelTest(string testName, string fileBody) {
   return make_tuple(std::move(ctx), fquote, fid);
 }
 
-string debug(const variant<QuotedString,Ident>& lp) {
+string debug(const variant<GluedString,Ident>& lp) {
   if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
-  if(auto* q = get_if<QuotedString>(&lp)) return string(*q);
+  if(auto* q = get_if<GluedString>(&lp)) return string(*q);
   Bug("LabelOrPart variant with unknown index {}", lp.index());
 }
 
@@ -236,12 +236,12 @@ void testLabelParts() {
   char input[] = R"("if (cond) { ... } else { ... }"
                     "cond" "{" "}" condexpr stmt)";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
+  GluedString tmpl = fquote("if (cond) { ... } else { ... }");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
-  vector<variant<QuotedString,Ident>> expected{
+  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
+  vector<variant<GluedString,Ident>> expected{
     tmpl.subqstr(0,4), fid("condexpr"), tmpl.subqstr(8,2),
     fid("stmt"), tmpl.subqstr(17,6), fid("stmt"),
   };
@@ -256,12 +256,12 @@ void testLabelParts() {
 void testCrossLabelOverlapFails() {
   char input[] = R"( "[ ] [" "[" "]" index index2)";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString tmpl = fquote("[ ] [");
+  GluedString tmpl = fquote("[ ] [");
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "index"), DelimPair{fquote("["), fquote("]")}},
     {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
   };
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
+  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
   if(!observed.empty()) BugMe("Was expecting an empty vector on error");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part '] ... [' overlaps with '[ ... ]'");
@@ -269,12 +269,12 @@ void testCrossLabelOverlapFails() {
 
 void testNoMatchWarns() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"(" " "foo")");
-  QuotedString tmpl = fquote(" ");
+  GluedString tmpl = fquote(" ");
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "foo"), fquote("foo")},
   };
-  vector<variant<QuotedString,Ident>> observed = labelParts(tmpl, partspec, {});
-  vector<variant<QuotedString,Ident>> expected{tmpl};
+  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
+  vector<variant<GluedString,Ident>> expected{tmpl};
   if(observed != expected) BugMe("Didn't get the unsplit string");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "No match found for pattern 'foo'");
@@ -295,7 +295,7 @@ void testEmptySuccess() {
 void testNoWordSplit() {
   auto [ctx, fquote, fid] = setupLabelTest(__func__,
       R"("foobar" "w-foo-bar-w" "foo" "bar" "-foo-")");
-  QuotedString tmpl = fquote("foobar");
+  GluedString tmpl = fquote("foobar");
   RegexCharSet wordChars = parseRegexCharSet("[_a-zA-Z]");
   map<Ident,PartPattern> partspec{ {fid("foo"), fquote("foo")} };
   labelParts(tmpl, partspec, wordChars);
@@ -366,7 +366,7 @@ void testTokenizeNoLabel() {
 
 void testTokenizeNoLabelRunoffComment() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
-  QuotedString qs = fquote("def foo(args): //\\n");
+  GluedString qs = fquote("def foo(args): //\\n");
   qs = qs.subqstr(0, qs.size()-1);  // Remove the last newline
   tokenizeTemplateWithoutLabels(qs, lexopts, "Missing newline");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
@@ -394,7 +394,7 @@ void testTokenizeSuccess() {
                       condexpr: "cond"
                       stmt: "{" "}")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl = fquote("if (cond) { ... } else { ... }");
+  GluedString tmpl = fquote("if (cond) { ... } else { ... }");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
@@ -411,7 +411,7 @@ void testTokenizeLabelInComment() {
                        condexpr: "cond"
                        stmt: "stmt")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl = fquote("if (cond) stmt;  // Test 'if' condition");
+  GluedString tmpl = fquote("if (cond) stmt;  // Test 'if' condition");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), fquote("stmt")}};
@@ -429,7 +429,7 @@ void testTokenizeLabelInComment() {
 void testTokenizeRunoffComment() {
   char input[] = R"("stmt; // comment")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString tmpl = fquote("stmt; // comment");
+  GluedString tmpl = fquote("stmt; // comment");
   tokenizeTemplate(tmpl, {}, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 
@@ -449,7 +449,7 @@ size_t lineStart(size_t lineno, const Input& input) {
   return i;
 }
 
-QuotedString assertSuccessfulParse(string_view testName, InputDiags& ctx,
+GluedString assertSuccessfulParse(string_view testName, InputDiags& ctx,
                                    size_t pos, string_view parindent) {
   auto opt = lexIndentedSource(ctx, pos, parindent);
   if(!opt.has_value()) {
@@ -477,7 +477,7 @@ void testParaBreaks() {
     directives: "directives"
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl
+  GluedString tmpl
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
   vector<string> observed
@@ -502,7 +502,7 @@ void testKeepAllNewlines() {
     amount: "$1000"
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl
+  GluedString tmpl
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{
     {fid("timestamp_sec"), fquote("<epoch_time>")},
@@ -526,7 +526,7 @@ void testKeepAllNewlines() {
 void testNoEndingNewline() {
   char input[] = R"("foo bar /* baz */")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString s = fquote("foo bar /* baz */");
+  GluedString s = fquote("foo bar /* baz */");
   vector<string> observed
     = debugTokens(tokenizeTemplate(s, {}, linelexopts));
   vector<string> expected{"word:foo", "word:bar"};
@@ -544,7 +544,7 @@ void testUnmarkedTemplateOpers() {
     LongEllipsis: "...."
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  QuotedString tmpl
+  GluedString tmpl
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{
     {fid("GhcQuasiQuotes"), DelimPair{fquote("[sql|"), fquote("|]")}},
@@ -685,7 +685,7 @@ void testTemplateSimpleConcat() {
   // Setup
   char input[] = R"("foo + bar" "foo" "+" "bar")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString s = fquote("foo + bar");
+  GluedString s = fquote("foo + bar");
   vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
   if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
@@ -705,7 +705,7 @@ void testTemplateSingleConcat() {
   // Setup
   char input[] = R"("foo")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  QuotedString s = fquote("foo");
+  GluedString s = fquote("foo");
   vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
 
   // Test subject
@@ -741,7 +741,7 @@ void testTemplateOperators() {
   for(size_t i=0; i<size(inputs); ++i) {
     // Setups
     auto [ctx, fquote] = setupMatchTest(__func__, '"' + inputs[i] + '"');
-    QuotedString s = fquote(inputs[i]);
+    GluedString s = fquote(inputs[i]);
     vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
     if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
@@ -783,7 +783,7 @@ void testTemplateErrorCases() {
     // Setup
     const string input = '"' + inputs[i] + '"';
     auto [ctx, fquote] = setupMatchTest(__func__, input);
-    QuotedString s = fquote(inputs[i]);
+    GluedString s = fquote(inputs[i]);
     vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
     if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
