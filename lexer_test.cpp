@@ -141,10 +141,16 @@ void stringSuccessImpl(const char testInput[], const char testName[],
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
     Bug("{} failed", testName);
-  }else {
-    if(expected != *res)
-      Bug("{}: {} != {}", testName, expected, string_view(*res));
-  }
+  }else if(expected != *res)
+    Bug("{}: {} != {}", testName, expected, string_view(*res));
+
+  // This behavior is a bit arbitrary.
+  assertEqual(testInput, size_t{0}, res->stPos);
+  assertEqual(testInput, string_view(testInput).size(), res->enPos);
+  GluedString res2 = res->subqstr(0, res->size());
+  for(size_t i=0; i<res->size(); ++i) if(res->inputPos(i) != res2.inputPos(i))
+    Bug("{}: inputPos changed in substring at sourcePos {}: {} != {}",
+        testName, i, res->inputPos(i), res2.inputPos(i));
 }
 
 void stringFailureImpl(const char testInput[], const char testName[],
