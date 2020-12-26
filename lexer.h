@@ -68,7 +68,7 @@ struct WholeSegment : LexSegment {
   const std::string* operator->() const { return &data; }
 };
 
-// These are the factory methods ensure the following invariants on rcmap:
+// The factory friend function ensure the following invariants on rcmap:
 //   * rcmap.pos are provided in strictly increasing order.
 //   * rcmap[i].pos < rcmap[j].pos iff
 //       (rcmap[i].row, rcmap[i].col) < (rcmap[j].row, rcmap[j].col)
