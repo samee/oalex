@@ -13,10 +13,14 @@
     limitations under the License. */
 
 #pragma once
+#include <vector>
 #include "oalex.h"
 #include "codegen.h"
 
 namespace oalex {
+
+// Forward decl
+class Example;
 
 // This should be a fairly direct representation of our oalex source file.
 // Right now, that has a bunch of ruleSets. As our language evolves, it will
@@ -24,6 +28,35 @@ namespace oalex {
 // not remain a field here forever.
 struct ParsedSource {
   RuleSet ruleSet;
+  std::vector<Example> examples;
+};
+
+// This is the output component of each example.
+// Initialized either as Expectation::Succeeds, or as
+// Expectation::ErrorSubstr{msg}.
+// TODO: add a JsonLoc field, both as a class member and as a matches() param.
+class Expectation {
+ public:
+  // Constructor tags
+  static struct Succeeds_t {} Succeeds;
+  struct ErrorSubstr { std::string msg; };
+
+  Expectation() = default;
+  Expectation(Succeeds_t) : success_{true} {}  // implicit ctor
+  Expectation(ErrorSubstr f)  // implicit ctor
+    : success_{false}, errorSubstr_{std::move(f.msg)} {}
+
+  bool matches(bool success, const std::vector<Diag>& diags) const;
+
+ private:
+  bool success_ = false;
+  std::string errorSubstr_;
+};
+
+struct Example {
+  std::string ruleName;
+  std::string sampleInput;
+  Expectation expectation;
 };
 
 // TODO: augment the return type into something richer, with

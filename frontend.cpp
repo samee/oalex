@@ -107,7 +107,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
-  return ParsedSource{std::move(rs)};
+  return ParsedSource{std::move(rs), {}};
 }
 
 }  // namespace oalex
