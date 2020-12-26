@@ -24,7 +24,7 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::QuotedString;
-using oalex::lex::UnquotedToken;
+using oalex::lex::WholeSegment;
 using oalex::lex::lexBracketGroup;
 using std::get_if;
 using std::map;
@@ -66,26 +66,26 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<UnquotedToken> parseIdent(InputDiags& ctx, const ExprToken& expr) {
-  auto* token = get_if<UnquotedToken>(&expr);
-  if(!token) return Error(ctx, stPos(expr),"Was expecting an identifier");
-  if(!isIdent(token->token)) {
-    Error(ctx, token->stPos,
-          "'" + token->token + "' is not a valid identifier.");
-    return UnquotedToken(token->stPos, token->enPos, "invalid_identifier");
+optional<WholeSegment> parseIdent(InputDiags& ctx, const ExprToken& expr) {
+  auto* seg = get_if<WholeSegment>(&expr);
+  if(!seg) return Error(ctx, stPos(expr),"Was expecting an identifier");
+  if(!isIdent(seg->data)) {
+    Error(ctx, seg->stPos,
+          "'" + seg->data + "' is not a valid identifier.");
+    return WholeSegment(seg->stPos, seg->enPos, "invalid_identifier");
   }
-  return *token;
+  return *seg;
 }
 
 bool isErrorValue(const vector<ExprToken>& v) {
   if(v.size() != 1) return false;
-  auto* token = get_if<UnquotedToken>(&v[0]);
-  return token && token->token == "error_value";
+  auto* seg = get_if<WholeSegment>(&v[0]);
+  return seg && seg->data == "error_value";
 }
 
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
-  if(auto token = parseIdent(ctx,expr))
-    return JsonLoc(JsonLoc::Placeholder{token->token});
+  if(auto seg = parseIdent(ctx,expr))
+    return JsonLoc(JsonLoc::Placeholder{seg->data});
   if(auto* qs = get_if<QuotedString>(&expr))
     return JsonLoc(*qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
@@ -109,13 +109,13 @@ optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
   for(auto& elt : splitres) {
     if(elt.empty())
       Bug("splitCommaNoEmpty() is returning empty elements.");
-    optional<UnquotedToken> key = parseIdent(ctx, elt[0]);
+    optional<WholeSegment> key = parseIdent(ctx, elt[0]);
     if(!key) {
       Error(ctx, stPos(elt[0]), "Was expecting a key.");
       continue;
     }
     optional<JsonLoc> parsedElt;
-    if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->token};
+    if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->data};
     else {
       if(!isToken(elt[1],":")) {
         Error(ctx, enPos(elt[0]), "Was expecting a colon sign after the key.");
@@ -133,8 +133,8 @@ optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
       }
     }
 
-    if(rv.insert({key->token, std::move(*parsedElt)}).second == false)
-      Error(ctx, key->stPos, "Duplicate key " + key->token);
+    if(rv.insert({key->data, std::move(*parsedElt)}).second == false)
+      Error(ctx, key->stPos, "Duplicate key " + key->data);
   }
   return JsonLoc(rv);
 }

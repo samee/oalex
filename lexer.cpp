@@ -85,14 +85,14 @@ skipBlankLine(InputDiags& ctx, size_t i) {
 }
 
 // TODO use generic word-lexer based on a char set.
-optional<UnquotedToken> lexHeaderWord(InputDiags& ctx, size_t& i) {
+optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   Resetter rst(ctx, i);
   while(input.sizeGt(i) && isSectionHeaderNonSpace(input[i])) ++i;
   if(i == rst.start()) return nullopt;
   else {
     rst.markUsed(i);
-    return UnquotedToken(rst.start(),i,input);
+    return WholeSegment(rst.start(),i,input);
   }
 }
 
@@ -122,17 +122,17 @@ optional<UnquotedToken> lexHeaderWord(InputDiags& ctx, size_t& i) {
 //       - Will likely depend on parser-global bools.
 //       - Likely signature: foo(InputDiags&,size_t&);
 
-optional<vector<UnquotedToken>>
+optional<vector<WholeSegment>>
 lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   Resetter rst(ctx, i);
-  vector<UnquotedToken> rv;
+  vector<WholeSegment> rv;
   // TODO reduce bsearch overhead.
   for(i = oalexSkip.withinLine(input, i);
       input.bol(i) == input.bol(rst.start());
       i = oalexSkip.withinLine(input, i)) {
     if(isSectionHeaderNonSpace(input[i])) {
-      if(optional<UnquotedToken> token = lexHeaderWord(ctx,i))
+      if(optional<WholeSegment> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
       else return nullopt;
     }else return nullopt;
@@ -285,15 +285,15 @@ static bool isWordChar(char ch) {
 //   ["-","12", ".", "34e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
 // TODO use generic word-lexing features.
-optional<UnquotedToken> lexWord(const Input& input, size_t& i) {
+optional<WholeSegment> lexWord(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || !isWordChar(input[i])) return nullopt;
   size_t oldi = i;
   while(input.sizeGt(i) && isWordChar(input[i])) ++i;
-  return UnquotedToken(oldi,i,input);
+  return WholeSegment(oldi,i,input);
 }
 
 // TODO throw Fatal on .... or ::=.
-optional<UnquotedToken> lexOperator(const Input& input, size_t& i) {
+optional<WholeSegment> lexOperator(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || !isoperch(input[i])) return nullopt;
 
   // Now we know it is a valid input character, see if it is multichar.
@@ -301,9 +301,9 @@ optional<UnquotedToken> lexOperator(const Input& input, size_t& i) {
   size_t oldi = i;
   for(const string& op : multichars) if(input.substr(i,op.size()) == op) {
     i += op.size();
-    return UnquotedToken(oldi,i,input);
+    return WholeSegment(oldi,i,input);
   }
-  return UnquotedToken(oldi,++i,input);
+  return WholeSegment(oldi,++i,input);
 }
 
 char openBracket(BracketType bt) {
@@ -330,9 +330,9 @@ NewlineChar::NewlineChar(const QuotedString& s, size_t pos)
   : LexSegment(s.inputPos(pos), s.inputPos(pos)+1,
                tagint_t(LexSegmentTag::newlineChar)) {}
 
-UnquotedToken::UnquotedToken(const QuotedString& s)
+WholeSegment::WholeSegment(const QuotedString& s)
   : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
-    token(string(s)) { }
+    data(string(s)) { }
 
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;
@@ -439,11 +439,11 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
 }
 
 // Returns nullopt on eof. Throws on invalid language character.
-optional<UnquotedToken> lookahead(InputDiags& ctx, size_t i) {
+optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
   if(!lookaheadStart(ctx,i)) return nullopt;
   if(auto tok = lexWord(ctx.input, i)) return tok;
   else if(isbracket(ctx.input[i]) || isquote(ctx.input[i]))
-    return UnquotedToken(i,i+1,ctx.input);
+    return WholeSegment(i,i+1,ctx.input);
   else if(auto op = lexOperator(ctx.input, i)) return op;
   else Fatal(ctx, i, "Invalid input character");
 }
@@ -563,12 +563,12 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
 // TODO: We should also produce errors if there is an invalid character in
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
-optional<vector<UnquotedToken>> lexSectionHeader(InputDiags& ctx, size_t& i) {
+optional<vector<WholeSegment>> lexSectionHeader(InputDiags& ctx, size_t& i) {
   if(i != ctx.input.bol(i)) return nullopt;
 
   Resetter rst(ctx, i);
   while(auto j = skipBlankLine(ctx,i)) i = *j;
-  optional<vector<UnquotedToken>> rv = lexSectionHeaderContents(ctx,i);
+  optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
   if(!rv) return nullopt;
   optional<size_t> stDash=lexDashLine(ctx,i);
   if(!stDash) return nullopt;

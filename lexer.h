@@ -32,7 +32,7 @@ struct IndexRelation {
 };
 
 enum class LexSegmentTag {
-  unquotedToken = Segment::lastReservedTag + 1,
+  wholeSegment = Segment::lastReservedTag + 1,
   section,
   quotedString,
   bracketGroup,
@@ -53,19 +53,19 @@ struct NewlineChar : LexSegment {
 // by itself. These are meant to be a lightweight string wrapper, and do not
 // use complex rowCol() maps. This also disallows any backslash escape sequence
 // such as '\n' or '\t'.
-struct UnquotedToken : LexSegment {
-  static constexpr auto type_tag = tagint_t(LexSegmentTag::unquotedToken);
-  std::string token;
-  UnquotedToken(size_t st,size_t en,const Input& input)
-    : LexSegment(st,en,type_tag), token(input.substr(st,en-st)) {}
-  UnquotedToken(size_t st,size_t en,std::string tok)
-    : LexSegment(st,en,type_tag), token(std::move(tok)) {}
+struct WholeSegment : LexSegment {
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::wholeSegment);
+  std::string data;
+  WholeSegment(size_t st,size_t en,const Input& input)
+    : LexSegment(st,en,type_tag), data(input.substr(st,en-st)) {}
+  WholeSegment(size_t st,size_t en,std::string tok)
+    : LexSegment(st,en,type_tag), data(std::move(tok)) {}
 
   // This should only be used for short and simple tokens without newlines or
   // escape codes embedded in it, since that will mess up location-tracking.
-  explicit UnquotedToken(const QuotedString& s);
-  const std::string& operator*() const { return token; }
-  const std::string* operator->() const { return &token; }
+  explicit WholeSegment(const QuotedString& s);
+  const std::string& operator*() const { return data; }
+  const std::string* operator->() const { return &data; }
 };
 
 // These are the factory methods ensure the following invariants on rcmap:
@@ -135,8 +135,8 @@ inline bool operator!=(const QuotedString& a, const QuotedString& b) {
 
 struct BracketGroup;
 
-using ExprToken = std::variant<UnquotedToken, QuotedString, BracketGroup>;
-enum class ExprType { unquotedToken, quotedString, bracketGroup };
+using ExprToken = std::variant<WholeSegment, QuotedString, BracketGroup>;
+enum class ExprType { wholeSegment, quotedString, bracketGroup };
 
 enum class BracketType { square, brace, paren, };
 
@@ -158,8 +158,8 @@ inline ExprType exprType(const ExprToken& expr)
   { return ExprType(expr.index()); }
 
 inline bool isToken(const ExprToken& x, std::string_view s) {
-  if(auto* tok = std::get_if<UnquotedToken>(&x))
-    if(tok->token == s) return true;
+  if(auto* tok = std::get_if<WholeSegment>(&x))
+    if(tok->data == s) return true;
  return false;
 }
 
@@ -173,7 +173,7 @@ inline RegexOptions oalexRegexOpts{
 };
 
 std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
-std::optional<std::vector<UnquotedToken>>
+std::optional<std::vector<WholeSegment>>
   lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexFencedSource(InputDiags& lex, size_t& i);
@@ -183,6 +183,6 @@ std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
-std::optional<UnquotedToken> lookahead(InputDiags& lex, size_t i);
+std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 
 }  // namespace oalex::lex

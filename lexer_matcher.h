@@ -31,20 +31,20 @@ Intended usage: mostly for tests.
 */
 namespace oalex::lex::matcher {
 
-struct UnquotedMatcher;
+struct WholeSegmentMatcher;
 struct QuotedMatcher;
 struct BracketGroupMatcher;
 
-using ExprMatcher = std::variant<UnquotedMatcher,
+using ExprMatcher = std::variant<WholeSegmentMatcher,
                                  QuotedMatcher, BracketGroupMatcher>;
 
 struct QuotedMatcher { std::string s; };
 inline QuotedMatcher quoted(std::string s)
   { return QuotedMatcher{std::move(s)}; }
 
-struct UnquotedMatcher {
-  std::string token;
-  UnquotedMatcher(const char* s) : token(s) {}  // conversion ctor.
+struct WholeSegmentMatcher {
+  std::string data;
+  WholeSegmentMatcher(const char* s) : data(s) {}  // conversion ctor.
 };
 
 struct BracketGroupMatcher {
@@ -58,7 +58,7 @@ namespace internal {
 template <class T> inline const bool false_value = false;
 
 inline ExprMatcher exprMatcher(BracketGroupMatcher bm) { return bm; }
-inline ExprMatcher exprMatcher(UnquotedMatcher tokm) { return tokm; }
+inline ExprMatcher exprMatcher(WholeSegmentMatcher wm) { return wm; }
 inline ExprMatcher exprMatcher(QuotedMatcher qm) { return qm; }
 
 }  // namespace internal

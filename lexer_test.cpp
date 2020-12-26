@@ -45,7 +45,7 @@ using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
-using oalex::lex::UnquotedToken;
+using oalex::lex::WholeSegment;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexFencedSource;
 using oalex::lex::lexIndentedSource;
@@ -101,13 +101,13 @@ void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
+  optional<vector<WholeSegment>> res = lexSectionHeader(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
     Bug("{} failed", testName);
   }else {
     vector<string> observed;
-    for(const UnquotedToken& t : *res) observed.push_back(*t);
+    for(const WholeSegment& t : *res) observed.push_back(*t);
     if(expected != observed)
       Bug("{}: {} != {}", testName, expected, observed);
   }
@@ -117,7 +117,7 @@ void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<UnquotedToken>> res = lexSectionHeader(ctx, i);
+  optional<vector<WholeSegment>> res = lexSectionHeader(ctx, i);
   if(res && ctx.diags.empty())
     Bug("Test {} succeeded unexpectedly", testName);
   if(!expectedDiag.empty())
@@ -356,10 +356,10 @@ void lookaheadsSuccess() {
   static_assert(sizeof(inputs)==sizeof(expecteds));
   for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
     InputDiags ctx{testInputDiags(inputs[i])};
-    if(optional<UnquotedToken> tok = lookahead(ctx,1)) {
-      if(tok->token!=expecteds[i])
+    if(optional<WholeSegment> tok = lookahead(ctx,1)) {
+      if(tok->data!=expecteds[i])
         BugMe("Test case {} failed with \"{}\" != \"{}\"", i,
-              tok->token, expecteds[i]);
+              tok->data, expecteds[i]);
     }else BugMe("Test case {} was supposed to succeed", i);
   }
 }
@@ -367,8 +367,8 @@ void lookaheadsSuccess() {
 void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
   InputDiags ctx{testInputDiags(input)};
-  if(optional<UnquotedToken> tok = lookahead(ctx,3))
-    BugMe("Succeeded unexpectedly, got {}", tok->token);
+  if(optional<WholeSegment> tok = lookahead(ctx,3))
+    BugMe("Succeeded unexpectedly, got {}", tok->data);
 }
 
 void lookaheadThrowsOnInvalidChar() {
@@ -376,7 +376,7 @@ void lookaheadThrowsOnInvalidChar() {
   InputDiags ctx{testInputDiags(input)};
   try {
     auto tok = lookahead(ctx,0);
-    BugMe("Succeeded unexpectedly, got {}", (tok?tok->token:"<nullopt>"s));
+    BugMe("Succeeded unexpectedly, got {}", (tok?tok->data:"<nullopt>"s));
   }catch(const UserErrorEx& ex) {
     if(string(ex.what()).find("Unexpected character") == string::npos)
       BugMe("Not the expected Fatal() error: {}", ex.what());
@@ -412,8 +412,8 @@ string debugMatcher(BracketType bt) {
 }
 
 void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
-  if(const auto* tok = get_if<UnquotedToken>(&expr)) {
-    format_to(buf, "{}", tok->token);
+  if(const auto* tok = get_if<WholeSegment>(&expr)) {
+    format_to(buf, "{}", tok->data);
     return;
   }
   if(const auto* qs = get_if<QuotedString>(&expr)) {
@@ -513,13 +513,13 @@ void nextLineSuccessImpl(
   for(size_t i=0; i<observedResult->size(); ++i) {
     const ExprToken& o = observedResult->at(i);
     const string& e = expectedResult.at(i);
-    if(auto* tok = get_if<UnquotedToken>(&o)) {
+    if(auto* tok = get_if<WholeSegment>(&o)) {
       if(!e.empty() && (e[0] == '"' || e[0] == '\''))
         Bug("{} failed: Expecting quoted token at position {}", testName, i);
       assertEqual(testName, e, **tok);
     }else if(auto* s = get_if<QuotedString>(&o)) {
       if(e.empty() || (e[0] != '"' && e[0] != '\''))
-        Bug("{} failed: Expecting unquoted token at position {}", testName, i);
+        Bug("{} failed: Expecting a whole segment at position {}", testName, i);
       if(e[0] != e.back())
         Bug("{} failed: Expectation {} has mismatching quotes", testName, i);
       assertEqual(testName, e.substr(1, e.size()-2), string(*s));

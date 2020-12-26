@@ -69,7 +69,7 @@ using oalex::WordToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
-using oalex::lex::UnquotedToken;
+using oalex::lex::WholeSegment;
 using oalex::lex::lexQuotedString;
 
 namespace {
@@ -323,8 +323,8 @@ void testNoWordSplit() {
 }
 
 string_view token(string_view testName, const TokenOrPart& tok) {
-  if(auto* w = get_if<WordToken>(&tok)) return w->token;
-  if(auto* o = get_if<OperToken>(&tok)) return o->token;
+  if(auto* w = get_if<WordToken>(&tok)) return **w;
+  if(auto* o = get_if<OperToken>(&tok)) return **o;
   Bug("{}: input has index {}, which is neither a word nor a token",
       testName, tok.index());
 }
@@ -376,9 +376,9 @@ vector<string> debugTokens(const vector<TokenOrPart>& tops) {
   vector<string> rv;
   for(const auto& top : tops) {
     if(auto* w = get_if<oalex::WordToken>(&top))
-      rv.push_back("word:" + w->token);
+      rv.push_back("word:" + **w);
     else if(auto* op = get_if<oalex::OperToken>(&top))
-      rv.push_back("oper:" + op->token);
+      rv.push_back("oper:" + **op);
     else if(auto* id = get_if<Ident>(&top))
       rv.push_back("ident:" + id->preserveCase());
     else if(holds_alternative<NewlineChar>(top))
@@ -648,7 +648,7 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
   };
 
   if(m.type_ == TemplateMatcher::Type::leafToken) {
-    const UnquotedToken* tok = get_if_unique<WordToken>(&t);
+    const WholeSegment* tok = get_if_unique<WordToken>(&t);
     if(!tok) tok = get_if_unique<OperToken>(&t);
     if(!tok) return typeError("leaf token");
     if(**tok != m.token_)

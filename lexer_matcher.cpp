@@ -33,7 +33,7 @@ string stringMismatch(string_view s, string_view t) {
 
 string debugType(const ExprToken& x) {
   if(holds_alternative<QuotedString>(x)) return "QuotedString";
-  if(holds_alternative<UnquotedToken>(x)) return "UnquotedToken";
+  if(holds_alternative<WholeSegment>(x)) return "WholeSegment";
   if(holds_alternative<BracketGroup>(x)) return "BracketGroup";
   Bug("ExprToken has unknown type: {}", x.index());
 }
@@ -68,10 +68,10 @@ optional<string> match(ExprMatcher pattern, ExprToken expr) {
     else if(m->s != string_view(*x)) return stringMismatch(m->s, *x);
     else return nullopt;
   }
-  if(const auto* m = get_if<UnquotedMatcher>(&pattern)) {
-    const auto* x = get_if<UnquotedToken>(&expr);
-    if(!x) return typeMismatch("UnquotedToken", expr);
-    else if(m->token != x->token) return stringMismatch(m->token, x->token);
+  if(const auto* m = get_if<WholeSegmentMatcher>(&pattern)) {
+    const auto* x = get_if<WholeSegment>(&expr);
+    if(!x) return typeMismatch("WholeSegment", expr);
+    else if(m->data != x->data) return stringMismatch(m->data, x->data);
     else return nullopt;
   }
   if(const auto* m = get_if<BracketGroupMatcher>(&pattern)) {

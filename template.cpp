@@ -40,7 +40,7 @@ using std::visit;
 using oalex::Error;
 using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
-using oalex::lex::UnquotedToken;
+using oalex::lex::WholeSegment;
 
 namespace oalex {
 
@@ -300,7 +300,7 @@ bool hasFusedTemplateOpers(InputDiags& ctx, const vector<TokenOrPart>& tops) {
   static string_view tmplOpers[] = {"[", "]", "...", "|"};
   bool rv = false;
   for(auto& top : tops) {
-    const UnquotedToken* tok = get_if<WordToken>(&top);
+    const WholeSegment* tok = get_if<WordToken>(&top);
     if(!tok) tok = get_if<OperToken>(&top);
     if(!tok) continue;
     for(auto& op : tmplOpers) if(isStrictSubstr(op, **tok)) {
@@ -330,7 +330,7 @@ Template gatherInto(vector<Template> parts) {
   return move_to_unique(T{std::move(parts)});
 }
 
-static const UnquotedToken* getIfUnquotedToken(const Template* t) {
+static const WholeSegment* getIfWholeSegment(const Template* t) {
   if(auto* p = get_if_unique<WordToken>(t)) return p;
   if(auto* p = get_if_unique<OperToken>(t)) return p;
   return nullptr;
@@ -338,9 +338,9 @@ static const UnquotedToken* getIfUnquotedToken(const Template* t) {
 
 static
 auto findEllipsis(const vector<Template>& parts, size_t pos)
-  -> pair<size_t, const UnquotedToken*> {
+  -> pair<size_t, const WholeSegment*> {
   for(size_t i=pos; i<parts.size(); ++i) {
-    auto* p = getIfUnquotedToken(&parts[i]);
+    auto* p = getIfWholeSegment(&parts[i]);
     if(p && **p == "...") return {i, p};
   }
   return {};

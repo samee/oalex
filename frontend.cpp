@@ -29,7 +29,7 @@ using oalex::lex::isToken;
 using oalex::lex::lexNextLine;
 using oalex::lex::QuotedString;
 using oalex::lex::stPos;
-using oalex::lex::UnquotedToken;
+using oalex::lex::WholeSegment;
 using std::nullopt;
 using std::optional;
 using std::string;
@@ -38,15 +38,15 @@ using std::vector;
 namespace oalex {
 
 static string debug(const ExprToken& x) {
-  if(auto* tok = get_if<UnquotedToken>(&x)) return **tok;
+  if(auto* tok = get_if<WholeSegment>(&x)) return **tok;
   else if(auto* s = get_if<QuotedString>(&x)) return "\"" + string(*s) + "\"";
   else return "(bracket group)";
 }
 
 static auto getIfIdent(const ExprToken& x) -> optional<string> {
-  auto* tok = get_if<UnquotedToken>(&x);
-  if(!tok) return nullopt;
-  const string& s = **tok;
+  auto* seg = get_if<WholeSegment>(&x);
+  if(!seg) return nullopt;
+  const string& s = **seg;
   if(s.empty() || isdigit(s[0])) return nullopt;
   for(char ch : s) if(!isalnum(ch) && ch != '_') return nullopt;
   return s;

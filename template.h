@@ -61,17 +61,17 @@ auto labelParts(
     -> std::vector<LabelOrPart>;
 
 // Strong typedefs.
-struct WordToken : public lex::UnquotedToken {
-  explicit WordToken(const lex::QuotedString& s) : UnquotedToken(s) {}
+struct WordToken : public lex::WholeSegment {
+  explicit WordToken(const lex::QuotedString& s) : WholeSegment(s) {}
 };
-struct OperToken : public lex::UnquotedToken {
-  explicit OperToken(const lex::QuotedString& s) : UnquotedToken(s) {}
+struct OperToken : public lex::WholeSegment {
+  explicit OperToken(const lex::QuotedString& s) : WholeSegment(s) {}
 };
 
 using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // This is unlikely to be used outside of tokenizeTemplate(), so for now
 // it is really only exposed for testing.
-// A UnquotedToken can never be empty. The bool for each element indicates
+// A WholeSegment can never be empty. The bool for each element indicates
 // whether the token should be surrounded by word-boundary anchors when
 // matching.
 // Return value elements contain either WordToken or OperToken, never Ident.
