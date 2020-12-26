@@ -52,7 +52,7 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
   return s;
 }
 
-auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
+auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
   static const auto* userRegexOpts = new RegexOptions{
     // Do not use user-supplied input. See regex_io.h for details.
@@ -107,7 +107,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<RuleSet> {
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
-  return rs;
+  return ParsedSource{std::move(rs)};
 }
 
 }  // namespace oalex

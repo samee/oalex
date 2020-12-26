@@ -18,8 +18,16 @@
 
 namespace oalex {
 
+// This should be a fairly direct representation of our oalex source file.
+// Right now, that has a bunch of ruleSets. As our language evolves, it will
+// include lexer directives, let rules, examples, and so on. RuleSet will likely
+// not remain a field here forever.
+struct ParsedSource {
+  RuleSet ruleSet;
+};
+
 // TODO: augment the return type into something richer, with
 // test details and lexical directives.
-auto parseOalexSource(InputDiags& ctx) -> std::optional<RuleSet>;
+auto parseOalexSource(InputDiags& ctx) -> std::optional<ParsedSource>;
 
 }  // namespace oalex

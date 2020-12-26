@@ -33,6 +33,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::ParsedSource;
 using oalex::parseOalexSource;
 using oalex::RegexOptions;
 using oalex::Rule;
@@ -245,7 +246,7 @@ optional<string> fileContents(const string& filename) {
   return s;
 }
 
-auto parseOalexFile(const string& filename) -> optional<RuleSet> {
+auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
   InputDiags ctx{Input{*s}};
@@ -281,9 +282,9 @@ int main(int argc, char *argv[]) {
   if(cpp.empty()) fillOutputFilenames(*cmdlineOpts);
 
   if(cmdlineOpts->mode == CmdMode::eval) {
-    optional<RuleSet> rs = parseOalexFile(cmdlineOpts->inFilename);
-    if(!rs.has_value()) return 1;
-    JsonLoc res = processStdin(*rs);
+    optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
+    if(!src.has_value()) return 1;
+    JsonLoc res = processStdin(src->ruleSet);
     printf("%s\n", res.prettyPrintJson().c_str());
     return res.holdsError() ? 1 : 0;
   }else {
