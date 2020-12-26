@@ -88,6 +88,7 @@ struct WholeSegment : LexSegment {
 class GluedString final : public LexSegment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
+  enum class Ctor { dquoted, fenced, indented, subqstr };
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)
@@ -118,15 +119,17 @@ class GluedString final : public LexSegment, public InputPiece {
 
   // Doesn't support trailing newlines yet.
   std::optional<WholeSegment> getSegment() const;
+  Ctor ctor() const { return ctor_; }
 
   operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:
   std::string s_;  // escape codes already interpreted.
+  Ctor ctor_;  // Records how this object was constructed.
   InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
   std::vector<IndexRelation> index_map_;
-  GluedString(size_t st, size_t en, std::string_view s,
+  GluedString(size_t st, size_t en, std::string_view s, Ctor ctor,
                InputDiags* ctx, std::vector<IndexRelation> imap)
-    : LexSegment(st,en,type_tag), s_(s),
+    : LexSegment(st,en,type_tag), s_(s), ctor_(ctor),
       ctx_(ctx), index_map_(std::move(imap)) {}
   GluedString() = delete;
 };

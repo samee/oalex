@@ -361,7 +361,8 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
   for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
-  return GluedString(st, en, this->substr(pos, len), ctx_, std::move(imap));
+  return GluedString(st, en, this->substr(pos, len), Ctor::subqstr,
+                     ctx_, std::move(imap));
 }
 
 pair<size_t,size_t> GluedString::rowCol(size_t pos) const {
@@ -474,7 +475,8 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
     if(input[i] == '"') {
       rst.markUsed(++i);
       if(!error)
-        return GluedString(rst.start(), i, s, &ctx, std::move(imap));
+        return GluedString(rst.start(), i, s, GluedString::Ctor::dquoted,
+                           &ctx, std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
@@ -517,7 +519,7 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
     if(line == fence) {
       GluedString s(fenceStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
-                     &ctx, std::move(imap));
+                     GluedString::Ctor::fenced, &ctx, std::move(imap));
       rst.markUsed(i);
       return s;
     } else imap.push_back(IndexRelation{.inputPos = i,
@@ -552,7 +554,8 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   }
   if(allblank) return nullopt;
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = rv.size()});
-  GluedString qs(rst.start(), i, std::move(rv), &ctx, std::move(imap));
+  GluedString qs(rst.start(), i, std::move(rv), GluedString::Ctor::indented,
+                 &ctx, std::move(imap));
   rst.markUsed(i);
   return qs;
 }
