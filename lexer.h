@@ -89,7 +89,7 @@ class QuotedString final : public LexSegment, public InputPiece {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::quotedString);
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
     -> std::optional<QuotedString>;
-  friend auto lexDelimitedSource(InputDiags& ctx, size_t& i)
+  friend auto lexFencedSource(InputDiags& ctx, size_t& i)
     -> std::optional<QuotedString>;
   friend auto lexIndentedSource(InputDiags& ctx, size_t& i,
                                 std::string_view parindent)
@@ -176,7 +176,7 @@ std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
 std::optional<std::vector<UnquotedToken>>
   lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexQuotedString(InputDiags& lex, size_t& i);
-std::optional<QuotedString> lexDelimitedSource(InputDiags& lex, size_t& i);
+std::optional<QuotedString> lexFencedSource(InputDiags& lex, size_t& i);
 std::optional<QuotedString> lexIndentedSource(InputDiags& lex, size_t& i,
     std::string_view parindent);
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);

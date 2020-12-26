@@ -480,34 +480,34 @@ optional<QuotedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   return nullopt;
 }
 
-static bool isSourceDelim(string_view delim) {
-  if(delim.substr(0,3) != "```") return false;
+static bool isSourceFence(string_view fence) {
+  if(fence.substr(0,3) != "```") return false;
   size_t i;
-  for(i=3; i<delim.size(); ++i) if(!isident(delim[i])) break;
-  for(   ; i<delim.size(); ++i) if(delim[i]!=' ' && delim[i]!='\t') break;
-  return i == delim.size();
+  for(i=3; i<fence.size(); ++i) if(!isident(fence[i])) break;
+  for(   ; i<fence.size(); ++i) if(fence[i]!=' ' && fence[i]!='\t') break;
+  return i == fence.size();
 }
 
-optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
+optional<QuotedString> lexFencedSource(InputDiags& ctx, size_t& i) {
   Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   Resetter rst(ctx, i);
   vector<IndexRelation> imap;
-  string delim = getline(ctx, i);
-  if(!isSourceDelim(delim))
-    Fatal(ctx, rst.start(), i, "Delimiters must be alphanumeric");
+  string fence = getline(ctx, i);
+  if(!isSourceFence(fence))
+    Fatal(ctx, rst.start(), i, "Fences must be alphanumeric");
 
-  // Valid starting delimiter, so now we are commited to changing i.
-  size_t delimStart = rst.start();
+  // Valid starting fence, so now we are commited to changing i.
+  size_t fenceStart = rst.start();
   size_t inputStart = i;
   rst.markUsed(i);
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
   while(input.sizeGt(i)) {
     size_t lineStart = i;
     string line = getline(ctx, i);
-    if(line == delim) {
-      QuotedString s(delimStart, i-1,
+    if(line == fence) {
+      QuotedString s(fenceStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
                      &ctx, std::move(imap));
       rst.markUsed(i);
@@ -516,7 +516,7 @@ optional<QuotedString> lexDelimitedSource(InputDiags& ctx, size_t& i) {
                                         .quotePos = i-inputStart});
   }
   rst.markUsed(i);
-  return Error(ctx, delimStart, i-1, "Source block ends abruptly");
+  return Error(ctx, fenceStart, i-1, "Source block ends abruptly");
 }
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)

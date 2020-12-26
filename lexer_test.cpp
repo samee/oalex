@@ -47,7 +47,7 @@ using oalex::lex::NewlineChar;
 using oalex::lex::QuotedString;
 using oalex::lex::UnquotedToken;
 using oalex::lex::lexBracketGroup;
-using oalex::lex::lexDelimitedSource;
+using oalex::lex::lexFencedSource;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
 using oalex::lex::lexQuotedString;
@@ -196,30 +196,31 @@ void stringPosMap() {
   compareSubqstrIndexPos(*res, 1, 0);
 }
 
-const char delimSourceBlock[] = R"(```
+const char fencedSourceBlock[] = R"(```
 I can write whatever here I want to. Including
 ``` as long as
 it's not on the only thing on the line.
 ```)";
 
-const char delimSourceBlockCustom[] = R"(```foo
+const char fencedSourceBlockCustom[] = R"(```foo
 Even this
 ```
 Doesn't end the string
 ```foo)";
 
-const char badDelimStart[] = "```foo#\n";
+const char badFencedStart[] = "```foo#\n";
 
-size_t delimSize(string_view s) { return s.find('\n'); }
+size_t fenceSize(string_view s) { return s.find('\n'); }
 
-void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
-  // substr() counts the newline after the starting delimitter.
-  size_t dsize = delimSize(testInput);
+void fencedSourceBlockSuccessImpl(string_view testInput,
+                                  const char testName[]) {
+  // substr() counts the newline after the starting fence.
+  size_t dsize = fenceSize(testInput);
   string_view expected = testInput.substr(dsize+1, testInput.size()-2*dsize-1);
 
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<QuotedString> res = lexDelimitedSource(ctx, i);
+  optional<QuotedString> res = lexFencedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print("{}\n", string(d));
     Bug("{} failed", testName);
@@ -232,7 +233,7 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
   size_t lastLineNumber = ctx.input.rowCol(i).first;
 
   if(res->rowCol(0).first != 2)
-    Bug("{}: Was expecting delimted string body to start on "
+    Bug("{}: Was expecting fenced string body to start on "
         "the second line. Found it on {}. Input:\n{}",
         testName, res->rowCol(0).first, testInput);
   for(size_t i=0; i<res->size(); ++i) if(res->rowCol(i+1).second == 1) {
@@ -251,9 +252,9 @@ void delimSourceBlockSuccessImpl(string_view testInput, const char testName[]) {
         testInput);
 }
 
-void delimSourceBlockFailureImpl(const char testInput[], const char testName[],
-    string_view expectedDiag) {
-  assertProducesDiag(testName, testInput, expectedDiag, lexDelimitedSource);
+void fencedSourceBlockFailureImpl(const char testInput[], const char testName[],
+                                  string_view expectedDiag) {
+  assertProducesDiag(testName, testInput, expectedDiag, lexFencedSource);
 }
 
 const char goodIndent[] = R"(
@@ -547,10 +548,10 @@ void nextLineFailureImpl(
   stringSuccessImpl(test, #test "()", expected)
 #define stringFailure(test, expected) \
   stringFailureImpl(test, #test "()", expected)
-#define delimSourceBlockSuccess(test) \
-  delimSourceBlockSuccessImpl(test, #test "()")
-#define delimSourceBlockFailure(test, expected) \
-  delimSourceBlockFailureImpl(test, #test "()", expected)
+#define fencedSourceBlockSuccess(test) \
+  fencedSourceBlockSuccessImpl(test, #test "()")
+#define fencedSourceBlockFailure(test, expected) \
+  fencedSourceBlockFailureImpl(test, #test "()", expected)
 #define indentedSourceBlockSuccess(test, expected) \
   indentedSourceBlockSuccessImpl(test, #test, expected)
 #define indentedSourceBlockFailure(test, expected) \
@@ -581,9 +582,9 @@ int main() {
   stringFailure(invalidHex, "Invalid hex");
   stringPosMap();
 
-  delimSourceBlockSuccess(delimSourceBlock);
-  delimSourceBlockSuccess(delimSourceBlockCustom);
-  delimSourceBlockFailure(badDelimStart, "Delimiters must be alphanumeric");
+  fencedSourceBlockSuccess(fencedSourceBlock);
+  fencedSourceBlockSuccess(fencedSourceBlockCustom);
+  fencedSourceBlockFailure(badFencedStart, "Fences must be alphanumeric");
 
   indentedSourceBlockSuccess(goodIndent, goodIndentParsed);
   indentedSourceBlockSuccess(allBlank, nullopt);
