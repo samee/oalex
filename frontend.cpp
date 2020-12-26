@@ -37,6 +37,15 @@ using std::vector;
 
 namespace oalex {
 
+bool Expectation::matches(bool success, const std::vector<Diag>&) const {
+  if(success!=success_) return false;
+  if(success) return true;  // Ignore errorSubstr_
+  if(!errorSubstr_.empty())
+    oalex::Unimplemented("Tests with error matches. "
+                         "Nobody is producing error diags in Rules.");
+  return true;
+}
+
 static string debug(const ExprToken& x) {
   if(auto* tok = get_if<WholeSegment>(&x)) return **tok;
   else if(auto* s = get_if<GluedString>(&x)) return "\"" + string(*s) + "\"";
