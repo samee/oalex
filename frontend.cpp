@@ -14,6 +14,7 @@
 
 #include "frontend.h"
 
+#include <iterator>
 #include <optional>
 #include <vector>
 #include "fmt/format.h"
@@ -22,6 +23,7 @@
 #include "regex_io.h"
 
 using fmt::format;
+using oalex::InputDiagsRef;
 using oalex::parseRegexCharSet;
 using oalex::lex::enPos;
 using oalex::lex::ExprToken;
@@ -30,6 +32,8 @@ using oalex::lex::isToken;
 using oalex::lex::lexNextLine;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
+using std::back_insert_iterator;
+using std::back_inserter;
 using std::nullopt;
 using std::optional;
 using std::string;
@@ -64,6 +68,62 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
   return s;
 }
 
+/*
+resemblesX() vs parseX().
+  - resemblesX() is the lookahead. It does enough sanitization to commit to
+    this parsing branch. It only returns a bool, never any diagnosis.
+  - parseX() is called after resemblesX() passes. It can still fail, but
+    is expected to produce actual diagnostics. Failure does not cause
+    backtracking. Indeed, it can choose to consume additional characters in
+    the face of an error just so subsequent parsing has a better chance
+    of making forward progress.
+*/
+static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
+  return !linetoks.empty() && isToken(linetoks[0], "require_politeness");
+}
+// Using back_insert_iterator just for being explicit in this function's
+// API contract. I.e. we don't do any vector mutation but push_back().
+static void parsePolitenessDirective(
+    const vector<ExprToken>& linetoks, InputDiagsRef ctx,
+    back_insert_iterator<vector<Rule>> rules, ssize_t nextRuleIndex,
+    back_insert_iterator<vector<Example>> examples) {
+  if(linetoks.size() != 1) {
+    Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
+    return;
+  }
+
+  *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
+                "required_hello"};
+  *rules = Rule{"Hello!"};
+  size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
+  *examples = Example{testLine, "required_hello", "Hello!",
+                      Expectation::Succeeds};
+  *examples = Example{testLine, "required_hello", "Goodbye!",
+                      Expectation::ErrorSubstr{"Failed at politeness test"}};
+}
+
+static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
+}
+static auto parseBnfRule(const vector<ExprToken>& linetoks,
+                         InputDiagsRef ctx) -> optional<Rule> {
+
+  const optional<string> ident = getIfIdent(linetoks[0]);
+  if(!ident.has_value())
+    return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
+                 "Identifier expected");
+  if(linetoks.size() < 3)
+    return Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
+                 "Rule's right-hand side missing");
+  const auto* literal = get_if<GluedString>(&linetoks[2]);
+  if(!literal)
+    return Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
+                 "Expected string literal");
+  if(linetoks.size() > 3)
+    return Error(ctx, stPos(linetoks[3]), "Expected end of line");
+  return Rule{std::move(*literal), std::move(*ident)};
+}
+
 auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
   static const auto* userRegexOpts = new RegexOptions{
@@ -88,42 +148,13 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
         FatalBug(ctx, i, "lexNextLine() returned empty before EOF");
       else break;
     }
-    if(linetoks.size() >= 2 && isToken(linetoks[1], ":=")) {
-      const optional<string> ident = getIfIdent(linetoks[0]);
-      if(!ident.has_value()) {
-        Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
-              "Identifier expected");
-        continue;
-      }
-      if(linetoks.size() < 3) {
-        Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
-              "Rule's right-hand side missing");
-        continue;
-      }
-      const auto* literal = get_if<GluedString>(&linetoks[2]);
-      if(!literal) {
-        Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
-              "Expected string literal");
-        continue;
-      }
-      if(linetoks.size() > 3) {
-        Error(ctx, stPos(linetoks[3]), "Expected end of line");
-        continue;
-      }
-      rs.rules.push_back(Rule{std::move(*literal), std::move(*ident)});
-    }else if(isToken(linetoks[0], "require_politeness")) {
-      if(linetoks.size() == 1) {
-        rs.rules.push_back(Rule{MatchOrError{ssize_t(rs.rules.size()+1),
-                                             "Failed at politeness test"},
-                                "required_hello"});
-        rs.rules.push_back(Rule{"Hello!"});
-        size_t testLine = ctx.input.rowCol(stPos(linetoks[0])).first;
-        examples.push_back({testLine, "required_hello", "Hello!",
-            Expectation::Succeeds});
-        examples.push_back({testLine, "required_hello", "Goodbye!",
-            Expectation::ErrorSubstr{"Failed at politeness test"}});
-      }
-      else Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
+    if(resemblesBnfRule(linetoks)) {
+      if(optional<Rule> r = parseBnfRule(linetoks, ctx))
+        rs.rules.push_back(std::move(*r));
+    }else if(resemblesPolitenessDirective(linetoks)) {
+      parsePolitenessDirective(linetoks, ctx,
+                               back_inserter(rs.rules), rs.rules.size(),
+                               back_inserter(examples));
     }else
       return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
                    format("Unexpected '{}', was expecting require_politeness",
