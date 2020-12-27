@@ -33,9 +33,14 @@ using oalex::lex::WholeSegment;
 using std::nullopt;
 using std::optional;
 using std::string;
+using std::to_string;
 using std::vector;
 
 namespace oalex {
+
+MappedPos::operator string() const {
+  return "line " + to_string(this->line);
+}
 
 bool Expectation::matches(bool success, const std::vector<Diag>&) const {
   if(success!=success_) return false;
@@ -111,8 +116,8 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
     }else if(isToken(linetoks[0], "require_politeness")) {
       if(linetoks.size() == 1) {
         rs.rules.push_back(Rule{"Hello!", "required_hello"});
-        examples.push_back({"required_hello", "Hello!",
-                            Expectation::Succeeds});
+        examples.push_back({ctx.input.rowCol(stPos(linetoks[0])).first,
+                            "required_hello", "Hello!", Expectation::Succeeds});
         // TODO codegen.h needs error-producing rules.
       }
       else Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
@@ -123,6 +128,14 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
   return ParsedSource{std::move(rs), std::move(examples)};
+}
+
+// TODO make this nicer. Escape with dquoted() on single-line outputs,
+// indent on multi-line.
+string describeTestFailure(const Example& ex) {
+  return format("Test failed at {}\n"
+                "Was expecting {} to succeed on input '{}'",
+                string(ex.mappedPos), ex.ruleName, ex.sampleInput);
 }
 
 }  // namespace oalex

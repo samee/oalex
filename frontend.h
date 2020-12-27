@@ -53,11 +53,24 @@ class Expectation {
   std::string errorSubstr_;
 };
 
+// Alternative to storing stPos, if we don't want to carry around InputDiags.
+// This is likely to be "heavier", since we will probably add filename and
+// start/end fields. Don't rely on these specific fields being stable.
+// We might merge this with runtime/diags.h, which needs two of these (start
+// and end).
+struct MappedPos {
+  size_t line;
+  explicit operator std::string() const;
+};
+
 struct Example {
+  MappedPos mappedPos;
   std::string ruleName;
   std::string sampleInput;
   Expectation expectation;
 };
+
+std::string describeTestFailure(const Example& ex);
 
 // TODO: augment the return type into something richer, with
 // test details and lexical directives.
