@@ -30,6 +30,9 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include "codegen.h"
 #include "frontend.h"
 #include "oalex.h"
+using oalex::Bug;
+using oalex::Diag;
+using oalex::Example;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
@@ -246,13 +249,17 @@ optional<string> fileContents(const string& filename) {
   return s;
 }
 
+void diagsToStderr(const vector<Diag>& diags) {
+  for(const auto& d : diags)
+    fprintf(stderr, "%s\n", string(d).c_str());
+}
+
 auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
   InputDiags ctx{Input{*s}};
   auto rv = parseOalexSource(ctx);
-  for(const auto& d : ctx.diags)
-    fprintf(stderr, "%s\n", string(d).c_str());
+  diagsToStderr(ctx.diags);
   return rv;
 }
 
@@ -266,6 +273,37 @@ JsonLoc processStdin(const RuleSet& rs) {
   Error(ctx, 0, "Failed at politeness test");
   for(const auto d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
+}
+
+ssize_t findRule(const RuleSet& ruleSet, string_view ruleName) {
+  for(ssize_t i=0; i*1ul<ruleSet.rules.size(); ++i)
+    if(ruleSet.rules[i].name() == ruleName) return i;
+  return -1;
+}
+
+// Returns true on success.
+bool testExample(const RuleSet& rs, const Example& ex) {
+  InputDiags ctx{Input{ex.sampleInput}};
+  ssize_t pos = 0;
+  ssize_t ruleIndex = findRule(rs, ex.ruleName);
+  if(ruleIndex < 0)
+    Bug("Rule {} not found. The frontend should have already "
+        "detected this error", ex.ruleName);
+  JsonLoc jsloc = eval(ctx, pos, rs, findRule(rs, ex.ruleName));
+  if (ex.expectation.matches(!jsloc.holdsError(), ctx.diags)) return true;
+
+  fprintf(stderr, "%s\n", describeTestFailure(ex).c_str());
+  if(!jsloc.holdsError())
+    fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());
+  diagsToStderr(ctx.diags);
+  return false;
+}
+
+bool testAllExamples(const ParsedSource& src) {
+  bool rv = true;
+  for(const Example& ex : src.examples)
+    if(!testExample(src.ruleSet, ex)) rv = false;
+  return rv;
 }
 
 }  // namespace
@@ -287,6 +325,10 @@ int main(int argc, char *argv[]) {
     JsonLoc res = processStdin(src->ruleSet);
     printf("%s\n", res.prettyPrintJson().c_str());
     return res.holdsError() ? 1 : 0;
+  }else if(cmdlineOpts->mode == CmdMode::evalTest) {
+    optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
+    if(!src.has_value()) return 1;
+    return testAllExamples(*src) ? 0 : 1;
   }else {
     fprintf(stderr, "This mode isn't implmented yet");
     return 1;
