@@ -42,13 +42,11 @@ MappedPos::operator string() const {
   return "line " + to_string(this->line);
 }
 
-bool Expectation::matches(bool success, const std::vector<Diag>&) const {
+bool Expectation::matches(bool success, const std::vector<Diag>& diags) const {
   if(success!=success_) return false;
   if(success) return true;  // Ignore errorSubstr_
-  if(!errorSubstr_.empty())
-    oalex::Unimplemented("Tests with error matches. "
-                         "Nobody is producing error diags in Rules.");
-  return true;
+  for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
+  return false;
 }
 
 static string debug(const ExprToken& x) {
@@ -115,10 +113,15 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       rs.rules.push_back(Rule{std::move(*literal), std::move(*ident)});
     }else if(isToken(linetoks[0], "require_politeness")) {
       if(linetoks.size() == 1) {
-        rs.rules.push_back(Rule{"Hello!", "required_hello"});
-        examples.push_back({ctx.input.rowCol(stPos(linetoks[0])).first,
-                            "required_hello", "Hello!", Expectation::Succeeds});
-        // TODO codegen.h needs error-producing rules.
+        rs.rules.push_back(Rule{MatchOrError{ssize_t(rs.rules.size()+1),
+                                             "Failed at politeness test"},
+                                "required_hello"});
+        rs.rules.push_back(Rule{"Hello!"});
+        size_t testLine = ctx.input.rowCol(stPos(linetoks[0])).first;
+        examples.push_back({testLine, "required_hello", "Hello!",
+            Expectation::Succeeds});
+        examples.push_back({testLine, "required_hello", "Goodbye!",
+            Expectation::ErrorSubstr{"Failed at politeness test"}});
       }
       else Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
     }else
