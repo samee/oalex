@@ -36,6 +36,7 @@ using oalex::ConcatRule;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::makeVector;
+using oalex::MatchOrError;
 using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::Regex;
@@ -66,6 +67,30 @@ void testSingleStringMismatch() {
   RuleSet rs = singletonRuleSet(msg + "!");
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
+}
+
+void testMatchOrError() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"hello-world"},
+        Rule{MatchOrError{0, "Was expecting a greeting"}}),
+    .skip{cskip},
+    .regexOpts{regexOpts},
+  };
+
+  // First, try a success case.
+  const string msg = "hello-world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc jsloc = eval(ctx, pos, rs, 1);
+  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+
+  // Then, a failure case.
+  const string msg2 = "goodbye";
+  ctx = testInputDiags(msg2);
+  pos = 0;
+  eval(ctx, pos, rs, 1);
+  assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
 void testSingleSkip() {
@@ -191,6 +216,7 @@ void testKeywordsOrNumber() {
 int main() {
   testSingleStringMatch();
   testSingleStringMismatch();
+  testMatchOrError();
   testSingleSkip();
   testSingleWordPreserving();
   testSkipFailsOnUnfinishedComment();

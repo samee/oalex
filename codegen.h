@@ -61,6 +61,14 @@ struct WordPreserving {
   const std::string* operator->() const { return &s; }
 };
 
+// This is used for initial testing only. Real-life grammars should instead
+// compose tentative-mode parsing with unconditional errors, whenever all of
+// that is implemented.
+struct MatchOrError {
+  ssize_t compidx;
+  std::string errmsg;
+};
+
 // Note: we currently don't support ExternParser in tentative contexts.
 struct ExternParser { };
 
@@ -80,7 +88,7 @@ struct Rule {
   template <class X> friend const X* get_if(const Rule* rule);
  private:
   std::variant<std::string, WordPreserving, ExternParser,
-               Regex, SkipPoint, ConcatRule, OrRule> specifics_;
+               Regex, SkipPoint, ConcatRule, OrRule, MatchOrError> specifics_;
   std::string name_;
 };
 

@@ -35,6 +35,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::makeVector;
+using oalex::MatchOrError;
 using oalex::OutputStream;
 using oalex::OrRule;
 using oalex::parseJsonLoc;
@@ -203,6 +204,18 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateMatchOrErrorTest(const OutputStream& cppos,
+                              const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"hello-world"},
+        Rule{MatchOrError{0, "Was expecting a greeting"}, "HelloWorldOrError"}),
+    .skip{cskip},
+    .regexOpts{regexOpts},
+  };
+  codegen(rs, 1, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -245,6 +258,8 @@ int main(int argc, char* argv[]) {
     generateExternParserDeclaration(cppos, hos);
     linebreaks();
     generateOrTest(cppos, hos);
+    linebreaks();
+    generateMatchOrErrorTest(cppos, hos);
     return 0;
   }catch(const oalex::UserErrorEx& ex) {
     fprintf(stderr, "%s: %s\n", argv[0], ex.what());

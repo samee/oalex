@@ -88,6 +88,14 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return out;  // Return the last error.
 }
 
+JsonLoc eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me,
+             const RuleSet& rs) {
+  ssize_t oldi = i;
+  JsonLoc out = eval(ctx, i, rs, me.compidx);
+  if(out.holdsError()) Error(ctx, oldi, i, me.errmsg);
+  return out;
+}
+
 // Using std::visit(), since we want to catch missing types at compile-time.
 static string specifics_typename(const string&) { return "string"; }
 static string specifics_typename(const WordPreserving&)
@@ -98,6 +106,7 @@ static string specifics_typename(const Regex&) { return "Regex"; }
 static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string specifics_typename(const OrRule&) { return "OrRule"; }
+static string specifics_typename(const MatchOrError&) { return "MatchOrError"; }
 
 string Rule::specifics_typename() const {
   return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
@@ -119,6 +128,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* ors = get_if<OrRule>(&r))
     return eval(ctx, i, *ors, ruleset);
+  else if(const auto* me = get_if<MatchOrError>(&r))
+    return eval(ctx, i, *me, ruleset);
   Bug("Unknown rule type {} in eval", r.specifics_typename());
 }
 
@@ -355,6 +366,18 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
 }
 
 static void
+codegen(const RuleSet& ruleset, const MatchOrError& me,
+        const OutputStream& cppos) {
+  cppos("  using oalex::Error;\n");
+  cppos("  JsonLoc  res = ");
+    codegenParserCall(ruleset.rules[me.compidx], "i", cppos);
+    cppos(";\n");
+  cppos("  if(res.holdsError())\n");
+  cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
+  cppos("  return res;\n");
+}
+
+static void
 codegen(const SkipPoint& sp, const OutputStream& cppos) {
   cppos("  using oalex::Skipper;\n");
   cppos("  static Skipper* skip = new Skipper{\n");
@@ -439,6 +462,8 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *seq, cppos);
   }else if(const auto* ors = get_if<OrRule>(&r)) {
     codegen(ruleset, *ors, cppos);
+  }else if(const auto* me = get_if<MatchOrError>(&r)) {
+    codegen(ruleset, *me, cppos);
   // TODO Implement errors, error-recovery scanner.
   }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
   cppos("}\n");
