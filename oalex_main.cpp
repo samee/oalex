@@ -291,7 +291,8 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   JsonLoc jsloc = eval(ctx, pos, rs, findRule(rs, ex.ruleName));
   if (ex.expectation.matches(!jsloc.holdsError(), ctx.diags)) return true;
 
-  fprintf(stderr, "%s\n", describeTestFailure(ex).c_str());
+  bool success = (!jsloc.holdsError() && ctx.diags.empty());
+  fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
   if(!jsloc.holdsError())
     fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());
   diagsToStderr(ctx.diags);

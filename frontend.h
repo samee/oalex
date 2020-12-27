@@ -48,6 +48,11 @@ class Expectation {
 
   bool matches(bool success, const std::vector<Diag>& diags) const;
 
+  bool isForSuccess() const { return success_; }
+  std::optional<std::string> isForErrorSubstr() const {
+    if(success_) return std::nullopt;
+    else return errorSubstr_;
+  }
  private:
   bool success_ = false;
   std::string errorSubstr_;
@@ -70,7 +75,7 @@ struct Example {
   Expectation expectation;
 };
 
-std::string describeTestFailure(const Example& ex);
+std::string describeTestFailure(const Example& ex, bool succeeded);
 
 // TODO: augment the return type into something richer, with
 // test details and lexical directives.
