@@ -1,0 +1,7 @@
+# Expected syntax error: Expected end of line
+
+require_politeness
+
+example required_hello:
+  Hello!
+outputs success and more

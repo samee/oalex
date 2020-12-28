@@ -187,6 +187,7 @@ std::optional<GluedString> lexQuotedString(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexFencedSource(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexIndentedSource(InputDiags& lex, size_t& i,
     std::string_view parindent);
+std::optional<std::string> lookaheadParIndent(InputDiags& ctx, size_t i);
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
 

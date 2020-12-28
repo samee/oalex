@@ -1,0 +1,8 @@
+# Expected syntax error: The expected error should be on this line
+
+require_politeness
+
+example required_hello:
+  Hello!
+outputs error with
+  'Some error'

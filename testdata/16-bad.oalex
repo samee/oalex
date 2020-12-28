@@ -1,0 +1,7 @@
+# Expected syntax error: Was expecting 'success' or 'error with' after this
+
+require_politeness
+
+example required_hello:
+  Hello!
+outputs 'Hello'

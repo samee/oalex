@@ -1,0 +1,6 @@
+# Expected syntax error: No indented example input follows
+
+require_politeness
+
+example required_hello:
+

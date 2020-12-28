@@ -170,6 +170,7 @@ optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
     case 'n': ch = '\n'; break;
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
+    case '\'': ch = '\''; break;
     case 'x': return lexHexCode(ctx, ++i);
     default: return Error(ctx, i-1, "Invalid escape code");
   }
@@ -568,6 +569,22 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   rst.markUsed(i);
   return qs;
 }
+
+// Can return nullopt if it's only blank lines till eof.
+// It uses oalexWSkip, since even comments of user language needs
+// to be indented. Throws if we are not at the beginning of a line, or
+// at the end of the previous line.
+optional<string>
+lookaheadParIndent(InputDiags& ctx, size_t i) {
+  Input& input = ctx.input;
+  if(i != input.bol(i))
+    FatalBug(ctx, i, "ParIndent computation cannot start mid-line");
+  i = oalexWSkip.acrossLines(input, i);
+  if(!input.sizeGt(i)) return nullopt;
+  return input.substr(input.bol(i), i-input.bol(i));
+}
+
+// TODO utility for checking leader indent.
 
 // Changes `i` iff:
 //   * We find a content line followed immediately by a line of just dashes,

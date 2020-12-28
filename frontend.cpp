@@ -16,6 +16,7 @@
 
 #include <iterator>
 #include <optional>
+#include <string_view>
 #include <vector>
 #include "fmt/format.h"
 
@@ -29,7 +30,9 @@ using oalex::lex::enPos;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
 using oalex::lex::isToken;
+using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
+using oalex::lex::lookaheadParIndent;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::back_insert_iterator;
@@ -37,6 +40,7 @@ using std::back_inserter;
 using std::nullopt;
 using std::optional;
 using std::string;
+using std::string_view;
 using std::to_string;
 using std::vector;
 
@@ -124,6 +128,71 @@ static auto parseBnfRule(const vector<ExprToken>& linetoks,
   return Rule{std::move(*literal), std::move(*ident)};
 }
 
+static bool matchesTokens(const vector<ExprToken>& tokens,
+                          vector<string_view> expectations) {
+  if(tokens.size() < expectations.size()) return false;
+  for(size_t i=0; i<expectations.size(); ++i)
+    if(!isToken(tokens[i], expectations[i])) return false;
+  return true;
+}
+
+// Checks second token just so it is not a BNF rule of the form
+// `example :=`. We want to avoid requiring too many reserved keywords
+// if possible.
+static bool resemblesExample(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 2 && isToken(linetoks[0], "example")
+         && getIfIdent(linetoks[1]).has_value();
+}
+// Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
+auto parseExample(const vector<ExprToken>& linetoks,
+                  InputDiags& ctx, size_t& i) -> optional<Example> {
+  if(linetoks.size() < 3 || !isToken(linetoks[2], ":"))
+    return Error(ctx, enPos(linetoks[1]), "Was expecting a ':' after this");
+  if(linetoks.size() > 3)
+    return Error(ctx, stPos(linetoks[3]),
+                 "Example input needs to be on the following line");
+  Example rv;
+  // Guaranteed to succeed by resemblesExample().
+  rv.ruleName = *getIfIdent(linetoks[1]);
+
+  // TODO make sure "example" is indented less than the source, and everything
+  // that follows is indented more than the "example" keyword.
+  optional<GluedString> sampleInput;
+  if(auto ind = lookaheadParIndent(ctx, i))
+    sampleInput = lexIndentedSource(ctx, i, *ind);
+  if(!sampleInput.has_value())
+    return Error(ctx, i, "No indented example input follows");
+  rv.sampleInput = std::move(*sampleInput);
+
+  vector<ExprToken> linetoks2;
+  if(auto opt = lexNextLine(ctx, i)) linetoks2 = *opt;
+  else return nullopt;
+
+  if(matchesTokens(linetoks2, {"outputs", "success"})) {
+    if(linetoks2.size() > 2)
+      return Error(ctx, stPos(linetoks2[2]), "Expected end of line");
+    rv.expectation = Expectation::Success;
+  }
+  else if(matchesTokens(linetoks2, {"outputs", "error", "with"})) {
+    if(linetoks2.size() < 4)
+      return Error(ctx, enPos(linetoks2[2]),
+                   "The expected error should be on this line");
+    const auto* s = get_if<GluedString>(&linetoks2[3]);
+    if(s == nullptr || s->ctor() != GluedString::Ctor::squoted)
+      return Error(ctx, stPos(linetoks2[3]),
+                   "The expected error should be 'single-quoted'");
+    rv.expectation = Expectation::ErrorSubstr{string(*s)};
+    if(linetoks2.size() > 4)
+      return Error(ctx, stPos(linetoks2[4]), "Expected end of line");
+  }else if(matchesTokens(linetoks2, {"outputs"}))
+    return Error(ctx, enPos(linetoks2[0]),
+                 "Was expecting 'success' or 'error with' after this");
+  else return Error(ctx, i, "Was expecting 'outputs'");
+
+  // FIXME invalid escape code error appeared multiple times.
+  return rv;
+}
+
 auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
   static const auto* userRegexOpts = new RegexOptions{
@@ -155,12 +224,17 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       parsePolitenessDirective(linetoks, ctx,
                                back_inserter(rs.rules), rs.rules.size(),
                                back_inserter(examples));
+    }else if(resemblesExample(linetoks)) {
+      if(auto ex = parseExample(linetoks, ctx, i))
+        examples.push_back(std::move(*ex));
     }else
       return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
-                   format("Unexpected '{}', was expecting require_politeness",
+                   format("Unexpected '{}', was expecting 'example' or "
+                          "'require_politeness'",
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
+  // TODO check for duplicate Rule names.
   return ParsedSource{std::move(rs), std::move(examples)};
 }
 
