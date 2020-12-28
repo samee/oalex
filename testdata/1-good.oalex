@@ -2,3 +2,11 @@
 
 require_politeness
 another_string := "something else"
+
+example required_hello:
+  Hello!
+outputs success
+
+example required_hello:
+  Go away!
+outputs error with 'Failed at politeness'

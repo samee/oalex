@@ -38,44 +38,36 @@ for cmd, error_re in errorcases:
     print(f"Expected '{error_re}'\nGot {result.stderr!r}")
     sys.exit(1)
 
-# Dummy input test case
-result = subprocess.run(
-           [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
-           input=b"Hello!\n", capture_output=True)
-output = json.loads(result.stdout.decode('utf-8'))
-expected = json.loads('{"msg": "Hello!"}')
-assert result.returncode == 0, "1-good.oalex exited with non-zero result"
-
-result = subprocess.run(
-           [sysargs.bin, os.path.join(sysargs.testdata, "1-good.oalex")],
-           input=b"Go away!\n", capture_output=True)
-if "Failed at politeness" not in result.stderr.decode('utf-8'):
-  print("Failed to detect rudeness in 1-good.oalex")
-  sys.exit(1)
-
-
 def find_expected_error(filename: str) -> str:
   directive = "# Expected syntax error:"
   with open(os.path.join(sysargs.testdata, filename), mode='r') as f:
     for line in f:
       if line.startswith(directive):
         return line[len(directive):].strip()
-  raise SyntaxError(f"Syntax error directive not found in {str}")
+  return None
 
-# TODO merge good and bad tests when we have examples working.
-# TODO traverse directory to find files.
-errorcases = [ "1-bad.oalex", "2-bad.oalex", "3-bad.oalex", "4-bad.oalex",
-               "5-bad.oalex", "6-bad.oalex", "7-bad.oalex", "8-bad.oalex",
-               "9-bad.oalex", "10-bad.oalex", "11-bad.oalex", "12-bad.oalex",
-               "13-bad.oalex", "14-bad.oalex", "15-bad.oalex", "16-bad.oalex" ]
+testfiles = []
+with os.scandir(sysargs.testdata) as dir_entries:
+  for entry in dir_entries:
+    if entry.name.endswith('.oalex') and entry.is_file():
+      testfiles.append(entry.name)
 
-for filename in errorcases:
+for filename in testfiles:
   expected_error = find_expected_error(filename)
-  result = subprocess.run(
-             [sysargs.bin, os.path.join(sysargs.testdata, filename)],
-             input="", capture_output=True)
-  assert result.returncode != 0, f"{filename} was expected to cause failure"
-  observed_error = result.stderr.decode('utf-8')
-  assert expected_error in observed_error, \
-         f"Was expecting '{expected_error}' in '{filename}'\n" + \
-         ("Got this instead:\n" + observed_error if observed_error else "")
+  if expected_error:
+    result = subprocess.run(
+               [sysargs.bin, os.path.join(sysargs.testdata, filename)],
+               input="", capture_output=True)
+    assert result.returncode != 0, f"{filename} was expected to cause failure"
+    observed_error = result.stderr.decode('utf-8')
+    assert expected_error in observed_error, \
+           f"Was expecting '{expected_error}' in '{filename}'\n" + \
+           ("Got this instead:\n" + observed_error if observed_error else "")
+  else:
+    result = subprocess.run(
+               [sysargs.bin, "test", os.path.join(sysargs.testdata, filename)],
+               capture_output=True)
+    if result.returncode != 0:
+      print(f"`oalex test` failed on {filename}. Error output:")
+      print(result.stderr.decode("utf-8"))
+      sys.exit(1)

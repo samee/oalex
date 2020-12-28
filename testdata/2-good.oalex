@@ -1,0 +1,10 @@
+
+byebye := "Goodbye"
+
+example byebye:
+  Goodbye
+outputs success
+
+example byebye:
+  Good morning
+outputs error with 'Expected \'Goodbye\''
