@@ -77,8 +77,6 @@ struct Example {
 
 std::string describeTestFailure(const Example& ex, bool succeeded);
 
-// TODO: augment the return type into something richer, with
-// test details and lexical directives.
 auto parseOalexSource(InputDiags& ctx) -> std::optional<ParsedSource>;
 
 }  // namespace oalex
