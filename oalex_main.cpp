@@ -251,7 +251,7 @@ optional<string> fileContents(const string& filename) {
 
 void diagsToStderr(const vector<Diag>& diags) {
   for(const auto& d : diags)
-    fprintf(stderr, "%s\n", string(d).c_str());
+    fprintf(stderr, "  %s\n", string(d).c_str());
 }
 
 auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
@@ -295,6 +295,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
   if(!jsloc.holdsError())
     fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());
+  fprintf(stderr, "Errors received:\n");
   diagsToStderr(ctx.diags);
   return false;
 }

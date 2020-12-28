@@ -109,23 +109,34 @@ static void parsePolitenessDirective(
 static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
-static auto parseBnfRule(const vector<ExprToken>& linetoks,
-                         InputDiagsRef ctx) -> optional<Rule> {
-
+static void parseBnfRule(const vector<ExprToken>& linetoks,
+                         InputDiagsRef ctx,
+                         back_insert_iterator<vector<Rule>> rules,
+                         ssize_t nextRuleIndex) {
   const optional<string> ident = getIfIdent(linetoks[0]);
-  if(!ident.has_value())
-    return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
-                 "Identifier expected");
-  if(linetoks.size() < 3)
-    return Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
-                 "Rule's right-hand side missing");
+  if(!ident.has_value()) {
+    Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]), "Identifier expected");
+    return;
+  }
+  if(linetoks.size() < 3) {
+    Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
+          "Rule's right-hand side missing");
+    return;
+  }
   const auto* literal = get_if<GluedString>(&linetoks[2]);
-  if(!literal)
-    return Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
-                 "Expected string literal");
-  if(linetoks.size() > 3)
-    return Error(ctx, stPos(linetoks[3]), "Expected end of line");
-  return Rule{std::move(*literal), std::move(*ident)};
+  if(!literal) {
+    Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
+          "Expected string literal");
+    return;
+  }
+  if(linetoks.size() > 3) {
+    Error(ctx, stPos(linetoks[3]), "Expected end of line");
+    return;
+  }
+  *rules = Rule{MatchOrError{
+             nextRuleIndex+1, format("Expected '{}'", *literal)
+           }, *ident};
+  *rules = Rule{std::move(*literal), std::move(*ident)};
 }
 
 static bool matchesTokens(const vector<ExprToken>& tokens,
@@ -218,8 +229,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       else break;
     }
     if(resemblesBnfRule(linetoks)) {
-      if(optional<Rule> r = parseBnfRule(linetoks, ctx))
-        rs.rules.push_back(std::move(*r));
+      parseBnfRule(linetoks, ctx, back_inserter(rs.rules), rs.rules.size());
     }else if(resemblesPolitenessDirective(linetoks)) {
       parsePolitenessDirective(linetoks, ctx,
                                back_inserter(rs.rules), rs.rules.size(),
