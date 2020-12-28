@@ -97,7 +97,7 @@ static void parsePolitenessDirective(
   *rules = Rule{"Hello!"};
   size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
   *examples = Example{testLine, "required_hello", "Hello!",
-                      Expectation::Succeeds};
+                      Expectation::Success};
   *examples = Example{testLine, "required_hello", "Goodbye!",
                       Expectation::ErrorSubstr{"Failed at politeness test"}};
 }

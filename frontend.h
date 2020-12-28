@@ -32,17 +32,17 @@ struct ParsedSource {
 };
 
 // This is the output component of each example.
-// Initialized either as Expectation::Succeeds, or as
+// Initialized either as Expectation::Success, or as
 // Expectation::ErrorSubstr{msg}.
 // TODO: add a JsonLoc field, both as a class member and as a matches() param.
 class Expectation {
  public:
   // Constructor tags
-  static struct Succeeds_t {} Succeeds;
+  static struct Success_t {} Success;
   struct ErrorSubstr { std::string msg; };
 
   Expectation() = default;
-  Expectation(Succeeds_t) : success_{true} {}  // implicit ctor
+  Expectation(Success_t) : success_{true} {}  // implicit ctor
   Expectation(ErrorSubstr f)  // implicit ctor
     : success_{false}, errorSubstr_{std::move(f.msg)} {}
 
