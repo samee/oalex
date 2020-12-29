@@ -22,38 +22,45 @@ add_library(oalex-bin-lib STATIC codegen.cpp jsonloc_io.cpp lexer.cpp
                                  regex_io.cpp template.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
-add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp)
+add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(lexer_test oalex-bin-lib)
 add_test(lexer_test lexer_test)
 
-add_executable(codegen_test codegen_test.cpp codegen_test_util.cpp)
+add_executable(codegen_test codegen_test.cpp codegen_test_util.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(codegen_test oalex-bin-lib)
 add_test(codegen_test codegen_test)
 
-add_executable(codegen_gen_test codegen_gen_test.cpp codegen_test_util.cpp)
+add_executable(codegen_gen_test codegen_gen_test.cpp codegen_test_util.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(codegen_gen_test oalex-bin-lib)
 add_custom_command(OUTPUT codegen_generated.cpp codegen_generated.h
                    COMMAND codegen_gen_test -o codegen_generated
                    DEPENDS codegen_gen_test)
 add_executable(codegen_run_test codegen_run_test.cpp codegen_test_util.cpp
-               codegen_generated.cpp)
+               codegen_generated.cpp $<TARGET_OBJECTS:diags_test_util>)
 target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(codegen_run_test oalex-bin-lib)
 add_test(codegen_run_test codegen_run_test)
 
-add_executable(jsonloc_io_test jsonloc_io_test.cpp)
+add_executable(jsonloc_io_test jsonloc_io_test.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(jsonloc_io_test oalex-bin-lib)
 add_test(jsonloc_io_test jsonloc_io_test)
 
-add_executable(regex_io_test regex_io_test.cpp)
+add_executable(regex_io_test regex_io_test.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(regex_io_test oalex-bin-lib)
 add_test(regex_io_test regex_io_test)
 
-add_executable(ident_test ident.cpp ident_test.cpp)
+add_executable(ident_test ident.cpp ident_test.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
-add_executable(template_test template_test.cpp ident.cpp)
+add_executable(template_test template_test.cpp ident.cpp
+               $<TARGET_OBJECTS:diags_test_util>)
 target_link_libraries(template_test oalex-bin-lib)
 add_test(template_test template_test)
 

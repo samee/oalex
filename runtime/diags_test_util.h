@@ -19,48 +19,23 @@
 #include "test_util.h"
 #include "util-impl.h"  // Hoping to remove this soon.
 
-inline void showDiags(const std::vector<oalex::Diag>& diags) {
-  fmt::memory_buffer buf;
-  fmt::format_to(buf, "diags:\n");
-  for(const auto& d : diags) fmt::format_to(buf, "  {}\n", std::string(d));
-  oalex::BugWarn("{}", fmt::to_string(buf));
-}
+void showDiags(const std::vector<oalex::Diag>& diags);
 
-inline void assertHasDiagWithSubstr(std::string_view testName,
-                                    const std::vector<oalex::Diag>& diags,
-                                    std::string_view expectedDiag) {
-  using oalex::Diag;
-  for(const Diag& d : diags) if(oalex::isSubstr(expectedDiag, d.msg)) return;
-  showDiags(diags);
-  oalex::Bug("{} didn't get the expected diag: {}",
-             testName, expectedDiag);
-}
+void assertHasDiagWithSubstr(std::string_view testName,
+                             const std::vector<oalex::Diag>& diags,
+                             std::string_view expectedDiag);
 
-inline void assertHasDiagWithSubstrAt(std::string_view testName,
-                                      const std::vector<oalex::Diag>& diags,
-                                      std::string_view expectedDiag,
-                                      size_t expectedStPos) {
-  using oalex::Diag;
-  for(const Diag& d : diags) {
-    if(d.stPos != expectedStPos+1) continue;  // The +1 is from Diags() ctor
-    if(!oalex::isSubstr(expectedDiag, d.msg)) continue;
-    return;
-  }
-  showDiags(diags);
-  oalex::Bug("{} didn't get the expected diag at position {}: {}",
-             testName, expectedStPos, expectedDiag);
-}
+void assertHasDiagWithSubstrAt(std::string_view testName,
+                               const std::vector<oalex::Diag>& diags,
+                               std::string_view expectedDiag,
+                               size_t expectedStPos);
 
-inline oalex::InputDiags testInputDiags(std::string_view s) {
-  return oalex::InputDiags{oalex::Input(oalex::GetFromString(s))};
-}
+// TODO remove this function if no longer necessary.
+// Input{} has string ctor now.
+oalex::InputDiags testInputDiags(std::string_view s);
 
-inline void assertEmptyDiags(std::string_view testName,
-                      const std::vector<oalex::Diag>& diags) {
-  if(diags.empty()) return;
-  for(const auto& d:diags) fmt::print(stderr, "{}\n", std::string(d));
-  oalex::Bug("{} had unexpected errors", testName);
-}
+void assertEmptyDiags(std::string_view testName,
+                      const std::vector<oalex::Diag>& diags);
 
 template <class Cb>
 void assertProducesDiag(std::string_view testName, std::string_view input,
