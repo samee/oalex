@@ -28,7 +28,6 @@ using oalex::move_to_unique;
 using oalex::parseRegexCharSet;
 using oalex::parseRegex;
 using oalex::prettyPrint;
-using oalex::UserErrorEx;
 using oalex::CharRange;
 using oalex::Regex;
 using oalex::RegexAnchor;

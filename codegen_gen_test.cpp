@@ -219,50 +219,45 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
 }  // namespace
 
 int main(int argc, char* argv[]) {
-  try {
-    CmdLineOpts opts = parseCmdLine(argc, argv);
-    auto cppfp = fopenw(opts.outputCppPath);
-    auto hfp = fopenw(opts.outputHPath);
-    fputs("#pragma once\n"
-          "#include <cstdint>\n"
-          "#include <oalex.h>\n\n"
-          "extern oalex::JsonLoc\n"
-          "  parseAsgnStmt(oalex::InputDiags& ctx, size_t& i);\n"
-          "extern bool goodFunc();\n"
-          "extern bool badFunc();\n\n", hfp.get());
-    fprintf(cppfp.get(),
-            "#include \"%s\"\n"
-            "using oalex::InputDiags;\n"
-            "using oalex::JsonLoc;\n\n"
-            "JsonLoc parseAsgnStmt(InputDiags&, size_t&) {\n"
-            "  // Unimplemented\n"
-            "  return JsonLoc::ErrorValue{};\n"
-            "}\n\n"
-            "bool goodFunc() { return true; }\n"
-            "bool badFunc()  { return false; }\n\n",
-            opts.hPathAsIncluded.c_str());
-    using std::placeholders::_1;
-    auto cppos = bind(writeOrFail, cppfp.get(), _1);
-    auto hos = bind(writeOrFail, hfp.get(), _1);
-    auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
+  CmdLineOpts opts = parseCmdLine(argc, argv);
+  auto cppfp = fopenw(opts.outputCppPath);
+  auto hfp = fopenw(opts.outputHPath);
+  fputs("#pragma once\n"
+        "#include <cstdint>\n"
+        "#include <oalex.h>\n\n"
+        "extern oalex::JsonLoc\n"
+        "  parseAsgnStmt(oalex::InputDiags& ctx, size_t& i);\n"
+        "extern bool goodFunc();\n"
+        "extern bool badFunc();\n\n", hfp.get());
+  fprintf(cppfp.get(),
+          "#include \"%s\"\n"
+          "using oalex::InputDiags;\n"
+          "using oalex::JsonLoc;\n\n"
+          "JsonLoc parseAsgnStmt(InputDiags&, size_t&) {\n"
+          "  // Unimplemented\n"
+          "  return JsonLoc::ErrorValue{};\n"
+          "}\n\n"
+          "bool goodFunc() { return true; }\n"
+          "bool badFunc()  { return false; }\n\n",
+          opts.hPathAsIncluded.c_str());
+  using std::placeholders::_1;
+  auto cppos = bind(writeOrFail, cppfp.get(), _1);
+  auto hos = bind(writeOrFail, hfp.get(), _1);
+  auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
-    // TODO first-class support for multiple RuleSets in a file.
-    codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
-    linebreaks(); generateSingleStringTest(cppos, hos);
-    linebreaks();
-    linebreaks();
-    generateSingleRegexTest(cppos, hos);
-    linebreaks();
-    generateConcatTest(cppos, hos);
-    linebreaks();
-    generateExternParserDeclaration(cppos, hos);
-    linebreaks();
-    generateOrTest(cppos, hos);
-    linebreaks();
-    generateMatchOrErrorTest(cppos, hos);
-    return 0;
-  }catch(const oalex::UserErrorEx& ex) {
-    fprintf(stderr, "%s: %s\n", argv[0], ex.what());
-    return 1;
-  }
+  // TODO first-class support for multiple RuleSets in a file.
+  codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
+  linebreaks(); generateSingleStringTest(cppos, hos);
+  linebreaks();
+  linebreaks();
+  generateSingleRegexTest(cppos, hos);
+  linebreaks();
+  generateConcatTest(cppos, hos);
+  linebreaks();
+  generateExternParserDeclaration(cppos, hos);
+  linebreaks();
+  generateOrTest(cppos, hos);
+  linebreaks();
+  generateMatchOrErrorTest(cppos, hos);
+  return 0;
 }
