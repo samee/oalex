@@ -15,6 +15,7 @@
 #include "input_view.h"
 #include "test_util.h"
 #include "util.h"
+#include "util-impl.h"  // Hoping to remove this soon.
 
 #include <random>
 #include "fmt/core.h"

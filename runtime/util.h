@@ -15,7 +15,6 @@
 #pragma once
 #include<cstdio>
 #include<memory>
-#include<stdexcept>
 #include<variant>
 #include"fmt/core.h"
 
@@ -29,13 +28,11 @@ namespace oalex {
 //   Debug("More message about {}", x);  // Never in checked-in code.
 //
 // TODO: adopt std::format() whenever it becomes available and stable.
-struct BugEx : std::logic_error {
-  BugEx(const std::string& s) : std::logic_error(s) {}
-};
 
+[[noreturn]] void BugImplHelper(const char* fmt, fmt::format_args args);
 template <class ... Args>
 [[noreturn]] void Bug(const char* fmt, const Args& ... args) {
-  throw BugEx(fmt::format(fmt, args...));
+  BugImplHelper(fmt, fmt::make_format_args(args...));
 }
 
 template <class ... Args>
@@ -44,12 +41,11 @@ template <class ... Args>
   std::abort();
 }
 
-struct UnimplementedEx : BugEx {
-  UnimplementedEx(const std::string& msg) : BugEx(msg) {}
-};
+[[noreturn]] void
+UnimplementedImplHelper(const char* fmt, fmt::format_args args);
 template <class ... Args>
 [[noreturn]] void Unimplemented(const char* fmt, const Args& ... args) {
-  throw UnimplementedEx(fmt::format(fmt, args...));
+  UnimplementedImplHelper(fmt, fmt::make_format_args(args...));
 }
 
 template <class ... Args>
@@ -58,12 +54,11 @@ void Debug(const char* fmt, const Args& ... args) {
   fmt::print(stderr, "\n");
 }
 
-struct UserErrorEx : std::runtime_error {
-  UserErrorEx(const std::string& s) : std::runtime_error(s) {}
-};
+[[noreturn]] void
+UserErrorImplHelper(const char* fmt, fmt::format_args args);
 template <class ... Args>
 [[noreturn]] void UserError(const char* fmt, const Args& ... args) {
-  throw UserErrorEx(fmt::format(fmt, args...));
+  UserErrorImplHelper(fmt, fmt::make_format_args(args...));
 }
 
 template <class ... Args>

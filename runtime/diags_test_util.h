@@ -17,6 +17,7 @@
 
 #include "diags.h"
 #include "test_util.h"
+#include "util-impl.h"  // Hoping to remove this soon.
 
 inline void showDiags(const std::vector<oalex::Diag>& diags) {
   fmt::memory_buffer buf;
