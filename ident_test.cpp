@@ -29,7 +29,7 @@ void testParseErrors() {
     {"1world", "cannot start with a digit"},
   };
   for(const auto& [s,err] : tests) {
-    assertProducesDiag(__func__, s, err, Ident::parse);
+    assertProducesDiag(__func__, s, err, OALEX_VOIDIFY(Ident::parse));
   }
 }
 

@@ -270,7 +270,8 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
 
 void fencedSourceBlockFailureImpl(const char testInput[], const char testName[],
                                   string_view expectedDiag) {
-  assertProducesDiag(testName, testInput, expectedDiag, lexFencedSource);
+  assertProducesDiag(testName, testInput, expectedDiag,
+                     OALEX_VOIDIFY(lexFencedSource));
 }
 
 const char goodIndent[] = R"(
@@ -390,7 +391,7 @@ void lookaheadNulloptOnEof() {
 void lookaheadThrowsOnInvalidChar() {
   string input = "\b";
   assertProducesDiag(__func__, "\b", "Unexpected character",
-                     +[](InputDiags& ctx, size_t& i) { lookahead(ctx, i); });
+                     OALEX_VOIDIFY(lookahead));
 }
 
 // Within brackets, we ignore all indentation.
@@ -460,7 +461,8 @@ void bracketGroupFailureImpl(const char testName[], string input,
 }
 
 void bracketGroupThrows(string input, string expectedDiag) {
-  assertProducesDiag(__func__, input, expectedDiag, lexBracketGroup);
+  assertProducesDiag(__func__, input, expectedDiag,
+                     OALEX_VOIDIFY(lexBracketGroup));
 }
 
 void newlinePositionIsCorrect() {

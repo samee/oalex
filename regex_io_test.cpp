@@ -196,7 +196,7 @@ void testParseDiags() {
     {"/a++++++/", "Too many consecutive repeat operators"},
   };
   for(auto& [input, msg] : testVectors) {
-    assertProducesDiag(__func__, input, msg, parseRegex);
+    assertProducesDiag(__func__, input, msg, OALEX_VOIDIFY(parseRegex));
   }
 }
 

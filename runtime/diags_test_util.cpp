@@ -13,6 +13,8 @@
     limitations under the License. */
 
 #include "diags_test_util.h"
+#include "fmt/format.h"
+#include "util-impl.h"
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Diag;
@@ -20,6 +22,7 @@ using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::isSubstr;
+using oalex::UserErrorEx;
 using fmt::format_to;
 using fmt::memory_buffer;
 using fmt::print;
@@ -62,4 +65,17 @@ void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   if(diags.empty()) return;
   for(const auto& d:diags) print(stderr, "{}\n", string(d));
   Bug("{} had unexpected errors", testName);
+}
+
+void assertProducesDiag(std::string_view testName, std::string_view input,
+                        std::string_view err,
+                        void (*cb)(oalex::InputDiags&, size_t&)) {
+  InputDiags ctx{Input{GetFromString(input)}};
+  size_t i = 0;
+  try {
+    cb(ctx, i);
+  }catch(UserErrorEx& ex) {
+    Error(ctx,0,0,ex.what());  // demote Fatal() error to non-fatal.
+  }
+  assertHasDiagWithSubstr(testName, ctx.diags, err);
 }

@@ -16,7 +16,6 @@
 
 #include "diags.h"
 #include "test_util.h"
-#include "util-impl.h"  // Hoping to remove this soon.
 
 void showDiags(const std::vector<oalex::Diag>& diags);
 
@@ -36,15 +35,12 @@ oalex::InputDiags testInputDiags(std::string_view s);
 void assertEmptyDiags(std::string_view testName,
                       const std::vector<oalex::Diag>& diags);
 
-template <class Cb>
+// Often, the cb parameter of assertProducesDiags() has an extra return value
+// that we don't care about in assertProducesDiag(). Using a macro on the
+// caller-side (as opposed to a template here) lets us use vanilla function
+// pointers instead of closures that need capture.
+#define OALEX_VOIDIFY(fun) (+[](oalex::InputDiags& a, size_t& b) { fun(a, b); })
+
 void assertProducesDiag(std::string_view testName, std::string_view input,
-                        std::string_view err, Cb cb) {
-  oalex::InputDiags ctx{oalex::Input{oalex::GetFromString(input)}};
-  size_t i = 0;
-  try {
-    cb(ctx, i);
-  }catch(oalex::UserErrorEx& ex) {
-    Error(ctx,0,0,ex.what());  // demote Fatal() error to non-fatal.
-  }
-  assertHasDiagWithSubstr(testName, ctx.diags, err);
-}
+                        std::string_view err,
+                        void (*cb)(oalex::InputDiags&, size_t&));
