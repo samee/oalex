@@ -15,9 +15,6 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
-#include <type_traits>
-
-// TODO change dfa.cpp to use segment. dynamic_cast is too heavyweight.
 
 // As of now (C++17) sum types are still a bit awkward in C++.
 // dynamic_cast is designed for unbounded type families. Here's my attempt at
@@ -57,10 +54,3 @@ struct Segment {
   tagint_t tag;
   static constexpr tagint_t lastReservedTag = 31;
 };
-
-template <class T>
-const T* segment_cast(const Segment* sv) {
-  static_assert(std::is_base_of_v<Segment,T>,
-                "segment_cast called on non-Segment type");
-  return sv->tag==T::type_tag ? static_cast<const T*>(sv) : nullptr;
-}
