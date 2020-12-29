@@ -13,7 +13,6 @@
     limitations under the License. */
 #pragma once
 #include <string_view>
-#include "fmt/format.h"
 
 #include "diags.h"
 #include "test_util.h"
@@ -40,7 +39,7 @@ void assertEmptyDiags(std::string_view testName,
 template <class Cb>
 void assertProducesDiag(std::string_view testName, std::string_view input,
                         std::string_view err, Cb cb) {
-  oalex::InputDiags ctx{oalex::Input{std::string(input)}};
+  oalex::InputDiags ctx{oalex::Input{oalex::GetFromString(input)}};
   size_t i = 0;
   try {
     cb(ctx, i);

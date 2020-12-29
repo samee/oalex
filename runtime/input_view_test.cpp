@@ -13,9 +13,9 @@
     limitations under the License. */
 
 #include "input_view.h"
+#include "diags_test_util.h"
 #include "test_util.h"
 #include "util.h"
-#include "util-impl.h"  // Hoping to remove this soon.
 
 #include <random>
 #include "fmt/core.h"
@@ -108,15 +108,9 @@ void testDataMatchesString(const string& s, size_t avgWindowLen) {
 
 void testLineTooLong() {
   string s(Input::defaultMaxLineLength+1,'-');
-  Input input((GetFromString(s)));
-  try {
-    char ch = input[input.maxLineLength()];
-    BugMe("Got input[i] == '{}', was expecting an exception", ch);
-  }catch(oalex::UserErrorEx& ex) {
-    const char expected[] = "Line 1 is too long";
-    if(string(ex.what()).find(expected)==string::npos)
-      BugMe("substr mismatch: \"{}\" is not in \"{}\"", expected, ex.what());
-  }
+  assertProducesDiag(__func__, s, "Line 1 is too long",
+                     +[](oalex::InputDiags& ctx, size_t&)
+                       { ctx.input[ctx.input.maxLineLength()]; });
   string t(Input::defaultMaxLineLength, '-');
   Input input2((GetFromString("\n" + t)));
   input2[input2.maxLineLength()];  // No exceptions.

@@ -18,7 +18,7 @@
 #include <string>
 #include <string_view>
 
-#include "fmt/core.h"
+#include "fmt/format.h"
 
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
@@ -39,7 +39,6 @@ using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
-using oalex::UserErrorEx;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
@@ -390,14 +389,8 @@ void lookaheadNulloptOnEof() {
 
 void lookaheadThrowsOnInvalidChar() {
   string input = "\b";
-  InputDiags ctx{testInputDiags(input)};
-  try {
-    auto tok = lookahead(ctx,0);
-    BugMe("Succeeded unexpectedly, got {}", (tok?tok->data:"<nullopt>"s));
-  }catch(const UserErrorEx& ex) {
-    if(string(ex.what()).find("Unexpected character") == string::npos)
-      BugMe("Not the expected Fatal() error: {}", ex.what());
-  }
+  assertProducesDiag(__func__, "\b", "Unexpected character",
+                     +[](InputDiags& ctx, size_t& i) { lookahead(ctx, i); });
 }
 
 // Within brackets, we ignore all indentation.
@@ -467,15 +460,7 @@ void bracketGroupFailureImpl(const char testName[], string input,
 }
 
 void bracketGroupThrows(string input, string expectedDiag) {
-  InputDiags ctx{testInputDiags(input)};
-  size_t i = 0;
-  try {
-    auto bg = lexBracketGroup(ctx,i);
-    BugMe("Succeeded unexpectedly, got {}", (bg?debug(*bg):"nullopt"));
-  }catch(const UserErrorEx& ex) {
-    if(string(ex.what()).find(expectedDiag) == string::npos)
-      BugMe("Not the expected Fatal() error: {}", ex.what());
-  }
+  assertProducesDiag(__func__, input, expectedDiag, lexBracketGroup);
 }
 
 void newlinePositionIsCorrect() {
