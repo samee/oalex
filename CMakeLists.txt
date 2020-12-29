@@ -14,7 +14,7 @@ include(FetchContent)
 FetchContent_Declare(
   fmt
   GIT_REPOSITORY https://github.com/fmtlib/fmt.git
-  GIT_TAG 19bd751020a1f3c3363b2eb67a039852f139a8d3)  # 6.2.1
+  GIT_TAG 7bdf0628b1276379886c7f6dda2cef2b3b374f0b)  # 7.1.3
 FetchContent_MakeAvailable(fmt)
 include_directories(${fmt_SOURCE_DIR}/include)
 
