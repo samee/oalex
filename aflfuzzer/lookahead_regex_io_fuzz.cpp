@@ -28,7 +28,7 @@
 #include <string_view>
 #include <vector>
 #include "runtime/test_util.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;

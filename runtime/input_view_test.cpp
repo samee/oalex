@@ -17,7 +17,7 @@
 #include "util.h"
 
 #include <random>
-#include "fmt/format.h"
+#include "fmt/core.h"
 using std::bernoulli_distribution;
 using std::default_random_engine;
 using std::make_pair;

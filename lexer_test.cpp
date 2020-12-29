@@ -18,7 +18,7 @@
 #include <string>
 #include <string_view>
 
-#include "fmt/format.h"
+#include "fmt/core.h"
 
 #include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"

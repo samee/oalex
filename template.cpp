@@ -17,7 +17,7 @@
 #include <iterator>
 #include <map>
 #include <type_traits>
-#include "fmt/format.h"
+#include "fmt/core.h"
 #include "runtime/util.h"
 using fmt::format;
 using std::get_if;

@@ -47,7 +47,7 @@
 #include<set>
 #include<variant>
 #include<vector>
-#include"fmt/format.h"
+#include"fmt/core.h"
 
 #include"input_view_auto_forget.h"
 

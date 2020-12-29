@@ -14,7 +14,7 @@
 
 #include "lexer_matcher.h"
 #include "runtime/util.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 using std::get_if;
 using std::holds_alternative;
 using std::nullopt;

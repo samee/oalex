@@ -14,7 +14,7 @@
 
 #include "diags.h"
 #include "util.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 #include <string>
 using fmt::format;
 using std::string;

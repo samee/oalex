@@ -14,7 +14,7 @@
 
 #include "codegen_test_util.h"
 #include <string_view>
-#include "fmt/format.h"
+#include "fmt/core.h"
 #include "runtime/test_util.h"
 using fmt::format;
 using std::string;

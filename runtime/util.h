@@ -17,7 +17,7 @@
 #include<memory>
 #include<stdexcept>
 #include<variant>
-#include"fmt/format.h"
+#include"fmt/core.h"
 
 namespace oalex {
 

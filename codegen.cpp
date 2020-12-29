@@ -20,7 +20,7 @@
 #include <utility>
 #include <vector>
 #include "oalex.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 using fmt::format;
 using oalex::is_in;
 using oalex::Regex;

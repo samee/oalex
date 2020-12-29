@@ -46,7 +46,7 @@
 #include <string>
 #include <string_view>
 #include <vector>
-#include "fmt/format.h"
+#include "fmt/core.h"
 
 #include "segment.h"
 #include "runtime/input_view.h"

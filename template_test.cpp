@@ -15,7 +15,7 @@
 #include "template.h"
 #include "lexer.h"
 #include "regex_io.h"
-#include "fmt/format.h"
+#include "fmt/core.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/input_view.h"
 #include "runtime/test_util.h"
