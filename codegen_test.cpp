@@ -18,6 +18,7 @@
 #include "jsonloc_io_test.h"
 #include "regex_io.h"
 #include "fmt/core.h"
+#include "runtime/test_util.h"
 #include "runtime/diags_test_util.h"
 #include <iterator>
 #include <string_view>

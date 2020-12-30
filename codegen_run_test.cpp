@@ -24,6 +24,7 @@
 #include <utility>
 #include "lexer.h"
 #include "jsonloc_io_test.h"
+#include "runtime/test_util.h"
 #include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::assertEqual;

@@ -2,6 +2,7 @@
 #include<set>
 #include<unordered_set>
 #include<string_view>
+#include"runtime/test_util.h"
 #include"runtime/diags_test_util.h"
 using namespace oalex;
 using namespace std;

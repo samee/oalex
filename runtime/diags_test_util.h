@@ -15,7 +15,6 @@
 #include <string_view>
 
 #include "diags.h"
-#include "test_util.h"
 
 void showDiags(const std::vector<oalex::Diag>& diags);
 
