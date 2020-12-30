@@ -113,12 +113,12 @@ bool isPrefixEdge(const DfaEdge& e1,const DfaEdge& e2) {
   }else BugDie("isPrefixEdge called on wrong edge type");
 }
 
-SharedDiagSet diagSingleton(shared_ptr<const Diag> d) {
-  return make_shared<const DiagSet>(&d,&d+1);
+SharedDiagSimpleSet diagSingleton(shared_ptr<const DiagSimple> d) {
+  return make_shared<const DiagSimpleSet>(&d,&d+1);
 }
 
-SharedDiagSet diagSingleton(size_t stPos,size_t enPos,string msg) {
-  return diagSingleton(make_shared<Diag>(stPos,enPos,std::move(msg)));
+SharedDiagSimpleSet diagSingleton(size_t stPos,size_t enPos,string msg) {
+  return diagSingleton(make_shared<DiagSimple>(stPos,enPos,std::move(msg)));
 }
 
 // Pops earlier than everything else.
@@ -172,8 +172,8 @@ GssHead openNew(shared_ptr<const GssEdge> ge,
 }
 
 // TODO optimize empty case with make_diags(res);
-SharedDiagSet diagSet(const GssHooksRes& res) {
-  return make_shared<const DiagSet>(res.diags.begin(),res.diags.end());
+SharedDiagSimpleSet diagSet(const GssHooksRes& res) {
+  return make_shared<const DiagSimpleSet>(res.diags.begin(),res.diags.end());
 }
 
 GssHooksRes reduceStringOrList(GssHooks& hk,DfaLabel lbl,SharedVal v) {
@@ -274,13 +274,13 @@ string Dfa::checkError() const {
   return "";
 }
 
-set<const Diag*> DiagSet::gather() const {
-  set<const DiagSet*> visited;
-  set<const Diag*> rv;
-  stack<const DiagSet*> stk;
+set<const DiagSimple*> DiagSimpleSet::gather() const {
+  set<const DiagSimpleSet*> visited;
+  set<const DiagSimple*> rv;
+  stack<const DiagSimpleSet*> stk;
   stk.push(this);
   while(!stk.empty()) {
-    const DiagSet* diags=stk.top();
+    const DiagSimpleSet* diags=stk.top();
     stk.pop();
     if(!diags||visited.count(diags)) continue;
     visited.insert(diags);
@@ -301,8 +301,8 @@ optional<GssHead> GlrCtx::extendHead(const GssEdge& prev,GssHead h,
            "{} instead, on edge {} ---{}--> {}", typeid(*prev.v).name(),
            prev.enState, edge.lbl, edge.dest);
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
-  SharedDiagSet diags=diagSet(res);
-  if(hasDiags(diags)) lastKnownDiags_=diags;
+  SharedDiagSimpleSet diags=diagSet(res);
+  if(hasDiagSimples(diags)) lastKnownDiagSimples_=diags;
   if(!res.v) return nullopt;
   return GssHead{append(std::move(prevlv),std::move(res.v)),edge.dest,prev.prev,
                  concat(prev.diags,concat(h.diags,diags))};
@@ -314,8 +314,8 @@ optional<GssHead> GlrCtx::changeHead(
   if(prev->enPos>pos())
     BugDie("Problem in changeHead: prev->enPos too large: {}", prev->enPos);
   GssHooksRes res=reduceStringOrList(*hooks_,edge.lbl,std::move(h.v));
-  SharedDiagSet diags=diagSet(res);
-  if(hasDiags(diags)) lastKnownDiags_=diags;
+  SharedDiagSimpleSet diags=diagSet(res);
+  if(hasDiagSimples(diags)) lastKnownDiagSimples_=diags;
   if(!res.v) return nullopt;
   return GssHead{append(nullptr,std::move(res.v)),edge.dest,{std::move(prev)},
                  concat(h.diags,diags)};
@@ -419,7 +419,7 @@ void GlrCtx::shift(char ch) {
     }
   }
   if(heads_.empty())
-    lastKnownDiags_=diagSingleton(pos,pos+1,"Unexpected character "s+ch);
+    lastKnownDiagSimples_=diagSingleton(pos,pos+1,"Unexpected character "s+ch);
   buf_.push_back(ch);
 }
 
@@ -478,11 +478,11 @@ GssHead GlrCtx::startingHeadAt(DfaState s) {
   return {make_shared<EmptyVal>(0,0),s,{},nullptr};
 }
 
-vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
+vector<pair<SharedVal,SharedDiagSimpleSet>> GlrCtx::parse(function<int16_t()> getch) {
   int16_t ch;
   heads_.clear();
   heads_.push_back(startingHeadAt(dfa_->stState));
-  lastKnownDiags_.reset();
+  lastKnownDiagSimples_.reset();
   while((ch=getch())>=0 && !heads_.empty()) {
     shift(ch);
     GssPendingQueue q(gssReduceLater);
@@ -514,7 +514,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   }
 
   // End of string merges are not guaranteed.
-  vector<pair<SharedVal,SharedDiagSet>> rv;
+  vector<pair<SharedVal,SharedDiagSimpleSet>> rv;
   for(GssHead& h:heads_) {
     if(h.v==nullptr)
       BugDie("nullptr values should already have been dropped");
@@ -527,7 +527,7 @@ vector<pair<SharedVal,SharedDiagSet>> GlrCtx::parse(function<int16_t()> getch) {
   if(rv.empty()) {
     // TODO if heads_ is non-empty, maybe return any pending label as a
     // non-string diagnostic.
-    if(hasDiags(lastKnownDiags_)) return {make_pair(nullptr,lastKnownDiags_)};
+    if(hasDiagSimples(lastKnownDiagSimples_)) return {make_pair(nullptr,lastKnownDiagSimples_)};
     else return {make_pair(nullptr,
                  diagSingleton(0,this->pos(),"Incomplete input"))};
   }
@@ -547,21 +547,21 @@ GssHooksRes GssHooks::reduceString(DfaLabel,SharedStringVal sv) {
 }
 
 
-vector<pair<SharedVal,SharedDiagSet>> glrParse(
+vector<pair<SharedVal,SharedDiagSimpleSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,function<int16_t()> getch) {
   GlrCtx glr(dfa,hk);
   return glr.parse(getch);
 }
 
-pair<SharedVal,SharedDiagSet> glrParseUnique(
+pair<SharedVal,SharedDiagSimpleSet> glrParseUnique(
     const Dfa& dfa,GssHooks& hk,function<int64_t()> getch) {
-  vector<pair<SharedVal,SharedDiagSet>> res=glrParse(dfa,hk,std::move(getch));
+  vector<pair<SharedVal,SharedDiagSimpleSet>> res=glrParse(dfa,hk,std::move(getch));
   if(res.size()>1) BugDie("glrParseUnique doesn't expect ambiguity.");
   if(res.empty()) BugDie("glrParse should never return an empty vector");
   else return res[0];
 }
 
-bool glrParseFailed(const vector<pair<SharedVal,SharedDiagSet>>& parseRes) {
+bool glrParseFailed(const vector<pair<SharedVal,SharedDiagSimpleSet>>& parseRes) {
   for(const auto& r:parseRes) if(r.first!=nullptr) return false;
   if(parseRes.size()!=1)
     BugDie("Parse failure needs a single element. Got {}", parseRes.size());

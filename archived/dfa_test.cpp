@@ -54,45 +54,45 @@ template <class X>
 string shared_typeid(const shared_ptr<X>& p)
   { return p?typeid(*p).name():"*nullptr"; }
 
-vector<string> diagSetMessages(const set<const Diag*>& diagitems) {
+vector<string> diagSetMessages(const set<const DiagSimple*>& diagitems) {
   vector<string> msgs;
-  for(const Diag* d:diagitems) msgs.push_back(d->msg);  // die if d==nullptr
+  for(const DiagSimple* d:diagitems) msgs.push_back(d->msg);  // die if d==nullptr
   sort(msgs.begin(),msgs.end());
   return msgs;
 }
 
-vector<string> diagSetMessages(SharedDiagSet diags) {
+vector<string> diagSetMessages(SharedDiagSimpleSet diags) {
   return diagSetMessages(diags->gather());
 }
 
-void testDiagSetGather() {
+void testDiagSimpleSetGather() {
   vector<string> msg={"msg1","msg2","msg3"};
 
-  vector<shared_ptr<const Diag>> diagitems;
+  vector<shared_ptr<const DiagSimple>> diagitems;
   for(const string& m:msg)
-    diagitems.push_back(make_shared<const Diag>(0,1,m));
+    diagitems.push_back(make_shared<const DiagSimple>(0,1,m));
 
   auto diagbeg=diagitems.begin();
-  auto ds1=make_shared<const DiagSet>(diagbeg,diagbeg+2);
-  auto ds2=make_shared<const DiagSet>(diagbeg+1,diagbeg+3);
+  auto ds1=make_shared<const DiagSimpleSet>(diagbeg,diagbeg+2);
+  auto ds2=make_shared<const DiagSimpleSet>(diagbeg+1,diagbeg+3);
   auto dsroot=concat(ds1,ds2);
 
   vector<string> msg_observed=diagSetMessages(dsroot->gather());
   if(msg!=msg_observed) {
-    BugMe("DiagSet::Gather returned unexpected set: {} != {}",
+    BugMe("DiagSimpleSet::Gather returned unexpected set: {} != {}",
           msg_observed, msg);
   }
 }
 
-void testNullDiagsIgnored() {
+void testNullDiagSimplesIgnored() {
   vector<string> msg={"msg1","msg2","msg3"};
 
-  vector<shared_ptr<const Diag>> diagitems;
+  vector<shared_ptr<const DiagSimple>> diagitems;
   for(const string& m:msg)
-    diagitems.push_back(make_shared<const Diag>(0,1,m));
+    diagitems.push_back(make_shared<const DiagSimple>(0,1,m));
   diagitems.push_back(nullptr);
 
-  auto d=make_shared<DiagSet>(diagitems.begin(),diagitems.end());
+  auto d=make_shared<DiagSimpleSet>(diagitems.begin(),diagitems.end());
 
   vector<string> msg_observed=diagSetMessages(d->gather());
   if(msg!=msg_observed) {
@@ -100,15 +100,15 @@ void testNullDiagsIgnored() {
   }
 }
 
-void testDiagNullConcat() {
-  if(auto nullcat=concat(SharedDiagSet(),SharedDiagSet())) {
+void testDiagSimpleNullConcat() {
+  if(auto nullcat=concat(SharedDiagSimpleSet(),SharedDiagSimpleSet())) {
     BugMe("Concat(nullptr,nullptr) returned non-null: {}",
           diagSetMessages(nullcat));
   }
-  vector<shared_ptr<const Diag>> diagitems={
-    make_shared<const Diag>(0,1,"msg1"),
-    make_shared<const Diag>(0,1,"msg2")};
-  auto diags=make_shared<const DiagSet>(diagitems.begin(),diagitems.end());
+  vector<shared_ptr<const DiagSimple>> diagitems={
+    make_shared<const DiagSimple>(0,1,"msg1"),
+    make_shared<const DiagSimple>(0,1,"msg2")};
+  auto diags=make_shared<const DiagSimpleSet>(diagitems.begin(),diagitems.end());
   auto r1=concat(diags,nullptr);
   if(r1!=diags) {
     BugMe("Concat(diags,nullptr) produced {} != {msg1,msg2}",
@@ -630,7 +630,7 @@ void test() {
   static_assert(n==sizeof(outputs)/sizeof(*outputs));
 
   for(size_t i=0;i<n;++i) {
-    vector<pair<SharedVal,SharedDiagSet>> res
+    vector<pair<SharedVal,SharedDiagSimpleSet>> res
       =glrParse(dfa,hooks,GetFromString(inputs[i]));
     if(res.empty()) BugMe("No valid parse on input[{}]", i);
     for(size_t j=1;j<res.size();++j) {
@@ -647,7 +647,7 @@ void test() {
 
   string invalid_inputs[]={",,","a b","a, , b","FOO"};
   for(size_t i=0;i<sizeof(invalid_inputs)/sizeof(*invalid_inputs);++i) {
-    vector<pair<SharedVal,SharedDiagSet>> res
+    vector<pair<SharedVal,SharedDiagSimpleSet>> res
       =glrParse(dfa,hooks,GetFromString(invalid_inputs[i]));
     if(!glrParseFailed(res))
       BugMe("Was expecting parse failure, got {} successful parses",
@@ -689,7 +689,7 @@ void test() {
 
 }  // namespace shiftShiftConflict
 
-namespace parseReturnsDiags {
+namespace parseReturnsDiagSimples {
 
 using listParse::dfa;
 
@@ -697,7 +697,7 @@ struct Hooks : listParse::Hooks {
   GssHooksRes reduceString(DfaLabel lbl,SharedStringVal sv) override {
     GssHooksRes res=listParse::Hooks::reduceString(lbl,sv);  // upcall
     if(auto* sv=dynamic_cast<const StringVal*>(res.v.get())) {
-      res.diags.push_back(make_shared<Diag>(sv->stPos,sv->enPos,"Got "+sv->s));
+      res.diags.push_back(make_shared<DiagSimple>(sv->stPos,sv->enPos,"Got "+sv->s));
     }
     return res;
   }
@@ -711,11 +711,11 @@ void test() {
   vector<string> expected_diags={"Got bar","Got baz","Got foo"};
   vector<string> observed_diags=diagSetMessages(diags);
   if(observed_diags!=expected_diags)
-    BugMe("Diag gathering from glrParseUnique is unexpected: {} != {}",
+    BugMe("DiagSimple gathering from glrParseUnique is unexpected: {} != {}",
           observed_diags, expected_diags);
 }
 
-}  // namespace parseReturnsDiags
+}  // namespace parseReturnsDiagSimples
 
 namespace emptyStringParsing {
 
@@ -732,7 +732,7 @@ void test() {
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"No input provided"};
   if(observed_diags!=expected_diags)
-    BugMe("Diag gathering from glrParseUnique is unexpected: {} != {}",
+    BugMe("DiagSimple gathering from glrParseUnique is unexpected: {} != {}",
           observed_diags, expected_diags);
 
   // Now let's make empty string a valid input.
@@ -765,7 +765,7 @@ void test() {
 
 }  // namespace unexpectedChar
 
-namespace lastKnownDiags {
+namespace lastKnownDiagSimples {
 
 struct Hooks : public GssHooks {
   GssHooksRes reduceString(DfaLabel,SharedStringVal sv) override {
@@ -796,11 +796,11 @@ void test() {
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"Abandoning string foo"};
   if(observed_diags!=expected_diags)
-    BugMe("lastKnownDiags_ returning something unexpected: {} != {}",
+    BugMe("lastKnownDiagSimples_ returning something unexpected: {} != {}",
           observed_diags, expected_diags);
 }
 
-}  // namespace lastKnownDiags
+}  // namespace lastKnownDiagSimples
 
 namespace incompleteInput {
 
@@ -823,7 +823,7 @@ void test() {
   vector<string> observed_diags=diagSetMessages(diags);
   vector<string> expected_diags={"Incomplete input"};
   if(observed_diags!=expected_diags)
-    BugMe("lastKnownDiags_ returning something unexpected: {} != {}",
+    BugMe("lastKnownDiagSimples_ returning something unexpected: {} != {}",
              observed_diags, expected_diags);
 
 }
@@ -833,9 +833,9 @@ void test() {
 }  // namespace
 
 int main() {
-  testDiagSetGather();
-  testNullDiagsIgnored();
-  testDiagNullConcat();
+  testDiagSimpleSetGather();
+  testNullDiagSimplesIgnored();
+  testDiagSimpleNullConcat();
   checkCheckError::test();
   singleShifts::test();
   singleStringParse::test();
@@ -844,9 +844,9 @@ int main() {
   listParse::test();
   slowListParse::test();
   shiftShiftConflict::test();
-  parseReturnsDiags::test();
+  parseReturnsDiagSimples::test();
   emptyStringParsing::test();
   unexpectedChar::test();
-  lastKnownDiags::test();
+  lastKnownDiagSimples::test();
   incompleteInput::test();
 }

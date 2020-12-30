@@ -178,65 +178,65 @@ inline SharedListVal append(SharedListVal prev,SharedVal last) {
   return std::make_shared<const ListVal>(std::move(lv));
 }
 
-struct Diag {
+struct DiagSimple {
   size_t stPos,enPos;
   std::string msg;
-  Diag(size_t st,size_t en,std::string m)
+  DiagSimple(size_t st,size_t en,std::string m)
     : stPos(st), enPos(en), msg(std::move(m)) {}
 };
 
-using SharedDiagSet=std::shared_ptr<const class DiagSet>;
+using SharedDiagSimpleSet=std::shared_ptr<const class DiagSimpleSet>;
 
-// "Tree" of Diags, duplicate DiagSet pointers are ignored. You can only add
-// Diags, never remove them.
-class DiagSet {
+// "Tree" of DiagSimples, duplicate DiagSimpleSet pointers are ignored. You can only add
+// DiagSimples, never remove them.
+class DiagSimpleSet {
  public:
-  template <class Iter> DiagSet(Iter begin,Iter end) {
+  template <class Iter> DiagSimpleSet(Iter begin,Iter end) {
     if(begin==end) return;
     for(auto it=begin;it!=end;++it) if(*it) diagitems_.push_back(*it);
     empty_=false;
   }
   bool empty() const { return empty_; }
-  std::set<const Diag*> gather() const;
-  friend SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b);
+  std::set<const DiagSimple*> gather() const;
+  friend SharedDiagSimpleSet concat(SharedDiagSimpleSet a,SharedDiagSimpleSet b);
  private:
   bool empty_=true;
-  std::vector<std::shared_ptr<const Diag>> diagitems_;
-  SharedDiagSet left_,right_;
-  DiagSet()=default;
+  std::vector<std::shared_ptr<const DiagSimple>> diagitems_;
+  SharedDiagSimpleSet left_,right_;
+  DiagSimpleSet()=default;
 };
 
-inline bool hasDiags(const SharedDiagSet& diags)
+inline bool hasDiagSimples(const SharedDiagSimpleSet& diags)
   { return diags!=nullptr&&!diags->empty(); }
 
-inline SharedDiagSet concat(SharedDiagSet a,SharedDiagSet b) {
-  if(!hasDiags(a)&&!hasDiags(b)) return nullptr;
-  if(!hasDiags(a)) return b;
-  if(!hasDiags(b)) return a;
-  DiagSet diags;
+inline SharedDiagSimpleSet concat(SharedDiagSimpleSet a,SharedDiagSimpleSet b) {
+  if(!hasDiagSimples(a)&&!hasDiagSimples(b)) return nullptr;
+  if(!hasDiagSimples(a)) return b;
+  if(!hasDiagSimples(b)) return a;
+  DiagSimpleSet diags;
   diags.left_=std::move(a);
   diags.right_=std::move(b);
   diags.empty_=false;
-  return std::make_shared<const DiagSet>(std::move(diags));
+  return std::make_shared<const DiagSimpleSet>(std::move(diags));
 }
 
 struct GssHooksRes {
   SharedVal v;
-  std::vector<std::shared_ptr<const Diag>> diags;
+  std::vector<std::shared_ptr<const DiagSimple>> diags;
   // Conversion constructors.
   template <class ValType> GssHooksRes(std::shared_ptr<ValType> v)
     : v(std::move(v)) {}
 };
 
-template <class DiagType,class ... Args>
+template <class DiagSimpleType,class ... Args>
 GssHooksRes abandonReduceWith(Args&& ... args) {
   GssHooksRes res(SharedVal(nullptr));
-  res.diags.push_back(std::make_shared<DiagType>(std::forward<Args>(args)...));
+  res.diags.push_back(std::make_shared<DiagSimpleType>(std::forward<Args>(args)...));
   return res;
 }
 
 inline GssHooksRes abandonReduce(size_t stPos,size_t enPos,std::string msg) {
-  return abandonReduceWith<Diag>(stPos,enPos,std::move(msg));
+  return abandonReduceWith<DiagSimple>(stPos,enPos,std::move(msg));
 }
 
 // GssHooks do not contain any mutable state by default. But
@@ -275,7 +275,7 @@ struct GssEdge {
   DfaState enState;
   // Invariant: for all p,q in prev: p->enPos == q->enPos;
   size_t enPos;
-  SharedDiagSet diags;
+  SharedDiagSimpleSet diags;
   std::vector<std::shared_ptr<const GssEdge>> prev;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
   size_t size() const { return enPos-stPos(); }
@@ -301,7 +301,7 @@ struct GssHead {
   SharedVal v;
   std::variant<DfaState,MidString> enState;
   std::vector<std::shared_ptr<const GssEdge>> prev;
-  SharedDiagSet diags;
+  SharedDiagSimpleSet diags;
   size_t stPos() const { return prev.empty()?0:prev[0]->enPos; }
 };
 
@@ -328,7 +328,7 @@ using GssPendingQueue=std::priority_queue<GssPendingReduce,
 class GlrCtx {
   input_buffer buf_;
   std::list<internal::GssHead> heads_;
-  SharedDiagSet lastKnownDiags_;
+  SharedDiagSimpleSet lastKnownDiagSimples_;
   const Dfa* dfa_;
   GssHooks* hooks_;
   friend class GlrCtxTest;
@@ -358,7 +358,7 @@ class GlrCtx {
   // Used only in a unit test.
   GlrCtx(const Dfa& dfa,SegfaultOnHooks) : dfa_(&dfa), hooks_(nullptr) {}
   void shift(char ch);
-  std::vector<std::pair<SharedVal,SharedDiagSet>>
+  std::vector<std::pair<SharedVal,SharedDiagSimpleSet>>
     parse(std::function<int16_t()> getch);
 };
 
@@ -385,18 +385,18 @@ class GlrCtx {
     or for malformed dfa. Exceptions from hk and getch are all propagated
     unhindered, though.
 */
-std::vector<std::pair<SharedVal,SharedDiagSet>> glrParse(
+std::vector<std::pair<SharedVal,SharedDiagSimpleSet>> glrParse(
     const Dfa& dfa,GssHooks& hk,std::function<int16_t()> getch);
 
-std::pair<SharedVal,SharedDiagSet> glrParseUnique(
+std::pair<SharedVal,SharedDiagSimpleSet> glrParseUnique(
     const Dfa& dfa,GssHooks& hk,std::function<int64_t()> getch);
 
-inline bool glrParseFailed(const std::pair<SharedVal,SharedDiagSet>& parseRes) {
+inline bool glrParseFailed(const std::pair<SharedVal,SharedDiagSimpleSet>& parseRes) {
   return parseRes.first==nullptr;
 }
 
 bool glrParseFailed(
-    const std::vector<std::pair<SharedVal,SharedDiagSet>>& parseRes);
+    const std::vector<std::pair<SharedVal,SharedDiagSimpleSet>>& parseRes);
 
 }  // namespace oalex
 
