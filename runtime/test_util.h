@@ -26,13 +26,8 @@ template <>
 struct fmt::formatter<std::vector<std::string>> {
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
-  template <typename FormatContext>
-  auto format(const std::vector<std::string>& v, FormatContext& ctx) {
-    if(v.empty()) return format_to(ctx.out(), "{{}}");
-    format_to(ctx.out(), "{{{}", v[0]);
-    for(size_t i=1;i<v.size();++i) format_to(ctx.out(), ", {}", v[i]);
-    return format_to(ctx.out(), "}}");
-  }
+  auto format(const std::vector<std::string>& v, fmt::format_context& ctx)
+    -> decltype(format_to(ctx.out(), ""));
 };
 
 namespace oalex {

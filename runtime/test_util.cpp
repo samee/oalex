@@ -33,6 +33,15 @@ using std::string;
 using std::string_view;
 using std::vector;
 
+auto fmt::formatter<std::vector<std::string>>::format(
+    const vector<string>& v, fmt::format_context& ctx)
+  -> decltype(format_to(ctx.out(), "")) {
+  if(v.empty()) return format_to(ctx.out(), "{{}}");
+  format_to(ctx.out(), "{{{}", v[0]);
+  for(size_t i=1;i<v.size();++i) format_to(ctx.out(), ", {}", v[i]);
+  return format_to(ctx.out(), "}}");
+}
+
 namespace oalex{
 
 void showDiags(const vector<Diag>& diags) {

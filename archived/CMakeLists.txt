@@ -3,7 +3,8 @@ project(archived)
 
 add_executable(early early.cpp)
 
-add_executable(dfa_test dfa_test.cpp dfa.cpp input_view_auto_forget.cpp)
+add_executable(dfa_test dfa_test.cpp dfa.cpp input_view_auto_forget.cpp
+               $<TARGET_OBJECTS:test_util>)
 target_link_libraries(dfa_test PRIVATE fmt oalex)
 add_test(dfa_test dfa_test)
 
