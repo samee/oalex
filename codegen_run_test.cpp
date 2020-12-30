@@ -25,7 +25,6 @@
 #include "lexer.h"
 #include "jsonloc_io_test.h"
 #include "runtime/test_util.h"
-#include "runtime/diags_test_util.h"
 #include "runtime/util.h"
 using oalex::assertEqual;
 using oalex::Bug;
@@ -35,6 +34,7 @@ using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::Skipper;
 using oalex::sign_cast;
+using oalex::testInputDiags;
 using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
 using std::optional;

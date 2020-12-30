@@ -12,10 +12,10 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "diags_test_util.h"
 #include "fmt/format.h"
 #include "test_util.h"
 #include "util_impl.h"
+using oalex::assertHasDiagWithSubstr;
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Diag;
@@ -23,6 +23,7 @@ using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::isSubstr;
+using oalex::showDiags;
 using oalex::UserErrorEx;
 using fmt::format_to;
 using fmt::memory_buffer;
@@ -31,6 +32,8 @@ using fmt::to_string;
 using std::string;
 using std::string_view;
 using std::vector;
+
+namespace oalex{
 
 void showDiags(const vector<Diag>& diags) {
   memory_buffer buf;
@@ -80,3 +83,5 @@ void assertProducesDiag(std::string_view testName, std::string_view input,
   }
   assertHasDiagWithSubstr(testName, ctx.diags, err);
 }
+
+}  // namespace oalex

@@ -16,7 +16,6 @@
 #include <string_view>
 #include <tuple>
 #include <vector>
-#include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 using oalex::assertEqual;
 using oalex::Bug;

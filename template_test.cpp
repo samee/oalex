@@ -16,7 +16,6 @@
 #include "lexer.h"
 #include "regex_io.h"
 #include "fmt/core.h"
-#include "runtime/diags_test_util.h"
 #include "runtime/input_view.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
@@ -24,6 +23,7 @@
 #include <utility>
 using std::get_if;
 using std::holds_alternative;
+using std::make_tuple;
 using std::make_unique;
 using std::map;
 using std::optional;
@@ -37,7 +37,9 @@ using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
 using fmt::format;
+using oalex::assertEmptyDiags;
 using oalex::assertEqual;
+using oalex::assertHasDiagWithSubstr;
 using oalex::Bug;
 using oalex::DelimPair;
 using oalex::get_if_unique;
@@ -55,6 +57,7 @@ using oalex::PartPattern;
 using oalex::RegexCharSet;
 using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
+using oalex::showDiags;
 using oalex::Skipper;
 using oalex::Template;
 using oalex::TemplateConcat;
@@ -63,6 +66,7 @@ using oalex::TemplateOptional;
 using oalex::TemplateRepeat;
 using oalex::TemplateFold;
 using oalex::templatize;
+using oalex::testInputDiags;
 using oalex::TokenOrPart;
 using oalex::Unimplemented;
 using oalex::WordToken;

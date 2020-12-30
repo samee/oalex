@@ -20,7 +20,6 @@
 
 #include "fmt/format.h"
 
-#include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using fmt::format;
@@ -39,6 +38,7 @@ using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::testInputDiags;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;

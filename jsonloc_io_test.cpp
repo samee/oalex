@@ -21,7 +21,6 @@
 #include <string>
 #include <vector>
 
-#include "runtime/diags_test_util.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using std::get_if;
@@ -43,6 +42,7 @@ using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::parseJsonLocFlexQuote;
 using oalex::Resetter;
+using oalex::testInputDiags;
 using oalex::uniqueKeys;
 
 namespace {

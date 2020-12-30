@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #include "input_view.h"
-#include "diags_test_util.h"
 #include "test_util.h"
 #include "util.h"
 

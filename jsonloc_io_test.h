@@ -15,7 +15,7 @@
 #pragma once
 
 #include "jsonloc_io.h"
-#include "runtime/diags_test_util.h"
+#include "runtime/test_util.h"
 
 namespace oalex {
 

@@ -19,7 +19,6 @@
 #include "regex_io.h"
 #include "fmt/core.h"
 #include "runtime/test_util.h"
-#include "runtime/diags_test_util.h"
 #include <iterator>
 #include <string_view>
 #include <vector>
@@ -44,6 +43,7 @@ using oalex::Regex;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::SkipPoint;
+using oalex::testInputDiags;
 using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
