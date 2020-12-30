@@ -13,8 +13,10 @@
     limitations under the License. */
 
 #pragma once
+#include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 #include "input_view.h"
 
 namespace oalex {
