@@ -15,7 +15,7 @@
 #include "diags_test_util.h"
 #include "fmt/format.h"
 #include "test_util.h"
-#include "util-impl.h"
+#include "util_impl.h"
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Diag;

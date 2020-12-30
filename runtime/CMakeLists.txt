@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.10)
 project(runtime)
 
 add_library(oalex diags.cpp input_view.cpp jsonloc.cpp
-                  regex.cpp skipper.cpp util-impl.cpp)
+                  regex.cpp skipper.cpp util_impl.cpp)
 target_link_libraries(oalex INTERFACE fmt)
 target_include_directories(oalex INTERFACE .)
 
