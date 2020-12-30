@@ -39,10 +39,8 @@
    */
 
 #pragma once
-#include<functional>
-#include<string>
-#include<runtime/diags.h>
-#include<runtime/input_view.h>
+#include <string>
+#include "runtime/diags.h"
 
 namespace oalex {
 
