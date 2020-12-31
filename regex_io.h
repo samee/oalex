@@ -69,7 +69,7 @@ Okay, todo then:
 Enforce usual rules about not allowing empty non-terminals being included.
    */
 #pragma once
-#include <optional>
+#include <memory>
 
 #include "runtime/regex.h"
 #include "runtime/diags.h"
@@ -77,8 +77,9 @@ Enforce usual rules about not allowing empty non-terminals being included.
 namespace oalex {
 
 auto prettyPrint(const Regex& regex) -> std::string;
-auto parseRegex(InputDiags& ctx, size_t& i) -> std::optional<Regex>;
+auto parseRegex(InputDiags& ctx, size_t& i) -> std::unique_ptr<const Regex>;
 
+// TODO return unique_ptr so we can stop including regex.h here.
 // Dies on invalid input. Not meant for user-supplied input.
 // Use the full parseRegex() for that.
 RegexCharSet parseRegexCharSet(std::string input);

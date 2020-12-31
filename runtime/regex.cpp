@@ -20,97 +20,155 @@ using std::get;
 using std::make_unique;
 using std::string;
 using std::unique_ptr;
-using std::variant;
 using std::vector;
 
 namespace oalex {
 
 namespace {
 
-using MatchState = variant_unique<
-  vector<bool>,            // Used for RegexCharSet and string
-  struct OptionalState,    // Used only for Optional
-  struct MatchStateVector  // Used for RegexOrList and RegexConcat
->;                         // RegexRepeat doesn't keep any
-                           //   internal state.
+enum class MatchStateType { boolvec, optional, statevec };
 
-struct OptionalState {
-  bool justStarted;
-  MatchState part;
+class MatchState {
+ public:
+  const MatchStateType type;
+  explicit MatchState(MatchStateType t) : type(t) {}
+  virtual ~MatchState() {}
 };
 
-struct MatchStateVector {
-  vector<MatchState> parts;
+class BoolVectorState final : public MatchState {
+ public:
+  explicit BoolVectorState(vector<bool> v)
+    : MatchState(MatchStateType::boolvec), valid(std::move(v)) {}
+  vector<bool> valid;
+};
+class OptionalState final : public MatchState {
+ public:
+  explicit OptionalState(unique_ptr<MatchState> p)
+    : MatchState(MatchStateType::optional), part(std::move(p)) {}
+  bool justStarted = false;
+  unique_ptr<MatchState> part;
+};
+class MatchVectorState final : public MatchState {
+ public:
+  explicit MatchVectorState(vector<unique_ptr<MatchState>> v)
+    : MatchState(MatchStateType::statevec), parts(std::move(v)) {}
+  vector<unique_ptr<MatchState>> parts;
 };
 
-MatchState init(const Regex& regex);
+unique_ptr<MatchState> init(const Regex& regex);
 void start(const Regex& regex, MatchState& state);
-void advance(const Regex& regex, unsigned char ch, MatchState& state);
 bool matched(const Regex& regex, const MatchState& state);
 bool might_match(const Regex& regex, const MatchState& state);
+void advance(const Regex& regex, unsigned char ch, MatchState& state);
 
-auto partInit(const vector<Regex>& parts) {
-  vector<MatchState> rv;
-  for(auto& part : parts) rv.push_back(init(part));
+auto partInit(const vector<unique_ptr<const Regex>>& parts) {
+  vector<unique_ptr<MatchState>> rv;
+  for(auto& part : parts) rv.push_back(init(*part));
   return rv;
 }
 
+string debug(MatchStateType t) {
+  switch(t) {
+    case MatchStateType::boolvec: return "boolvec";
+    case MatchStateType::optional: return "optional";
+    case MatchStateType::statevec: return "statevec";
+    default: return std::to_string(int(t));
+  }
+}
+
 auto assertVectorBool(MatchState& state, size_t sz) -> vector<bool>& {
-  auto& v = get_unique<vector<bool>>(state);
+  if(state.type != MatchStateType::boolvec)
+    Bug("MatchState was expected to have bools, not {}", debug(state.type));
+  auto& v = static_cast<BoolVectorState&>(state).valid;
   if(v.size() != sz)
     Bug("MatchState expected to have {} bools, not {}", sz, v.size());
   return v;
 }
 
-auto assertMatchStateVector(MatchState& state, size_t sz)
-  -> vector<MatchState>& {
-  auto& partstates = get_unique<MatchStateVector>(state).parts;
+auto assertMatchVectorState(MatchState& state, size_t sz)
+  -> vector<unique_ptr<MatchState>>& {
+  if(state.type != MatchStateType::statevec)
+    Bug("MatchState was expected to have children state, not {}",
+        debug(state.type));
+  auto& partstates = static_cast<MatchVectorState&>(state).parts;
   if(sz != partstates.size())
     Bug("init() produced states with the wrong size: {} != {}",
         sz, partstates.size());
   return partstates;
 }
 
-MatchState init(const Regex& regex) {
-  if(holds_one_of_unique<const RegexCharSet, const RegexAnchor>(regex))
-    return make_unique<vector<bool>>(2, false);
-  else if(auto* s = get_if_unique<const string>(&regex))
-    return make_unique<vector<bool>>(s->size()+1, false);
-  else if(auto* opt = get_if_unique<const RegexOptional>(&regex))
-    return move_to_unique(OptionalState{false, init(opt->part)});
-  else if(auto* ors = get_if_unique<const RegexOrList>(&regex))
-    return move_to_unique(MatchStateVector{partInit(ors->parts)});
-  else if(auto* seq = get_if_unique<const RegexConcat>(&regex))
-    return move_to_unique(MatchStateVector{partInit(seq->parts)});
-  else if(auto* rep = get_if_unique<const RegexRepeat>(&regex))
-    return init(rep->part);
-  else Unimplemented("init() for index {}", regex.index());
+unique_ptr<MatchState> init(const Regex& regex) {
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet:
+    case RegexNodeType::anchor:
+      return make_unique<BoolVectorState>(vector<bool>(2, false));
+    case RegexNodeType::string: {
+      auto& s = static_cast<const RegexString&>(regex);
+      return make_unique<BoolVectorState>(
+          vector<bool>(s.value.size()+1, false) );
+    }
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      return move_to_unique(OptionalState(init(*opt.part)));
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      return move_to_unique(MatchVectorState(partInit(ors.parts)));
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      return move_to_unique(MatchVectorState(partInit(seq.parts)));
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      return init(*rep.part);
+    }
+    default:
+      Unimplemented("init() for RegexType {}", int(regex.nodeType));
+  }
 }
 
 void start(const Regex& regex, MatchState& state) {
-  if(holds_one_of_unique_const<RegexCharSet, string, RegexAnchor>(regex))
-    get_unique<vector<bool>>(state).at(0) = true;
-  else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    auto& optstate = get_unique<OptionalState>(state);
-    optstate.justStarted = true;
-    start(opt->part, optstate.part);
-  }else if(auto* ors = get_if_unique<const RegexOrList>(&regex)) {
-    size_t i = 0;
-    for(auto& part : get_unique<MatchStateVector>(state).parts)
-      start(ors->parts.at(i++), part);
-  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex))
-    start(rep->part, state);
-  else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
-    if(seq->parts.empty())
-      Bug("Cannot Concat over an empty vector. "
-          "Use an empty string instead.");
-    auto& partstates = assertMatchStateVector(state, seq->parts.size());
-    start(seq->parts[0], partstates[0]);
-    for(size_t i=1; i<seq->parts.size(); ++i) {
-      if(!matched(seq->parts[i-1], partstates[i-1])) break;
-      start(seq->parts[i], partstates[i]);
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet:
+    case RegexNodeType::string:
+    case RegexNodeType::anchor:
+      static_cast<BoolVectorState&>(state).valid.at(0) = true;
+      break;
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      auto& optstate = static_cast<OptionalState&>(state);
+      optstate.justStarted = true;
+      start(*opt.part, *optstate.part);
+      break;
     }
-  }else Bug("Unknown index in start() {}", regex.index());
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      size_t i = 0;
+      for(auto& part : static_cast<MatchVectorState&>(state).parts)
+        start(*ors.parts.at(i++), *part);
+      break;
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      start(*rep.part, state);
+      break;
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      if(seq.parts.empty())
+        Bug("Cannot Concat over an empty vector. "
+            "Use an empty string instead.");
+      auto& partstates = assertMatchVectorState(state, seq.parts.size());
+      start(*seq.parts[0], *partstates[0]);
+      for(size_t i=1; i<seq.parts.size(); ++i) {
+        if(!matched(*seq.parts[i-1], *partstates[i-1])) break;
+        start(*seq.parts[i], *partstates[i]);
+      }
+      break;
+    }
+    default: Bug("Unknown index in start() {}", int(regex.nodeType));
+  }
 }
 
 bool any(const vector<bool>& v) {
@@ -118,44 +176,68 @@ bool any(const vector<bool>& v) {
   return false;
 }
 
-bool matches_any_part(const vector<Regex>& regexParts,
+bool matches_any_part(const vector<unique_ptr<const Regex>>& regexParts,
                       const MatchState& stateVector,
                       bool (*recurse)(const Regex&, const MatchState&)) {
   size_t i = 0;
-  for(auto& part : get_unique<MatchStateVector>(stateVector).parts)
-    if(recurse(regexParts.at(i++), part)) return true;
+  for(auto& part : static_cast<const MatchVectorState&>(stateVector).parts)
+    if(recurse(*regexParts.at(i++), *part)) return true;
   return false;
 }
 
 bool matched(const Regex& regex, const MatchState& state) {
-  if(holds_one_of_unique_const<RegexCharSet, string, RegexAnchor>(regex))
-    return get_unique<vector<bool>>(state).back();
-  else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    auto& optstate = get_unique<OptionalState>(state);
-    return optstate.justStarted || matched(opt->part, optstate.part);
-  }else if(auto* ors = get_if_unique<const RegexOrList>(&regex)) {
-    return matches_any_part(ors->parts, state, matched);
-  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex))
-    return matched(rep->part, state);
-  else if(auto* seq = get_if_unique<const RegexConcat>(&regex))
-    return matched(seq->parts.back(),
-        get_unique<MatchStateVector>(state).parts.back());
-  else Bug("Unknown index in matched() {}", regex.index());
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet:
+    case RegexNodeType::string:
+    case RegexNodeType::anchor:
+      return static_cast<const BoolVectorState&>(state).valid.back();
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      auto& optstate = static_cast<const OptionalState&>(state);
+      return optstate.justStarted || matched(*opt.part, *optstate.part);
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      return matches_any_part(ors.parts, state, matched);
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      return matched(*rep.part, state);
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      return matched(*seq.parts.back(),
+                     *static_cast<const MatchVectorState&>(state).parts.back());
+    }
+    default: Bug("Unknown index in matched() {}", int(regex.nodeType));
+  }
 }
 
 bool might_match(const Regex& regex, const MatchState& state) {
-  if(holds_one_of_unique_const<RegexCharSet, string, RegexAnchor>(regex))
-    return any(get_unique<vector<bool>>(state));
-  else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    auto& optstate = get_unique<OptionalState>(state);
-    return optstate.justStarted || might_match(opt->part, optstate.part);
-  }else if(auto* ors = get_if_unique<const RegexOrList>(&regex))
-    return matches_any_part(ors->parts, state, might_match);
-  else if(auto* rep = get_if_unique<const RegexRepeat>(&regex))
-    return might_match(rep->part, state);
-  else if(auto* seq = get_if_unique<const RegexConcat>(&regex))
-    return matches_any_part(seq->parts, state, might_match);
-  else Bug("Unknown index in might_match() {}", regex.index());
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet:
+    case RegexNodeType::string:
+    case RegexNodeType::anchor:
+      return any(static_cast<const BoolVectorState&>(state).valid);
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      auto& optstate = static_cast<const OptionalState&>(state);
+      return optstate.justStarted || might_match(*opt.part, *optstate.part);
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      return matches_any_part(ors.parts, state, might_match);
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      return might_match(*rep.part, state);
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      return matches_any_part(seq.parts, state, might_match);
+    }
+    default: Bug("Unknown index in might_match() {}", int(regex.nodeType));
+  }
 }
 
 void shiftRight(vector<bool>& v) {
@@ -164,37 +246,58 @@ void shiftRight(vector<bool>& v) {
 }
 
 void advance(const Regex& regex, unsigned char ch, MatchState& state) {
-  if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
-    auto& v = assertVectorBool(state, 2);
-    if(!matchesRegexCharSet(ch, *cset)) v[0] = false;
-    shiftRight(v);
-  }else if(auto* s = get_if_unique<const string>(&regex)) {
-    auto& v = assertVectorBool(state, s->size()+1);
-    for(size_t i=0; i<s->size(); ++i) if(ch != (*s)[i]) v[i] = false;
-    shiftRight(v);
-  }else if(get_if_unique<const RegexAnchor>(&regex)) {
-    auto& v = assertVectorBool(state, 2);
-    v[0] = v[1] = false;
-  }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    auto& optstate = get_unique<OptionalState>(state);
-    optstate.justStarted = false;
-    advance(opt->part, ch, optstate.part);
-  }else if(auto* ors = get_if_unique<const RegexOrList>(&regex)) {
-    auto& partstates = assertMatchStateVector(state, ors->parts.size());
-    for(size_t i=0; i<partstates.size(); ++i)
-      advance(ors->parts[i], ch, partstates[i]);
-  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
-    advance(rep->part, ch, state);
-    if(matched(rep->part, state)) start(rep->part, state);
-  }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
-    auto& partstates = assertMatchStateVector(state, seq->parts.size());
-    for(size_t i=0; i<partstates.size(); ++i)
-      advance(seq->parts[i], ch, partstates[i]);
-    for(size_t i=0; i+1<partstates.size(); ++i)
-      if(matched(seq->parts[i], partstates[i]))
-        start(seq->parts[i+1], partstates[i+1]);
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet: {
+      auto& cset = static_cast<const RegexCharSet&>(regex);
+      auto& v = assertVectorBool(state, 2);
+      if(!matchesRegexCharSet(ch, cset)) v[0] = false;
+      shiftRight(v);
+      break;
+    }
+    case RegexNodeType::string: {
+      const string& s = static_cast<const RegexString&>(regex).value;
+      auto& v = assertVectorBool(state, s.size()+1);
+      for(size_t i=0; i<s.size(); ++i) if(ch != s[i]) v[i] = false;
+      shiftRight(v);
+      break;
+    }
+    case RegexNodeType::anchor: {
+      auto& v = assertVectorBool(state, 2);
+      v[0] = v[1] = false;
+      break;
+    }
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      auto& optstate = static_cast<OptionalState&>(state);
+      optstate.justStarted = false;
+      advance(*opt.part, ch, *optstate.part);
+      break;
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      auto& partstates = assertMatchVectorState(state, ors.parts.size());
+      for(size_t i=0; i<partstates.size(); ++i)
+        advance(*ors.parts[i], ch, *partstates[i]);
+      break;
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      advance(*rep.part, ch, state);
+      if(matched(*rep.part, state)) start(*rep.part, state);
+      break;
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      auto& partstates = assertMatchVectorState(state, seq.parts.size());
+      for(size_t i=0; i<partstates.size(); ++i)
+        advance(*seq.parts[i], ch, *partstates[i]);
+      for(size_t i=0; i+1<partstates.size(); ++i)
+        if(matched(*seq.parts[i], *partstates[i]))
+          start(*seq.parts[i+1], *partstates[i+1]);
+      break;
+    }
+    default: Bug("Unknown index in advance() {}", int(regex.nodeType));
   }
-  else Bug("Unknown index in advance() {}", regex.index());
 }
 
 enum AnchorMatches { matchesWordEdge = 1, matchesBol = 2, matchesEol = 4 };
@@ -211,40 +314,60 @@ AnchorMatches anchorBetweenChars(char from, char to, const RegexOptions& opts) {
 
 // Only ever adds more true values to MatchState, never takes them away.
 void advanceAnchor(const Regex& regex, MatchState& state, AnchorMatches anch) {
-  if(holds_one_of_unique_const<RegexCharSet, string>(regex)) return;
-  else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
-    auto& v = assertVectorBool(state, 2);
-    if(!v[0]) return;
-    if(((anch & matchesWordEdge) && *a == RegexAnchor::wordEdge) ||
-       ((anch & matchesBol) && *a == RegexAnchor::bol) ||
-       ((anch & matchesEol) && *a == RegexAnchor::eol)) v[1] = true;
-  }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    advanceAnchor(opt->part, get_unique<OptionalState>(state).part, anch);
-  }else if(auto* ors = get_if_unique<const RegexOrList>(&regex)) {
-    size_t i = 0;
-    for(auto& p : assertMatchStateVector(state, ors->parts.size()))
-      advanceAnchor(ors->parts[i++], p, anch);
-  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
-    bool startedMatched = matched(rep->part, state);
-    advanceAnchor(rep->part, state, anch);
-    // Fixpoint guaranteed in a single additional iteration.
-    if(!startedMatched && matched(rep->part, state)) {
-      start(rep->part, state);
-      advanceAnchor(rep->part, state, anch);
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet:
+    case RegexNodeType::string:
+      break;
+    case RegexNodeType::anchor: {
+      auto a = static_cast<const RegexAnchor&>(regex).anchorType;
+      auto& v = assertVectorBool(state, 2);
+      if(!v[0]) return;
+      if(((anch & matchesWordEdge) && a == RegexAnchor::wordEdge) ||
+         ((anch & matchesBol) && a == RegexAnchor::bol) ||
+         ((anch & matchesEol) && a == RegexAnchor::eol)) v[1] = true;
+      break;
     }
-  }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
-    size_t n = seq->parts.size();
-    if(n == 0) return;
-    auto& v = assertMatchStateVector(state, n);
-    for(size_t i=0; i+1<n; i++) {
-      const Regex& p = seq->parts[i];
-      bool startedMatched = matched(p, v[i]);
-      advanceAnchor(p, v[i], anch);
-      if(!startedMatched && matched(p, v[i])) start(seq->parts[i+1], v[i+1]);
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      auto& optstate = static_cast<OptionalState&>(state);
+      advanceAnchor(*opt.part, *optstate.part, anch);
+      break;
     }
-    advanceAnchor(seq->parts[n-1], v[n-1], anch);
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      auto& partstates = assertMatchVectorState(state, ors.parts.size());
+      for(size_t i=0; i<partstates.size(); ++i)
+        advanceAnchor(*ors.parts[i], *partstates[i], anch);
+      break;
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      bool startedMatched = matched(*rep.part, state);
+      advanceAnchor(*rep.part, state, anch);
+      // Fixpoint guaranteed in a single additional iteration.
+      if(!startedMatched && matched(*rep.part, state)) {
+        start(*rep.part, state);
+        advanceAnchor(*rep.part, state, anch);
+      }
+      break;
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      size_t n = seq.parts.size();
+      if(n == 0) return;
+      auto& v = assertMatchVectorState(state, n);
+      for(size_t i=0; i+1<n; i++) {
+        const Regex& p = *seq.parts[i];
+        bool startedMatched = matched(p, *v[i]);
+        advanceAnchor(p, *v[i], anch);
+        if(!startedMatched && matched(p, *v[i]))
+          start(*seq.parts[i+1], *v[i+1]);
+      }
+      advanceAnchor(*seq.parts[n-1], *v[n-1], anch);
+      break;
+    }
+    default: Bug("Unknown index in advance() {}", int(regex.nodeType));
   }
-  else Bug("Unknown index in advance() {}", regex.index());
 }
 
 }  // namespace
@@ -257,25 +380,25 @@ bool matchesRegexCharSet(char ch, const RegexCharSet& cset) {
 
 bool startsWithRegex(const Input& input, size_t i, const Regex& regex,
                      const RegexOptions& opts) {
-  MatchState state = init(regex);
+  unique_ptr<MatchState> state = init(regex);
   char prev = '\n';
-  start(regex, state);
+  start(regex, *state);
   while(input.sizeGt(i)) {
-    advanceAnchor(regex, state, anchorBetweenChars(prev, input[i], opts));
-    if(matched(regex, state)) return true;
-    advance(regex, input[i], state);
-    if(matched(regex, state)) return true;
+    advanceAnchor(regex, *state, anchorBetweenChars(prev, input[i], opts));
+    if(matched(regex, *state)) return true;
+    advance(regex, input[i], *state);
+    if(matched(regex, *state)) return true;
     prev = input[i++];
   }
-  advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
-  return matched(regex, state);
+  advanceAnchor(regex, *state, anchorBetweenChars(prev, '\n', opts));
+  return matched(regex, *state);
 }
 
 bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
                      const RegexOptions& opts) {
-  MatchState state = init(regex);
+  unique_ptr<MatchState> state = init(regex);
   char prev = '\n';
-  start(regex, state);
+  start(regex, *state);
   size_t j = i;
   size_t last_matched = string::npos;
 
@@ -284,15 +407,15 @@ bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
   //   advanceAnchor() never makes match() or might_match() become false.
   //   advance() can potentially make might_match() turn from true to false,
   //     never the other way around.
-  while(might_match(regex, state) && input.sizeGt(j)) {
-    advanceAnchor(regex, state, anchorBetweenChars(prev, input[j], opts));
-    if(matched(regex, state)) last_matched = j;
-    advance(regex, input[j], state);
+  while(might_match(regex, *state) && input.sizeGt(j)) {
+    advanceAnchor(regex, *state, anchorBetweenChars(prev, input[j], opts));
+    if(matched(regex, *state)) last_matched = j;
+    advance(regex, input[j], *state);
     prev = input[j++];
   }
   if(!input.sizeGt(j)) {
-    advanceAnchor(regex, state, anchorBetweenChars(prev, '\n', opts));
-    if(matched(regex, state)) last_matched = j;
+    advanceAnchor(regex, *state, anchorBetweenChars(prev, '\n', opts));
+    if(matched(regex, *state)) last_matched = j;
   }
   if(last_matched != string::npos) { i = last_matched; return true; }
   else return false;

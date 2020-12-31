@@ -88,7 +88,8 @@ struct Rule {
   template <class X> friend const X* get_if(const Rule* rule);
  private:
   std::variant<std::string, WordPreserving, ExternParser,
-               Regex, SkipPoint, ConcatRule, OrRule, MatchOrError> specifics_;
+               std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
+               OrRule, MatchOrError> specifics_;
   std::string name_;
 };
 

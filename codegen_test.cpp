@@ -29,6 +29,7 @@ using std::pair;
 using std::size;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 using oalex::assertEqual;
 using oalex::Bug;
@@ -130,7 +131,7 @@ void testSingleWordPreserving() {
 void testRegexMatch() {
   auto regex_input = testInputDiags("/[a-z]+/");
   size_t pos = 0;
-  RuleSet rs = singletonRuleSet(*oalex::parseRegex(regex_input, pos));
+  RuleSet rs = singletonRuleSet(oalex::parseRegex(regex_input, pos));
   ssize_t spos = 0;
   auto ctx = testInputDiags("hello world");
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
@@ -143,12 +144,12 @@ void testRegexMatch() {
 }
 
 // TODO move to some test_util.h
-Regex parseRegex(string_view s) {
+unique_ptr<const Regex> parseRegex(string_view s) {
   size_t i = 0;
   auto ctx = testInputDiags(s);
-  optional<Regex> rv = parseRegex(ctx, i);
-  if(!rv.has_value()) Bug("{} is not a valid regex", s);
-  else return std::move(*rv);
+  unique_ptr<const Regex> rv = parseRegex(ctx, i);
+  if(!rv) Bug("{} is not a valid regex", s);
+  else return rv;
 }
 
 void testConcatMatch() {

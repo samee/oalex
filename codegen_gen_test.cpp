@@ -123,7 +123,7 @@ Rule regexRule(const string& testName,
   size_t i = 0;
   auto regex = parseRegex(regex_input, i);
   assertEmptyDiags(testName, regex_input.diags);
-  return Rule{std::move(*regex), fname};
+  return Rule{std::move(regex), fname};
 }
 
 void generateSingleRegexTest(const OutputStream& cppos,

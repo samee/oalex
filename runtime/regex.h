@@ -13,9 +13,9 @@
     limitations under the License. */
 
 #pragma once
+#include <string>
 #include <string_view>
 #include <memory>
-#include <variant>
 #include <vector>
 
 #include "runtime/diags.h"
@@ -23,28 +23,72 @@
 
 namespace oalex {
 
-// Forward decl.
-enum struct RegexAnchor;
+enum struct RegexNodeType {
+  charSet, string, anchor, concat,
+  repeat, optional, orList
+};
 
-using Regex = variant_unique_const<
-  struct RegexCharSet,
-  std::string,
-  RegexAnchor,
-  struct RegexConcat,
-  struct RegexRepeat,
-  struct RegexOptional,
-  struct RegexOrList
->;
+class Regex {
+ public:
+  RegexNodeType nodeType;
+  explicit Regex(RegexNodeType t) : nodeType(t) {}
+  virtual ~Regex() {}
+};
 
-// Regex primitives. Likely to change if we ever switch to matching JsonLoc.
 struct CharRange { unsigned char from, to; };
-struct RegexCharSet { std::vector<CharRange> ranges; bool negated = false; };
-enum struct RegexAnchor { wordEdge, bol, eol };
 
-struct RegexConcat { std::vector<Regex> parts; };
-struct RegexRepeat { Regex part; };
-struct RegexOptional { Regex part; };
-struct RegexOrList { std::vector<Regex> parts; };
+class RegexCharSet final : public Regex {
+ public:
+  RegexCharSet() : Regex(RegexNodeType::charSet) {}
+  explicit RegexCharSet(std::vector<CharRange> r, bool neg = false)
+    : Regex(RegexNodeType::charSet), ranges(std::move(r)), negated(neg) {}
+  std::vector<CharRange> ranges;
+  bool negated = false;
+};
+
+class RegexString final : public Regex {
+ public:
+  explicit RegexString(std::string v)
+    : Regex(RegexNodeType::string), value(std::move(v)) {}
+  std::string value;
+};
+
+class RegexAnchor final : public Regex {
+ public:
+  enum AnchorType { wordEdge, bol, eol } anchorType;
+  explicit RegexAnchor(AnchorType t)
+    : Regex(RegexNodeType::anchor), anchorType(t) {}
+};
+
+class RegexConcat final : public Regex {
+ public:
+  RegexConcat() : Regex(RegexNodeType::concat) {}
+  explicit RegexConcat(std::vector<std::unique_ptr<const Regex>> parts)
+    : Regex(RegexNodeType::concat), parts(std::move(parts)) {}
+  std::vector<std::unique_ptr<const Regex>> parts;
+};
+
+class RegexRepeat final : public Regex {
+ public:
+  explicit RegexRepeat(std::unique_ptr<const Regex> part)
+    : Regex(RegexNodeType::repeat), part(std::move(part)) {}
+  std::unique_ptr<const Regex> part;
+};
+
+class RegexOptional final : public Regex {
+ public:
+  explicit RegexOptional(std::unique_ptr<const Regex> part)
+    : Regex(RegexNodeType::optional), part(std::move(part)) {}
+  std::unique_ptr<const Regex> part;
+};
+
+class RegexOrList final : public Regex {
+ public:
+  RegexOrList() : Regex(RegexNodeType::orList) {}
+  explicit RegexOrList(std::vector<std::unique_ptr<const Regex>> parts)
+    : Regex(RegexNodeType::orList), parts(std::move(parts)) {}
+  std::vector<std::unique_ptr<const Regex>> parts;
+};
 
 struct RegexOptions {
   RegexCharSet word;  // Used for \b matches.

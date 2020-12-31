@@ -36,6 +36,7 @@ using oalex::RegexOptional;
 using oalex::RegexOptions;
 using oalex::RegexOrList;
 using oalex::RegexRepeat;
+using oalex::RegexString;
 using std::make_unique;
 using std::optional;
 using std::pair;
@@ -48,40 +49,42 @@ using std::vector;
 namespace {
 
 auto charSet(vector<CharRange> ranges) -> unique_ptr<RegexCharSet> {
-  return make_unique<RegexCharSet>(RegexCharSet{std::move(ranges), false});
+  return make_unique<RegexCharSet>(std::move(ranges), false);
 }
 
 auto negatedSet(vector<CharRange> ranges) -> unique_ptr<RegexCharSet> {
-  return make_unique<RegexCharSet>(RegexCharSet{std::move(ranges), true});
+  return make_unique<RegexCharSet>(std::move(ranges), true);
 }
 
 auto charSingle(unsigned char ch) -> unique_ptr<RegexCharSet> {
   return charSet({{ch,ch}});
 }
 
-auto charString(string s) { return make_unique<string>(std::move(s)); }
+auto charString(string s) { return make_unique<RegexString>(std::move(s)); }
 
 template <class ... Ts>
 auto concat(Ts ... ts) -> unique_ptr<RegexConcat> {
-  return move_to_unique(RegexConcat{makeVector<Regex>(std::move(ts)...)});
+  return move_to_unique(RegexConcat{
+      makeVector<unique_ptr<const Regex>>(std::move(ts)...)});
 }
 
 template <class ... Ts>
 auto orlist(Ts ... ts) -> unique_ptr<RegexOrList> {
-  return move_to_unique(RegexOrList{makeVector<Regex>(std::move(ts)...)});
+  return move_to_unique(RegexOrList{
+      makeVector<unique_ptr<const Regex>>(std::move(ts)...)});
 }
 
-Regex repeat(Regex part, char ch) {
-  if(ch == '+') return move_to_unique(RegexRepeat{std::move(part)});
-  if(ch == '*') return move_to_unique(RegexOptional{
-                         move_to_unique(RegexRepeat{std::move(part)})
-                       });
-  if(ch == '?') return move_to_unique(RegexOptional{std::move(part)});
+unique_ptr<Regex> repeat(unique_ptr<const Regex> part, char ch) {
+  if(ch == '+') return move_to_unique(RegexRepeat(std::move(part)));
+  if(ch == '*') return move_to_unique(RegexOptional(
+                         move_to_unique(RegexRepeat(std::move(part)))
+                       ));
+  if(ch == '?') return move_to_unique(RegexOptional(std::move(part)));
   Bug("Don't know how to construct repeats of type {}", ch);
 }
 
 void testPrettyPrint() {
-  std::pair<Regex,string> testVectors[] = {
+  std::pair<unique_ptr<const Regex>,string> testVectors[] = {
     {charSet({CharRange{'0','9'}}), "/[0-9]/"},
     {charSet({CharRange{'A','Z'}}), "/[A-Z]/"},
     {charSet({CharRange{'a','z'}}), "/[a-z]/"},
@@ -129,14 +132,16 @@ void testPrettyPrint() {
     {charString("hello\n"), "/hello\\n/"},
     {charString("{in}/[brackets]"), "/\\{in}\\/\\[brackets]/"},
     {charString("\\slashes/"), "/\\\\slashes\\//"},
-    {concat(move_to_unique(RegexAnchor::wordEdge), charString("hello"),
-            move_to_unique(RegexAnchor::wordEdge)), "/\\bhello\\b/"},
-    {concat(move_to_unique(RegexAnchor::bol), charString("hello"),
-            move_to_unique(RegexAnchor::eol)), "/^hello$/"},
+    {concat(move_to_unique(RegexAnchor{RegexAnchor::wordEdge}),
+            charString("hello"),
+            move_to_unique(RegexAnchor{RegexAnchor::wordEdge})),
+            "/\\bhello\\b/"},
+    {concat(move_to_unique(RegexAnchor{RegexAnchor::bol}), charString("hello"),
+            move_to_unique(RegexAnchor{RegexAnchor::eol})), "/^hello$/"},
   };
   const size_t n = sizeof(testVectors)/sizeof(testVectors[0]);
   for(size_t i=0; i<n; ++i) {
-    string observed = prettyPrint(testVectors[i].first);
+    string observed = prettyPrint(*testVectors[i].first);
     if(observed != testVectors[i].second)
       BugMe("Regex prettyPrint failed: {} != {}", observed,
             testVectors[i].second);
@@ -163,7 +168,7 @@ void testParseAndPrint() {
   for(auto& input : inputs) {
     InputDiags ctx{Input{input}};
     size_t i = 0;
-    optional<Regex> parseResult = parseRegex(ctx, i);
+    unique_ptr<const Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = prettyPrint(*parseResult);
@@ -206,7 +211,7 @@ void testStripOuterParens() {
     string input = "/("+part+")/";
     InputDiags ctx{Input{input}};
     size_t i = 0;
-    optional<Regex> parseResult = parseRegex(ctx, i);
+    unique_ptr<const Regex> parseResult = parseRegex(ctx, i);
     assertEmptyDiags(__func__, ctx.diags);
     if(!parseResult) BugMe("Regex {} silently failed to parse.", input);
     string output = prettyPrint(*parseResult);
@@ -233,12 +238,12 @@ void testRegexMatches() {
   for(auto& [pattern, inputstr, matchLen] : testVectors) {
     InputDiags regex_input{Input{pattern}};
     size_t i = 0;
-    Regex regex = *parseRegex(regex_input, i);
+    unique_ptr<const Regex> regex = parseRegex(regex_input, i);
     Input input{inputstr};
-    if(!startsWithRegex(input, 0, regex, opts))
+    if(!startsWithRegex(input, 0, *regex, opts))
       BugMe("\"{}\" was expected to startWithRegex() {}", inputstr, pattern);
     i = 0;
-    if(!consumeGreedily(input, i, regex, opts))
+    if(!consumeGreedily(input, i, *regex, opts))
       BugMe("consumeGreedily(\"{}\", {}) fails even though "
             "startsWithRegex() passes", inputstr, pattern);
     assertEqual("Regex comsumption length", i, matchLen);
@@ -253,13 +258,13 @@ void testRegexMatches() {
   for(auto& [pattern, inputstr] : failVectors) {
     InputDiags regex_input{Input{pattern}};
     size_t i = 0;
-    Regex regex = *parseRegex(regex_input, i);
+    unique_ptr<const Regex> regex = parseRegex(regex_input, i);
     Input input{inputstr};
-    if(startsWithRegex(input, 0, regex, opts))
+    if(startsWithRegex(input, 0, *regex, opts))
       BugMe("\"{}\" was not expected to startWithRegex() {}",
             inputstr, pattern);
     i = 0;
-    if(consumeGreedily(input, i, regex, opts))
+    if(consumeGreedily(input, i, *regex, opts))
       BugMe("\"{}\" was not expected to be consumed by {}", inputstr, pattern);
   };
 }

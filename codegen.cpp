@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include <functional>
 #include <map>
+#include <memory>
 #include <string_view>
 #include <type_traits>
 #include <utility>
@@ -33,6 +34,7 @@ using std::map;
 using std::optional;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 
 namespace oalex {
@@ -102,7 +104,8 @@ static string specifics_typename(const WordPreserving&)
   { return "WordPreserving"; }
 static string specifics_typename(const ExternParser&)
   { return "ExternParser"; }
-static string specifics_typename(const Regex&) { return "Regex"; }
+static string specifics_typename(const unique_ptr<const Regex>&)
+  { return "Regex"; }
 static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string specifics_typename(const OrRule&) { return "OrRule"; }
@@ -122,8 +125,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(holds_alternative<ExternParser>(r))  // use dlopen() someday
     UserError("eval() doesn't support 'extern' parsers");
   else if(const auto* sp = get_if<SkipPoint>(&r)) return skip(ctx, i, *sp);
-  else if(const auto* regex = get_if<Regex>(&r))
-    return match(ctx, i, *regex, ruleset.regexOpts);
+  else if(const auto* regex = get_if<unique_ptr<const Regex>>(&r))
+    return match(ctx, i, **regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* ors = get_if<OrRule>(&r))
@@ -169,12 +172,12 @@ static string cEscaped(string_view s) {
 static string squoted(char ch) { return format("'{}'", cEscaped(ch)); }
 static string dquoted(string_view s) { return format("\"{}\"", cEscaped(s)); }
 
-static string anchorName(RegexAnchor a) {
-  switch(a) {
+static string anchorName(const RegexAnchor& a) {
+  switch(a.anchorType) {
     case RegexAnchor::wordEdge: return "wordEdge";
     case RegexAnchor::bol: return "bol";
     case RegexAnchor::eol: return "eol";
-    default: Bug("Unknown RegexAnchor of type {}", static_cast<int>(a));
+    default: Bug("Unknown RegexAnchor of type {}", int(a.anchorType));
   }
 }
 
@@ -187,12 +190,12 @@ static const char* alphabool(bool b) { return b ? "true" : "false"; }
 static void genRegexCharSet(const RegexCharSet& cset,
                             const OutputStream& cppos, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  cppos("RegexCharSet{.ranges {"); br();
+  cppos("RegexCharSet({"); br();
   for(auto& range : cset.ranges) {
     cppos(format("  {{ {}, {} }},", squoted(range.from), squoted(range.to)));
     br();
   }
-  cppos(format("}}, .negated = {}}}", alphabool(cset.negated)));
+  cppos(format("}}, {})", alphabool(cset.negated)));
 }
 
 template <class T, class Cb> static void
@@ -212,35 +215,61 @@ static void
 genRegexComponents(const Regex& regex, const OutputStream& cppos,
                    ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  if(auto* cset = get_if_unique<const RegexCharSet>(&regex)) {
-    cppos("move_to_unique(");
-    genRegexCharSet(*cset, cppos, indent);
-    cppos(")");
-  }else if(auto* s = get_if_unique<const string>(&regex)) {
-    cppos(format("move_to_unique({}s)", dquoted(*s)));
-  }else if(auto* a = get_if_unique<const RegexAnchor>(&regex)) {
-    cppos(format("move_to_unique(RegexAnchor::{})", anchorName(*a)));
-  }else if(auto* seq = get_if_unique<const RegexConcat>(&regex)) {
-    cppos("move_to_unique(RegexConcat{.parts{");
-    genMakeVector("Regex", seq->parts, [&](auto& part) {
-                    genRegexComponents(part, cppos, indent+2);
-                  }, br, cppos);
-    cppos("}})");
-  }else if(auto* opt = get_if_unique<const RegexOptional>(&regex)) {
-    cppos("move_to_unique(RegexOptional{.part{"); br(); cppos("  ");
-    genRegexComponents(opt->part, cppos, indent+2);
-    br(); cppos("}})");
-  }else if(auto* rep = get_if_unique<const RegexRepeat>(&regex)) {
-    cppos("move_to_unique(RegexRepeat{.part{"); br(); cppos("  ");
-    genRegexComponents(rep->part, cppos, indent+2);
-    br(); cppos("}})");
-  }else if(auto ors = get_if_unique<const RegexOrList>(&regex)) {
-    cppos("move_to_unique(RegexOrList{.parts{"); br();
-    genMakeVector("Regex", ors->parts, [&](auto& part) {
-                    genRegexComponents(part, cppos, indent+2);
-                  }, br, cppos);
-    cppos("}})");
-  }else Bug("Unknown regex type index {} in codegen", regex.index());
+  switch(regex.nodeType) {
+    case RegexNodeType::charSet: {
+      auto& cset = static_cast<const RegexCharSet&>(regex);
+      genRegexCharSet(cset, cppos, indent);
+      break;
+    }
+    case RegexNodeType::string: {
+      const string& s = static_cast<const RegexString&>(regex).value;
+      cppos(format("RegexString({})", dquoted(s)));
+      break;
+    }
+    case RegexNodeType::anchor: {
+      auto& a = static_cast<const RegexAnchor&>(regex);
+      cppos(format("RegexAnchor(RegexAnchor::{})", anchorName(a)));
+      break;
+    }
+    case RegexNodeType::concat: {
+      auto& seq = static_cast<const RegexConcat&>(regex);
+      cppos("RegexConcat({");
+      genMakeVector("unique_ptr<const Regex>", seq.parts, [&](auto& part) {
+                      cppos("move_to_unique(");
+                      genRegexComponents(*part, cppos, indent+2);
+                      cppos(")");
+                    }, br, cppos);
+      cppos("})");
+      break;
+    }
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(regex);
+      cppos("RegexOptional(move_to_unique("); br(); cppos("  ");
+      genRegexComponents(*opt.part, cppos, indent+2);
+      br(); cppos("))");
+      break;
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(regex);
+      cppos("RegexRepeat(move_to_unique("); br(); cppos("  ");
+      genRegexComponents(*rep.part, cppos, indent+2);
+      br(); cppos("))");
+      break;
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(regex);
+      cppos("RegexOrList({");
+      genMakeVector("unique_ptr<const Regex>", ors.parts, [&](auto& part) {
+                      cppos("move_to_unique(");
+                      genRegexComponents(*part, cppos, indent+2);
+                      cppos(")");
+                    }, br, cppos);
+      cppos("})");
+      break;
+    }
+    default:
+      Bug("Unknown regex type index {} in codegen", int(regex.nodeType));
+  }
 }
 
 void codegenDefaultRegexOptions(const RuleSet& ruleset,
@@ -268,7 +297,7 @@ parserHeaders(const string& rname,
 }
 
 static void
-codegen(const Regex& regex, const OutputStream& cppos) {
+codegen(const unique_ptr<const Regex>& regex, const OutputStream& cppos) {
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
@@ -279,10 +308,12 @@ codegen(const Regex& regex, const OutputStream& cppos) {
   cppos("  using oalex::RegexOptions;\n");
   cppos("  using oalex::RegexOrList;\n");
   cppos("  using oalex::RegexRepeat;\n");
+  cppos("  using oalex::RegexString;\n");
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
-  cppos("  static Regex *r = new Regex{\n    ");
-  genRegexComponents(regex, cppos, 4);
-  cppos("\n  };\n");
+  cppos("  using std::unique_ptr;\n");
+  cppos("  static const Regex *r = new ");
+  genRegexComponents(*regex, cppos, 4);
+  cppos(";\n");
   cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
 }
 
@@ -454,7 +485,7 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
   }else if(const auto* wp = get_if<WordPreserving>(&r)) {
     codegen(*wp, cppos);
-  }else if(const auto* regex = get_if<Regex>(&r)) {
+  }else if(const auto* regex = get_if<unique_ptr<const Regex>>(&r)) {
     codegen(*regex, cppos);
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {
     codegen(*sp, cppos);
