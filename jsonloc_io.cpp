@@ -156,14 +156,6 @@ optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
-optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiags& ctx,
-                                               const BracketGroup& bg) {
-  if(bg.type == BracketType::paren) return nullopt;
-  if(bg.type == BracketType::square) return parseVector(ctx, bg.children);
-  if(bg.type == BracketType::brace) return parseMap(ctx, bg.children);
-  Bug("Unknown BracketType: {}", int(bg.type));
-}
-
 bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
   if(holds_alternative<WholeSegment>(expr)) return true;
   if(auto* qs = get_if<GluedString>(&expr)) {
@@ -185,6 +177,14 @@ bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
 }  // namespace
 
 namespace oalex {
+
+optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiags& ctx,
+                                               const BracketGroup& bg) {
+  if(bg.type == BracketType::paren) return nullopt;
+  if(bg.type == BracketType::square) return parseVector(ctx, bg.children);
+  if(bg.type == BracketType::brace) return parseMap(ctx, bg.children);
+  Bug("Unknown BracketType: {}", int(bg.type));
+}
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {

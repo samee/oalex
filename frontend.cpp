@@ -22,11 +22,14 @@
 
 #include "lexer.h"
 #include "regex_io.h"
+#include "jsonloc_io.h"
 
 using fmt::format;
 using oalex::InputDiagsRef;
+using oalex::parseJsonLocFromBracketGroup;
 using oalex::parseRegexCharSet;
 using oalex::lex::enPos;
+using oalex::lex::BracketGroup;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
 using oalex::lex::isToken;
@@ -195,9 +198,21 @@ auto parseExample(const vector<ExprToken>& linetoks,
     rv.expectation = Expectation::ErrorSubstr{string(*s)};
     if(linetoks2.size() > 4)
       return Error(ctx, stPos(linetoks2[4]), "Expected end of line");
+  }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
+    const BracketGroup* bg;
+    if(linetoks2.size() < 3 ||
+        (bg = get_if<BracketGroup>(&linetoks2[2])) == nullptr )
+      return Error(ctx, enPos(linetoks2[1]), "Was expecting '{' on this line");
+    optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, *bg);
+    // If there's an error, parseJsonLocFromBracketGroup() should have already
+    // produced diags.
+    if(!jsloc.has_value()) return nullopt;
+    if(linetoks2.size() > 3)
+      return Error(ctx, stPos(linetoks[3]), "Was expecting end of line");
+    Unimplemented("json example output is unimplemented");
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
-                 "Was expecting 'success' or 'error with' after this");
+                 "Was expecting ': {', 'success', or 'error with' after this");
   else return Error(ctx, i, "Was expecting 'outputs'");
 
   // FIXME invalid escape code error appeared multiple times.

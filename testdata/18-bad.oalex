@@ -1,0 +1,13 @@
+# Expected syntax error: Was expecting end of line
+
+hello := "Hello"
+
+example hello:
+  Hello
+outputs success
+
+example hello:
+  Hello
+outputs: {
+  msg: "Hello"
+} more stuff

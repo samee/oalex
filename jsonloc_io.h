@@ -15,6 +15,7 @@
 #pragma once
 #include <string_view>
 #include <utility>
+#include "lexer.h"
 #include "runtime/diags.h"
 #include "runtime/jsonloc.h"
 
@@ -29,4 +30,7 @@ std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 // is useful in tests. Later, we may extend it to support actual json, e.g.
 // those produced by JsonLoc::prettyPrintJson().
 std::optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i);
+
+std::optional<JsonLoc> parseJsonLocFromBracketGroup(
+    InputDiags& ctx, const lex::BracketGroup& bg);
 }  // namespace oalex

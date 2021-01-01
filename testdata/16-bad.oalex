@@ -1,4 +1,4 @@
-# Expected syntax error: Was expecting 'success' or 'error with' after this
+# Expected syntax error: Was expecting ': {', 'success', or 'error with'
 
 require_politeness
 

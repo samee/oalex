@@ -1,0 +1,13 @@
+# Expected syntax error: json example output is unimplemented
+
+hello := "Hello"
+
+example hello:
+  Hello
+outputs success
+
+example hello:
+  Hello
+outputs: {
+  msg: "Hello"
+}
