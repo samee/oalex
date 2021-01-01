@@ -1,4 +1,4 @@
-# Expected syntax error: Identifier expected
+# expected-error: Identifier expected
 # As usual, they can't start in a number.
 
 1ident := "Hello!"

@@ -39,7 +39,7 @@ for cmd, error_re in errorcases:
     sys.exit(1)
 
 def find_expected_error(filename: str) -> str:
-  directive = "# Expected syntax error:"
+  directive = "# expected-error:"
   with open(os.path.join(sysargs.testdata, filename), mode='r') as f:
     for line in f:
       if line.startswith(directive):

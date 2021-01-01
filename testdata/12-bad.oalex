@@ -1,4 +1,4 @@
-# Expected syntax error: The expected error should be on this line
+# expected-error: The expected error should be on this line
 
 require_politeness
 

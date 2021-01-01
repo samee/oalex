@@ -1,4 +1,4 @@
-# Expected syntax error: Expected end of line
+# expected-error: Expected end of line
 
 require_politeness
 

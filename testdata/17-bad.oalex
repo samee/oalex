@@ -1,4 +1,4 @@
-# Expected syntax error: json example output is unimplemented
+# expected-error: json example output is unimplemented
 
 hello := "Hello"
 

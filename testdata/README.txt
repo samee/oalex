@@ -5,4 +5,4 @@ The files in this directory consist of two different kinds of tests:
     failure of user languages using appropriate examples.
 
 The first kind, on which `oalex` is expected to fail, has comments of the form
-"Expected syntax error:". That directive is used by oalex_main_test.py.
+"expected-error:". That directive is used by oalex_main_test.py.

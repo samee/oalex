@@ -1,2 +1,2 @@
 # This file is intentionally empty
-# Expected syntax error: Doesn't insist on politeness
+# expected-error: Doesn't insist on politeness

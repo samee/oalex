@@ -1,4 +1,4 @@
-# Expected syntax error: No indented example input follows
+# expected-error: No indented example input follows
 
 require_politeness
 

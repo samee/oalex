@@ -1,4 +1,4 @@
-# Expected syntax error: Was expecting a ':' after this
+# expected-error: Was expecting a ':' after this
 
 require_politeness
 

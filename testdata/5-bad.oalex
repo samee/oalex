@@ -1,4 +1,4 @@
-# Expected syntax error: right-hand side missing
+# expected-error: right-hand side missing
 
 x :=
 

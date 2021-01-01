@@ -1,4 +1,4 @@
-# Expected syntax error: The expected error should be 'single-quoted'
+# expected-error: The expected error should be 'single-quoted'
 
 require_politeness
 

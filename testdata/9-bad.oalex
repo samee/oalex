@@ -1,4 +1,4 @@
-# Expected syntax error: Example input needs to be on the following line
+# expected-error: Example input needs to be on the following line
 
 require_politeness
 
