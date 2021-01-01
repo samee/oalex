@@ -1,4 +1,4 @@
-/*  Copyright 2019 Google LLC
+/*  Copyright 2019-2020 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ using oalex::lex::lexSectionHeader;
 using oalex::lex::lookahead;
 using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
+using oalex::lex::matcher::ExprMatcher;
 using oalex::lex::matcher::parens;
 using oalex::lex::matcher::glued;
 using oalex::lex::matcher::squareBrackets;
@@ -504,42 +505,29 @@ const char badEagerRecovery[] = "\"\\x\"die\n";
 const char invalidCharInput[] = "hello \x01 world";
 
 void nextLineSuccessImpl(
-    string_view testInput, const char testName[],
-    vector<string> expectedResult) {
+    string_view testInput, string_view testName,
+    vector<ExprMatcher> expectedResult) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t pos = 0;
   optional<vector<ExprToken>> observedResult = lexNextLine(ctx, pos);
-  if(!observedResult.has_value())
+  if(!observedResult.has_value()) {
+    showDiags(ctx.diags);
     Bug("{} failed: Couldn't process input:\n{}", testName, testInput);
+  }
   if(observedResult->size() != expectedResult.size())
     Bug("{} failed: output size unexpected: {} != {}", testName,
         observedResult->size(), expectedResult.size());
   for(size_t i=0; i<observedResult->size(); ++i) {
-    const ExprToken& o = observedResult->at(i);
-    const string& e = expectedResult.at(i);
-    if(auto* tok = get_if<WholeSegment>(&o)) {
-      if(!e.empty() && (e[0] == '"' || e[0] == '\''))
-        Bug("{} failed: Expecting quoted token at position {}", testName, i);
-      assertEqual(testName, e, **tok);
-    }else if(auto* s = get_if<GluedString>(&o)) {
-      if(e.empty() || (e[0] != '"' && e[0] != '\''))
-        Bug("{} failed: Expecting a whole segment at position {}", testName, i);
-      if(e[0] != e.back())
-        Bug("{} failed: Expectation {} has mismatching quotes", testName, i);
-      assertEqual(testName, e.substr(1, e.size()-2), string(*s));
-    }else Bug("{} failed: Unknown result type {}", testName, o.index());
+    if(auto err = matcher::match(expectedResult[i], observedResult->at(i)))
+      Bug("{} failed at result index {}: {}", testName, i, *err);
   }
 }
 
 void nextLineFailureImpl(
     const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags ctx{testInputDiags(testInput)};
-  size_t i = 0;
-  optional<vector<ExprToken>> res = lexNextLine(ctx, i);
-  if(res.has_value() || ctx.diags.empty())
-    Bug("Test {} succeeded unexpectedly", testName);
-  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+  assertProducesDiag(testName, testInput, expectedDiag,
+                     OALEX_VOIDIFY(lexNextLine));
 }
 
 }  // namespace
@@ -611,7 +599,8 @@ int main() {
 
   newlinePositionIsCorrect();
 
-  nextLineSuccess(goodLine, (vector<string>{"var", ":=", "\"Hello!\""}));
+  nextLineSuccess(goodLine, (vector<ExprMatcher>{
+        "var", ":=", glued("Hello!")}));
   nextLineFailure(badLine, "Unexpected end of line");
   nextLineFailure(badEagerRecovery, "Invalid hex code");
   nextLineFailure(invalidCharInput, "Invalid source character");
