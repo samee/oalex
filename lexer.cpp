@@ -1,4 +1,4 @@
-/*  Copyright 2019 Google LLC
+/*  Copyright 2019-2020 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -414,6 +414,13 @@ optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
+/* Behavior:
+
+   * Throws Fatal() on unexpected characters (outside quotes).
+   * On valid source chars, produces silent nullopt on eof.
+   * If no open bracket, still silent nullopt.
+   * Any failure after this produces diags.
+ */
 optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   Resetter rst(ctx, i);
@@ -634,21 +641,24 @@ static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
   else return Error(ctx, i, "Invalid source character");
 }
 
-// TODO lexQuotedString() needs to support single-quoted strings as well.
 optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
   if(i != ctx.input.bol(i)) FatalBug(ctx, i, "lexNextLine() must start at bol");
   Resetter rst(ctx, i);
   while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
 
   vector<ExprToken> rv;
-  const size_t lineStart = i;
-  for(i=oalexSkip.withinLine(ctx.input, lineStart);
-      ctx.input.sizeGt(i) && ctx.input.bol(i) == lineStart;
+  size_t prevBol = i;
+  for(i=oalexSkip.withinLine(ctx.input, prevBol);
+      ctx.input.sizeGt(i) && ctx.input.bol(i) == prevBol;
       i=oalexSkip.withinLine(ctx.input,i)) {
-    optional<ExprToken> tok = lexSingleToken(ctx, i);
-    if(!tok.has_value()) return nullopt;
+    optional<ExprToken> tok = lexBracketGroup(ctx, i);
+    if(!tok.has_value()) {
+      tok = lexSingleToken(ctx, i);
+      if(!tok.has_value()) return nullopt;
+    }
     rv.push_back(*tok);
     i = enPos(*tok);
+    prevBol = ctx.input.bol(i);
   }
   rst.markUsed(i);
   return rv;

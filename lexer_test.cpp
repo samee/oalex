@@ -492,6 +492,13 @@ var := "Hello!"
 more stuff ignored
 )";
 
+const char goodLineWithBrackets[] = R"(
+  output: {
+    key1: "value1",
+    key2: "value2"
+  }
+  something else)";
+
 const char badLine[] = R"(
 var "unfinished
 
@@ -601,7 +608,10 @@ int main() {
 
   nextLineSuccess(goodLine, (vector<ExprMatcher>{
         "var", ":=", glued("Hello!")}));
+  nextLineSuccess(goodLineWithBrackets,(vector<ExprMatcher>{
+        "output", ":", braces("key1", ":", glued("value1"), ",",
+                              "key2", ":", glued("value2"))}));
   nextLineFailure(badLine, "Unexpected end of line");
   nextLineFailure(badEagerRecovery, "Invalid hex code");
-  nextLineFailure(invalidCharInput, "Invalid source character");
+  nextLineFailure(invalidCharInput, "Unexpected character");
 }

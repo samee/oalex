@@ -1,4 +1,4 @@
-/*  Copyright 2019 Google LLC
+/*  Copyright 2019-2020 Google LLC
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -189,6 +189,10 @@ std::optional<GluedString> lexIndentedSource(InputDiags& lex, size_t& i,
     std::string_view parindent);
 std::optional<std::string> lookaheadParIndent(InputDiags& ctx, size_t i);
 std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
+
+// This one is not meant for tentative parsing. Produces error diags if
+// anything is wrong. It joins multiple lines together if necessary for
+// bracket-matching.
 std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
