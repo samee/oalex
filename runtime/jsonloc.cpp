@@ -171,7 +171,7 @@ bool JsonLoc::supportsEquality() const {
     return true;
   }
   if(auto* m = get_if<Map>(&value)) {
-    for(auto& [k,v] : *m) if(v.supportsEquality()) return false;
+    for(auto& [k,v] : *m) if(!v.supportsEquality()) return false;
     return true;
   }
   BugUnknownJsonType(*this);

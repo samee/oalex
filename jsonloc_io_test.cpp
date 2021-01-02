@@ -198,6 +198,7 @@ int main() {
   testJsonLocFailure("[123]", "'123' is not a valid identifier");
   testSupportsEquality("['hello', world]", false);
   testSupportsEquality("['hello', 'world']", true);
+  testSupportsEquality("{ msg: 'hello' }", true);
   testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
                "{goodbye: ['till', 'next', 'time'], hello: 'world'}",
                true);
