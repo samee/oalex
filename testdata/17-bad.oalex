@@ -1,4 +1,4 @@
-# expected-error: json example output is unimplemented
+# expected-error: Was expecting output {
 
 hello := "Hello"
 

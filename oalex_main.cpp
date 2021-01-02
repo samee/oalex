@@ -289,14 +289,16 @@ bool testExample(const RuleSet& rs, const Example& ex) {
     Bug("Rule {} not found. The frontend should have already "
         "detected this error", ex.ruleName);
   JsonLoc jsloc = eval(ctx, pos, rs, findRule(rs, ex.ruleName));
-  if (ex.expectation.matches(!jsloc.holdsError(), ctx.diags)) return true;
+  if (ex.expectation.matches(jsloc, ctx.diags)) return true;
 
   bool success = (!jsloc.holdsError() && ctx.diags.empty());
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
   if(!jsloc.holdsError())
     fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());
-  fprintf(stderr, "Errors received:\n");
-  diagsToStderr(ctx.diags);
+  if(!ctx.diags.empty()) {
+    fprintf(stderr, "Errors received:\n");
+    diagsToStderr(ctx.diags);
+  }
   return false;
 }
 

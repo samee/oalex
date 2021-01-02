@@ -53,9 +53,11 @@ MappedPos::operator string() const {
   return "line " + to_string(this->line);
 }
 
-bool Expectation::matches(bool success, const std::vector<Diag>& diags) const {
-  if(success!=success_) return false;
-  if(success) return true;  // Ignore errorSubstr_
+bool Expectation::matches(const JsonLoc& jsloc,
+                          const std::vector<Diag>& diags) const {
+  if(jsloc.holdsError()==success_) return false;
+  if(success_)
+    return jsloc_.supportsEquality() ? jsloc == jsloc_ : true;
   for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
   return false;
 }
@@ -94,19 +96,32 @@ static void parsePolitenessDirective(
     const vector<ExprToken>& linetoks, InputDiagsRef ctx,
     back_insert_iterator<vector<Rule>> rules, ssize_t nextRuleIndex,
     back_insert_iterator<vector<Example>> examples) {
-  if(linetoks.size() != 1) {
-    Error(ctx, stPos(linetoks[1]), "Was expecting end of line");
-    return;
-  }
-
-  *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
-                "required_hello"};
-  *rules = Rule{"Hello!"};
-  size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
-  *examples = Example{testLine, "required_hello", "Hello!",
-                      Expectation::Success};
-  *examples = Example{testLine, "required_hello", "Goodbye!",
-                      Expectation::ErrorSubstr{"Failed at politeness test"}};
+  if(linetoks.size() == 1) {
+    *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
+                  "required_hello"};
+    *rules = Rule{"Hello!"};
+    size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
+    *examples = Example{testLine, "required_hello", "Hello!",
+                        Expectation::Success};
+    *examples = Example{testLine, "required_hello", "Goodbye!",
+                        Expectation::ErrorSubstr{"Failed at politeness test"}};
+  }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
+    if(linetoks.size() > 2) {
+      Error(ctx, stPos(linetoks[2]), "Was expecting end of line");
+      return;
+    }
+    *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
+                  "required_hello"};
+    *rules = Rule{"Hello!"};
+    InputDiags tmplinput{Input{"{msg: msg}"}};
+    size_t tmplpos = 0;
+    ConcatRule single{
+      {{nextRuleIndex, "msg"}},
+      *parseJsonLoc(tmplinput, tmplpos)
+    };
+    *rules = Rule{std::move(single), "required_hello_in_json"};
+  }else Error(ctx, stPos(linetoks[1]),
+              "Was expecting end of line or 'jsonized'");
 }
 
 static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
@@ -207,9 +222,13 @@ auto parseExample(const vector<ExprToken>& linetoks,
     // If there's an error, parseJsonLocFromBracketGroup() should have already
     // produced diags.
     if(!jsloc.has_value()) return nullopt;
+    // TODO improve error location.
+    if(!jsloc->supportsEquality())
+      return Error(ctx, stPos(linetoks[3]),
+                   "Values need to be properly quoted");
     if(linetoks2.size() > 3)
       return Error(ctx, stPos(linetoks[3]), "Was expecting end of line");
-    Unimplemented("json example output is unimplemented");
+    rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
                  "Was expecting ': {', 'success', or 'error with' after this");
@@ -284,9 +303,14 @@ string describeTestFailure(const Example& ex, bool succeeded) {
                     string(ex.mappedPos), *msg);
     }
   }else {
-    return format("Test failed at {}\n"
-                  "Was expecting {} to succeed on input '{}'",
-                  string(ex.mappedPos), ex.ruleName, ex.sampleInput);
+    if(auto jsloc = ex.expectation.jsloc()) {
+      return format("Test failed\nWas expecting output {}.",
+                    jsloc->prettyPrint());
+    }else {
+      return format("Test failed at {}\n"
+                    "Was expecting {} to succeed on input '{}'",
+                    string(ex.mappedPos), ex.ruleName, ex.sampleInput);
+    }
   }
 }
 

@@ -39,16 +39,23 @@ class Expectation {
  public:
   // Constructor tags
   static struct Success_t {} Success;
+  struct SuccessWithJson { JsonLoc value; };
   struct ErrorSubstr { std::string msg; };
 
   Expectation() = default;
   Expectation(Success_t) : success_{true} {}  // implicit ctor
+  Expectation(SuccessWithJson jsloc)
+    : success_{true}, jsloc_{std::move(jsloc.value)} {}
   Expectation(ErrorSubstr f)  // implicit ctor
     : success_{false}, errorSubstr_{std::move(f.msg)} {}
 
-  bool matches(bool success, const std::vector<Diag>& diags) const;
+  bool matches(const JsonLoc& jsloc, const std::vector<Diag>& diags) const;
 
   bool isForSuccess() const { return success_; }
+  std::optional<JsonLoc> jsloc() const {
+    if(success_ && jsloc_.supportsEquality()) return jsloc_;
+    else return std::nullopt;
+  }
   std::optional<std::string> isForErrorSubstr() const {
     if(success_) return std::nullopt;
     else return errorSubstr_;
@@ -56,6 +63,7 @@ class Expectation {
  private:
   bool success_ = false;
   std::string errorSubstr_;
+  JsonLoc jsloc_{JsonLoc::ErrorValue{}};  // jsloc_.supportsEquality() == false
 };
 
 // Alternative to storing stPos, if we don't want to carry around InputDiags.
