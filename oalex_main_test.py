@@ -56,7 +56,7 @@ for filename in testfiles:
   expected_error = find_expected_error(filename)
   if expected_error:
     result = subprocess.run(
-               [sysargs.bin, os.path.join(sysargs.testdata, filename)],
+               [sysargs.bin, "test", os.path.join(sysargs.testdata, filename)],
                input="", capture_output=True)
     assert result.returncode != 0, f"{filename} was expected to cause failure"
     observed_error = result.stderr.decode('utf-8')

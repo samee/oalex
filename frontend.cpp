@@ -219,6 +219,11 @@ auto parseExample(const vector<ExprToken>& linetoks,
   return rv;
 }
 
+static bool hasError(const vector<Diag>& diags) {
+  for(const auto& d : diags) if(d.severity == Diag::error) return true;
+  return false;
+}
+
 auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
   static const auto* userRegexOpts = new RegexOptions{
@@ -260,6 +265,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
   // TODO check for duplicate Rule names.
+  if(hasError(ctx.diags)) return nullopt;
   return ParsedSource{std::move(rs), std::move(examples)};
 }
 
