@@ -159,6 +159,22 @@ void testJsonLocPosition(const char input[], size_t endi) {
                     input, endi, i);
 }
 
+void testSupportsEquality(const char input[], bool expectedRes) {
+  JsonLoc jsloc = assertValidJsonLoc(__func__, input);
+  if(jsloc.supportsEquality() != expectedRes)
+    Bug("{}: Was expecting supportsEquality() to {} on input \"{}\"",
+        __func__, (expectedRes?"succeed":"fail"), input);
+}
+
+void testEquality(const char input1[], const char input2[], bool expectedRes) {
+  JsonLoc jsloc1 = assertValidJsonLoc(__func__, input1);
+  JsonLoc jsloc2 = assertValidJsonLoc(__func__, input2);
+  if((jsloc1 == jsloc2) != expectedRes)
+    Bug("{}: Was expecting equality check to {} on inputs:\n"
+        "  {}\n  {}", __func__, (expectedRes?"succeed":"fail"),
+        input1, input2);
+}
+
 }  // namespace
 
 // Note: none of these check JsonLoc::stPos or enPos of parse results, since we
@@ -180,4 +196,12 @@ int main() {
   testJsonLocFailure("{a:b,a:c}", "Duplicate key a");
   testJsonLocFailure("[a b]", "Was expecting a comma");
   testJsonLocFailure("[123]", "'123' is not a valid identifier");
+  testSupportsEquality("['hello', world]", false);
+  testSupportsEquality("['hello', 'world']", true);
+  testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
+               "{goodbye: ['till', 'next', 'time'], hello: 'world'}",
+               true);
+  testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
+               "{hello: 'world', goodbyee: ['till', 'next', 'time']}",
+               false);
 }

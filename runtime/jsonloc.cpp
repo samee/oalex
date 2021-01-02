@@ -18,6 +18,7 @@
 #include "util.h"
 using fmt::format_to;
 using fmt::memory_buffer;
+using std::get;
 using std::get_if;
 using std::holds_alternative;
 using std::make_pair;
@@ -159,6 +160,32 @@ string JsonLoc::prettyPrintJson(size_t indent) const {
   fmt::memory_buffer buf;
   oalex::prettyPrint(buf, indent, *this, true);
   return fmt::to_string(buf);
+}
+
+bool JsonLoc::supportsEquality() const {
+  if(holds_alternative<Placeholder>(value) ||
+     holds_alternative<ErrorValue>(value)) return false;
+  if(holds_alternative<String>(value)) return true;
+  if(auto* vec = get_if<Vector>(&value)) {
+    for(auto& v : *vec) if(!v.supportsEquality()) return false;
+    return true;
+  }
+  if(auto* m = get_if<Map>(&value)) {
+    for(auto& [k,v] : *m) if(v.supportsEquality()) return false;
+    return true;
+  }
+  BugUnknownJsonType(*this);
+}
+
+bool JsonLoc::operator==(const JsonLoc& that) const {
+  if(this->value.index() != that.value.index()) return false;
+
+  if(holds_alternative<Placeholder>(value) ||
+     holds_alternative<ErrorValue>(value)) Bug("supportsEquality() is false");
+  if(auto* s = get_if<String>(&value)) return *s == get<String>(that.value);
+  if(auto* v = get_if<Vector>(&value)) return *v == get<Vector>(that.value);
+  if(auto* m = get_if<Map>(&value)) return *m == get<Map>(that.value);
+  BugUnknownJsonType(*this);
 }
 
 }  // namespace oalex
