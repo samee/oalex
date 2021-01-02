@@ -86,8 +86,11 @@ bool isErrorValue(const vector<ExprToken>& v) {
 }
 
 optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
-  if(auto seg = parseIdent(ctx,expr))
-    return JsonLoc(JsonLoc::Placeholder{seg->data});
+  if(auto* seg = get_if<WholeSegment>(&expr)) {
+    if(auto id = parseIdent(ctx, *seg))
+      return JsonLoc(JsonLoc::Placeholder{id->data});
+    else return nullopt;
+  }
   if(auto* qs = get_if<GluedString>(&expr))
     return JsonLoc(*qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {

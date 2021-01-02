@@ -42,10 +42,27 @@ using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::parseJsonLocFlexQuote;
 using oalex::Resetter;
+using oalex::showDiags;
 using oalex::testInputDiags;
 using oalex::uniqueKeys;
 
 namespace {
+
+JsonLoc assertValidJsonLoc(const char testName[],
+                           const char input[], size_t& i) {
+  InputDiags ctx = testInputDiags(input);
+  optional<JsonLoc> res = parseJsonLocFlexQuote(ctx, i);
+  if(!res.has_value() || !ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    Bug("{}: Got unexpected diags.", testName);
+  }
+  return *res;
+}
+
+JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
+  size_t i = 0;
+  return assertValidJsonLoc(testName, input, i);
+}
 
 void testSimpleSuccess() {
   const char input[] = R"( {
@@ -115,8 +132,8 @@ void testParseAndPrintError() {
     input: (error_value),
     msg: "hello world"
   })";
-  optional<JsonLoc> json = parseJsonLocFlexQuote(input);
-  string output = json->prettyPrint(2);
+  JsonLoc json = assertValidJsonLoc(__func__, input.c_str());
+  string output = json.prettyPrint(2);
   assertEqual(__func__, input, output);
 }
 
