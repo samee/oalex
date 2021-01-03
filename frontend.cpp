@@ -75,6 +75,13 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
   return s;
 }
 
+// Assumes ident.empty() == false
+static size_t identIndex(vector<Rule>& rules, string_view ident) {
+  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) return i;
+  rules.emplace_back(std::monostate{}, string(ident));
+  return rules.size()-1;
+}
+
 /*
 resemblesX() vs parseX().
   - resemblesX() is the lookahead. It does enough sanitization to commit to
@@ -91,10 +98,12 @@ static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
 static void parsePolitenessDirective(
     const vector<ExprToken>& linetoks, InputDiagsRef ctx,
     vector<Rule>& rules, vector<Example>& examples) {
+  const char hello_ident[] = "required_hello";
+  ssize_t hello_index = identIndex(rules, hello_ident);
   if(linetoks.size() == 1) {
-    rules.emplace_back(
-        MatchOrError{ssize_t(rules.size())+1, "Failed at politeness test"},
-        "required_hello");
+    rules[hello_index] = Rule{
+        MatchOrError{ssize_t(rules.size()), "Failed at politeness test"},
+        hello_ident};
     rules.emplace_back("Hello!");
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
     examples.push_back(
@@ -108,14 +117,14 @@ static void parsePolitenessDirective(
       return;
     }
     const ssize_t nextRuleIndex = rules.size();
-    rules.emplace_back(
-        MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
-        "required_hello");
+    rules[hello_index] = Rule{
+        MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
+    };
     rules.emplace_back("Hello!");
     InputDiags tmplinput{Input{"{msg: msg}"}};
     size_t tmplpos = 0;
     ConcatRule single{
-      {{nextRuleIndex, "msg"}},
+      {{hello_index, "msg"}},
       *parseJsonLoc(tmplinput, tmplpos)
     };
     rules.emplace_back(std::move(single), "required_hello_in_json");
@@ -134,6 +143,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]), "Identifier expected");
     return;
   }
+  const size_t ruleIndex = identIndex(rules, *ident);
   if(linetoks.size() < 3) {
     Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
           "Rule's right-hand side missing");
@@ -144,9 +154,9 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
       Error(ctx, stPos(linetoks[3]), "Expected end of line");
       return;
     }
-    rules.emplace_back(MatchOrError{
-        ssize_t(rules.size())+1, format("Expected '{}'", *literal)
-        }, *ident);
+    rules[ruleIndex] = Rule{MatchOrError{
+        ssize_t(rules.size()), format("Expected '{}'", *literal)
+        }, *ident};
     rules.emplace_back(std::move(*literal), std::move(*ident));
     return;
   }else {
