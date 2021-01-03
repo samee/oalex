@@ -129,8 +129,7 @@ static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
 }
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
-                         back_insert_iterator<vector<Rule>> rules,
-                         ssize_t nextRuleIndex) {
+                         vector<Rule>& rules) {
   const optional<string> ident = getIfIdent(linetoks[0]);
   if(!ident.has_value()) {
     Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]), "Identifier expected");
@@ -146,10 +145,10 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
       Error(ctx, stPos(linetoks[3]), "Expected end of line");
       return;
     }
-    *rules = Rule{MatchOrError{
-               nextRuleIndex+1, format("Expected '{}'", *literal)
-             }, *ident};
-    *rules = Rule{std::move(*literal), std::move(*ident)};
+    rules.emplace_back(MatchOrError{
+        ssize_t(rules.size())+1, format("Expected '{}'", *literal)
+        }, *ident);
+    rules.emplace_back(std::move(*literal), std::move(*ident));
     return;
   }else {
     Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
@@ -269,7 +268,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       else break;
     }
     if(resemblesBnfRule(linetoks)) {
-      parseBnfRule(linetoks, ctx, back_inserter(rs.rules), rs.rules.size());
+      parseBnfRule(linetoks, ctx, rs.rules);
     }else if(resemblesPolitenessDirective(linetoks)) {
       parsePolitenessDirective(linetoks, ctx,
                                back_inserter(rs.rules), rs.rules.size(),
