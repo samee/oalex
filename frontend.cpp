@@ -385,12 +385,15 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
 // TODO make this nicer. Escape with dquoted() on single-line outputs,
 // indent on multi-line.
 string describeTestFailure(const Example& ex, bool succeeded) {
+  string_view input = ex.sampleInput;
+  if(!input.empty() && input.back() == '\n') input.remove_suffix(1);
+
   if(auto msg = ex.expectation.isForErrorSubstr()) {
     if(succeeded) {
       return format("Test failed at {}\n"
                     "Was expecting {} to fail on input '{}'. "
                     "Succeeded unexpectedly.", string(ex.mappedPos),
-                    ex.ruleName, ex.sampleInput);
+                    ex.ruleName, input);
     }else {
       return format("Test failed at {}\n"
                     "Was expecting failure with substring '{}'.",
@@ -403,7 +406,7 @@ string describeTestFailure(const Example& ex, bool succeeded) {
     }else {
       return format("Test failed at {}\n"
                     "Was expecting {} to succeed on input '{}'",
-                    string(ex.mappedPos), ex.ruleName, ex.sampleInput);
+                    string(ex.mappedPos), ex.ruleName, input);
     }
   }
 }
