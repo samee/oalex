@@ -1,0 +1,2 @@
+# expected-error: Expected ','
+greetings := Concat ['Hello' 'World']

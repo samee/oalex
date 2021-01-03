@@ -1,0 +1,24 @@
+
+# Test if reference to other rules work,
+# even if they are declared later in the file.
+greetings_enthusiastic := Concat[greetings, '!']
+
+example greetings_enthusiastic:
+  HelloWorld!
+outputs success
+
+example greetings_enthusiastic:
+  HelloWorld
+outputs error with 'Expected \'!\''
+
+
+# This is HelloWorld with no spaces
+greetings := Concat ['Hello', 'World']
+
+example greetings:
+  HelloWorld
+outputs success
+
+example greetings:
+  Hello World
+outputs error with 'Expected \'World\''

@@ -1,0 +1,2 @@
+# expected-error: Was expecting expression to end
+greetings := Concat [ 'Hello', 'World' ] and more

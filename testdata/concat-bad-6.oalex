@@ -1,0 +1,2 @@
+# expected-error: Expected strings to be single-quoted
+greetings := Concat [ "Hello", "World" ]

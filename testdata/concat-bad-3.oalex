@@ -1,0 +1,2 @@
+# expected-error: Unexpected end of expression
+greetings := Concat

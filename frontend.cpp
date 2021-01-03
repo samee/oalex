@@ -30,6 +30,7 @@ using oalex::parseJsonLocFromBracketGroup;
 using oalex::parseRegexCharSet;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
+using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
 using oalex::lex::isToken;
@@ -132,8 +133,67 @@ static void parsePolitenessDirective(
               "Was expecting end of line or 'jsonized'");
 }
 
+static char bracketStart(BracketType bt) {
+  switch(bt) {
+    case BracketType::square: return '[';
+    case BracketType::brace: return '{';
+    case BracketType::paren: return '(';
+    default: Bug("Unknown BracketType {}", int(bt));
+  }
+}
+
+static bool requireBracketType(const BracketGroup& bg, BracketType bt,
+                               InputDiagsRef ctx) {
+  if(bg.type != bt) {
+    Error(ctx, bg.stPos, format("Was expecting '{}'", bracketStart(bt)));
+    return false;
+  }else return true;
+}
+static bool requireSizeLe(const vector<ExprToken>& toks, size_t sz,
+                          InputDiagsRef ctx) {
+  if(toks.size() > sz) {
+    Error(ctx, stPos(toks[sz]), "Was expecting expression to end");
+    return false;
+  }else return true;
+}
+// Meant for simple cases where we expect only one token between commas
+// Allows optional trailing comma.
+static bool requireAlternatingSeparators(
+    const BracketGroup& bg, char sep, InputDiagsRef ctx) {
+  const char seps[2] = {sep, '\0'};
+  for(size_t i=0; i<bg.children.size(); i+=2) {
+    if(isToken(bg.children[i], seps)) {
+      Error(ctx, stPos(bg.children[i]), "Expected token before ','");
+      return false;
+    }
+    if(i+1 >= bg.children.size()) break;
+    if(!isToken(bg.children[i+1], seps)) {
+      Error(ctx, stPos(bg.children[i+1]), "Expected ','");
+      return false;
+    }
+  }
+  return true;
+}
+template <class T> const T*
+get_if_in_bound(const vector<ExprToken>& toks, size_t i,
+                InputDiagsRef ctx) {
+  if(i >= toks.size()) {
+    Error(ctx, enPos(toks.back()), "Unexpected end of expression");
+    return nullptr;
+  }
+  return get_if<T>(&toks[i]);
+}
+
 static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
+}
+static void assignLiteralOrError(vector<Rule>& rules, size_t ruleIndex,
+                                 string_view ruleName, string_view literal) {
+  rules[ruleIndex] = Rule{
+    MatchOrError{ssize_t(rules.size()), format("Expected '{}'", literal)},
+    string(ruleName)
+  };
+  rules.emplace_back(string(literal));
 }
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
@@ -154,10 +214,35 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
       Error(ctx, stPos(linetoks[3]), "Expected end of line");
       return;
     }
-    rules[ruleIndex] = Rule{MatchOrError{
-        ssize_t(rules.size()), format("Expected '{}'", *literal)
-        }, *ident};
-    rules.emplace_back(std::move(*literal));
+    assignLiteralOrError(rules, ruleIndex, *ident, *literal);
+    return;
+  }else if(isToken(linetoks[2], "Concat")) {
+    const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
+    if(!bg) return;
+    if(!requireBracketType(*bg, BracketType::square, ctx) ||
+       !requireSizeLe(linetoks, 4, ctx)) return;
+    if(!requireAlternatingSeparators(*bg, ',', ctx)) return;
+    ConcatRule concat{ {}, JsonLoc::Map() };
+    for(size_t i=0; i<bg->children.size(); i+=2) {
+      if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
+        concat.comps.push_back({ssize_t(identIndex(rules, **tok)), {}});
+      }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
+        if(s->ctor() != GluedString::Ctor::squoted) {
+          Error(ctx, s->stPos, s->enPos,
+                "Expected strings to be single-quoted");
+          return;
+        }
+        ssize_t newIndex = rules.size();
+        rules.emplace_back(std::monostate{});
+        assignLiteralOrError(rules, newIndex, {}, *s);
+        concat.comps.push_back({newIndex, {}});
+      }else {
+        Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
+              "Was expecting a string or an identifier");
+        return;
+      }
+    }
+    rules[ruleIndex] = Rule{std::move(concat), *ident};
     return;
   }else {
     Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
