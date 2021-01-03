@@ -157,7 +157,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     rules[ruleIndex] = Rule{MatchOrError{
         ssize_t(rules.size()), format("Expected '{}'", *literal)
         }, *ident};
-    rules.emplace_back(std::move(*literal), std::move(*ident));
+    rules.emplace_back(std::move(*literal));
     return;
   }else {
     Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
