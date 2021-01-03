@@ -141,20 +141,21 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
           "Rule's right-hand side missing");
     return;
   }
-  const auto* literal = get_if<GluedString>(&linetoks[2]);
-  if(!literal) {
+  if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
+    if(linetoks.size() > 3) {
+      Error(ctx, stPos(linetoks[3]), "Expected end of line");
+      return;
+    }
+    *rules = Rule{MatchOrError{
+               nextRuleIndex+1, format("Expected '{}'", *literal)
+             }, *ident};
+    *rules = Rule{std::move(*literal), std::move(*ident)};
+    return;
+  }else {
     Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
           "Expected string literal");
     return;
   }
-  if(linetoks.size() > 3) {
-    Error(ctx, stPos(linetoks[3]), "Expected end of line");
-    return;
-  }
-  *rules = Rule{MatchOrError{
-             nextRuleIndex+1, format("Expected '{}'", *literal)
-           }, *ident};
-  *rules = Rule{std::move(*literal), std::move(*ident)};
 }
 
 static bool matchesTokens(const vector<ExprToken>& tokens,
