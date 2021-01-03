@@ -276,6 +276,7 @@ auto parseExample(const vector<ExprToken>& linetoks,
                  "Example input needs to be on the following line");
   Example rv;
   // Guaranteed to succeed by resemblesExample().
+  rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
   rv.ruleName = *getIfIdent(linetoks[1]);
 
   // TODO make sure "example" is indented less than the source, and everything
