@@ -99,6 +99,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me,
 }
 
 // Using std::visit(), since we want to catch missing types at compile-time.
+static string specifics_typename(const std::monostate&)
+  { return "(uninitialized)"; }
 static string specifics_typename(const string&) { return "string"; }
 static string specifics_typename(const WordPreserving&)
   { return "WordPreserving"; }
