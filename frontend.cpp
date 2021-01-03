@@ -38,8 +38,6 @@ using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
-using std::back_insert_iterator;
-using std::back_inserter;
 using std::nullopt;
 using std::optional;
 using std::string;
@@ -90,36 +88,37 @@ resemblesX() vs parseX().
 static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
   return !linetoks.empty() && isToken(linetoks[0], "require_politeness");
 }
-// Using back_insert_iterator just for being explicit in this function's
-// API contract. I.e. we don't do any vector mutation but push_back().
 static void parsePolitenessDirective(
     const vector<ExprToken>& linetoks, InputDiagsRef ctx,
-    back_insert_iterator<vector<Rule>> rules, ssize_t nextRuleIndex,
-    back_insert_iterator<vector<Example>> examples) {
+    vector<Rule>& rules, vector<Example>& examples) {
   if(linetoks.size() == 1) {
-    *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
-                  "required_hello"};
-    *rules = Rule{"Hello!"};
+    rules.emplace_back(
+        MatchOrError{ssize_t(rules.size())+1, "Failed at politeness test"},
+        "required_hello");
+    rules.emplace_back("Hello!");
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
-    *examples = Example{testLine, "required_hello", "Hello!",
-                        Expectation::Success};
-    *examples = Example{testLine, "required_hello", "Goodbye!",
-                        Expectation::ErrorSubstr{"Failed at politeness test"}};
+    examples.push_back(
+        Example{testLine, "required_hello", "Hello!", Expectation::Success});
+    examples.push_back(
+        Example{testLine, "required_hello", "Goodbye!",
+                Expectation::ErrorSubstr{"Failed at politeness test"}});
   }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
     if(linetoks.size() > 2) {
       Error(ctx, stPos(linetoks[2]), "Was expecting end of line");
       return;
     }
-    *rules = Rule{MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
-                  "required_hello"};
-    *rules = Rule{"Hello!"};
+    const ssize_t nextRuleIndex = rules.size();
+    rules.emplace_back(
+        MatchOrError{nextRuleIndex+1, "Failed at politeness test"},
+        "required_hello");
+    rules.emplace_back("Hello!");
     InputDiags tmplinput{Input{"{msg: msg}"}};
     size_t tmplpos = 0;
     ConcatRule single{
       {{nextRuleIndex, "msg"}},
       *parseJsonLoc(tmplinput, tmplpos)
     };
-    *rules = Rule{std::move(single), "required_hello_in_json"};
+    rules.emplace_back(std::move(single), "required_hello_in_json");
   }else Error(ctx, stPos(linetoks[1]),
               "Was expecting end of line or 'jsonized'");
 }
@@ -271,8 +270,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       parseBnfRule(linetoks, ctx, rs.rules);
     }else if(resemblesPolitenessDirective(linetoks)) {
       parsePolitenessDirective(linetoks, ctx,
-                               back_inserter(rs.rules), rs.rules.size(),
-                               back_inserter(examples));
+                               rs.rules, examples);
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(linetoks, ctx, i))
         examples.push_back(std::move(*ex));
