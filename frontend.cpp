@@ -17,6 +17,7 @@
 #include <iterator>
 #include <optional>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "fmt/core.h"
 
@@ -41,6 +42,7 @@ using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::nullopt;
 using std::optional;
+using std::pair;
 using std::string;
 using std::string_view;
 using std::to_string;
@@ -76,10 +78,17 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
   return s;
 }
 
+static auto posPair(const ExprToken& x) -> pair<ssize_t,ssize_t> {
+  return {stPos(x), enPos(x)};
+}
+
 // Assumes ident.empty() == false
-static size_t identIndex(vector<Rule>& rules, string_view ident) {
+static size_t identIndex(vector<Rule>& rules,
+                         vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                         string_view ident, pair<ssize_t, ssize_t> thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) return i;
   rules.emplace_back(std::monostate{}, string(ident));
+  firstUseLocs.push_back(thisPos);
   return rules.size()-1;
 }
 
@@ -98,14 +107,17 @@ static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
 }
 static void parsePolitenessDirective(
     const vector<ExprToken>& linetoks, InputDiagsRef ctx,
-    vector<Rule>& rules, vector<Example>& examples) {
+    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    vector<Example>& examples) {
   const char hello_ident[] = "required_hello";
-  ssize_t hello_index = identIndex(rules, hello_ident);
+  ssize_t hello_index =
+    identIndex(rules, firstUseLocs, hello_ident, posPair(linetoks[0]));
   if(linetoks.size() == 1) {
     rules[hello_index] = Rule{
         MatchOrError{ssize_t(rules.size()), "Failed at politeness test"},
         hello_ident};
     rules.emplace_back("Hello!");
+    firstUseLocs.emplace_back(-1, -1);
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
     examples.push_back(
         Example{testLine, "required_hello", "Hello!", Expectation::Success});
@@ -122,6 +134,7 @@ static void parsePolitenessDirective(
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
     };
     rules.emplace_back("Hello!");
+    firstUseLocs.emplace_back(-1, -1);
     InputDiags tmplinput{Input{"{msg: msg}"}};
     size_t tmplpos = 0;
     ConcatRule single{
@@ -129,6 +142,7 @@ static void parsePolitenessDirective(
       *parseJsonLoc(tmplinput, tmplpos)
     };
     rules.emplace_back(std::move(single), "required_hello_in_json");
+    firstUseLocs.emplace_back(-1, -1);
   }else Error(ctx, stPos(linetoks[1]),
               "Was expecting end of line or 'jsonized'");
 }
@@ -187,23 +201,29 @@ get_if_in_bound(const vector<ExprToken>& toks, size_t i,
 static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
-static void assignLiteralOrError(vector<Rule>& rules, size_t ruleIndex,
+static void assignLiteralOrError(vector<Rule>& rules,
+                                 vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                 size_t ruleIndex,
                                  string_view ruleName, string_view literal) {
   rules[ruleIndex] = Rule{
     MatchOrError{ssize_t(rules.size()), format("Expected '{}'", literal)},
     string(ruleName)
   };
   rules.emplace_back(string(literal));
+  firstUseLocs.emplace_back(-1, -1);
 }
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
-                         vector<Rule>& rules) {
+                         vector<Rule>& rules,
+                         vector<pair<ssize_t, ssize_t>>& firstUseLocs) {
   const optional<string> ident = getIfIdent(linetoks[0]);
   if(!ident.has_value()) {
     Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]), "Identifier expected");
     return;
   }
-  const size_t ruleIndex = identIndex(rules, *ident);
+  const size_t ruleIndex = identIndex(
+      rules, firstUseLocs, *ident, posPair(linetoks[0])
+  );
   if(linetoks.size() < 3) {
     Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
           "Rule's right-hand side missing");
@@ -214,7 +234,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
       Error(ctx, stPos(linetoks[3]), "Expected end of line");
       return;
     }
-    assignLiteralOrError(rules, ruleIndex, *ident, *literal);
+    assignLiteralOrError(rules, firstUseLocs, ruleIndex, *ident, *literal);
     return;
   }else if(isToken(linetoks[2], "Concat")) {
     const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
@@ -225,7 +245,9 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     ConcatRule concat{ {}, JsonLoc::Map() };
     for(size_t i=0; i<bg->children.size(); i+=2) {
       if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
-        concat.comps.push_back({ssize_t(identIndex(rules, **tok)), {}});
+        concat.comps.push_back({
+            ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))), {}
+        });
       }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
         if(s->ctor() != GluedString::Ctor::squoted) {
           Error(ctx, s->stPos, s->enPos,
@@ -234,7 +256,8 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
         }
         ssize_t newIndex = rules.size();
         rules.emplace_back(std::monostate{});
-        assignLiteralOrError(rules, newIndex, {}, *s);
+        firstUseLocs.emplace_back(-1, -1);
+        assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
         concat.comps.push_back({newIndex, {}});
       }else {
         Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
@@ -333,14 +356,21 @@ auto parseExample(const vector<ExprToken>& linetoks,
   return rv;
 }
 
-// TODO propagate usage position.
-static bool hasUndefinedRules(const vector<Rule>& rules, InputDiags& ctx) {
-  for(auto& rule : rules) if(holds_alternative<std::monostate>(rule)) {
-    optional<string> name = rule.name();
-    if(!name.has_value()) Bug("Anonymous rules should always be initialized");
-    Error(ctx, 0, format("Rule '{}' was used but never defined", *name));
-    return true;
-  }
+static bool hasUndefinedRules(
+    const vector<Rule>& rules,
+    const vector<pair<ssize_t, ssize_t>>& firstUseLocs, InputDiags& ctx) {
+  if(rules.size() != firstUseLocs.size())
+    Bug("rules.size() == {} != {} == firstUseLocs.size(). "
+        "The two vectors must always be appended in sync",
+        rules.size(), firstUseLocs.size());
+  for(size_t i=0; i<rules.size(); ++i)
+    if(holds_alternative<std::monostate>(rules[i])) {
+      optional<string> name = rules[i].name();
+      if(!name.has_value()) Bug("Anonymous rules should always be initialized");
+      const auto [st, en] = firstUseLocs[i];
+      Error(ctx, st, en, format("Rule '{}' was used but never defined", *name));
+      return true;
+    }
   return false;
 }
 
@@ -359,6 +389,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   size_t i = 0;
   RuleSet rs{{}, *userSkip, *userRegexOpts};
   vector<Example> examples;
+  vector<pair<ssize_t, ssize_t>> firstUseLocs;
   while(ctx.input.sizeGt(i)) {
     if(i != ctx.input.bol(i))
       FatalBug(ctx, i, "Rules must start at bol()");
@@ -374,10 +405,10 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       else break;
     }
     if(resemblesBnfRule(linetoks)) {
-      parseBnfRule(linetoks, ctx, rs.rules);
+      parseBnfRule(linetoks, ctx, rs.rules, firstUseLocs);
     }else if(resemblesPolitenessDirective(linetoks)) {
       parsePolitenessDirective(linetoks, ctx,
-                               rs.rules, examples);
+                               rs.rules, firstUseLocs, examples);
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(linetoks, ctx, i))
         examples.push_back(std::move(*ex));
@@ -388,7 +419,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
-  if(hasUndefinedRules(rs.rules, ctx)) return nullopt;
+  if(hasUndefinedRules(rs.rules, firstUseLocs, ctx)) return nullopt;
   // TODO check for duplicate Rule names.
   if(hasError(ctx.diags)) return nullopt;
   return ParsedSource{std::move(rs), std::move(examples)};
