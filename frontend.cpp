@@ -333,6 +333,17 @@ auto parseExample(const vector<ExprToken>& linetoks,
   return rv;
 }
 
+// TODO propagate usage position.
+static bool hasUndefinedRules(const vector<Rule>& rules, InputDiags& ctx) {
+  for(auto& rule : rules) if(holds_alternative<std::monostate>(rule)) {
+    optional<string> name = rule.name();
+    if(!name.has_value()) Bug("Anonymous rules should always be initialized");
+    Error(ctx, 0, format("Rule '{}' was used but never defined", *name));
+    return true;
+  }
+  return false;
+}
+
 static bool hasError(const vector<Diag>& diags) {
   for(const auto& d : diags) if(d.severity == Diag::error) return true;
   return false;
@@ -377,6 +388,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
+  if(hasUndefinedRules(rs.rules, ctx)) return nullopt;
   // TODO check for duplicate Rule names.
   if(hasError(ctx.diags)) return nullopt;
   return ParsedSource{std::move(rs), std::move(examples)};

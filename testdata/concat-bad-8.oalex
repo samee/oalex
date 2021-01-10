@@ -1,0 +1,2 @@
+# expected-error: Rule 'not_defined' was used but never defined
+greetings := Concat [ 'Hello', not_defined ]
