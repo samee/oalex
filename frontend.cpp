@@ -91,6 +91,19 @@ static size_t identIndex(vector<Rule>& rules,
   firstUseLocs.push_back(thisPos);
   return rules.size()-1;
 }
+// Utility for anon rules that also appends a dummy first-use location entry.
+// Anonymous rules don't need usage location so far, since we never refer to
+// them in error messages. They are implicitly generated, so the user won't
+// know what to make of errors about rules they didn't write.
+//
+// Named rules should use identIndex followed by direct assignment.
+template <class...Args> static void
+emplaceBackAnonRule(vector<Rule>& rules,
+                    vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                    Args&&...args) {
+  rules.emplace_back(std::forward<Args>(args)...);
+  firstUseLocs.emplace_back(-1, -1);
+}
 
 /*
 resemblesX() vs parseX().
@@ -116,8 +129,7 @@ static void parsePolitenessDirective(
     rules[hello_index] = Rule{
         MatchOrError{ssize_t(rules.size()), "Failed at politeness test"},
         hello_ident};
-    rules.emplace_back("Hello!");
-    firstUseLocs.emplace_back(-1, -1);
+    emplaceBackAnonRule(rules, firstUseLocs, "Hello!");
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
     examples.push_back(
         Example{testLine, "required_hello", "Hello!", Expectation::Success});
@@ -133,16 +145,15 @@ static void parsePolitenessDirective(
     rules[hello_index] = Rule{
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
     };
-    rules.emplace_back("Hello!");
-    firstUseLocs.emplace_back(-1, -1);
+    emplaceBackAnonRule(rules, firstUseLocs, "Hello!");
     InputDiags tmplinput{Input{"{msg: msg}"}};
     size_t tmplpos = 0;
     ConcatRule single{
       {{hello_index, "msg"}},
       *parseJsonLoc(tmplinput, tmplpos)
     };
-    rules.emplace_back(std::move(single), "required_hello_in_json");
-    firstUseLocs.emplace_back(-1, -1);
+    emplaceBackAnonRule(rules, firstUseLocs,
+                        std::move(single), "required_hello_in_json");
   }else Error(ctx, stPos(linetoks[1]),
               "Was expecting end of line or 'jsonized'");
 }
@@ -209,8 +220,7 @@ static void assignLiteralOrError(vector<Rule>& rules,
     MatchOrError{ssize_t(rules.size()), format("Expected '{}'", literal)},
     string(ruleName)
   };
-  rules.emplace_back(string(literal));
-  firstUseLocs.emplace_back(-1, -1);
+  emplaceBackAnonRule(rules, firstUseLocs, string(literal));
 }
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
@@ -255,8 +265,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
           return;
         }
         ssize_t newIndex = rules.size();
-        rules.emplace_back(std::monostate{});
-        firstUseLocs.emplace_back(-1, -1);
+        emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
         assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
         concat.comps.push_back({newIndex, {}});
       }else {
