@@ -349,7 +349,6 @@ auto parseExample(const vector<ExprToken>& linetoks,
     // If there's an error, parseJsonLocFromBracketGroup() should have already
     // produced diags.
     if(!jsloc.has_value()) return nullopt;
-    // TODO improve error location.
     if(!jsloc->supportsEquality())
       return Error(ctx, stPos(linetoks[3]),
                    "Values need to be properly quoted");
