@@ -38,9 +38,9 @@ using std::vector;
 
 namespace {
 
-optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr);
-optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts);
-optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts);
+optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, const ExprToken& expr);
+optional<JsonLoc> parseMap(InputDiagsRef ctx, const vector<ExprToken>& elts);
+optional<JsonLoc> parseVector(InputDiagsRef ctx, const vector<ExprToken>& elts);
 
 // This is meant for parsing lists. As such, it never returns empty elements.
 // Errors out if it finds one, unless it's the last element. If the last
@@ -48,7 +48,7 @@ optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts);
 // list. Note that this is different from Python's "".split(',') which returns
 // a single empty string.
 vector<vector<ExprToken>>
-splitCommaNoEmpty(InputDiags& ctx,const vector<ExprToken>& elts) {
+splitCommaNoEmpty(InputDiagsRef ctx,const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
@@ -68,7 +68,7 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<WholeSegment> parseIdent(InputDiags& ctx, const ExprToken& expr) {
+optional<WholeSegment> parseIdent(InputDiagsRef ctx, const ExprToken& expr) {
   auto* seg = get_if<WholeSegment>(&expr);
   if(!seg) return Error(ctx, stPos(expr),"Was expecting an identifier");
   if(!isIdent(seg->data)) {
@@ -85,7 +85,7 @@ bool isErrorValue(const vector<ExprToken>& v) {
   return seg && seg->data == "error_value";
 }
 
-optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
+optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, const ExprToken& expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(auto id = parseIdent(ctx, *seg))
       return JsonLoc(JsonLoc::Placeholder{id->data});
@@ -107,7 +107,7 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, const ExprToken& expr) {
 
 // TODO diags should throw after 3 or so errors.
 // This is a reasonable example of what error-handling oalex could facilitate.
-optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
+optional<JsonLoc> parseMap(InputDiagsRef ctx, const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, elts);
 
   map<string,JsonLoc> rv;
@@ -144,7 +144,8 @@ optional<JsonLoc> parseMap(InputDiags& ctx, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
-optional<JsonLoc> parseVector(InputDiags& ctx, const vector<ExprToken>& elts) {
+optional<JsonLoc>
+parseVector(InputDiagsRef ctx, const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, elts);
 
   vector<JsonLoc> rv;
@@ -181,7 +182,7 @@ bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
 
 namespace oalex {
 
-optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiags& ctx,
+optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiagsRef ctx,
                                                const BracketGroup& bg) {
   if(bg.type == BracketType::paren) return nullopt;
   if(bg.type == BracketType::square) return parseVector(ctx, bg.children);
