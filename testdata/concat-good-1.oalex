@@ -22,3 +22,16 @@ outputs success
 example greetings:
   Hello World
 outputs error with 'Expected \'World\''
+
+# Now try using an output template
+greetings2 := Concat ['Hello', 'World'] -> {
+  greetings_type: arg1,
+  addressee: arg2
+}
+
+example greetings2:
+  HelloWorld
+outputs: {
+  greetings_type: 'Hello',
+  addressee: 'World',
+}

@@ -1,2 +1,2 @@
-# expected-error: Was expecting expression to end
+# expected-error: Was expecting end of line or an '->'
 greetings := Concat [ 'Hello', 'World' ] and more

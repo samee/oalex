@@ -241,7 +241,7 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
 
 bool isquote(char ch) { return ch=='"' || ch=='\''; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
-bool isoperch(char ch) { return strchr(":,=|~.", ch) != NULL; }
+bool isoperch(char ch) { return strchr(":,=|~.-><", ch) != NULL; }
 
 auto toCtor(char ch) -> GluedString::Ctor {
   switch(ch) {
@@ -306,7 +306,7 @@ optional<WholeSegment> lexOperator(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || !isoperch(input[i])) return nullopt;
 
   // Now we know it is a valid input character, see if it is multichar.
-  static const char multichars[][4] = {":=","..."};
+  static const char multichars[][4] = {":=","...", "->"};
   size_t oldi = i;
   for(const string& op : multichars) if(input.substr(i,op.size()) == op) {
     i += op.size();

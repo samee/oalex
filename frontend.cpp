@@ -174,13 +174,6 @@ static bool requireBracketType(const BracketGroup& bg, BracketType bt,
     return false;
   }else return true;
 }
-static bool requireSizeLe(const vector<ExprToken>& toks, size_t sz,
-                          InputDiagsRef ctx) {
-  if(toks.size() > sz) {
-    Error(ctx, stPos(toks[sz]), "Was expecting expression to end");
-    return false;
-  }else return true;
-}
 // Meant for simple cases where we expect only one token between commas
 // Allows optional trailing comma.
 static bool requireAlternatingSeparators(
@@ -228,6 +221,7 @@ static void assignLiteralOrError(vector<Rule>& rules,
    parses the part after "Concat". On success, it returns a ConcatRule that
    should be inserted into identIndex(someVar). On failure, it returns nullopt.
 */
+// TODO diags helpers in lexer.h
 static auto parseConcatRule(const vector<ExprToken>& linetoks,
                             InputDiagsRef ctx,
                             vector<Rule>& rules,
@@ -235,16 +229,27 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   -> optional<ConcatRule> {
   const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
   if(!bg) return nullopt;
-  if(!requireBracketType(*bg, BracketType::square, ctx) ||
-      !requireSizeLe(linetoks, 4, ctx)) return nullopt;
+  if(!requireBracketType(*bg, BracketType::square, ctx)) return nullopt;
   if(!requireAlternatingSeparators(*bg, ',', ctx)) return nullopt;
+  const BracketGroup* tmpl = nullptr;
+  if(linetoks.size() > 4) {
+    if(!isToken(linetoks[4], "->")) {
+      return Error(ctx, stPos(linetoks[4]), enPos(linetoks[4]),
+                   "Was expecting end of line or an '->'");
+    }
+    tmpl = get_if_in_bound<BracketGroup>(linetoks, 5, ctx);
+    if(!tmpl || !requireBracketType(*tmpl, BracketType::brace, ctx))
+      return nullopt;
+  }
 
   ConcatRule concat{ {}, JsonLoc::Map() };
+  size_t argc = 0;
   for(size_t i=0; i<bg->children.size(); i+=2) {
+    string argname = "arg" + std::to_string(++argc);
     if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
       concat.comps.push_back({
-          ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))), {}
-          });
+          ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))),
+          argname});
     }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
       if(s->ctor() != GluedString::Ctor::squoted)
         return Error(ctx, s->stPos, s->enPos,
@@ -252,11 +257,16 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
       ssize_t newIndex = rules.size();
       emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
-      concat.comps.push_back({newIndex, {}});
+      concat.comps.push_back({newIndex, argname});
     }else
       return Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
                    "Was expecting a string or an identifier");
   }
+  if(tmpl != nullptr) {
+    if(auto opt = parseJsonLocFromBracketGroup(ctx, *tmpl))
+      concat.outputTmpl = std::move(*opt);
+  }
+  // TODO error out on undeclared placeholders.
   return concat;
 }
 
