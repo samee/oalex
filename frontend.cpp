@@ -222,6 +222,44 @@ static void assignLiteralOrError(vector<Rule>& rules,
   };
   emplaceBackAnonRule(rules, firstUseLocs, string(literal));
 }
+
+/* This function is called when linetoks is of the form
+   {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
+   parses the part after "Concat". On success, it returns a ConcatRule that
+   should be inserted into identIndex(someVar). On failure, it returns nullopt.
+*/
+static auto parseConcatRule(const vector<ExprToken>& linetoks,
+                            InputDiagsRef ctx,
+                            vector<Rule>& rules,
+                            vector<pair<ssize_t, ssize_t>>& firstUseLocs)
+  -> optional<ConcatRule> {
+  const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
+  if(!bg) return nullopt;
+  if(!requireBracketType(*bg, BracketType::square, ctx) ||
+      !requireSizeLe(linetoks, 4, ctx)) return nullopt;
+  if(!requireAlternatingSeparators(*bg, ',', ctx)) return nullopt;
+
+  ConcatRule concat{ {}, JsonLoc::Map() };
+  for(size_t i=0; i<bg->children.size(); i+=2) {
+    if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
+      concat.comps.push_back({
+          ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))), {}
+          });
+    }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
+      if(s->ctor() != GluedString::Ctor::squoted)
+        return Error(ctx, s->stPos, s->enPos,
+                     "Expected strings to be single-quoted");
+      ssize_t newIndex = rules.size();
+      emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
+      assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
+      concat.comps.push_back({newIndex, {}});
+    }else
+      return Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
+                   "Was expecting a string or an identifier");
+  }
+  return concat;
+}
+
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
                          vector<Rule>& rules,
@@ -247,34 +285,10 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     assignLiteralOrError(rules, firstUseLocs, ruleIndex, *ident, *literal);
     return;
   }else if(isToken(linetoks[2], "Concat")) {
-    const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
-    if(!bg) return;
-    if(!requireBracketType(*bg, BracketType::square, ctx) ||
-       !requireSizeLe(linetoks, 4, ctx)) return;
-    if(!requireAlternatingSeparators(*bg, ',', ctx)) return;
-    ConcatRule concat{ {}, JsonLoc::Map() };
-    for(size_t i=0; i<bg->children.size(); i+=2) {
-      if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
-        concat.comps.push_back({
-            ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))), {}
-        });
-      }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
-        if(s->ctor() != GluedString::Ctor::squoted) {
-          Error(ctx, s->stPos, s->enPos,
-                "Expected strings to be single-quoted");
-          return;
-        }
-        ssize_t newIndex = rules.size();
-        emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
-        assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
-        concat.comps.push_back({newIndex, {}});
-      }else {
-        Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
-              "Was expecting a string or an identifier");
-        return;
-      }
+    if(optional<ConcatRule> c =
+        parseConcatRule(linetoks, ctx, rules, firstUseLocs)) {
+      rules[ruleIndex] = Rule(std::move(*c), *ident);
     }
-    rules[ruleIndex] = Rule{std::move(concat), *ident};
     return;
   }else {
     Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
