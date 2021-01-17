@@ -52,7 +52,7 @@ splitCommaNoEmpty(InputDiagsRef ctx,const vector<ExprToken>& elts) {
   vector<vector<ExprToken>> rv{ {} };
   for(const auto& elt : elts) {
     if(isToken(elt,",")) {
-      if(rv.back().empty()) Error(ctx, stPos(elt),"Unexpected comma");
+      if(rv.back().empty()) Error(ctx, elt,"Unexpected comma");
       else rv.emplace_back();
     }
     else rv.back().push_back(elt);
@@ -70,10 +70,9 @@ bool isIdent(string_view s) {
 
 optional<WholeSegment> parseIdent(InputDiagsRef ctx, const ExprToken& expr) {
   auto* seg = get_if<WholeSegment>(&expr);
-  if(!seg) return Error(ctx, stPos(expr),"Was expecting an identifier");
+  if(!seg) return Error(ctx, expr,"Was expecting an identifier");
   if(!isIdent(seg->data)) {
-    Error(ctx, seg->stPos,
-          "'" + seg->data + "' is not a valid identifier.");
+    Error(ctx, *seg, "'" + seg->data + "' is not a valid identifier.");
     return WholeSegment(seg->stPos, seg->enPos, "invalid_identifier");
   }
   return *seg;
@@ -116,7 +115,7 @@ optional<JsonLoc> parseMap(InputDiagsRef ctx, const vector<ExprToken>& elts) {
       Bug("splitCommaNoEmpty() is returning empty elements.");
     optional<WholeSegment> key = parseIdent(ctx, elt[0]);
     if(!key) {
-      Error(ctx, stPos(elt[0]), "Was expecting a key.");
+      Error(ctx, elt[0], "Was expecting a key.");
       continue;
     }
     optional<JsonLoc> parsedElt;
@@ -139,7 +138,7 @@ optional<JsonLoc> parseMap(InputDiagsRef ctx, const vector<ExprToken>& elts) {
     }
 
     if(rv.insert({key->data, std::move(*parsedElt)}).second == false)
-      Error(ctx, key->stPos, "Duplicate key " + key->data);
+      Error(ctx, *key, "Duplicate key " + key->data);
   }
   return JsonLoc(rv);
 }
@@ -164,8 +163,7 @@ bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
   if(holds_alternative<WholeSegment>(expr)) return true;
   if(auto* qs = get_if<GluedString>(&expr)) {
     if(qs->ctor() != GluedString::Ctor::squoted) {
-      Error(ctx, qs->stPos, qs->enPos,
-            "Output strings must be single-quoted");
+      Error(ctx, *qs, "Output strings must be single-quoted");
       return false;
     }
     return true;

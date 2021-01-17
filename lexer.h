@@ -156,8 +156,12 @@ struct BracketGroup : LexSegment {
     : LexSegment(st,en,type_tag), type(t), children() {}
 };
 
+// Identity function, used in diags.h helpers below.
+inline const LexSegment& lexSegment(const LexSegment& x) { return x; }
 inline const LexSegment& lexSegment(const ExprToken& x) {
-  return *std::visit([](const auto& x) { return (const LexSegment*)(&x); }, x);
+  // Redefine to avoid name collision.
+  auto f = [](const LexSegment& x) -> const LexSegment& { return x; };
+  return std::visit(f, x);
 }
 inline size_t stPos(const ExprToken& x) { return lexSegment(x).stPos; }
 inline size_t enPos(const ExprToken& x) { return lexSegment(x).enPos; }
@@ -197,5 +201,14 @@ std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
+
+// Helpers for diags.h that point to a specific token.
+// T can be either an ExprToken or a LexSegment derivative.
+template <class T> std::nullopt_t
+Error(InputDiagsRef ctx, const T& t, std::string msg) {
+  const LexSegment& seg = lexSegment(t);
+  return Error(ctx, seg.stPos, seg.enPos, std::move(msg));
+}
+
 
 }  // namespace oalex::lex

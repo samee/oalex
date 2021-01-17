@@ -138,7 +138,7 @@ static void parsePolitenessDirective(
                 Expectation::ErrorSubstr{"Failed at politeness test"}});
   }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
     if(linetoks.size() > 2) {
-      Error(ctx, stPos(linetoks[2]), "Was expecting end of line");
+      Error(ctx, linetoks[2], "Was expecting end of line");
       return;
     }
     const ssize_t nextRuleIndex = rules.size();
@@ -154,8 +154,7 @@ static void parsePolitenessDirective(
     };
     emplaceBackAnonRule(rules, firstUseLocs,
                         std::move(single), "required_hello_in_json");
-  }else Error(ctx, stPos(linetoks[1]),
-              "Was expecting end of line or 'jsonized'");
+  }else Error(ctx, linetoks[1], "Was expecting end of line or 'jsonized'");
 }
 
 static char bracketStart(BracketType bt) {
@@ -181,12 +180,12 @@ static bool requireAlternatingSeparators(
   const char seps[2] = {sep, '\0'};
   for(size_t i=0; i<bg.children.size(); i+=2) {
     if(isToken(bg.children[i], seps)) {
-      Error(ctx, stPos(bg.children[i]), "Expected token before ','");
+      Error(ctx, bg.children[i], format("Expected token before '{}'", sep));
       return false;
     }
     if(i+1 >= bg.children.size()) break;
     if(!isToken(bg.children[i+1], seps)) {
-      Error(ctx, stPos(bg.children[i+1]), "Expected ','");
+      Error(ctx, bg.children[i+1], format("Expected '{}'", sep));
       return false;
     }
   }
@@ -195,6 +194,7 @@ static bool requireAlternatingSeparators(
 template <class T> const T*
 get_if_in_bound(const vector<ExprToken>& toks, size_t i,
                 InputDiagsRef ctx) {
+  if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
   if(i >= toks.size()) {
     Error(ctx, enPos(toks.back()), "Unexpected end of expression");
     return nullptr;
@@ -221,7 +221,6 @@ static void assignLiteralOrError(vector<Rule>& rules,
    parses the part after "Concat". On success, it returns a ConcatRule that
    should be inserted into identIndex(someVar). On failure, it returns nullopt.
 */
-// TODO diags helpers in lexer.h
 static auto parseConcatRule(const vector<ExprToken>& linetoks,
                             InputDiagsRef ctx,
                             vector<Rule>& rules,
@@ -234,8 +233,7 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   const BracketGroup* tmpl = nullptr;
   if(linetoks.size() > 4) {
     if(!isToken(linetoks[4], "->")) {
-      return Error(ctx, stPos(linetoks[4]), enPos(linetoks[4]),
-                   "Was expecting end of line or an '->'");
+      return Error(ctx, linetoks[4], "Was expecting end of line or an '->'");
     }
     tmpl = get_if_in_bound<BracketGroup>(linetoks, 5, ctx);
     if(!tmpl || !requireBracketType(*tmpl, BracketType::brace, ctx))
@@ -252,14 +250,13 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
           argname});
     }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
       if(s->ctor() != GluedString::Ctor::squoted)
-        return Error(ctx, s->stPos, s->enPos,
-                     "Expected strings to be single-quoted");
+        return Error(ctx, *s, "Expected strings to be single-quoted");
       ssize_t newIndex = rules.size();
       emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
     }else
-      return Error(ctx, stPos(bg->children[i]), enPos(bg->children[i]),
+      return Error(ctx, bg->children[i],
                    "Was expecting a string or an identifier");
   }
   if(tmpl != nullptr) {
@@ -276,20 +273,19 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
                          vector<pair<ssize_t, ssize_t>>& firstUseLocs) {
   const optional<string> ident = getIfIdent(linetoks[0]);
   if(!ident.has_value()) {
-    Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]), "Identifier expected");
+    Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
   const size_t ruleIndex = identIndex(
       rules, firstUseLocs, *ident, posPair(linetoks[0])
   );
   if(linetoks.size() < 3) {
-    Error(ctx, stPos(linetoks[1]), enPos(linetoks[1]),
-          "Rule's right-hand side missing");
+    Error(ctx, linetoks[1], "Rule's right-hand side missing");
     return;
   }
   if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
     if(linetoks.size() > 3) {
-      Error(ctx, stPos(linetoks[3]), "Expected end of line");
+      Error(ctx, linetoks[3], "Expected end of line");
       return;
     }
     assignLiteralOrError(rules, firstUseLocs, ruleIndex, *ident, *literal);
@@ -301,8 +297,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     }
     return;
   }else {
-    Error(ctx, stPos(linetoks[2]), enPos(linetoks[2]),
-          "Expected string literal");
+    Error(ctx, linetoks[2], "Expected string literal");
     return;
   }
 }
@@ -374,8 +369,7 @@ auto parseExample(const vector<ExprToken>& linetoks,
     // produced diags.
     if(!jsloc.has_value()) return nullopt;
     if(!jsloc->supportsEquality())
-      return Error(ctx, stPos(linetoks[3]),
-                   "Values need to be properly quoted");
+      return Error(ctx, linetoks[3], "Values need to be properly quoted");
     if(linetoks2.size() > 3)
       return Error(ctx, stPos(linetoks[3]), "Was expecting end of line");
     rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
@@ -445,7 +439,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       if(auto ex = parseExample(linetoks, ctx, i))
         examples.push_back(std::move(*ex));
     }else
-      return Error(ctx, stPos(linetoks[0]), enPos(linetoks[0]),
+      return Error(ctx, linetoks[0],
                    format("Unexpected '{}', was expecting 'example' or "
                           "'require_politeness'",
                           debug(linetoks[0])));
