@@ -198,6 +198,15 @@ static void assignLiteralOrError(vector<Rule>& rules,
   };
   emplaceBackAnonRule(rules, firstUseLocs, string(literal));
 }
+ssize_t emplaceBackWordOrError(vector<Rule>& rules,
+                               vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                               string_view word) {
+  ssize_t newIndex = rules.size();
+  emplaceBackAnonRule(rules, firstUseLocs, WordPreserving{word});
+  emplaceBackAnonRule(rules, firstUseLocs,
+      MatchOrError{newIndex, format("Expected '{}'", word)});
+  return newIndex + 1;
+}
 
 /* This function is called when linetoks is of the form
    {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
@@ -229,6 +238,20 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   size_t argc = 0;
   for(const auto& comp : comps) {
     string argname = "arg" + std::to_string(++argc);
+    if(comp.size() >= 2 && isToken(comp[0], "word")) {
+      const auto* s = get_if<GluedString>(&comp[1]);
+      if(s == nullptr || s->ctor() != GluedString::Ctor::squoted) {
+        Error(ctx, comp[1], "Expected quoted string");
+        continue;
+      }
+      ssize_t newIndex = emplaceBackWordOrError(rules, firstUseLocs, *s);
+      concat.comps.push_back({newIndex, argname});
+      if(comp.size() > 2) {
+        Error(ctx, comp[2], "Was expecting a comma");
+        continue;
+      }
+      continue;
+    }
     if(comp.size() > 1) {
       Error(ctx, comp[1], "Expected ','");
       continue;
@@ -238,14 +261,17 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
           ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))),
           argname});
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
-      if(s->ctor() != GluedString::Ctor::squoted)
-        return Error(ctx, *s, "Expected strings to be single-quoted");
+      if(s->ctor() != GluedString::Ctor::squoted) {
+        Error(ctx, *s, "Expected strings to be single-quoted");
+        continue;
+      }
       ssize_t newIndex = rules.size();
       emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
     }else {
-      return Error(ctx, comp[0], "Was expecting a string or an identifier");
+      Error(ctx, comp[0], "Was expecting a string or an identifier");
+      continue;
     }
   }
   if(tmpl != nullptr) {
