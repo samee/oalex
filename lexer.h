@@ -155,6 +155,12 @@ struct BracketGroup : LexSegment {
   std::vector<ExprToken> children;
   BracketGroup(size_t st,size_t en,BracketType t)
     : LexSegment(st,en,type_tag), type(t), children() {}
+#if 0  // For experimenting with move-only BracketGroup
+  BracketGroup(const BracketGroup&) = delete;
+  BracketGroup& operator=(const BracketGroup&) = delete;
+  BracketGroup(BracketGroup&&) noexcept = default;
+  BracketGroup& operator=(BracketGroup&&) noexcept = default;
+#endif
 };
 
 // Identity function, used in diags.h helpers below.
@@ -213,7 +219,7 @@ std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 // list. Note that this is different from Python's "".split(',') which returns
 // a single empty string.
 std::vector<std::vector<ExprToken>>
-splitCommaNoEmpty(InputDiagsRef ctx,const std::vector<ExprToken>& elts);
+splitCommaNoEmpty(InputDiagsRef ctx, std::vector<ExprToken> elts);
 
 // Helpers for diags.h that point to a specific token.
 // T can be either an ExprToken or a LexSegment derivative.

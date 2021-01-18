@@ -676,14 +676,15 @@ optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
 }
 
 vector<vector<ExprToken>>
-splitCommaNoEmpty(InputDiagsRef ctx,const vector<ExprToken>& elts) {
-  vector<vector<ExprToken>> rv{ {} };
-  for(const auto& elt : elts) {
+splitCommaNoEmpty(InputDiagsRef ctx, vector<ExprToken> elts) {
+  vector<vector<ExprToken>> rv;
+  rv.emplace_back();
+  for(auto&& elt : elts) {
     if(isToken(elt,",")) {
       if(rv.back().empty()) Error(ctx, elt, "Unexpected comma");
       else rv.emplace_back();
     }
-    else rv.back().push_back(elt);
+    else rv.back().push_back(std::move(elt));
   }
   if(rv.back().empty()) rv.pop_back();
   return rv;
