@@ -263,6 +263,9 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   if(tmpl != nullptr) {
     if(auto opt = parseJsonLocFromBracketGroup(ctx, *tmpl))
       concat.outputTmpl = std::move(*opt);
+    if(linetoks.size() > 6) {
+      return Error(ctx, linetoks[6], "Was expecting end of line");
+    }
   }
   return concat;
 }
