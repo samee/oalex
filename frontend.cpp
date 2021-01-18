@@ -174,6 +174,18 @@ static bool requireBracketType(const BracketGroup& bg, BracketType bt,
     return false;
   }else return true;
 }
+
+template <class T> T*
+get_if_in_bound(vector<ExprToken>& toks, size_t i,
+                InputDiagsRef ctx) {
+  if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
+  if(i >= toks.size()) {
+    Error(ctx, enPos(toks.back()), "Unexpected end of expression");
+    return nullptr;
+  }
+  return get_if<T>(&toks[i]);
+}
+
 template <class T> const T*
 get_if_in_bound(const vector<ExprToken>& toks, size_t i,
                 InputDiagsRef ctx) {
@@ -213,18 +225,20 @@ ssize_t emplaceBackWordOrError(vector<Rule>& rules,
    parses the part after "Concat". On success, it returns a ConcatRule that
    should be inserted into identIndex(someVar). On failure, it returns nullopt.
 */
-static auto parseConcatRule(const vector<ExprToken>& linetoks,
+static auto parseConcatRule(vector<ExprToken> linetoks,
                             InputDiagsRef ctx,
                             vector<Rule>& rules,
                             vector<pair<ssize_t, ssize_t>>& firstUseLocs)
   -> optional<ConcatRule> {
-  const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
+
+  auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
   if(!bg) return nullopt;
   if(!requireBracketType(*bg, BracketType::square, ctx)) return nullopt;
-  vector<vector<ExprToken>> comps = splitCommaNoEmpty(ctx, bg->children);
+  vector<vector<ExprToken>> comps =
+    splitCommaNoEmpty(ctx, std::move(bg->children));
   if(comps.empty()) return Error(ctx, *bg, "Concat rule cannot be empty");
 
-  const BracketGroup* tmpl = nullptr;
+  BracketGroup* tmpl = nullptr;
   if(linetoks.size() > 4) {
     if(!isToken(linetoks[4], "->")) {
       return Error(ctx, linetoks[4], "Was expecting end of line or an '->'");
@@ -275,7 +289,7 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
     }
   }
   if(tmpl != nullptr) {
-    if(auto opt = parseJsonLocFromBracketGroup(ctx, *tmpl))
+    if(auto opt = parseJsonLocFromBracketGroup(ctx, std::move(*tmpl)))
       concat.outputTmpl = std::move(*opt);
     if(linetoks.size() > 6) {
       return Error(ctx, linetoks[6], "Was expecting end of line");
@@ -298,7 +312,7 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
   return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
 }
 
-static void parseBnfRule(const vector<ExprToken>& linetoks,
+static void parseBnfRule(vector<ExprToken> linetoks,
                          InputDiagsRef ctx,
                          vector<Rule>& rules,
                          vector<pair<ssize_t, ssize_t>>& firstUseLocs) {
@@ -323,7 +337,7 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     return;
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c =
-        parseConcatRule(linetoks, ctx, rules, firstUseLocs)) {
+        parseConcatRule(std::move(linetoks), ctx, rules, firstUseLocs)) {
       rules[ruleIndex] = Rule(std::move(*c), *ident);
     }
     return;
@@ -354,7 +368,7 @@ static bool resemblesExample(const vector<ExprToken>& linetoks) {
          && getIfIdent(linetoks[1]).has_value();
 }
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
-static auto parseExample(const vector<ExprToken>& linetoks,
+static auto parseExample(vector<ExprToken> linetoks,
                          InputDiags& ctx, size_t& i) -> optional<Example> {
   if(linetoks.size() < 3 || !isToken(linetoks[2], ":"))
     return Error(ctx, enPos(linetoks[1]), "Was expecting a ':' after this");
@@ -376,7 +390,7 @@ static auto parseExample(const vector<ExprToken>& linetoks,
   rv.sampleInput = std::move(*sampleInput);
 
   vector<ExprToken> linetoks2;
-  if(auto opt = lexNextLine(ctx, i)) linetoks2 = *opt;
+  if(auto opt = lexNextLine(ctx, i)) linetoks2 = std::move(*opt);
   else return nullopt;
 
   if(matchesTokens(linetoks2, {"outputs", "success"})) {
@@ -396,11 +410,11 @@ static auto parseExample(const vector<ExprToken>& linetoks,
     if(linetoks2.size() > 4)
       return Error(ctx, stPos(linetoks2[4]), "Expected end of line");
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
-    const BracketGroup* bg;
+    BracketGroup* bg;
     if(linetoks2.size() < 3 ||
         (bg = get_if<BracketGroup>(&linetoks2[2])) == nullptr )
       return Error(ctx, enPos(linetoks2[1]), "Was expecting '{' on this line");
-    optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, *bg);
+    optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
     // If there's an error, parseJsonLocFromBracketGroup() should have already
     // produced diags.
     if(!jsloc.has_value()) return nullopt;
@@ -455,7 +469,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   while(ctx.input.sizeGt(i)) {
     if(i != ctx.input.bol(i))
       FatalBug(ctx, i, "Rules must start at bol()");
-    const optional<vector<ExprToken>> linetoks_opt = lexNextLine(ctx, i);
+    optional<vector<ExprToken>> linetoks_opt = lexNextLine(ctx, i);
     if(!linetoks_opt.has_value()) return nullopt;
     auto& linetoks = *linetoks_opt;
 
@@ -467,12 +481,12 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       else break;
     }
     if(resemblesBnfRule(linetoks)) {
-      parseBnfRule(linetoks, ctx, rs.rules, firstUseLocs);
+      parseBnfRule(std::move(linetoks), ctx, rs.rules, firstUseLocs);
     }else if(resemblesPolitenessDirective(linetoks)) {
       parsePolitenessDirective(linetoks, ctx,
                                rs.rules, firstUseLocs, examples);
     }else if(resemblesExample(linetoks)) {
-      if(auto ex = parseExample(linetoks, ctx, i))
+      if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
     }else
       return Error(ctx, linetoks[0],
