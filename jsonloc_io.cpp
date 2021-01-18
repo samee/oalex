@@ -140,6 +140,14 @@ parseVector(InputDiagsRef ctx, const vector<ExprToken>& elts) {
   return JsonLoc(rv);
 }
 
+bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr);
+
+bool allStringsSingleQuoted(InputDiagsRef ctx, const BracketGroup& bg) {
+  for(const auto& c : bg.children)
+    if(!allStringsSingleQuoted(ctx, c)) return false;
+  return true;
+}
+
 bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
   if(holds_alternative<WholeSegment>(expr)) return true;
   if(auto* qs = get_if<GluedString>(&expr)) {
@@ -149,11 +157,9 @@ bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
     }
     return true;
   }
-  if(auto* bg = get_if<BracketGroup>(&expr)) {
-    for(const auto& c : bg->children)
-      if(!allStringsSingleQuoted(ctx, c)) return false;
-    return true;
-  }
+  if(auto* bg = get_if<BracketGroup>(&expr))
+    return allStringsSingleQuoted(ctx, *bg);
+
   Bug("Unknown ExprToken type {}", expr.index());
 }
 
