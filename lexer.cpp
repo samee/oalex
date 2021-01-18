@@ -664,4 +664,18 @@ optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
   return rv;
 }
 
+vector<vector<ExprToken>>
+splitCommaNoEmpty(InputDiagsRef ctx,const vector<ExprToken>& elts) {
+  vector<vector<ExprToken>> rv{ {} };
+  for(const auto& elt : elts) {
+    if(isToken(elt,",")) {
+      if(rv.back().empty()) Error(ctx, elt, "Unexpected comma");
+      else rv.emplace_back();
+    }
+    else rv.back().push_back(elt);
+  }
+  if(rv.back().empty()) rv.pop_back();
+  return rv;
+}
+
 }  // namespace oalex::lex

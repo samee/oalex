@@ -42,25 +42,6 @@ optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, const ExprToken& expr);
 optional<JsonLoc> parseMap(InputDiagsRef ctx, const vector<ExprToken>& elts);
 optional<JsonLoc> parseVector(InputDiagsRef ctx, const vector<ExprToken>& elts);
 
-// This is meant for parsing lists. As such, it never returns empty elements.
-// Errors out if it finds one, unless it's the last element. If the last
-// element is empty, it is silently discarded to allow a trailing comma in a
-// list. Note that this is different from Python's "".split(',') which returns
-// a single empty string.
-vector<vector<ExprToken>>
-splitCommaNoEmpty(InputDiagsRef ctx,const vector<ExprToken>& elts) {
-  vector<vector<ExprToken>> rv{ {} };
-  for(const auto& elt : elts) {
-    if(isToken(elt,",")) {
-      if(rv.back().empty()) Error(ctx, elt,"Unexpected comma");
-      else rv.emplace_back();
-    }
-    else rv.back().push_back(elt);
-  }
-  if(rv.back().empty()) rv.pop_back();
-  return rv;
-}
-
 bool isIdent(string_view s) {
   if(s.empty()) return false;
   if(isdigit(s[0])) return false;
