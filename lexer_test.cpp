@@ -406,7 +406,7 @@ void bracketGroupSuccess() {
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
 
   if(bgopt.has_value() && ctx.diags.empty()) {
-    if(auto err = matcher::match(expected,*bgopt))
+    if(auto err = matcher::match(expected, std::move(*bgopt)))
       BugMe("Failed: {}", *err);
   }else {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
@@ -423,6 +423,8 @@ string debugMatcher(BracketType bt) {
   }
 }
 
+void debug(fmt::memory_buffer& buf, const BracketGroup& bg);
+
 void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
   if(const auto* tok = get_if<WholeSegment>(&expr)) {
     format_to(buf, "{}", tok->data);
@@ -432,7 +434,10 @@ void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
     format_to(buf, "glued({})", string_view(*qs));
     return;
   }
-  const BracketGroup& bg = get<BracketGroup>(expr);
+  debug(buf, get<BracketGroup>(expr));
+}
+
+void debug(fmt::memory_buffer& buf, const BracketGroup& bg) {
   format_to(buf, "{}(", debugMatcher(bg.type));
   bool first_child = true;
   for(const ExprToken& x : bg.children) {

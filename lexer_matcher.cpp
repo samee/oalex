@@ -61,7 +61,7 @@ string sizeMismatch(size_t a, size_t b) {
 
 }  // namespace
 
-optional<string> match(ExprMatcher pattern, ExprToken expr) {
+optional<string> match(ExprMatcher pattern, const ExprToken& expr) {
   if(const auto* m = get_if<GluedMatcher>(&pattern)) {
     const auto* x = get_if<GluedString>(&expr);
     if(!x) return typeMismatch("GluedString", expr);

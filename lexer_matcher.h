@@ -79,7 +79,7 @@ template <class ... Args> BracketGroupMatcher parens(Args ... args) {
 }
 
 // Returns error. `nullopt` means no error.
-std::optional<std::string> match(ExprMatcher pattern, ExprToken expr);
+std::optional<std::string> match(ExprMatcher pattern, const ExprToken& expr);
 
 // Remove this when we have something in lexer_test.cpp
 namespace test {

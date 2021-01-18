@@ -667,8 +667,8 @@ optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
       tok = lexSingleToken(ctx, i);
       if(!tok.has_value()) return nullopt;
     }
-    rv.push_back(*tok);
     i = enPos(*tok);
+    rv.push_back(std::move(*tok));
     prevBol = ctx.input.bol(i);
   }
   rst.markUsed(i);
