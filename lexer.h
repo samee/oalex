@@ -38,6 +38,7 @@ enum class LexSegmentTag {
   bracketGroup,
   newlineChar,
 };
+std::string_view typeTagName(const LexSegmentTag& tag);
 
 // This class is mostly to document which Segment types belong to the lexer.
 struct LexSegment : Segment {
@@ -163,6 +164,10 @@ inline const LexSegment& lexSegment(const ExprToken& x) {
   auto f = [](const LexSegment& x) -> const LexSegment& { return x; };
   return std::visit(f, x);
 }
+template <class T> std::string_view typeTagName(const T& t) {
+  return typeTagName(LexSegmentTag{lexSegment(t).tag});
+}
+
 inline size_t stPos(const ExprToken& x) { return lexSegment(x).stPos; }
 inline size_t enPos(const ExprToken& x) { return lexSegment(x).enPos; }
 

@@ -68,6 +68,17 @@ using std::vector;
 
 namespace oalex::lex {
 
+string_view typeTagName(const LexSegmentTag& tag) {
+  switch(tag) {
+    case LexSegmentTag::wholeSegment: return "wholeSegment";
+    case LexSegmentTag::section: return "section";
+    case LexSegmentTag::gluedString: return "gluedString";
+    case LexSegmentTag::bracketGroup: return "bracketGroup";
+    case LexSegmentTag::newlineChar: return "newlineChar";
+    default: Bug("Unknown index {}", int(tag));
+  }
+}
+
 namespace {
 
 bool isSectionHeaderNonSpace(char ch) {
