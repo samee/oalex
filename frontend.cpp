@@ -318,8 +318,8 @@ static bool resemblesExample(const vector<ExprToken>& linetoks) {
          && getIfIdent(linetoks[1]).has_value();
 }
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
-auto parseExample(const vector<ExprToken>& linetoks,
-                  InputDiags& ctx, size_t& i) -> optional<Example> {
+static auto parseExample(const vector<ExprToken>& linetoks,
+                         InputDiags& ctx, size_t& i) -> optional<Example> {
   if(linetoks.size() < 3 || !isToken(linetoks[2], ":"))
     return Error(ctx, enPos(linetoks[1]), "Was expecting a ':' after this");
   if(linetoks.size() > 3)
