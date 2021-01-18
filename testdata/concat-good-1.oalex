@@ -35,3 +35,19 @@ outputs: {
   greetings_type: 'Hello',
   addressee: 'World',
 }
+
+# Finally, allow spaces and comments
+# We don't yet support regex rules, so we can't accept arbitrary
+#   variable names yet. Unfortunately, WordPreserving isn't supported either,
+#   so this will also accept varx;
+# TODO: fix these limitations.
+hardcoded_decl := Concat['var', space, 'x', space, ';']
+space := SkipPoint acrossLines
+example hardcoded_decl:
+  var x;
+outputs success
+
+example hardcoded_decl:
+  var  # variable on the next line
+  x;
+outputs success

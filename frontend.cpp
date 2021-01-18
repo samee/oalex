@@ -38,6 +38,7 @@ using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
+using oalex::lex::oalexSkip;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::nullopt;
@@ -267,6 +268,20 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   return concat;
 }
 
+static auto parseSkipPoint(const vector<ExprToken>& linetoks,
+                           InputDiagsRef ctx) -> optional<SkipPoint> {
+  auto* seg = get_if_in_bound<WholeSegment>(linetoks, 3, ctx);
+  if(!seg) return nullopt;
+  bool withinLine;
+  if(**seg == "withinLine") withinLine = true;
+  else if(**seg == "acrossLines") withinLine = false;
+  else return Error(ctx, *seg, "Expected either 'withinLine' or 'acrossLines'");
+  if(linetoks.size() > 4) {
+    return Error(ctx, linetoks[4], "Expected end of line");
+  }
+  return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
+}
+
 static void parseBnfRule(const vector<ExprToken>& linetoks,
                          InputDiagsRef ctx,
                          vector<Rule>& rules,
@@ -294,6 +309,11 @@ static void parseBnfRule(const vector<ExprToken>& linetoks,
     if(optional<ConcatRule> c =
         parseConcatRule(linetoks, ctx, rules, firstUseLocs)) {
       rules[ruleIndex] = Rule(std::move(*c), *ident);
+    }
+    return;
+  }else if(isToken(linetoks[2], "SkipPoint")) {
+    if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
+      rules[ruleIndex] = Rule(std::move(*sp), *ident);
     }
     return;
   }else {
