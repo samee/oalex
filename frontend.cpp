@@ -264,7 +264,6 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
     if(auto opt = parseJsonLocFromBracketGroup(ctx, *tmpl))
       concat.outputTmpl = std::move(*opt);
   }
-  // TODO error out on undeclared placeholders.
   return concat;
 }
 
