@@ -155,12 +155,12 @@ struct BracketGroup : LexSegment {
   std::vector<ExprToken> children;
   BracketGroup(size_t st,size_t en,BracketType t)
     : LexSegment(st,en,type_tag), type(t), children() {}
-#if 0  // For experimenting with move-only BracketGroup
+
+  // This type is move-only, because we want to support unique_ptr components.
   BracketGroup(const BracketGroup&) = delete;
   BracketGroup& operator=(const BracketGroup&) = delete;
   BracketGroup(BracketGroup&&) noexcept = default;
   BracketGroup& operator=(BracketGroup&&) noexcept = default;
-#endif
 };
 
 // Identity function, used in diags.h helpers below.
