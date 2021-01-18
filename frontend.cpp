@@ -174,24 +174,6 @@ static bool requireBracketType(const BracketGroup& bg, BracketType bt,
     return false;
   }else return true;
 }
-// Meant for simple cases where we expect only one token between commas
-// Allows optional trailing comma.
-static bool requireAlternatingSeparators(
-    const BracketGroup& bg, char sep, InputDiagsRef ctx) {
-  const char seps[2] = {sep, '\0'};
-  for(size_t i=0; i<bg.children.size(); i+=2) {
-    if(isToken(bg.children[i], seps)) {
-      Error(ctx, bg.children[i], format("Expected token before '{}'", sep));
-      return false;
-    }
-    if(i+1 >= bg.children.size()) break;
-    if(!isToken(bg.children[i+1], seps)) {
-      Error(ctx, bg.children[i+1], format("Expected '{}'", sep));
-      return false;
-    }
-  }
-  return true;
-}
 template <class T> const T*
 get_if_in_bound(const vector<ExprToken>& toks, size_t i,
                 InputDiagsRef ctx) {
@@ -230,7 +212,9 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
   const auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
   if(!bg) return nullopt;
   if(!requireBracketType(*bg, BracketType::square, ctx)) return nullopt;
-  if(!requireAlternatingSeparators(*bg, ',', ctx)) return nullopt;
+  vector<vector<ExprToken>> comps = splitCommaNoEmpty(ctx, bg->children);
+  if(comps.empty()) return Error(ctx, *bg, "Concat rule cannot be empty");
+
   const BracketGroup* tmpl = nullptr;
   if(linetoks.size() > 4) {
     if(!isToken(linetoks[4], "->")) {
@@ -243,22 +227,26 @@ static auto parseConcatRule(const vector<ExprToken>& linetoks,
 
   ConcatRule concat{ {}, JsonLoc::Map() };
   size_t argc = 0;
-  for(size_t i=0; i<bg->children.size(); i+=2) {
+  for(const auto& comp : comps) {
     string argname = "arg" + std::to_string(++argc);
-    if(const auto* tok = get_if<WholeSegment>(&bg->children[i])) {
+    if(comp.size() > 1) {
+      Error(ctx, comp[1], "Expected ','");
+      continue;
+    }
+    if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       concat.comps.push_back({
           ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))),
           argname});
-    }else if(const auto* s = get_if<GluedString>(&bg->children[i])) {
+    }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted)
         return Error(ctx, *s, "Expected strings to be single-quoted");
       ssize_t newIndex = rules.size();
       emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
-    }else
-      return Error(ctx, bg->children[i],
-                   "Was expecting a string or an identifier");
+    }else {
+      return Error(ctx, comp[0], "Was expecting a string or an identifier");
+    }
   }
   if(tmpl != nullptr) {
     if(auto opt = parseJsonLocFromBracketGroup(ctx, *tmpl))
