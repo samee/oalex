@@ -37,20 +37,24 @@ outputs: {
 }
 
 # Finally, allow spaces and comments
-# We don't yet support regex rules, so we can't accept arbitrary
-#   variable names yet.
-# TODO: fix this limitation.
-hardcoded_decl := Concat[word 'var', space, word 'x', space, ';']
+hardcoded_decl := Concat[word 'var', space, /[a-z]+/, space, ';'] -> {
+  stmt_type: 'decl',
+  var_name: arg3,
+}
 space := SkipPoint acrossLines
 example hardcoded_decl:
-  var x;
-outputs success
+  var precious;
+outputs: {
+  stmt_type: 'decl',
+  var_name: 'precious',
+}
 
 example hardcoded_decl:
   var  # variable on the next line
-  x;
+  precious;
 outputs success
 
+# Check word boundary detection
 example hardcoded_decl:
-  varx;
+  varprecious;
 outputs error with 'Expected \'var\''

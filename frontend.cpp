@@ -15,6 +15,7 @@
 #include "frontend.h"
 
 #include <iterator>
+#include <memory>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -39,6 +40,7 @@ using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
 using oalex::lex::oalexSkip;
+using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::nullopt;
@@ -47,6 +49,7 @@ using std::pair;
 using std::string;
 using std::string_view;
 using std::to_string;
+using std::unique_ptr;
 using std::vector;
 
 namespace oalex {
@@ -219,6 +222,15 @@ ssize_t emplaceBackWordOrError(vector<Rule>& rules,
       MatchOrError{newIndex, format("Expected '{}'", word)});
   return newIndex + 1;
 }
+ssize_t emplaceBackRegexOrError(vector<Rule>& rules,
+                                vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                unique_ptr<const Regex> regex) {
+  ssize_t newIndex = rules.size();
+  emplaceBackAnonRule(rules, firstUseLocs, std::move(regex));
+  emplaceBackAnonRule(rules, firstUseLocs,
+      MatchOrError{newIndex, format("Does not match expected pattern")});
+  return newIndex + 1;
+}
 
 /* This function is called when linetoks is of the form
    {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
@@ -250,7 +262,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
 
   ConcatRule concat{ {}, JsonLoc::Map() };
   size_t argc = 0;
-  for(const auto& comp : comps) {
+  for(auto&& comp : comps) {
     string argname = "arg" + std::to_string(++argc);
     if(comp.size() >= 2 && isToken(comp[0], "word")) {
       const auto* s = get_if<GluedString>(&comp[1]);
@@ -282,6 +294,10 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
       ssize_t newIndex = rules.size();
       emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
+      concat.comps.push_back({newIndex, argname});
+    }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
+      ssize_t newIndex =
+        emplaceBackRegexOrError(rules, firstUseLocs, std::move(regex->patt));
       concat.comps.push_back({newIndex, argname});
     }else {
       Error(ctx, comp[0], "Was expecting a string or an identifier");
