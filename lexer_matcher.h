@@ -33,10 +33,11 @@ namespace oalex::lex::matcher {
 
 struct WholeSegmentMatcher;
 struct GluedMatcher;
+struct RegexPatternMatcher {};
 struct BracketGroupMatcher;
 
-using ExprMatcher = std::variant<WholeSegmentMatcher,
-                                 GluedMatcher, BracketGroupMatcher>;
+using ExprMatcher = std::variant<WholeSegmentMatcher, GluedMatcher,
+                                 RegexPatternMatcher, BracketGroupMatcher>;
 
 struct GluedMatcher { std::string s; };
 inline GluedMatcher glued(std::string s)
@@ -59,6 +60,7 @@ template <class T> inline const bool false_value = false;
 
 inline ExprMatcher exprMatcher(BracketGroupMatcher bm) { return bm; }
 inline ExprMatcher exprMatcher(WholeSegmentMatcher wm) { return wm; }
+inline ExprMatcher exprMatcher(RegexPatternMatcher rm) { return rm; }
 inline ExprMatcher exprMatcher(GluedMatcher gm) { return gm; }
 
 }  // namespace internal

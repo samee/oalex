@@ -48,6 +48,7 @@
 #include <vector>
 #include "fmt/core.h"
 
+#include "regex_io.h"
 #include "segment.h"
 #include "runtime/input_view.h"
 #include "runtime/util.h"
@@ -64,6 +65,7 @@ using std::stoi;
 using std::string;
 using std::string_view;
 using std::tie;
+using std::unique_ptr;
 using std::vector;
 
 namespace oalex::lex {
@@ -75,6 +77,7 @@ string_view typeTagName(const LexSegmentTag& tag) {
     case LexSegmentTag::gluedString: return "gluedString";
     case LexSegmentTag::bracketGroup: return "bracketGroup";
     case LexSegmentTag::newlineChar: return "newlineChar";
+    case LexSegmentTag::regexPattern: return "regexPattern";
     default: Bug("Unknown index {}", int(tag));
   }
 }
@@ -250,9 +253,11 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
   return getline(ctx, i);
 }
 
+// Note: '/' starts a regex, and is not an operator in oalex.
 bool isquote(char ch) { return ch=='"' || ch=='\''; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
 bool isoperch(char ch) { return strchr(":,=|~.-><", ch) != NULL; }
+bool isregex(char ch) { return ch == '/'; }
 
 auto toCtor(char ch) -> GluedString::Ctor {
   switch(ch) {
@@ -293,7 +298,7 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
   size_t j = oalexSkip.acrossLines(input, i);
   if(!input.sizeGt(j)) return false;
   else if(isident(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
-          isoperch(input[j])) { i=j; return true; }
+          isregex(input[j]) || isoperch(input[j])) { i=j; return true; }
   else Fatal(ctx, j, "Unexpected character " + debugChar(input[j]));
 }
 
@@ -425,6 +430,33 @@ optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
+// Returns error-free nullopt if and only if !isregex(input[i]). In all other
+// cases, it either returns a good value, or it adds diags to explain the
+// problem.  If such diags are added, it consumes input until the next
+// unescaped '/'.
+static optional<RegexPattern> lexRegexPattern(InputDiags& ctx, size_t& i) {
+  const Input& input = ctx.input;
+  if(!input.sizeGt(i) || !isregex(input[i])) return nullopt;
+  Resetter rst(ctx, i);
+  unique_ptr<const Regex> rv = parseRegex(ctx, i);  // TODO: improve naming.
+  //if(rv == nullptr) return nullopt;
+  if(rv == nullptr) {
+    // Scan till the next unescaped '/'
+    ++i;
+    while(input.sizeGt(i)) {
+      if(input[i] == '\\') {
+        if(input.sizeGt(++i)) ++i;
+      }else if(input[i] == '/') {
+        rst.markUsed(++i);
+        break;
+      }else ++i;
+    }
+    return nullopt;
+  }
+  rst.markUsed(i);
+  return RegexPattern{rst.start(), i, std::move(rv)};
+}
+
 // This function never returns nullopt silently. It will either return
 // a value, or add something to ctx.diags.
 static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
@@ -432,6 +464,7 @@ static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
   else if(isquote(ctx.input[i])) return lexQuotedString(ctx, i);
   else if(isWordChar(ctx.input[i])) return lexWord(ctx.input, i);
   else if(isoperch(ctx.input[i])) return lexOperator(ctx.input, i);
+  else if(isregex(ctx.input[i])) return lexRegexPattern(ctx, i);
   else return Error(ctx, i, "Invalid source character");
 }
 

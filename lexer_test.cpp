@@ -55,8 +55,9 @@ using oalex::lex::lookahead;
 using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
 using oalex::lex::matcher::ExprMatcher;
-using oalex::lex::matcher::parens;
 using oalex::lex::matcher::glued;
+using oalex::lex::matcher::parens;
+using oalex::lex::matcher::RegexPatternMatcher;
 using oalex::lex::matcher::squareBrackets;
 namespace matcher = oalex::lex::matcher;
 
@@ -397,10 +398,12 @@ void lookaheadThrowsOnInvalidChar() {
 
 // Within brackets, we ignore all indentation.
 void bracketGroupSuccess() {
-  const string input = "{A := (B.C word [#comment\n\"hello\" \"world\"])}";
+  const string input =
+    "{A := (B.C word [#comment\n\"hello\" \"world\"] /a*b/)}";
   const BracketGroupMatcher expected = braces("A", ":=",
         parens("B", ".", "C", "word",
-               squareBrackets(glued("hello"), glued("world"))));
+               squareBrackets(glued("hello"), glued("world")),
+               RegexPatternMatcher{}));
   InputDiags ctx{testInputDiags(input)};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
@@ -605,9 +608,10 @@ int main() {
   bracketGroupFailure(Eof,"",nullopt);
   bracketGroupFailure(NotBracket,"ABC",nullopt);
   bracketGroupFailure(Unmatched,"[abc","Match not found for '['.");
-  bracketGroupFailure(BadString,R"({"abc\xt" ab})","Invalid hex code");
+  bracketGroupFailure(BadString,R"({"abc\xt" ab})", "Invalid hex code");
   bracketGroupFailure(Mismatched,"[abc)",
       "Match not found for '[', found ')' instead.");
+  bracketGroupFailure(BadRegex,"{var :: /(a-d/}", "Unmatched '('");
   bracketGroupThrows("@","Unexpected character '@'");
 
   newlinePositionIsCorrect();

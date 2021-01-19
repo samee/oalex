@@ -22,7 +22,11 @@
 #include "runtime/input_view.h"
 #include "runtime/skipper.h"
 
-namespace oalex::lex {
+namespace oalex {
+
+class Regex;  // Defined in runtime/regex.h
+
+namespace lex {
 
 class GluedString;
 
@@ -37,6 +41,7 @@ enum class LexSegmentTag {
   gluedString,
   bracketGroup,
   newlineChar,
+  regexPattern,
 };
 std::string_view typeTagName(const LexSegmentTag& tag);
 
@@ -142,10 +147,18 @@ inline bool operator!=(const GluedString& a, const GluedString& b) {
   return std::string_view(a) != std::string_view(b);
 }
 
+struct RegexPattern : LexSegment {
+  static constexpr auto type_tag = tagint_t(LexSegmentTag::regexPattern);
+  std::unique_ptr<const Regex> patt;
+  RegexPattern(size_t st, size_t en, std::unique_ptr<const Regex> patt)
+    : LexSegment(st, en, type_tag), patt(std::move(patt)) {}
+};
+
 struct BracketGroup;
 
-using ExprToken = std::variant<WholeSegment, GluedString, BracketGroup>;
-enum class ExprType { wholeSegment, gluedString, bracketGroup };
+using ExprToken = std::variant<WholeSegment, GluedString,
+                               RegexPattern, BracketGroup>;
+enum class ExprType { wholeSegment, gluedString, regexPattern, bracketGroup };
 
 enum class BracketType { square, brace, paren, };
 
@@ -230,4 +243,5 @@ Error(InputDiagsRef ctx, const T& t, std::string msg) {
 }
 
 
-}  // namespace oalex::lex
+}  // namespace lex
+}  // namespace oalex

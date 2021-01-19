@@ -34,6 +34,7 @@ string stringMismatch(string_view s, string_view t) {
 string debugType(const ExprToken& x) {
   if(holds_alternative<GluedString>(x)) return "GluedString";
   if(holds_alternative<WholeSegment>(x)) return "WholeSegment";
+  if(holds_alternative<RegexPattern>(x)) return "RegexPattern";
   if(holds_alternative<BracketGroup>(x)) return "BracketGroup";
   Bug("ExprToken has unknown type: {}", x.index());
 }
@@ -73,6 +74,12 @@ optional<string> match(ExprMatcher pattern, const ExprToken& expr) {
     if(!x) return typeMismatch("WholeSegment", expr);
     else if(m->data != x->data) return stringMismatch(m->data, x->data);
     else return nullopt;
+  }
+  if(const auto* m = get_if<RegexPatternMatcher>(&pattern)) {
+    const auto* x = get_if<RegexPattern>(&expr);
+    if(!x) return typeMismatch("RegexPattern", expr);
+    // Just check that it's *some* regex, don't bother with regex contents.
+    return nullopt;
   }
   if(const auto* m = get_if<BracketGroupMatcher>(&pattern)) {
     const auto* x = get_if<BracketGroup>(&expr);
