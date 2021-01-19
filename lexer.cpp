@@ -425,6 +425,16 @@ optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
   return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
+// This function never returns nullopt silently. It will either return
+// a value, or add something to ctx.diags.
+static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
+  if(!ctx.input.sizeGt(i)) FatalBug(ctx, i, "lexSingleToken() Out of bound");
+  else if(isquote(ctx.input[i])) return lexQuotedString(ctx, i);
+  else if(isWordChar(ctx.input[i])) return lexWord(ctx.input, i);
+  else if(isoperch(ctx.input[i])) return lexOperator(ctx.input, i);
+  else return Error(ctx, i, "Invalid source character");
+}
+
 /* Behavior:
 
    * Throws Fatal() on unexpected characters (outside quotes).
@@ -461,16 +471,15 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       }
     }
 
-    if(auto bgopt = lexBracketGroup(ctx,i))
-      bg.children.push_back(std::move(*bgopt));
-    else if(auto sopt = lexQuotedString(ctx,i))
-      bg.children.push_back(std::move(*sopt));
-    else if(auto wordopt = lexWord(input,i))
-      bg.children.push_back(std::move(*wordopt));
-    else if(auto operopt = lexOperator(input,i))
-      bg.children.push_back(std::move(*operopt));
-    else FatalBug(ctx, i, "Invalid input character, "
-                          "should have been caught by lookaheadStart().");
+    if(isbracket(ctx.input[i])) {
+      if(auto bgopt = lexBracketGroup(ctx,i))
+        bg.children.push_back(std::move(*bgopt));
+      else ++i;
+    }else {
+      size_t oldi = i;
+      if(auto x = lexSingleToken(ctx, i)) bg.children.push_back(std::move(*x));
+      else if(i == oldi) ++i;
+    }
   }
 }
 
@@ -639,17 +648,6 @@ optional<vector<WholeSegment>> lexSectionHeader(InputDiags& ctx, size_t& i) {
           "Dashes in a section header must not be indented");
 
   return rv;
-}
-
-// TODO reuse this inside lexBracketGroup.
-// This function never returns nullopt silently. It will either return
-// a value, or add something to ctx.diags.
-static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
-  if(!ctx.input.sizeGt(i)) FatalBug(ctx, i, "lexSingleToken() Out of bound");
-  else if(isquote(ctx.input[i])) return lexQuotedString(ctx, i);
-  else if(isWordChar(ctx.input[i])) return lexWord(ctx.input, i);
-  else if(isoperch(ctx.input[i])) return lexOperator(ctx.input, i);
-  else return Error(ctx, i, "Invalid source character");
 }
 
 optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {

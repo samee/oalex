@@ -605,6 +605,7 @@ int main() {
   bracketGroupFailure(Eof,"",nullopt);
   bracketGroupFailure(NotBracket,"ABC",nullopt);
   bracketGroupFailure(Unmatched,"[abc","Match not found for '['.");
+  bracketGroupFailure(BadString,R"({"abc\xt" ab})","Invalid hex code");
   bracketGroupFailure(Mismatched,"[abc)",
       "Match not found for '[', found ')' instead.");
   bracketGroupThrows("@","Unexpected character '@'");
