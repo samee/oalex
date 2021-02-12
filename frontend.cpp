@@ -43,6 +43,7 @@ using oalex::lex::oalexSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
+using std::monostate;
 using std::nullopt;
 using std::optional;
 using std::pair;
@@ -91,7 +92,7 @@ static size_t identIndex(vector<Rule>& rules,
                          vector<pair<ssize_t,ssize_t>>& firstUseLocs,
                          string_view ident, pair<ssize_t, ssize_t> thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) return i;
-  rules.emplace_back(std::monostate{}, string(ident));
+  rules.emplace_back(monostate{}, string(ident));
   firstUseLocs.push_back(thisPos);
   return rules.size()-1;
 }
@@ -292,7 +293,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
         continue;
       }
       ssize_t newIndex = rules.size();
-      emplaceBackAnonRule(rules, firstUseLocs, std::monostate{});
+      emplaceBackAnonRule(rules, firstUseLocs, monostate{});
       assignLiteralOrError(rules, firstUseLocs, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
     }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
@@ -456,7 +457,7 @@ static bool hasUndefinedRules(
         "The two vectors must always be appended in sync",
         rules.size(), firstUseLocs.size());
   for(size_t i=0; i<rules.size(); ++i)
-    if(holds_alternative<std::monostate>(rules[i])) {
+    if(holds_alternative<monostate>(rules[i])) {
       optional<string> name = rules[i].name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs[i];
