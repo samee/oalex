@@ -75,7 +75,7 @@ optional<string> match(ExprMatcher pattern, const ExprToken& expr) {
     else if(m->data != x->data) return stringMismatch(m->data, x->data);
     else return nullopt;
   }
-  if(const auto* m = get_if<RegexPatternMatcher>(&pattern)) {
+  if(holds_alternative<RegexPatternMatcher>(pattern)) {
     const auto* x = get_if<RegexPattern>(&expr);
     if(!x) return typeMismatch("RegexPattern", expr);
     // Just check that it's *some* regex, don't bother with regex contents.
