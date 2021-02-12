@@ -87,21 +87,62 @@ static auto posPair(const ExprToken& x) -> pair<ssize_t,ssize_t> {
   return {stPos(x), enPos(x)};
 }
 
-// Assumes ident.empty() == false
-static size_t identIndex(vector<Rule>& rules,
-                         vector<pair<ssize_t,ssize_t>>& firstUseLocs,
-                         string_view ident, pair<ssize_t, ssize_t> thisPos) {
-  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) return i;
+constexpr size_t npos = -1;
+constexpr pair<ssize_t,ssize_t> nrange{-1,-1};
+
+/*
+  Searches for ident in rules[].name().
+  If found, returns the index.
+  If not found, appends a new monostate rule with the ident, and returns the
+    index of the new element. In this case, it also records thisPos in
+    firstUseLocs.
+  Assumes ident.empty() == false
+*/
+static size_t findOrAppendIdent(
+    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    string_view ident, pair<ssize_t, ssize_t> thisPos) {
+  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+    if(firstUseLocs.size() != rules.size())
+      Bug("firstUseLocs size mismatch: {} != {}",
+          firstUseLocs.size(), rules.size());
+    if(firstUseLocs[i] == nrange) firstUseLocs[i] = thisPos;
+    return i;
+  }
   rules.emplace_back(monostate{}, string(ident));
   firstUseLocs.push_back(thisPos);
   return rules.size()-1;
 }
+/*
+  Returns the index of a monostate rule named ident.
+    If one already exists, its index is returned with no change.
+    If one doesn't already exist, one is appended and the new index is returned.
+  If a non-monostate rule named ident already exists, it produces a
+    "multiple definition" error and returns npos.
+
+  In case we are actually appending a new entry, the firstUseLocs() remains
+  nrange() so that it is later filled in by findOrAppendIdent.
+*/
+static size_t defineIdent(InputDiagsRef ctx, vector<Rule>& rules,
+                          vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                          string_view ident, pair<ssize_t, ssize_t> thisPos) {
+  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+    if(!holds_alternative<monostate>(rules[i])) {
+      Error(ctx, thisPos.first, thisPos.second,
+            format("'{}' has multiple definitions", ident));
+      return npos;
+    }else return i;
+  }
+  rules.emplace_back(monostate{}, string(ident));
+  firstUseLocs.push_back(nrange);
+  return rules.size()-1;
+}
+
 // Utility for anon rules that also appends a dummy first-use location entry.
 // Anonymous rules don't need usage location so far, since we never refer to
 // them in error messages. They are implicitly generated, so the user won't
 // know what to make of errors about rules they didn't write.
 //
-// Named rules should use identIndex followed by direct assignment.
+// Named rules should use findOrAppendIdent followed by direct assignment.
 template <class...Args> static void
 emplaceBackAnonRule(vector<Rule>& rules,
                     vector<pair<ssize_t,ssize_t>>& firstUseLocs,
@@ -129,7 +170,8 @@ static void parsePolitenessDirective(
     vector<Example>& examples) {
   const char hello_ident[] = "required_hello";
   ssize_t hello_index =
-    identIndex(rules, firstUseLocs, hello_ident, posPair(linetoks[0]));
+    defineIdent(ctx, rules, firstUseLocs, hello_ident, posPair(linetoks[0]));
+  if(size_t(hello_index) == npos) return;
   if(linetoks.size() == 1) {
     rules[hello_index] = Rule{
         MatchOrError{ssize_t(rules.size()), "Failed at politeness test"},
@@ -236,7 +278,8 @@ ssize_t emplaceBackRegexOrError(vector<Rule>& rules,
 /* This function is called when linetoks is of the form
    {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
    parses the part after "Concat". On success, it returns a ConcatRule that
-   should be inserted into identIndex(someVar). On failure, it returns nullopt.
+   should be inserted into findOrAppendIdent(someVar). On failure, it returns
+   nullopt.
 */
 static auto parseConcatRule(vector<ExprToken> linetoks,
                             InputDiagsRef ctx,
@@ -285,7 +328,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       concat.comps.push_back({
-          ssize_t(identIndex(rules, firstUseLocs, **tok, posPair(*tok))),
+          ssize_t(findOrAppendIdent(rules, firstUseLocs, **tok, posPair(*tok))),
           argname});
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
@@ -338,9 +381,10 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
-  const size_t ruleIndex = identIndex(
-      rules, firstUseLocs, *ident, posPair(linetoks[0])
+  const size_t ruleIndex = defineIdent(
+      ctx, rules, firstUseLocs, *ident, posPair(linetoks[0])
   );
+  if(ruleIndex == npos) return;
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
     return;
@@ -513,7 +557,6 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   }
   if(rs.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
   if(hasUndefinedRules(rs.rules, firstUseLocs, ctx)) return nullopt;
-  // TODO check for duplicate Rule names.
   if(hasError(ctx.diags)) return nullopt;
   return ParsedSource{std::move(rs), std::move(examples)};
 }

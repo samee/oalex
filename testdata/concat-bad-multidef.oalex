@@ -1,0 +1,7 @@
+# expected-error: 'greetings' has multiple definitions
+
+greetings := Concat [ word 'Hello', space, word 'world', space, '!' ]
+space := SkipPoint withinLine
+
+
+greetings := 'Hello world!'
