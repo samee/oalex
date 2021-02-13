@@ -443,6 +443,13 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
                dquoted(*wp)));
 }
 
+bool Rule::needsName() const {
+  if(holds_alternative<std::string>(specifics_) ||
+     holds_alternative<WordPreserving>(specifics_) ||
+     false) return false;
+  else return true;
+}
+
 // Generate an inlined call to oalex::match() when possible, but falls back to
 // the main parser for other cases.
 static void
@@ -458,6 +465,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
       cppos(format("{}(ctx, {});", *rname, posVar));
     else cppos(format("parse{}(ctx, {})", *rname, posVar));
   }
+  // When adding a new branch here, remember to change Rule::needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
 }
