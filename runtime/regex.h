@@ -18,8 +18,8 @@
 #include <memory>
 #include <vector>
 
-#include "runtime/diags.h"
-#include "runtime/util.h"
+#include "diags.h"
+#include "util.h"
 
 namespace oalex {
 
