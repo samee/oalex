@@ -206,19 +206,6 @@ string getline(InputDiags& ctx, size_t& i) {
   return rv;
 }
 
-enum class IndentCmp { bad, lt, eq, gt };
-
-IndentCmp indentCmp(string_view indent1, string_view indent2) {
-  size_t i = 0;
-  while(true) {
-    if(i>=indent1.size() && i>=indent2.size()) return IndentCmp::eq;
-    if(i>=indent1.size()) return IndentCmp::lt;
-    if(i>=indent2.size()) return IndentCmp::eq;
-    if(indent1[i]!=indent2[i]) return IndentCmp::bad;
-    ++i;
-  }
-}
-
 // If ctx.input[i] starts a blank line, return "".
 // If the indentation is less than parindent, return nullopt.
 // Else, return the source line with parindent stripped out.
@@ -350,6 +337,17 @@ char closeBracket(BracketType bt) {
 }
 
 }  // namespace
+
+IndentCmp indentCmp(string_view indent1, string_view indent2) {
+  size_t i = 0;
+  while(true) {
+    if(i>=indent1.size() && i>=indent2.size()) return IndentCmp::eq;
+    if(i>=indent1.size()) return IndentCmp::lt;
+    if(i>=indent2.size()) return IndentCmp::eq;
+    if(indent1[i]!=indent2[i]) return IndentCmp::bad;
+    ++i;
+  }
+}
 
 NewlineChar::NewlineChar(const GluedString& s, size_t pos)
   : LexSegment(s.inputPos(pos), s.inputPos(pos)+1,
