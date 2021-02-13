@@ -30,11 +30,16 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include "codegen.h"
 #include "frontend.h"
 #include "oalex.h"
+#include "fmt/core.h"
+using fmt::format;
 using oalex::Bug;
+using oalex::codegen;
+using oalex::codegenDefaultRegexOptions;
 using oalex::Diag;
 using oalex::Example;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::is_in;
 using oalex::JsonLoc;
 using oalex::ParsedSource;
 using oalex::parseOalexSource;
@@ -42,6 +47,7 @@ using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
+using oalex::UserError;
 using std::nullopt;
 using std::optional;
 using std::size;
@@ -309,6 +315,71 @@ bool testAllExamples(const ParsedSource& src) {
   return rv;
 }
 
+// Combination of unique_ptr<FILE, declttype(&fclose)> and a closure that
+// can write to file, so it can be used directly in codegen.h.
+// fp_ remains private.
+// TODO export this class to codegen tests.
+// TODO define oalex::OutputStream as an abstract class instead of
+//   depending on std::functional, to help compilation speed.
+class FileStream final {
+ public:
+  explicit FileStream(FILE* fp) : fp_(fp) {}
+  ~FileStream() { fclose(fp_); }
+
+  // Boilerplate: movable type but not copyable.
+  FileStream(const FileStream&) = delete;
+  FileStream(FileStream&& that) noexcept : fp_(that.fp_) { that.fp_ = nullptr; }
+  FileStream& operator=(const FileStream&) = delete;
+  FileStream& operator=(FileStream&& that) noexcept {
+    fp_ = that.fp_;
+    that.fp_ = nullptr;
+    return *this;
+  }
+
+  explicit operator bool() const { return fp_; }
+
+  void operator()(string_view s) const {
+    if(fwrite(s.data(), s.size(), 1, fp_) < 1) UserError("File write error");
+  }
+ private:
+  FILE* fp_;
+};
+
+FileStream fopenw(const string& s) {
+  FileStream fs{fopen(s.c_str(), "w")};
+  if(!fs) UserError("Couldn't open file '{}' for writing.", s);
+  return fs;
+}
+
+void produceSourceFiles(const ParsedSource& src,
+    const string& cppFname, const string& hFname) {
+  if(is_in('"', hFname))
+    UserError("Output header filename cannot contain '\"'");
+
+  FileStream cppos = fopenw(cppFname);
+  FileStream hos = fopenw(hFname);
+
+  hos("#pragma once\n"
+      "#include <cstdint>\n"
+      "#include <oalex.h>\n\n");
+  cppos(format("#include \"{}\"\n"
+               "using oalex::InputDiags;\n"
+               "using oalex::JsonLoc;\n"
+               "using namespace std::string_literals;\n"
+               "\n",
+               hFname));
+
+  codegenDefaultRegexOptions(src.ruleSet, std::ref(cppos));
+  cppos("\n");
+
+  for(size_t i=0; i<src.ruleSet.rules.size(); ++i)
+    if (src.ruleSet.rules[i].name().has_value()) {
+      codegen(src.ruleSet, i, std::ref(cppos), std::ref(hos));
+      cppos("\n");
+      hos("\n");
+    }
+}
+
 }  // namespace
 
 int main(int argc, char *argv[]) {
@@ -332,6 +403,16 @@ int main(int argc, char *argv[]) {
     optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
     if(!src.has_value()) return 1;
     return testAllExamples(*src) ? 0 : 1;
+  }else if(cmdlineOpts->mode == CmdMode::build) {
+    optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
+    if(!src.has_value()) return 1;
+    if(!cmdlineOpts->testOutFilename.empty()) {
+      fprintf(stderr, "Test file generation not yet implemented");
+      return 1;
+    }
+    produceSourceFiles(*src, cmdlineOpts->cppOutFilename,
+                             cmdlineOpts->hOutFilename);
+    return 0;
   }else {
     fprintf(stderr, "This mode isn't implmented yet");
     return 1;

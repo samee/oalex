@@ -74,4 +74,6 @@ set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
 add_test(NAME oalex_main_test
          COMMAND ${CMAKE_SOURCE_DIR}/oalex_main_test.py
                  --testdata ${CMAKE_SOURCE_DIR}/testdata
-                 --bin $<TARGET_FILE:oalex-bin>)
+                 --bin $<TARGET_FILE:oalex-bin>
+                 --source-path ${CMAKE_SOURCE_DIR}
+                 --build-path ${CMAKE_BINARY_DIR})

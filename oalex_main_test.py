@@ -6,11 +6,14 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from typing import List
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-b", "--bin", help="Path to the oalex binary")
 parser.add_argument("-t", "--testdata", help="Path to directory of testdata")
+parser.add_argument("--source-path", help="Path to source tree")
+parser.add_argument("--build-path", help="Path to build tree")
 sysargs = parser.parse_args()
 
 def split_args(s: str) -> List[str]:
@@ -76,5 +79,30 @@ def eval_testdata_files():
         print(result.stderr.decode("utf-8"))
         sys.exit(1)
 
+def test_gen_compiles():
+  # Right now I'm only using a single test file, since I'm a little worried
+  # about increasing unit-test runtime. Running g++ multiple times can be a
+  # problem.
+  testfiles = ["concat-good-1.oalex"]
+  with tempfile.TemporaryDirectory() as tempdir:
+    for filename in testfiles:
+      infile = os.path.join(sysargs.testdata, filename)
+      cppfile = os.path.join(tempdir, filename + ".cpp")
+      hfile = os.path.join(tempdir, filename + ".h")
+      result = subprocess.run([sysargs.bin, "build", "--cpp-out", cppfile,
+                               "--h-out", hfile, infile])
+      assert result.returncode == 0, \
+             f"Error generating parser file from '{filename}'"
+      # TODO honor build-time compiler selection
+      result = subprocess.run([
+        "g++", "-c", "--std=c++17", cppfile,
+        "-I", os.path.join(sysargs.source_path, "runtime"),
+        "-I", os.path.join(sysargs.build_path, "_deps/fmt-src/include"),
+      ])
+      assert result.returncode == 0, \
+             f"Error compiling outputs from '{filename}'"
+
+
 test_malformed_cmdline_errors()
 eval_testdata_files()
+test_gen_compiles()
