@@ -632,14 +632,14 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
 // It uses oalexWSkip, since even comments of user language needs
 // to be indented. Throws if we are not at the beginning of a line, or
 // at the end of the previous line.
-optional<string>
+optional<WholeSegment>
 lookaheadParIndent(InputDiags& ctx, size_t i) {
   Input& input = ctx.input;
   if(i != input.bol(i))
     FatalBug(ctx, i, "ParIndent computation cannot start mid-line");
   i = oalexWSkip.acrossLines(input, i);
   if(!input.sizeGt(i)) return nullopt;
-  return input.substr(input.bol(i), i-input.bol(i));
+  return WholeSegment(input.bol(i), i, input);
 }
 
 // TODO utility for checking leader indent.

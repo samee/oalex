@@ -1,0 +1,8 @@
+# expected-error: Example input needs more indentation
+
+greetings := Concat ['Hello', space, 'World']
+space := SkipPoint withinLine
+
+example greetings:
+Hello World
+outputs success

@@ -1,0 +1,8 @@
+# expected-error: Bad mix of spaces and tabs
+
+greetings := Concat ['Hello', space, 'World']
+space := SkipPoint withinLine
+
+  example greetings:
+	Hello World
+outputs success

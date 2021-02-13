@@ -35,11 +35,14 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
+using oalex::lex::IndentCmp;
+using oalex::lex::indentCmp;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
 using oalex::lex::oalexSkip;
+using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
@@ -428,6 +431,28 @@ static bool resemblesExample(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "example")
          && getIfIdent(linetoks[1]).has_value();
 }
+
+static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
+  ssize_t bol = input.bol(stPos(tok));
+  ssize_t indent_end = oalexWSkip.withinLine(input, bol);
+  return WholeSegment(bol, indent_end, input);
+}
+
+static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
+                       const WholeSegment& indent2) {
+  IndentCmp cmpres = indentCmp(*indent1, *indent2);
+  if(cmpres == IndentCmp::bad) {
+    Error(ctx, indent2,
+          "Bad mix of spaces and tabs compared to the previous line");
+    return false;
+  }
+  else if(cmpres != IndentCmp::lt) {
+    Error(ctx, indent2, "Example input needs more indentation");
+    return false;
+  }
+  else return true;
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static auto parseExample(vector<ExprToken> linetoks,
                          InputDiags& ctx, size_t& i) -> optional<Example> {
@@ -441,11 +466,12 @@ static auto parseExample(vector<ExprToken> linetoks,
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
   rv.ruleName = *getIfIdent(linetoks[1]);
 
-  // TODO make sure "example" is indented less than the source, and everything
-  // that follows is indented more than the "example" keyword.
   optional<GluedString> sampleInput;
-  if(auto ind = lookaheadParIndent(ctx, i))
-    sampleInput = lexIndentedSource(ctx, i, *ind);
+  if(auto ind = lookaheadParIndent(ctx, i)) {
+    sampleInput = lexIndentedSource(ctx, i, **ind);
+    if(!goodIndent(ctx, indent_of(ctx.input, linetoks[0]), *ind))
+      return nullopt;
+  }
   if(!sampleInput.has_value())
     return Error(ctx, i, "No indented example input follows");
   rv.sampleInput = std::move(*sampleInput);
