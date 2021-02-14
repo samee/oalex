@@ -58,3 +58,13 @@ outputs success
 example hardcoded_decl:
   varprecious;
 outputs error with 'Expected \'var\''
+
+# 'example' is not yet a reserved keyword.
+example := Concat [word 'Example', space, word 'rule']
+example example:
+  Example rule
+outputs success
+
+example example:
+  Example ruler
+outputs error with 'Expected \'rule\''
