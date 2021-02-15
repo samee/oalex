@@ -458,22 +458,6 @@ static bool matchesTokens(const vector<ExprToken>& tokens,
   return true;
 }
 
-// Checks second token just so it is not a BNF rule of the form
-// `example :=`. We want to avoid requiring too many reserved keywords
-// if possible.
-static bool resemblesExample(const vector<ExprToken>& linetoks) {
-  return linetoks.size() >= 2 && isToken(linetoks[0], "example")
-         && getIfIdent(linetoks[1]).has_value();
-}
-
-// Checks second token just so it is not a BNF rule of the form
-// `rule :=`. We want to avoid requiring too many reserved keywords
-// if possible.
-static bool resemblesRule(const vector<ExprToken>& linetoks) {
-  return linetoks.size() >= 2 && isToken(linetoks[0], "rule")
-         && getIfIdent(linetoks[1]).has_value();
-}
-
 
 static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
   ssize_t bol = input.bol(stPos(tok));
@@ -697,6 +681,14 @@ static auto parseOutputBraces(vector<ExprToken> linetoks, InputDiagsRef ctx)
   return jsloc;
 }
 
+// Checks second token just so it is not a BNF rule of the form
+// `rule :=`. We want to avoid requiring too many reserved keywords
+// if possible.
+static bool resemblesRule(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 2 && isToken(linetoks[0], "rule")
+         && getIfIdent(linetoks[1]).has_value();
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
@@ -729,7 +721,14 @@ static void parseRule(vector<ExprToken> linetoks,
                       std::move(*jsloc), rules, firstUseLocs);
 }
 
-// TODO: move resemblesExample() lexically closer together.
+// Checks second token just so it is not a BNF rule of the form
+// `example :=`. We want to avoid requiring too many reserved keywords
+// if possible.
+static bool resemblesExample(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 2 && isToken(linetoks[0], "example")
+         && getIfIdent(linetoks[1]).has_value();
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static auto parseExample(vector<ExprToken> linetoks,
                          InputDiags& ctx, size_t& i) -> optional<Example> {
