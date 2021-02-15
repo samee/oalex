@@ -1,4 +1,4 @@
-# expected-error: Example input needs to be on the following line
+# expected-error: Input block needs to be on the following line
 
 require_politeness
 

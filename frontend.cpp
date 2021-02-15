@@ -645,15 +645,28 @@ static void appendTemplateRules(
   }
 }
 
+// Assumes colonPos > 0, since the error message
+// is attached to the previous token in linetok.
+static bool requireColonEol(const vector<ExprToken>& linetoks,
+                            size_t colonPos, InputDiags& ctx) {
+  if(linetoks.size() <= colonPos || !isToken(linetoks[colonPos], ":")) {
+    Error(ctx, enPos(linetoks[colonPos-1]), "Was expecting a ':' after this");
+    return false;
+  }
+  if(linetoks.size() > colonPos+1) {
+    Error(ctx, stPos(linetoks[colonPos+1]),
+          "Input block needs to be on the following line");
+    return false;
+  }
+  return true;
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
                       vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   // TODO proper error messages. Not "Bad syntax", say what was needed.
-  if(linetoks.size() != 3 || !matchesTokens(linetoks, {"rule", "", ":"})) {
-    Error(ctx, ctx.input.bol(i), i, "Bad syntax");
-    return;
-  }
+  if(!requireColonEol(linetoks, 2, ctx)) return;
   optional<GluedString> tmpl;
   if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
     tmpl = lexIndentedSource(ctx, i, **ind);
@@ -688,14 +701,11 @@ static void parseRule(vector<ExprToken> linetoks,
                       std::move(*jsloc), rules, firstUseLocs);
 }
 
+// TODO: move resemblesExample() lexically closer together.
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static auto parseExample(vector<ExprToken> linetoks,
                          InputDiags& ctx, size_t& i) -> optional<Example> {
-  if(linetoks.size() < 3 || !isToken(linetoks[2], ":"))
-    return Error(ctx, enPos(linetoks[1]), "Was expecting a ':' after this");
-  if(linetoks.size() > 3)
-    return Error(ctx, stPos(linetoks[3]),
-                 "Example input needs to be on the following line");
+  if(!requireColonEol(linetoks, 2, ctx)) return nullopt;
   Example rv;
   // Guaranteed to succeed by resemblesExample().
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
