@@ -661,22 +661,33 @@ static bool requireColonEol(const vector<ExprToken>& linetoks,
   return true;
 }
 
+// Requires block to be indented strictly more than the reference indent.
+static auto parseIndentedBlock(InputDiags& ctx, size_t& i,
+                               const WholeSegment& refIndent,
+                               string_view blockName)
+  -> optional<GluedString> {
+  optional<GluedString> rv;
+  if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
+    // Consume input the next block even if it is not indented enough.
+    rv = lexIndentedSource(ctx, i, **ind);
+    // TODO rename goodIndent -> requireGoodIndent to indicate error diags.
+    if(!goodIndent(ctx, refIndent, *ind)) return nullopt;
+  }
+  if(!rv.has_value())
+    Error(ctx, i, format("No indented {} follows", blockName));
+  return rv;
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
                       vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   // TODO proper error messages. Not "Bad syntax", say what was needed.
   if(!requireColonEol(linetoks, 2, ctx)) return;
-  optional<GluedString> tmpl;
-  if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
-    tmpl = lexIndentedSource(ctx, i, **ind);
-    if(!goodIndent(ctx, indent_of(ctx.input, linetoks[0]), *ind))
-      return;
-  }
-  if(!tmpl.has_value()) {
-    Error(ctx, i, "No indented template follows");
-    return;
-  }
+  optional<GluedString> tmpl =
+      parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
+                         "template");
+  if(!tmpl.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
   string ident = *getIfIdent(linetoks[1]);
 
@@ -711,15 +722,11 @@ static auto parseExample(vector<ExprToken> linetoks,
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
   rv.ruleName = *getIfIdent(linetoks[1]);
 
-  optional<GluedString> sampleInput;
-  if(auto ind = lookaheadParIndent(ctx, i)) {
-    sampleInput = lexIndentedSource(ctx, i, **ind);
-    if(!goodIndent(ctx, indent_of(ctx.input, linetoks[0]), *ind))
-      return nullopt;
-  }
-  if(!sampleInput.has_value())
-    return Error(ctx, i, "No indented example input follows");
-  rv.sampleInput = std::move(*sampleInput);
+  if(auto sampleInput =
+      parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
+                         "example input")) {
+    rv.sampleInput = std::move(*sampleInput);
+  }else return nullopt;
 
   vector<ExprToken> linetoks2;
   if(auto opt = lexNextLine(ctx, i)) linetoks2 = std::move(*opt);
