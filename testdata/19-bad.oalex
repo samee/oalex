@@ -1,0 +1,3 @@
+# expected-error: Expected end of line
+
+nat := /[0-9]+/ word

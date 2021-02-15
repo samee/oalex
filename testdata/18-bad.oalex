@@ -1,4 +1,4 @@
-# expected-error: Was expecting end of line
+# expected-error: Expected end of line
 
 hello := "Hello"
 

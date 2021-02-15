@@ -1,0 +1,5 @@
+# expected-error: Expected end of line
+
+rule hello:
+  Hello
+outputs: {} carefully

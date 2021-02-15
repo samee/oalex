@@ -162,6 +162,17 @@ emplaceBackAnonRule(vector<Rule>& rules,
   firstUseLocs.emplace_back(-1, -1);
 }
 
+static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
+                       InputDiagsRef ctx) {
+  if(linetoks.size() < eolPos)
+    Bug("requireEol({}) assumes earlier tokens are already processed", eolPos);
+  if(linetoks.size() > eolPos) {
+    Error(ctx, stPos(linetoks[eolPos]), "Expected end of line");
+    return false;
+  }
+  return true;
+}
+
 /*
 resemblesX() vs parseX().
   - resemblesX() is the lookahead. It does enough sanitization to commit to
@@ -195,10 +206,7 @@ static void parsePolitenessDirective(
         Example{testLine, "required_hello", "Goodbye!",
                 Expectation::ErrorSubstr{"Failed at politeness test"}});
   }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
-    if(linetoks.size() > 2) {
-      Error(ctx, linetoks[2], "Was expecting end of line");
-      return;
-    }
+    if(!requireEol(linetoks, 2, ctx)) return;
     const ssize_t nextRuleIndex = rules.size();
     rules[hello_index] = Rule{
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
@@ -376,9 +384,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
   if(tmpl != nullptr) {
     if(auto opt = parseJsonLocFromBracketGroup(ctx, std::move(*tmpl)))
       concat.outputTmpl = std::move(*opt);
-    if(linetoks.size() > 6) {
-      return Error(ctx, linetoks[6], "Was expecting end of line");
-    }
+    if(!requireEol(linetoks, 6, ctx)) return nullopt;
   }
   return concat;
 }
@@ -391,9 +397,7 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
   if(**seg == "withinLine") withinLine = true;
   else if(**seg == "acrossLines") withinLine = false;
   else return Error(ctx, *seg, "Expected either 'withinLine' or 'acrossLines'");
-  if(linetoks.size() > 4) {
-    return Error(ctx, linetoks[4], "Expected end of line");
-  }
+  if(!requireEol(linetoks, 4, ctx)) return nullopt;
   return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
 }
 
@@ -415,17 +419,11 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     return;
   }
   if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
-    if(linetoks.size() > 3) {
-      Error(ctx, linetoks[3], "Expected end of line");
-      return;
-    }
+    if(!requireEol(linetoks, 3, ctx)) return;
     assignLiteralOrError(rules, firstUseLocs, ruleIndex, *ident, *literal);
     return;
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
-    if(linetoks.size() > 3) {
-      Error(ctx, linetoks[3], "Expected end of line");
-      return;
-    }
+    if(!requireEol(linetoks, 3, ctx)) return;
     assignRegexOrError(rules, firstUseLocs, ruleIndex, *ident,
                        std::move(*regex));
     return;
@@ -699,13 +697,14 @@ static void parseRule(vector<ExprToken> linetoks,
   }
 
   BracketGroup *bg;
-  if(linetoks.size() != 3 || !matchesTokens(linetoks, {"outputs", ":"}) ||
+  if(linetoks.size() < 3 || !matchesTokens(linetoks, {"outputs", ":"}) ||
      !(bg = get_if<BracketGroup>(&linetoks[2]))) {
     if(linetoks.empty())
       Error(ctx, i, format("outputs stanza missing in rule {}", ident));
     else Error(ctx, linetoks[0], "Bad syntax");
     return;
   }
+  if(!requireEol(linetoks, 3, ctx)) return;
   optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
   if(!jsloc.has_value()) return;
   appendTemplateRules(ctx, ident, std::move(*tmpl),
@@ -733,8 +732,7 @@ static auto parseExample(vector<ExprToken> linetoks,
   else return nullopt;
 
   if(matchesTokens(linetoks2, {"outputs", "success"})) {
-    if(linetoks2.size() > 2)
-      return Error(ctx, stPos(linetoks2[2]), "Expected end of line");
+    if(!requireEol(linetoks2, 2, ctx)) return nullopt;
     rv.expectation = Expectation::Success;
   }
   else if(matchesTokens(linetoks2, {"outputs", "error", "with"})) {
@@ -746,8 +744,7 @@ static auto parseExample(vector<ExprToken> linetoks,
       return Error(ctx, stPos(linetoks2[3]),
                    "The expected error should be 'single-quoted'");
     rv.expectation = Expectation::ErrorSubstr{string(*s)};
-    if(linetoks2.size() > 4)
-      return Error(ctx, stPos(linetoks2[4]), "Expected end of line");
+    if(!requireEol(linetoks2, 4, ctx)) return nullopt;
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
     BracketGroup* bg;
     if(linetoks2.size() < 3 ||
@@ -759,8 +756,7 @@ static auto parseExample(vector<ExprToken> linetoks,
     if(!jsloc.has_value()) return nullopt;
     if(!jsloc->supportsEquality())
       return Error(ctx, linetoks[3], "Values need to be properly quoted");
-    if(linetoks2.size() > 3)
-      return Error(ctx, stPos(linetoks[3]), "Was expecting end of line");
+    if(!requireEol(linetoks2, 3, ctx)) return nullopt;
     rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
