@@ -1,4 +1,4 @@
-# expected-error: Bad syntax
+# expected-error: Expected ':' after 'outputs'
 
 rule hello:
   Hello

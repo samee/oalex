@@ -676,11 +676,31 @@ static auto parseIndentedBlock(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+// Dev-notes: This is being used both for examples and rules.
+//   Make sure any new syntax makes sense for both cases. Later, we might have
+//   to either (a) split this up into two different functions, or
+//          or (b) return a more general type here that can be sanitized by
+//                 the caller.
+template <int pos>
+static auto parseOutputBraces(vector<ExprToken> linetoks, InputDiagsRef ctx)
+  -> optional<JsonLoc> {
+  static_assert(pos > 0, "pos must be positive for proper error-reporting");
+  BracketGroup* bg;
+  if(linetoks.size() <= pos ||
+     (bg = get_if<BracketGroup>(&linetoks[pos])) == nullptr )
+    return Error(ctx, enPos(linetoks[pos-1]), "Was expecting '{' on this line");
+  optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
+  // If there's an error, parseJsonLocFromBracketGroup() should have already
+  // produced diags.
+  if(!jsloc.has_value()) return nullopt;
+  if(!requireEol(linetoks, pos+1, ctx)) return nullopt;
+  return jsloc;
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
                       vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
-  // TODO proper error messages. Not "Bad syntax", say what was needed.
   if(!requireColonEol(linetoks, 2, ctx)) return;
   optional<GluedString> tmpl =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
@@ -698,16 +718,12 @@ static void parseRule(vector<ExprToken> linetoks,
     return;
   }
 
-  BracketGroup *bg;
-  if(linetoks.size() < 3 || !isToken(linetoks[1], ":") ||
-     !(bg = get_if<BracketGroup>(&linetoks[2]))) {
-    if(linetoks.empty())
-      Error(ctx, i, format("outputs stanza missing in rule {}", ident));
-    else Error(ctx, linetoks[0], "Bad syntax");
+  if(linetoks.size() < 2 || !isToken(linetoks[1], ":")) {
+    Error(ctx, enPos(linetoks[0]), "Expected ':' after 'outputs'");
     return;
   }
-  if(!requireEol(linetoks, 3, ctx)) return;
-  optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
+
+  optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks), ctx);
   if(!jsloc.has_value()) return;
   appendTemplateRules(ctx, ident, std::move(*tmpl),
                       std::move(*jsloc), rules, firstUseLocs);
@@ -748,17 +764,10 @@ static auto parseExample(vector<ExprToken> linetoks,
     rv.expectation = Expectation::ErrorSubstr{string(*s)};
     if(!requireEol(linetoks2, 4, ctx)) return nullopt;
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
-    BracketGroup* bg;
-    if(linetoks2.size() < 3 ||
-        (bg = get_if<BracketGroup>(&linetoks2[2])) == nullptr )
-      return Error(ctx, enPos(linetoks2[1]), "Was expecting '{' on this line");
-    optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
-    // If there's an error, parseJsonLocFromBracketGroup() should have already
-    // produced diags.
+    optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks2), ctx);
     if(!jsloc.has_value()) return nullopt;
     if(!jsloc->supportsEquality())
       return Error(ctx, linetoks[3], "Values need to be properly quoted");
-    if(!requireEol(linetoks2, 3, ctx)) return nullopt;
     rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
