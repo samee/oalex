@@ -23,13 +23,18 @@
 #include "fmt/core.h"
 
 #include "lexer.h"
+#include "template.h"
 #include "regex_io.h"
 #include "jsonloc_io.h"
 
 using fmt::format;
 using oalex::InputDiagsRef;
+using oalex::LexDirective;
 using oalex::parseJsonLocFromBracketGroup;
 using oalex::parseRegexCharSet;
+using oalex::Template;
+using oalex::templatize;
+using oalex::tokenizeTemplate;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -500,9 +505,21 @@ static GluedString trimNewlines(GluedString s) {
   return s.subqstr(st, en-st);
 }
 
+static const LexDirective& defaultLexopts() {
+  static const auto* var = new LexDirective{
+    parseRegexCharSet("[_a-zA-Z]"),
+    Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+    false
+  };
+  return *var;
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
+// InputDiags is still used as a destination for error messages.
+// TODO this can be InputDiagsRef.
 static void appendTemplateRules(
+    InputDiags& ctx,
     string_view ident, GluedString tmpl_string, const JsonLoc& jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   std::ignore = tmpl_string;  // Unused for now.
@@ -515,6 +532,14 @@ static void appendTemplateRules(
 
   ssize_t newIndex = rules.size();
   emplaceBackAnonRule(rules, firstUseLocs, monostate{});
+
+  // TODO fill in partPatterns.
+  optional<Template> tmpl =
+    templatize(ctx, tokenizeTemplate(tmpl_string, {}, defaultLexopts()));
+  if(!tmpl.has_value()) return;
+
+  // TODO replace this with a recursion over tmpl.
+  // Right now we are ignoring the poor thing.
   assignLiteralOrError(rules, firstUseLocs, newIndex, ident,
                        trimNewlines(std::move(tmpl_string)));
 }
@@ -556,7 +581,7 @@ static void parseRule(vector<ExprToken> linetoks,
   }
   optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
   if(!jsloc.has_value()) return;
-  appendTemplateRules(ident, std::move(*tmpl),
+  appendTemplateRules(ctx, ident, std::move(*tmpl),
                       *jsloc, rules, firstUseLocs);
 }
 

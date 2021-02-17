@@ -32,7 +32,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(fmt)
 include_directories(${fmt_SOURCE_DIR}/include)
 
-add_library(oalex-bin-lib STATIC codegen.cpp jsonloc_io.cpp lexer.cpp
+add_library(oalex-bin-lib STATIC codegen.cpp ident.cpp jsonloc_io.cpp lexer.cpp
                                  regex_io.cpp template.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
