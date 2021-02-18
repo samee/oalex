@@ -5,3 +5,8 @@ outputs: {}
 example hello_world:
   Hello world
 outputs success
+
+example hello_world:
+  Hello
+    world
+outputs success

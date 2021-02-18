@@ -46,6 +46,7 @@ using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
+using oalex::lex::NewlineChar;
 using oalex::lex::oalexSkip;
 using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
@@ -473,7 +474,10 @@ static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
   else return true;
 }
 
-// TODO: Move this hack into a proper place in lexer.h.
+// Dev-note: This comment block was associated with a now-removed function
+// called trimNewlines(). The comment is left behind since it raises valid
+// issues that will likely have to be figured out at some point.
+//
 // Decide how lexIndentedSource should treat leading and trailing newlines.
 // As a general rule, if newlines matter, the user should be encouraged to use
 // fenced inputs or quoted inputs.
@@ -498,12 +502,6 @@ static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
 //     newlines.
 //
 // Preference: Maybe don't allow surprise matches that start or end mid-line.
-static GluedString trimNewlines(GluedString s) {
-  ssize_t st=0, en=s.size();
-  while(st<en && s[st]=='\n') ++st;
-  while(st<en && s[en-1]=='\n') --en;
-  return s.subqstr(st, en-st);
-}
 
 static const LexDirective& defaultLexopts() {
   static const auto* var = new LexDirective{
@@ -512,6 +510,49 @@ static const LexDirective& defaultLexopts() {
     false
   };
   return *var;
+}
+
+// TODO: fix names: append vs emplace
+// TODO: fix parameter order
+static ssize_t appendLiteralOrError(
+    vector<Rule>& rules,
+    vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    string_view ident, string_view literal) {
+  ssize_t newIndex = rules.size();
+  emplaceBackAnonRule(rules, firstUseLocs, monostate{});
+  assignLiteralOrError(rules, firstUseLocs, newIndex, ident, literal);
+  return newIndex;
+}
+
+static ssize_t appendTemplateRule(InputDiags& ctx,
+    const Template& tmpl, vector<Rule>& rules,
+    vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+  if(auto* word = get_if_unique<WordToken>(&tmpl)) {
+    return emplaceBackWordOrError(rules, firstUseLocs, **word);
+  }else if(auto* oper = get_if_unique<OperToken>(&tmpl)) {
+    return appendLiteralOrError(rules, firstUseLocs, {}, **oper);
+  }else if(get_if_unique<NewlineChar>(&tmpl)) {
+    return appendLiteralOrError(rules, firstUseLocs, {}, "\n");
+  }else if(auto* concatTmpl = get_if_unique<TemplateConcat>(&tmpl)) {
+    // TODO fill in templates.
+    ConcatRule concatRule{ {}, JsonLoc::Map() };
+    for(ssize_t i = 0; i < (ssize_t)concatTmpl->parts.size(); ++i) {
+      if(i > 0) {
+        // Intersperse concat components with SkipPoint components.
+        concatRule.comps.push_back({(ssize_t)rules.size(), {}});
+        emplaceBackAnonRule(rules, firstUseLocs,
+                            SkipPoint{.stayWithinLine = false,
+                                      .skip = &oalexSkip});
+      }
+      ssize_t j = appendTemplateRule(ctx, concatTmpl->parts[i],
+                                     rules, firstUseLocs);
+      concatRule.comps.push_back({j, {}});
+    }
+    emplaceBackAnonRule(rules, firstUseLocs, std::move(concatRule));
+    return rules.size()-1;
+  }else {
+    Unimplemented("Template compilation of index {}", tmpl.index());
+  }
 }
 
 // Once we have extracted everything we need from InputDiags,
@@ -530,18 +571,13 @@ static void appendTemplateRules(
     Bug("parseJsonLocFromBracketGroup() returned something strange");
   if(!jslocmap->empty()) Unimplemented("Output components");
 
-  ssize_t newIndex = rules.size();
-  emplaceBackAnonRule(rules, firstUseLocs, monostate{});
-
   // TODO fill in partPatterns.
   optional<Template> tmpl =
     templatize(ctx, tokenizeTemplate(tmpl_string, {}, defaultLexopts()));
   if(!tmpl.has_value()) return;
 
-  // TODO replace this with a recursion over tmpl.
-  // Right now we are ignoring the poor thing.
-  assignLiteralOrError(rules, firstUseLocs, newIndex, ident,
-                       trimNewlines(std::move(tmpl_string)));
+  size_t newIndex = appendTemplateRule(ctx, *tmpl, rules, firstUseLocs);
+  rules[newIndex].name(ident);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
