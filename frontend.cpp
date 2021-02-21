@@ -500,6 +500,19 @@ static GluedString trimNewlines(GluedString s) {
   return s.subqstr(st, en-st);
 }
 
+// Once we have extracted everything we need from InputDiags,
+// this is where we compile the extracted string fragments into a rule.
+static void appendTemplateRules(
+    string_view ident, GluedString tmpl_string,
+    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+  std::ignore = tmpl_string;  // Unused for now.
+
+  ssize_t newIndex = rules.size();
+  emplaceBackAnonRule(rules, firstUseLocs, monostate{});
+  assignLiteralOrError(rules, firstUseLocs, newIndex, ident,
+                       trimNewlines(std::move(tmpl_string)));
+}
+
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
@@ -520,10 +533,8 @@ static void parseRule(vector<ExprToken> linetoks,
   // Guaranteed to succeed by resemblesRule().
   string ident = *getIfIdent(linetoks[1]);
 
-  ssize_t newIndex = rules.size();
-  emplaceBackAnonRule(rules, firstUseLocs, monostate{});
-  assignLiteralOrError(rules, firstUseLocs, newIndex, ident,
-                       trimNewlines(std::move(*tmpl)));
+  appendTemplateRules(ident, std::move(*tmpl),
+                      rules, firstUseLocs);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
