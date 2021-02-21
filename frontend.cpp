@@ -468,6 +468,31 @@ static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
   else return true;
 }
 
+// TODO: Move this hack into a proper place in lexer.h.
+// Decide how lexIndentedSource should treat leading and trailing newlines.
+// As a general rule, if newlines matter, the user should be encouraged to use
+// fenced inputs or quoted inputs.
+//
+// As a corollary, we shouldn't call trimNewlines() on fenced inputs.
+//
+// Option (a) Trim all surrounding newlines
+//        (b) Keep one single trailing newline, but trim the rest
+//        (c) Keep them all
+//        (d) Trim all newlines, but replace them with regex anchors ^ and $
+//
+// Constraints:
+//
+//   * "Equivalent" inputs of fenced and indented
+//      source blocks should behave identically
+//   * Rules and Examples with identical string
+//     literal inputs must always match.
+//   * When one rule is composed inside another concatenation,
+//     the result need to make sense. E.g. Never require two newlines
+//     just because one of the internal components happened to have an
+//     implicit trailing newline. We should also allow composition without
+//     newlines.
+//
+// Preference: Maybe don't allow surprise matches that start or end mid-line.
 static GluedString trimNewlines(GluedString s) {
   ssize_t st=0, en=s.size();
   while(st<en && s[st]=='\n') ++st;
