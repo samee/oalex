@@ -503,9 +503,15 @@ static GluedString trimNewlines(GluedString s) {
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 static void appendTemplateRules(
-    string_view ident, GluedString tmpl_string,
+    string_view ident, GluedString tmpl_string, const JsonLoc& jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   std::ignore = tmpl_string;  // Unused for now.
+  if(holds_alternative<JsonLoc::Vector>(jsloc))
+    Unimplemented("Directly outputting list not encased in a map");
+  const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
+  if(jslocmap == nullptr)
+    Bug("parseJsonLocFromBracketGroup() returned something strange");
+  if(!jslocmap->empty()) Unimplemented("Output components");
 
   ssize_t newIndex = rules.size();
   emplaceBackAnonRule(rules, firstUseLocs, monostate{});
@@ -533,8 +539,25 @@ static void parseRule(vector<ExprToken> linetoks,
   // Guaranteed to succeed by resemblesRule().
   string ident = *getIfIdent(linetoks[1]);
 
+  // Consume next line for the outputs stanza.
+  if(auto opt = lexNextLine(ctx, i)) linetoks = std::move(*opt);
+  else {
+    Error(ctx, i, format("outputs stanza missing in rule {}", ident));
+    return;
+  }
+
+  BracketGroup *bg;
+  if(linetoks.size() != 3 || !matchesTokens(linetoks, {"outputs", ":"}) ||
+     !(bg = get_if<BracketGroup>(&linetoks[2]))) {
+    if(linetoks.empty())
+      Error(ctx, i, format("outputs stanza missing in rule {}", ident));
+    else Error(ctx, linetoks[0], "Bad syntax");
+    return;
+  }
+  optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
+  if(!jsloc.has_value()) return;
   appendTemplateRules(ident, std::move(*tmpl),
-                      rules, firstUseLocs);
+                      *jsloc, rules, firstUseLocs);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().

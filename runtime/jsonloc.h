@@ -99,4 +99,8 @@ template <class X> const X* get_if(const JsonLoc* json) {
   return std::get_if<X>(&json->value);
 }
 
+template <class X> bool holds_alternative(const JsonLoc& json) {
+  return std::holds_alternative<X>(json.value);
+}
+
 }  // namespace oalex

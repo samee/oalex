@@ -1,0 +1,4 @@
+# expected-error: outputs stanza missing in rule hello
+
+rule hello:
+  Hello

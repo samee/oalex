@@ -1,0 +1,5 @@
+# expected-error: Bad syntax
+
+rule hello:
+  Hello
+outputs success

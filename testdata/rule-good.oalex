@@ -1,5 +1,6 @@
 rule hello_world:
   Hello world
+outputs: {}
 
 example hello_world:
   Hello world
