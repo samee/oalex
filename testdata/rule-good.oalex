@@ -1,0 +1,6 @@
+rule hello_world:
+  Hello world
+
+example hello_world:
+  Hello world
+outputs success

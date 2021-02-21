@@ -416,11 +416,17 @@ static void parseBnfRule(vector<ExprToken> linetoks,
   }
 }
 
+// Returns true iff tokens is a sequence of WholeSegments matching
+// expectations. Empty elements in expectations are treated as wildcards,
+// and they will match anything, even other ExprToken types.
+// But thsoe wildcards do need *some* token to match against, so we return false
+// if tokens.size() is too small.
 static bool matchesTokens(const vector<ExprToken>& tokens,
-                          vector<string_view> expectations) {
+                          const vector<string_view>& expectations) {
   if(tokens.size() < expectations.size()) return false;
   for(size_t i=0; i<expectations.size(); ++i)
-    if(!isToken(tokens[i], expectations[i])) return false;
+    if(!expectations[i].empty() && !isToken(tokens[i], expectations[i]))
+      return false;
   return true;
 }
 
@@ -431,6 +437,15 @@ static bool resemblesExample(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "example")
          && getIfIdent(linetoks[1]).has_value();
 }
+
+// Checks second token just so it is not a BNF rule of the form
+// `rule :=`. We want to avoid requiring too many reserved keywords
+// if possible.
+static bool resemblesRule(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 2 && isToken(linetoks[0], "rule")
+         && getIfIdent(linetoks[1]).has_value();
+}
+
 
 static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
   ssize_t bol = input.bol(stPos(tok));
@@ -451,6 +466,39 @@ static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
     return false;
   }
   else return true;
+}
+
+static GluedString trimNewlines(GluedString s) {
+  ssize_t st=0, en=s.size();
+  while(st<en && s[st]=='\n') ++st;
+  while(st<en && s[en-1]=='\n') --en;
+  return s.subqstr(st, en-st);
+}
+
+// Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
+static void parseRule(vector<ExprToken> linetoks,
+                      InputDiags& ctx, size_t& i, vector<Rule>& rules,
+                      vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+  // TODO proper error messages. Not "Bad syntax", say what was needed.
+  if(linetoks.size() != 3 || !matchesTokens(linetoks, {"rule", "", ":"})) {
+    Error(ctx, ctx.input.bol(i), i, "Bad syntax");
+    return;
+  }
+  optional<GluedString> tmpl;
+  if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
+    tmpl = lexIndentedSource(ctx, i, **ind);  // TODO indent check like example
+  }
+  if(!tmpl.has_value()) {
+    Error(ctx, i, "No indented template follows");
+    return;
+  }
+  // Guaranteed to succeed by resemblesRule().
+  string ident = *getIfIdent(linetoks[1]);
+
+  ssize_t newIndex = rules.size();
+  emplaceBackAnonRule(rules, firstUseLocs, monostate{});
+  assignLiteralOrError(rules, firstUseLocs, newIndex, ident,
+                       trimNewlines(std::move(*tmpl)));
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
@@ -583,6 +631,8 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
+    }else if(resemblesRule(linetoks)) {
+      parseRule(std::move(linetoks), ctx, i, rs.rules, firstUseLocs);
     }else
       return Error(ctx, linetoks[0],
                    format("Unexpected '{}', was expecting 'example' or "
