@@ -563,7 +563,6 @@ static void appendTemplateRules(
     InputDiags& ctx,
     string_view ident, GluedString tmpl_string, const JsonLoc& jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
-  std::ignore = tmpl_string;  // Unused for now.
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
   const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
