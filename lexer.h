@@ -94,7 +94,8 @@ struct WholeSegment : LexSegment {
 class GluedString final : public LexSegment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
-  enum class Ctor { dquoted, squoted, fenced, indented, subqstr };
+  enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
+  GluedString(InputDiags& ctx, WholeSegment s);
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)

@@ -357,6 +357,11 @@ WholeSegment::WholeSegment(const GluedString& s)
   : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
     data(string(s)) { }
 
+GluedString::GluedString(InputDiags& ctx, WholeSegment s)
+  : LexSegment(s.stPos, s.enPos, type_tag),
+    s_(std::move(*s)), ctor_(Ctor::wholeSegment), ctx_(&ctx),
+    index_map_({IndexRelation{.inputPos = s.stPos, .quotePos = 0}}) {}
+
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;
 }
