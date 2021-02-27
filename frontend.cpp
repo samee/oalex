@@ -15,6 +15,7 @@
 #include "frontend.h"
 
 #include <iterator>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -52,6 +53,7 @@ using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
+using std::map;
 using std::monostate;
 using std::nullopt;
 using std::optional;
@@ -564,14 +566,9 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
   }
 }
 
-// Once we have extracted everything we need from InputDiags,
-// this is where we compile the extracted string fragments into a rule.
-// InputDiags is still used as a destination for error messages.
-// TODO this can be InputDiagsRef.
-static void appendTemplateRules(
-    InputDiags& ctx,
-    string_view ident, GluedString tmpl_string, JsonLoc jsloc,
-    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+// We can later add where-stanza arguments for extracting partPatterns
+static auto makePartPatterns(const JsonLoc& jsloc)
+  -> map<Ident,PartPattern> {
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
   const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
@@ -580,8 +577,21 @@ static void appendTemplateRules(
   if(!jslocmap->empty()) Unimplemented("Output components");
 
   // TODO fill in partPatterns.
+  return {};
+}
+
+// Once we have extracted everything we need from InputDiags,
+// this is where we compile the extracted string fragments into a rule.
+// InputDiags is still used as a destination for error messages.
+// TODO this can be InputDiagsRef.
+static void appendTemplateRules(
+    InputDiags& ctx,
+    string_view ident, GluedString tmpl_string, JsonLoc jsloc,
+    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+  map<Ident,PartPattern> partPatterns = makePartPatterns(jsloc);
   optional<Template> tmpl =
-    templatize(ctx, tokenizeTemplate(tmpl_string, {}, defaultLexopts()));
+    templatize(ctx, tokenizeTemplate(tmpl_string, partPatterns,
+                                     defaultLexopts()));
   if(!tmpl.has_value()) return;
 
   size_t newIndex = appendTemplateRule(ctx, *tmpl, rules, firstUseLocs);
