@@ -38,8 +38,10 @@ using Vector = JsonLoc::Vector;
   Bug("Strange JsonLoc type with index = {}", json.value.index());
 }
 
-static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
-                                JsonLoc& json) {
+// Template parameters parameterize over const-qualifiers.
+template <class PlaceholderMap, class JsonLocInput>
+static void allPlaceholdersImpl(PlaceholderMap& rv,
+                                JsonLocInput& json) {
   if(auto* p = get_if<Placeholder>(&json))
     rv.insert(make_pair(p->key, &json));
   else if(holds_alternative<String>(json.value)) return;
@@ -52,6 +54,12 @@ static void allPlaceholdersImpl(JsonLoc::PlaceholderMap& rv,
 
 auto JsonLoc::allPlaceholders() -> PlaceholderMap {
   PlaceholderMap rv;
+  allPlaceholdersImpl(rv,*this);
+  return rv;
+}
+
+auto JsonLoc::allPlaceholders() const -> ConstPlaceholderMap {
+  ConstPlaceholderMap rv;
   allPlaceholdersImpl(rv,*this);
   return rv;
 }

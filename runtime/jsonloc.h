@@ -73,6 +73,16 @@ struct JsonLoc {
   using PlaceholderMap = std::multimap<std::string, JsonLoc*, std::less<>>;
   PlaceholderMap allPlaceholders();
 
+  // The Const version is used for pre-substitution processing, by functions
+  // that only accept const JsonLoc objects but extract the identifier list.
+  // The type is typically used as a vector<pair<string,const JsonLoc*>>, and
+  // not as a map. But this reduces cognitive complexity as users have to
+  // remember only one type of methods (the map-returning kind), and we have
+  // to implement only one recursive visitor.
+  using ConstPlaceholderMap =
+    std::multimap<std::string, const JsonLoc*, std::less<>>;
+  ConstPlaceholderMap allPlaceholders() const;
+
   // Returns number of substitutions made. Zero if key doesn't exist.
   size_t substitute(const PlaceholderMap& pmap, std::string_view key,
                     const JsonLoc& json);
