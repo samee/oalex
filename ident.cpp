@@ -57,9 +57,8 @@ bool operator<(const Ident& a, const Ident& b) {
 
 const size_t kMaxIdentLen = 100;
 
-Ident Ident::parse(InputDiags& ctx, size_t& i) {
-  Resetter rst(ctx, i);
-  const Input& input = ctx.input;
+Ident Ident::parse(InputDiagsRef ctx, size_t& i) {
+  const InputPiece& input = *ctx.input;
   bool alluscore = true;
   size_t l;
   for(l=0; input.sizeGt(i+l); ++l) {
@@ -71,7 +70,7 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   Ident rv;
   rv.orig_ = input.substr(i,l);
   size_t o = i;
-  rst.markUsed(i+=l);
+  i+=l;
   rv.stPos_ = input.inputPos(o);
   rv.enPos_ = input.inputPos(i);
 

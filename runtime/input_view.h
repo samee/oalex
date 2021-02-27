@@ -33,6 +33,7 @@ class InputPiece {
   virtual size_t find(char ch, size_t pos) const = 0;
   virtual size_t bol(size_t i) const = 0;
   virtual size_t inputPos(size_t pos) const = 0;
+  virtual std::string substr(size_t st,  size_t len) const = 0;
   virtual ~InputPiece() = default;
 };
 
@@ -100,7 +101,7 @@ class Input final : public InputPiece {
   // Can also use size_t instead, but that risks increasing sizeof().
   // Unlike std::string_view, it will stay valid even if s is appended to,
   // and undergoes reallocation.
-  std::string substr(size_t pos, size_t count) const;
+  std::string substr(size_t pos, size_t count) const override;
   using InputPiece::hasPrefix;
   bool hasPrefix(size_t pos, std::string_view s) const override;
   size_t find(char ch, size_t pos) const override;

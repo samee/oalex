@@ -115,8 +115,8 @@ class GluedString final : public LexSegment, public InputPiece {
   using InputPiece::hasPrefix;
   bool hasPrefix(size_t pos, std::string_view s) const final
     { return substr(pos, s.size()) == s; }
-  std::string_view substr(size_t pos, size_t len) const
-    { return std::string_view(s_).substr(pos, len); }
+  std::string substr(size_t pos, size_t len) const final
+    { return s_.substr(pos, len); }
   GluedString subqstr(size_t pos, size_t len) const;
   size_t find(std::string_view s, size_t st=0) const noexcept
     { return s_.find(s, st); }

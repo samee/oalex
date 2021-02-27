@@ -51,7 +51,7 @@ class Ident {
   Ident(std::nullopt_t) {}
  public:
   Ident() = default;
-  static Ident parse(InputDiags& ctx, size_t& i);
+  static Ident parse(InputDiagsRef ctx, size_t& i);
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;

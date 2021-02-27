@@ -60,7 +60,7 @@ static auto matchAllParts(const GluedString& spatt, const GluedString& s)
     return Error(spatt, 0, spatt.size(), "Placeholder pattern cannot be empty");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+spatt.size() <= s.size(); ++i)
-    if(s.substr(i, spatt.size()) == spatt) {
+    if(s.substr(i, spatt.size()) == string_view(spatt)) {
       if(!rv.empty() && i<rv.back().second)
         return Error(s, rv.back().first, i + spatt.size(),
                      format("Pattern '{}' matches overlapping segments",
@@ -81,7 +81,7 @@ static auto matchAllParts(const DelimPair& dpatt, const GluedString& s)
                  "End pattern is a substring of the start pattern");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+dpatt.st.size() <= s.size(); ++i)
-    if(s.substr(i, dpatt.st.size()) == dpatt.st) {
+    if(s.substr(i, dpatt.st.size()) == string_view(dpatt.st)) {
       if(!rv.empty() && i<rv.back().second) {
         return Error(s, rv.back().first,
                      max(rv.back().second, i + dpatt.st.size()),
