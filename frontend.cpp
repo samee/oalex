@@ -542,8 +542,9 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
     return appendLiteralOrError(rules, firstUseLocs, {}, **oper);
   }else if(get_if_unique<NewlineChar>(&tmpl)) {
     return appendLiteralOrError(rules, firstUseLocs, {}, "\n");
+  }else if(auto* ident = get_if_unique<Ident>(&tmpl)) {
+    return findOrAppendIdent(rules, firstUseLocs, ident->preserveCase(), {});
   }else if(auto* concatTmpl = get_if_unique<TemplateConcat>(&tmpl)) {
-    // TODO fill in templates.
     ConcatRule concatRule{ {}, JsonLoc::Map() };
     for(ssize_t i = 0; i < (ssize_t)concatTmpl->parts.size(); ++i) {
       if(i > 0) {
@@ -567,28 +568,46 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
 }
 
 // We can later add where-stanza arguments for extracting partPatterns
-static auto makePartPatterns(const JsonLoc& jsloc)
+static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
   -> map<Ident,PartPattern> {
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
   const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
   if(jslocmap == nullptr)
     Bug("parseJsonLocFromBracketGroup() returned something strange");
-  if(!jslocmap->empty()) Unimplemented("Output components");
 
-  // TODO fill in partPatterns.
-  return {};
+  map<Ident, PartPattern> rv;
+  for(const auto& [p, j] : jsloc.allPlaceholders()) {
+    WholeSegment seg(j->stPos, j->enPos, p);
+    GluedString gs(ctx, std::move(seg));
+    size_t i = 0;
+    Ident id = Ident::parse(gs, i);
+    if (i != gs.size()) {
+      Error(gs, 0, gs.size(), "Not a valid identifier");
+      continue;
+    }
+    rv.insert({id, std::move(gs)});
+  }
+  return rv;
+}
+
+static void registerLocations(
+    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    const Ident& id) {
+  findOrAppendIdent(rules, firstUseLocs, id.preserveCase(),
+                    {id.stPos(), id.enPos()});
 }
 
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
-// TODO this can be InputDiagsRef.
 static void appendTemplateRules(
     InputDiags& ctx,
     string_view ident, GluedString tmpl_string, JsonLoc jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
-  map<Ident,PartPattern> partPatterns = makePartPatterns(jsloc);
+  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
+  for(auto& [id, pp] : partPatterns) registerLocations(rules, firstUseLocs, id);
+
   optional<Template> tmpl =
     templatize(ctx, tokenizeTemplate(tmpl_string, partPatterns,
                                      defaultLexopts()));
@@ -596,6 +615,10 @@ static void appendTemplateRules(
 
   size_t newIndex = appendTemplateRule(ctx, *tmpl, rules, firstUseLocs);
   rules[newIndex].name(ident);
+  if(auto* concat = get_if<ConcatRule>(&rules[newIndex])) {
+    concat->outputTmpl = std::move(jsloc);
+  }
+  // TODO else still support hardcoded outputs.
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().

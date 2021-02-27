@@ -1,0 +1,5 @@
+# expected-error: 5:12-16: error: Rule 'ident' was used but never defined
+
+rule decl:
+  var ident = int_value;
+outputs: { ident, int_value }
