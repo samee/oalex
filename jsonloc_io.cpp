@@ -68,7 +68,7 @@ bool isErrorValue(const vector<ExprToken>& v) {
 optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(auto id = parseIdent(ctx, *seg))
-      return JsonLoc(JsonLoc::Placeholder{id->data});
+      return JsonLoc(JsonLoc::Placeholder{id->data}, id->stPos, id->enPos);
     else return nullopt;
   }
   if(auto* qs = get_if<GluedString>(&expr))
@@ -102,7 +102,9 @@ optional<JsonLoc> parseMap(InputDiagsRef ctx, vector<ExprToken> elts) {
       continue;
     }
     optional<JsonLoc> parsedElt;
-    if(elt.size() == 1) parsedElt = JsonLoc::Placeholder{key->data};
+    if(elt.size() == 1)
+      parsedElt = JsonLoc{JsonLoc::Placeholder{key->data},
+                          key->stPos, key->enPos};
     else {
       if(!isToken(elt[1],":")) {
         Error(ctx, enPos(elt[0]), "Was expecting a colon sign after the key.");

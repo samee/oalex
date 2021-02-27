@@ -31,6 +31,17 @@ namespace oalex {
 // This also causes a difference in our backslash escaping conventions.
 // prettyPrint() also returns something closer to protobufs than json.
 // In other words, this is a complete abuse of the term "json".
+//
+// Another design wart added later: originally the stPos and enPos fields were
+// meant to indicate locations in user input, not in oalex source. But an
+// exception was later made for JsonLoc::Placeholder, since it never shows up
+// in outputs parsed out of user input.
+//
+// At some point in the future, we might separate out these into two types:
+//
+//   * The output produced by parsing user input.
+//   * The braced portion of an 'outputs' stanza in a rule or example.
+//     This will include ellipsis as a variant, but not error values.
 struct JsonLoc {
 
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
@@ -47,7 +58,8 @@ struct JsonLoc {
   // conversion constructors.
   JsonLoc() = delete;
   JsonLoc(ErrorValue) : value(ErrorValue{}) {}
-  JsonLoc(Placeholder p) : value(p) {}
+  JsonLoc(Placeholder p, size_t st, size_t en)
+    : value(p), stPos(st), enPos(en) {}
   JsonLoc(String s) : value(s) {}
   JsonLoc(Vector v) : value(v) {}
   JsonLoc(Map m) : value(m) {}
