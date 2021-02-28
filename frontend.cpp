@@ -526,6 +526,11 @@ static ssize_t appendLiteralOrError(
   return newIndex;
 }
 
+static string templateName(const Template& tmpl) {
+  if(auto* ident = get_if_unique<Ident>(&tmpl)) return ident->preserveCase();
+  else return {};
+}
+
 static ssize_t appendTemplateRule(InputDiags& ctx,
     const Template& tmpl, vector<Rule>& rules,
     vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
@@ -546,9 +551,11 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
                             SkipPoint{.stayWithinLine = false,
                                       .skip = &oalexSkip});
       }
-      ssize_t j = appendTemplateRule(ctx, concatTmpl->parts[i],
-                                     rules, firstUseLocs);
-      concatRule.comps.push_back({j, {}});
+      // TODO reject unsupported TemplateConcat structures.
+      // E.g. where templateName() silently fails.
+      const Template& child = concatTmpl->parts[i];
+      ssize_t j = appendTemplateRule(ctx, child, rules, firstUseLocs);
+      concatRule.comps.push_back({j, templateName(child)});
     }
     emplaceBackAnonRule(rules, firstUseLocs, std::move(concatRule));
     return rules.size()-1;
