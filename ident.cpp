@@ -72,6 +72,8 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   rv.orig_ = input.substr(i,l);
   size_t o = i;
   rst.markUsed(i+=l);
+  rv.stPos_ = input.inputPos(o);
+  rv.enPos_ = input.inputPos(i);
 
   if(alluscore)
     return Error(ctx, o, o+l, "Identifier must have a digit or letter");

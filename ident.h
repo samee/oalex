@@ -44,8 +44,10 @@
 
 namespace oalex {
 
+// Dev-note: This really could be a subclass of WholeSegment.
 class Ident {
   std::string orig_;
+  size_t stPos_ = std::string::npos, enPos_ = std::string::npos;
   Ident(std::nullopt_t) {}
  public:
   Ident() = default;
@@ -59,6 +61,8 @@ class Ident {
   friend bool operator<(const Ident& a, const Ident& b);
   friend class std::hash<Ident>;
   explicit operator bool() const { return !orig_.empty(); }
+  size_t stPos() const { return stPos_; }
+  size_t enPos() const { return enPos_; }
 };
 
 inline bool operator!=(const Ident& a, const Ident& b) { return !(a == b); }

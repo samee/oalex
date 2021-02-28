@@ -32,6 +32,7 @@ class InputPiece {
     { return count >= s.size() && hasPrefix(pos,s); }
   virtual size_t find(char ch, size_t pos) const = 0;
   virtual size_t bol(size_t i) const = 0;
+  virtual size_t inputPos(size_t pos) const = 0;
   virtual ~InputPiece() = default;
 };
 
@@ -106,6 +107,7 @@ class Input final : public InputPiece {
 
   static constexpr size_t defaultMaxLineLength = 5000;
   size_t maxLineLength() const { return maxLineLength_; }
+  virtual size_t inputPos(size_t pos) const final { return pos; }
 
  private:
   mutable std::string buf_;
