@@ -309,7 +309,9 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
       return Error(ctx, linetoks[4], "Was expecting end of line or an '->'");
     }
     tmpl = get_if_in_bound<BracketGroup>(linetoks, 5, ctx);
-    if(!tmpl || !requireBracketType(*tmpl, BracketType::brace, ctx))
+    if(!tmpl)
+      return Error(ctx, enPos(linetoks[4]), "Expected braces after this");
+    if(!requireBracketType(*tmpl, BracketType::brace, ctx))
       return nullopt;
   }
 
