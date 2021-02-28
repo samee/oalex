@@ -563,7 +563,7 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
 // TODO this can be InputDiagsRef.
 static void appendTemplateRules(
     InputDiags& ctx,
-    string_view ident, GluedString tmpl_string, const JsonLoc& jsloc,
+    string_view ident, GluedString tmpl_string, JsonLoc jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
@@ -619,7 +619,7 @@ static void parseRule(vector<ExprToken> linetoks,
   optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
   if(!jsloc.has_value()) return;
   appendTemplateRules(ctx, ident, std::move(*tmpl),
-                      *jsloc, rules, firstUseLocs);
+                      std::move(*jsloc), rules, firstUseLocs);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
