@@ -492,7 +492,7 @@ static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
     return false;
   }
   else if(cmpres != IndentCmp::lt) {
-    Error(ctx, indent2, "Example input needs more indentation");
+    Error(ctx, indent2, "Code block needs more indentation");
     return false;
   }
   else return true;
@@ -652,7 +652,9 @@ static void parseRule(vector<ExprToken> linetoks,
   }
   optional<GluedString> tmpl;
   if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
-    tmpl = lexIndentedSource(ctx, i, **ind);  // TODO indent check like example
+    tmpl = lexIndentedSource(ctx, i, **ind);
+    if(!goodIndent(ctx, indent_of(ctx.input, linetoks[0]), *ind))
+      return;
   }
   if(!tmpl.has_value()) {
     Error(ctx, i, "No indented template follows");

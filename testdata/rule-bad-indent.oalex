@@ -1,0 +1,5 @@
+# expected-error: Code block needs more indentation
+
+rule greetings:
+Hello World
+outputs {}
