@@ -67,6 +67,10 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
     if(out.holdsError()) return out;
     if(!outname.empty()) rv.substitute(pmap, outname, out);
   }
+  // TODO tolerate missing optional fields.
+  for(auto& [id, jsloc] : pmap)
+    if(holds_alternative<JsonLoc::Placeholder>(*jsloc))
+      Bug("Undefined field '{}', should have been caught by frontend", id);
   i = j;
   return rv;
 }

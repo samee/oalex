@@ -1,0 +1,8 @@
+# expected-error: 8:19-27: error: No match found for pattern 'int_value'
+
+ident := /[_a-zA-Z]+/
+int_value := /-?[0-9]+/
+
+rule decl:
+  var ident;
+outputs: { ident, int_value }

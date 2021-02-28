@@ -136,18 +136,6 @@ insert(IntervalMap& m, const IntervalMap::value_type& x)
   return nullptr;
 }
 
-static size_t stPattPos(const PartPattern& patt) {
-  if(auto* q = get_if<GluedString>(&patt)) return stPos(*q);
-  if(auto* dp = get_if<DelimPair>(&patt)) return stPos(dp->st);
-  Bug("stPattPos() called with unknown index {}", patt.index());
-}
-
-static size_t enPattPos(const PartPattern& patt) {
-  if(auto* q = get_if<GluedString>(&patt)) return enPos(*q);
-  if(auto* dp = get_if<DelimPair>(&patt)) return enPos(dp->st);
-  Bug("enPattPos() called with unknown index {}", patt.index());
-}
-
 static const GluedString& pattStart(const PartPattern& patt) {
   if(auto* q = get_if<GluedString>(&patt)) return *q;
   if(auto* dp = get_if<DelimPair>(&patt)) return dp->st;
@@ -165,9 +153,10 @@ auto labelParts(const GluedString& s,
   for(auto& [id,patt] : partPatterns) {
     auto matches = matchAllParts(patt, s);
     if(!matches) { matchError = true; continue; }
+    // TODO report the correct end location for DelimPair
     if(matches->empty())
-      Warning(pattStart(patt), stPattPos(patt), enPattPos(patt),
-              format("No match found for pattern '{}'", debug(patt)));
+      Error(pattStart(patt), 0, pattStart(patt).size(),
+            format("No match found for pattern '{}'", debug(patt)));
     for(const auto& [st,en] : *matches) {
       const IntervalMap::value_type interval{st, {en, id}};
       const IntervalMap::value_type* ovlap = insert(m, interval);
