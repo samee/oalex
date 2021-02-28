@@ -11,9 +11,9 @@ example hello_world:
     world
 outputs success
 
-# TODO remove redundant Concat
-ident := Concat [ /[_a-zA-Z]+/ ] -> { value: arg1 }
-int_value := Concat [ /-?[0-9]+/ ] -> { value: arg1 }
+
+ident := /[_a-zA-Z]+/
+int_value := /-?[0-9]+/
 
 rule decl:
   var ident = int_value;
@@ -21,4 +21,8 @@ outputs: { ident, int_value }
 
 example decl:
   var x = 5;
-outputs: { ident: { value: "x" }, int_value: { value: "5" } }
+outputs: { ident: "x", int_value: "5" }
+
+example decl:
+  var x = y;
+outputs error with 'Expected int_value'

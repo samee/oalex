@@ -267,6 +267,18 @@ static void assignLiteralOrError(vector<Rule>& rules,
   };
   emplaceBackAnonRule(rules, firstUseLocs, string(literal));
 }
+static void assignRegexOrError(vector<Rule>& rules,
+                                 vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                 size_t ruleIndex,
+                                 string_view ruleName,
+                                 RegexPattern regex) {
+  rules[ruleIndex] = Rule{
+    MatchOrError{ssize_t(rules.size()), format("Expected {}", ruleName)},
+    string(ruleName)
+  };
+  emplaceBackAnonRule(rules, firstUseLocs, std::move(regex.patt));
+}
+
 ssize_t emplaceBackWordOrError(vector<Rule>& rules,
                                vector<pair<ssize_t,ssize_t>>& firstUseLocs,
                                string_view word) {
@@ -408,6 +420,14 @@ static void parseBnfRule(vector<ExprToken> linetoks,
       return;
     }
     assignLiteralOrError(rules, firstUseLocs, ruleIndex, *ident, *literal);
+    return;
+  }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
+    if(linetoks.size() > 3) {
+      Error(ctx, linetoks[3], "Expected end of line");
+      return;
+    }
+    assignRegexOrError(rules, firstUseLocs, ruleIndex, *ident,
+                       std::move(*regex));
     return;
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c =
