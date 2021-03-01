@@ -637,8 +637,12 @@ static void appendTemplateRules(
   rules[newIndex].name(ident);
   if(auto* concat = get_if<ConcatRule>(&rules[newIndex])) {
     concat->outputTmpl = std::move(jsloc);
+  }else {
+    auto* m = get_if<JsonLoc::Map>(&jsloc);
+    if(!m || !m->empty())
+      Unimplemented("Custom output template for {} rules",
+                    rules[newIndex].specifics_typename());
   }
-  // TODO else still support hardcoded outputs.
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
