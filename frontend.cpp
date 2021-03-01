@@ -690,14 +690,16 @@ static void parseRule(vector<ExprToken> linetoks,
   string ident = *getIfIdent(linetoks[1]);
 
   // Consume next line for the outputs stanza.
-  if(auto opt = lexNextLine(ctx, i)) linetoks = std::move(*opt);
+  if(auto opt = lexNextLine(ctx, i);
+     opt.has_value() && matchesTokens(*opt, {"outputs"}))
+    linetoks = std::move(*opt);
   else {
     Error(ctx, i, format("outputs stanza missing in rule {}", ident));
     return;
   }
 
   BracketGroup *bg;
-  if(linetoks.size() < 3 || !matchesTokens(linetoks, {"outputs", ":"}) ||
+  if(linetoks.size() < 3 || !isToken(linetoks[1], ":") ||
      !(bg = get_if<BracketGroup>(&linetoks[2]))) {
     if(linetoks.empty())
       Error(ctx, i, format("outputs stanza missing in rule {}", ident));
