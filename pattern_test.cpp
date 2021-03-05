@@ -54,17 +54,17 @@ using oalex::matchAllParts;
 using oalex::OperToken;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
+using oalex::Pattern;
+using oalex::PatternConcat;
+using oalex::PatternOrList;
+using oalex::PatternOptional;
+using oalex::PatternRepeat;
+using oalex::PatternFold;
 using oalex::RegexCharSet;
 using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
 using oalex::showDiags;
 using oalex::Skipper;
-using oalex::Template;
-using oalex::TemplateConcat;
-using oalex::TemplateOrList;
-using oalex::TemplateOptional;
-using oalex::TemplateRepeat;
-using oalex::TemplateFold;
 using oalex::templatize;
 using oalex::testInputDiags;
 using oalex::TokenOrPart;
@@ -577,7 +577,7 @@ class TemplateMatcher {
   TemplateMatcher(Type t, vector<TemplateMatcher> children)
     : type_(t), children_(std::move(children)) {}
   Type type() const { return type_; }
-  friend auto match(const TemplateMatcher& m, const Template& t)
+  friend auto match(const TemplateMatcher& m, const Pattern& p)
     -> optional<string>;
  private:
   Type type_ = Type::leafToken;
@@ -607,8 +607,8 @@ TemplateMatcher foldMatcher(TemplateMatcher part, TemplateMatcher glue) {
   return TemplateMatcher(TemplateMatcher::Type::fold, {part,glue});
 }
 
-template <class T>
-bool hasType(const Template& t) { return holds_alternative<unique_ptr<T>>(t); }
+template <class P>
+bool hasType(const Pattern& p) { return holds_alternative<unique_ptr<P>>(p); }
 
 string_view debugMatcherType(const TemplateMatcher& m) {
   switch(m.type()) {
@@ -621,22 +621,22 @@ string_view debugMatcherType(const TemplateMatcher& m) {
     default: Bug("Unknown matcher type {}", static_cast<int>(m.type()));
   }
 }
-string_view debugType(const Template& t) {
-  if(hasType<WordToken>(t))   return "WordToken";
-  if(hasType<OperToken>(t))   return "OperToken";
-  if(hasType<TemplateConcat>(t))   return "TemplateConcat";
-  if(hasType<TemplateOrList>(t))   return "TemplateOrList";
-  if(hasType<TemplateOptional>(t)) return "TemplateOptional";
-  Bug("Unknown Template type of index {}", t.index());
+string_view debugType(const Pattern& p) {
+  if(hasType<WordToken>(p))   return "WordToken";
+  if(hasType<OperToken>(p))   return "OperToken";
+  if(hasType<PatternConcat>(p))   return "PatternConcat";
+  if(hasType<PatternOrList>(p))   return "PatternOrList";
+  if(hasType<PatternOptional>(p)) return "PatternOptional";
+  Bug("Unknown Pattern type of index {}", p.index());
 }
 
-auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
+auto match(const TemplateMatcher& m, const Pattern& p) -> optional<string> {
   // Helpers.
-  auto typeError = [&t](string_view expected) {
-    return format("Expected {}, received {}", expected, debugType(t));
+  auto typeError = [&p](string_view expected) {
+    return format("Expected {}, received {}", expected, debugType(p));
   };
   auto vectorMatch = [](const vector<TemplateMatcher>& vm,
-                        const vector<Template>& vt) -> optional<string> {
+                        const vector<Pattern>& vt) -> optional<string> {
     if(vm.size() != vt.size())
       return format("Expected {} children, got {}", vm.size(), vt.size());
     for(size_t i=0; i<vm.size(); ++i)
@@ -652,32 +652,32 @@ auto match(const TemplateMatcher& m, const Template& t) -> optional<string> {
   };
 
   if(m.type_ == TemplateMatcher::Type::leafToken) {
-    const WholeSegment* tok = get_if_unique<WordToken>(&t);
-    if(!tok) tok = get_if_unique<OperToken>(&t);
+    const WholeSegment* tok = get_if_unique<WordToken>(&p);
+    if(!tok) tok = get_if_unique<OperToken>(&p);
     if(!tok) return typeError("leaf token");
     if(**tok != m.token_)
       return format("Failed to match '{}' with '{}'", m.token_, **tok);
   }else if(m.type_ == TemplateMatcher::Type::concat) {
-    auto* concat = get_if_unique<TemplateConcat>(&t);
+    auto* concat = get_if_unique<PatternConcat>(&p);
     if(!concat) return typeError("concat list");
     return vectorMatch(m.children_, concat->parts);
   }else if(m.type_ == TemplateMatcher::Type::orList) {
-    auto* orList = get_if_unique<TemplateOrList>(&t);
+    auto* orList = get_if_unique<PatternOrList>(&p);
     if(!orList) return typeError("OR list");
     return vectorMatch(m.children_, orList->parts);
   }else if(m.type_ == TemplateMatcher::Type::optional) {
     if(auto err = checkChildCount(m, 1)) return err;
-    auto* opt = get_if_unique<TemplateOptional>(&t);
+    auto* opt = get_if_unique<PatternOptional>(&p);
     if(!opt) return typeError("optional node");
     return match(m.children_[0], opt->part);
   }else if(m.type_ == TemplateMatcher::Type::repeat) {
     if(auto err = checkChildCount(m, 1)) return err;
-    auto *rep = get_if_unique<TemplateRepeat>(&t);
+    auto *rep = get_if_unique<PatternRepeat>(&p);
     if(!rep) return typeError("repeat node");
     return match(m.children_[0], rep->part);
   }else if(m.type_ == TemplateMatcher::Type::fold) {
     if(auto err = checkChildCount(m, 2)) return err;
-    auto *fold = get_if_unique<TemplateFold>(&t);
+    auto *fold = get_if_unique<PatternFold>(&p);
     if(!fold) return typeError("fold node");
     if(auto err = match(m.children_[0], fold->part)) return err;
     else return match(m.children_[1], fold->glue);
@@ -694,12 +694,12 @@ void testTemplateSimpleConcat() {
   if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
   // Test subject
-  optional<Template> observed = templatize(*ctx, tops);
+  optional<Pattern> observed = templatize(*ctx, tops);
 
   // Expectations
   if(!observed.has_value()) {
     showDiags(ctx->diags);
-    BugMe("Template-making failed");
+    BugMe("Pattern-making failed");
   }
   TemplateMatcher expected = concatMatcher("foo", "+", "bar");
   if(auto err = match(expected, *observed)) BugMe("{}", *err);
@@ -713,12 +713,12 @@ void testTemplateSingleConcat() {
   vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
 
   // Test subject
-  optional<Template> observed = templatize(*ctx, tops);
+  optional<Pattern> observed = templatize(*ctx, tops);
 
   // Expect no single-node concat list.
   if(!observed.has_value()) {
     showDiags(ctx->diags);
-    BugMe("Template-making failed");
+    BugMe("Pattern-making failed");
   }
   if(auto err = match("foo", *observed)) BugMe("{}", *err);
 }
@@ -750,12 +750,12 @@ void testTemplateOperators() {
     if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test subject
-    optional<Template> observed = templatize(*ctx, tops);
+    optional<Pattern> observed = templatize(*ctx, tops);
 
     // Expectations
     if(!observed.has_value()) {
       showDiags(ctx->diags);
-      BugMe("Template-making failed");
+      BugMe("Pattern-making failed");
     }
     if(auto err = match(expectations[i], *observed)) BugMe("{}", *err);
   }

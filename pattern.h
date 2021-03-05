@@ -91,28 +91,28 @@ auto tokenizePattern(const lex::GluedString& s,
 bool hasFusedTemplateOpers(InputDiags& ctx,
                            const std::vector<TokenOrPart>& tops);
 
-using Template = std::variant<
+using Pattern = std::variant<
   // TokenOrPart components.
   std::unique_ptr<WordToken>,
   std::unique_ptr<OperToken>,
   std::unique_ptr<lex::NewlineChar>,
   std::unique_ptr<Ident>,
   // Compound components.
-  std::unique_ptr<struct TemplateConcat>,
-  std::unique_ptr<struct TemplateOrList>,
-  std::unique_ptr<struct TemplateOptional>,
-  std::unique_ptr<struct TemplateRepeat>,
-  std::unique_ptr<struct TemplateFold>
+  std::unique_ptr<struct PatternConcat>,
+  std::unique_ptr<struct PatternOrList>,
+  std::unique_ptr<struct PatternOptional>,
+  std::unique_ptr<struct PatternRepeat>,
+  std::unique_ptr<struct PatternFold>
 >;
 
-struct TemplateConcat { std::vector<Template> parts; };
-struct TemplateOrList { std::vector<Template> parts; };
-struct TemplateOptional { Template part; };
-struct TemplateRepeat   { Template part; };
-struct TemplateFold     { Template part, glue; };
+struct PatternConcat { std::vector<Pattern> parts; };
+struct PatternOrList { std::vector<Pattern> parts; };
+struct PatternOptional { Pattern part; };
+struct PatternRepeat   { Pattern part; };
+struct PatternFold     { Pattern part, glue; };
 
 auto templatize(InputDiags& ctx, std::vector<TokenOrPart> tops)
-  -> std::optional<Template>;
+  -> std::optional<Pattern>;
 
 // templatize() helper, exposed for testing.
 struct RolloutEllipsisForTestResult {

@@ -312,21 +312,21 @@ static auto getIfMetaToken(const TokenOrPart& top)
   return {};
 }
 
-template <class T> static
-Template gatherInto(vector<Template> parts) {
-  static_assert(is_same_v<T,TemplateConcat> || is_same_v<T,TemplateOrList>);
+template <class P> static
+Pattern gatherInto(vector<Pattern> parts) {
+  static_assert(is_same_v<P,PatternConcat> || is_same_v<P,PatternOrList>);
   if(parts.size() == 1) return std::move(parts[0]);
-  return move_to_unique(T{std::move(parts)});
+  return move_to_unique(P{std::move(parts)});
 }
 
-static const WholeSegment* getIfWholeSegment(const Template* t) {
-  if(auto* p = get_if_unique<WordToken>(t)) return p;
-  if(auto* p = get_if_unique<OperToken>(t)) return p;
+static const WholeSegment* getIfWholeSegment(const Pattern* p) {
+  if(auto* ptr = get_if_unique<WordToken>(p)) return ptr;
+  if(auto* ptr = get_if_unique<OperToken>(p)) return ptr;
   return nullptr;
 }
 
 static
-auto findEllipsis(const vector<Template>& parts, size_t pos)
+auto findEllipsis(const vector<Pattern>& parts, size_t pos)
   -> pair<size_t, const WholeSegment*> {
   for(size_t i=pos; i<parts.size(); ++i) {
     auto* p = getIfWholeSegment(&parts[i]);
@@ -336,36 +336,36 @@ auto findEllipsis(const vector<Template>& parts, size_t pos)
 }
 
 static
-bool isAtomicToken(const Template& t) {
-  return holds_one_of_unique<WordToken,OperToken,NewlineChar,Ident>(t);
+bool isAtomicToken(const Pattern& p) {
+  return holds_one_of_unique<WordToken,OperToken,NewlineChar,Ident>(p);
 }
 
 static
-size_t atomicSuffixStart(const vector<Template>& tv, size_t st, size_t en) {
-  for(size_t i=en; i>st; --i) if(!isAtomicToken(tv[i-1])) return i;
+size_t atomicSuffixStart(const vector<Pattern>& pv, size_t st, size_t en) {
+  for(size_t i=en; i>st; --i) if(!isAtomicToken(pv[i-1])) return i;
   return st;
 }
 
 static
-size_t atomicPrefixEnd(const vector<Template>& tv, size_t st, size_t en) {
-  for(size_t i=st; i<en; ++i) if(!isAtomicToken(tv[i])) return i;
+size_t atomicPrefixEnd(const vector<Pattern>& pv, size_t st, size_t en) {
+  for(size_t i=st; i<en; ++i) if(!isAtomicToken(pv[i])) return i;
   return en;
 }
 
 static
-bool areTokensAndEqual(const Template& t1, const Template& t2) {
-  if(t1.index() != t2.index()) return false;
+bool areTokensAndEqual(const Pattern& p1, const Pattern& p2) {
+  if(p1.index() != p2.index()) return false;
 
-  if(auto* w = get_if_unique<WordToken>(&t1)) {
-    if(**w != *get_unique<WordToken>(t2)) return false;
+  if(auto* w = get_if_unique<WordToken>(&p1)) {
+    if(**w != *get_unique<WordToken>(p2)) return false;
   }
-  else if(auto* o = get_if_unique<OperToken>(&t1)) {
-    if(**o != *get_unique<OperToken>(t2)) return false;
+  else if(auto* o = get_if_unique<OperToken>(&p1)) {
+    if(**o != *get_unique<OperToken>(p2)) return false;
   }
-  else if(holds_alternative<unique_ptr<NewlineChar>>(t1))
+  else if(holds_alternative<unique_ptr<NewlineChar>>(p1))
     return true;
-  else if(auto* id = get_if_unique<Ident>(&t1)) {
-    if(*id != get_unique<Ident>(t2)) return false;
+  else if(auto* id = get_if_unique<Ident>(&p1)) {
+    if(*id != get_unique<Ident>(p2)) return false;
   }
   else return false;
   return true;
@@ -374,12 +374,12 @@ bool areTokensAndEqual(const Template& t1, const Template& t2) {
 // Dev-notes: It is important that this function takes in indices, and not
 // iterators into the tv argument that is passed into this function by value.
 static
-auto spliceInCat(vector<Template> tv, size_t st, size_t en, Template elt)
-  -> vector<Template> {
+auto spliceInCat(vector<Pattern> pv, size_t st, size_t en, Pattern elt)
+  -> vector<Pattern> {
   if(st == en) Unimplemented("spliceInCat() for empty ranges");
-  tv.erase(tv.begin()+st+1, tv.begin()+en);
-  tv[st] = std::move(elt);
-  return tv;
+  pv.erase(pv.begin()+st+1, pv.begin()+en);
+  pv[st] = std::move(elt);
+  return pv;
 }
 
 template <class Equal, class Iter> static
@@ -564,49 +564,49 @@ RolloutEllipsisForTestResult rolloutEllipsisForTest(string s) {
 }
 
 static
-auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Template> tv)
-  -> optional<vector<Template>> {
-  auto [idx, tokp] = findEllipsis(tv, 0);
-  if(!tokp) return tv;
-  auto [idx2, tok2p] = findEllipsis(tv, idx+1);
+auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Pattern> pv)
+  -> optional<vector<Pattern>> {
+  auto [idx, tokp] = findEllipsis(pv, 0);
+  if(!tokp) return pv;
+  auto [idx2, tok2p] = findEllipsis(pv, idx+1);
   if(tok2p)
     return Error(ctx, tok2p->stPos, "Multiple ellipsis are strung together");
 
-  auto at = [&](size_t i) { return tv.begin()+i; };
-  size_t lo = atomicSuffixStart(tv, 0, idx);
-  size_t hi = atomicPrefixEnd(tv, idx+1, tv.size());
-  RolloutEllipsisResult<vector<Template>::iterator> rollout =
+  auto at = [&](size_t i) { return pv.begin()+i; };
+  size_t lo = atomicSuffixStart(pv, 0, idx);
+  size_t hi = atomicPrefixEnd(pv, idx+1, pv.size());
+  RolloutEllipsisResult<vector<Pattern>::iterator> rollout =
     rolloutEllipsis(at(lo), at(idx), at(hi), areTokensAndEqual);
   if(!rollout.err.empty()) return Error(ctx, tokp->stPos, rollout.err);
   auto movetovec = [](auto a, auto b) {
     return vector(move_iterator(a), move_iterator(b));
   };
-  size_t cuti = rollout.exprBegin - tv.begin();
-  size_t cutj = rollout.exprEnd - tv.begin();
+  size_t cuti = rollout.exprBegin - pv.begin();
+  size_t cutj = rollout.exprEnd - pv.begin();
   if(rollout.foldPoint < rollout.periodEnd) {
-    TemplateFold tf;
-    tf.part = gatherInto<TemplateConcat>(movetovec(rollout.periodBegin,
-                                                   rollout.foldPoint));
-    tf.glue = gatherInto<TemplateConcat>(movetovec(rollout.foldPoint,
-                                                   rollout.periodEnd));
-    return spliceInCat(std::move(tv), cuti, cutj, move_to_unique(tf));
+    PatternFold pf;
+    pf.part = gatherInto<PatternConcat>(movetovec(rollout.periodBegin,
+                                                  rollout.foldPoint));
+    pf.glue = gatherInto<PatternConcat>(movetovec(rollout.foldPoint,
+                                                  rollout.periodEnd));
+    return spliceInCat(std::move(pv), cuti, cutj, move_to_unique(pf));
   }else {
-    auto part = gatherInto<TemplateConcat>(movetovec(rollout.periodBegin,
-                                                     rollout.periodEnd));
-    return spliceInCat(std::move(tv), cuti, cutj,
-                       move_to_unique(TemplateRepeat{.part{std::move(part)}}));
+    auto part = gatherInto<PatternConcat>(movetovec(rollout.periodBegin,
+                                                    rollout.periodEnd));
+    return spliceInCat(std::move(pv), cuti, cutj,
+                       move_to_unique(PatternRepeat{.part{std::move(part)}}));
   }
 }
 
 auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
-  -> optional<Template> {
+  -> optional<Pattern> {
   if(tops.empty()) Bug("{} was not expecting an empty pattern", __func__);
 
   // Parsing stack: first entry is to construct the root node, while the
   // rest (if any) are for pending '[' brackets.
   // At every nesting level, we have some possibly empty list of
   // '|'-connected ORs, with concatenation still ongoing on the final branch.
-  vector<pair<TemplateOrList,TemplateConcat>> openopts(1);
+  vector<pair<PatternOrList,PatternConcat>> openopts(1);
 
   // Helpers
   auto prevbranches = [&]()->auto& { return openopts.back().first.parts; };
@@ -622,10 +622,10 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
       Error(ctx, closepos, errmsg);
       return false;
     }else {
-      optional<vector<Template>> branch
+      optional<vector<Pattern>> branch
         = repeatFoldOnEllipsis(ctx, std::move(curbranch()));
       if(!branch.has_value()) return false;
-      prevbranches().push_back(gatherInto<TemplateConcat>(std::move(*branch)));
+      prevbranches().push_back(gatherInto<PatternConcat>(std::move(*branch)));
       curbranch().clear();
       return true;
     }
@@ -649,16 +649,16 @@ auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
         return Error(ctx, tokstart, "Empty '[]' not allowed");
       if(openopts.size() == 1) return Error(ctx, tokstart, "Unmatched ']'");
       if(!close_curbranch(tokstart)) return nullopt;
-      Template tmpl = gatherInto<TemplateOrList>(std::move(prevbranches()));
+      Pattern patt = gatherInto<PatternOrList>(std::move(prevbranches()));
       openopts.pop_back();
       curbranch().push_back(
-          move_to_unique(TemplateOptional{std::move(tmpl)})
+          move_to_unique(PatternOptional{std::move(patt)})
       );
     }else Bug("Found unknown metacharacter '{}'", meta);
   }
   if(openopts.size() > 1) return Error(ctx, lastPush, "Unmatched '['");
   if(!close_curbranch(lasttok)) return nullopt;
-  else return gatherInto<TemplateOrList>(std::move(prevbranches()));
+  else return gatherInto<PatternOrList>(std::move(prevbranches()));
 }
 
 }  // namespace oalex

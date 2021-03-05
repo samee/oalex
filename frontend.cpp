@@ -33,7 +33,7 @@ using oalex::InputDiagsRef;
 using oalex::LexDirective;
 using oalex::parseJsonLocFromBracketGroup;
 using oalex::parseRegexCharSet;
-using oalex::Template;
+using oalex::Pattern;
 using oalex::templatize;
 using oalex::tokenizePattern;
 using oalex::lex::enPos;
@@ -530,25 +530,25 @@ static ssize_t appendLiteralOrError(
   return newIndex;
 }
 
-static string templateName(const Template& tmpl) {
-  if(auto* ident = get_if_unique<Ident>(&tmpl)) return ident->preserveCase();
+static string patternName(const Pattern& patt) {
+  if(auto* ident = get_if_unique<Ident>(&patt)) return ident->preserveCase();
   else return {};
 }
 
 static ssize_t appendTemplateRule(InputDiags& ctx,
-    const Template& tmpl, vector<Rule>& rules,
+    const Pattern& patt, vector<Rule>& rules,
     vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
-  if(auto* word = get_if_unique<WordToken>(&tmpl)) {
+  if(auto* word = get_if_unique<WordToken>(&patt)) {
     return emplaceBackWordOrError(rules, firstUseLocs, **word);
-  }else if(auto* oper = get_if_unique<OperToken>(&tmpl)) {
+  }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
     return appendLiteralOrError(rules, firstUseLocs, {}, **oper);
-  }else if(get_if_unique<NewlineChar>(&tmpl)) {
+  }else if(get_if_unique<NewlineChar>(&patt)) {
     return appendLiteralOrError(rules, firstUseLocs, {}, "\n");
-  }else if(auto* ident = get_if_unique<Ident>(&tmpl)) {
+  }else if(auto* ident = get_if_unique<Ident>(&patt)) {
     return findOrAppendIdent(rules, firstUseLocs, ident->preserveCase(), {});
-  }else if(auto* concatTmpl = get_if_unique<TemplateConcat>(&tmpl)) {
+  }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     ConcatRule concatRule{ {}, JsonLoc::Map() };
-    for(ssize_t i = 0; i < (ssize_t)concatTmpl->parts.size(); ++i) {
+    for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
       if(i > 0) {
         // Intersperse concat components with SkipPoint components.
         concatRule.comps.push_back({(ssize_t)rules.size(), {}});
@@ -556,16 +556,16 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
                             SkipPoint{.stayWithinLine = false,
                                       .skip = &oalexSkip});
       }
-      // TODO reject unsupported TemplateConcat structures.
-      // E.g. where templateName() silently fails.
-      const Template& child = concatTmpl->parts[i];
+      // TODO reject unsupported PatternConcat structures.
+      // E.g. where patternName() silently fails.
+      const Pattern& child = concatPatt->parts[i];
       ssize_t j = appendTemplateRule(ctx, child, rules, firstUseLocs);
-      concatRule.comps.push_back({j, templateName(child)});
+      concatRule.comps.push_back({j, patternName(child)});
     }
     emplaceBackAnonRule(rules, firstUseLocs, std::move(concatRule));
     return rules.size()-1;
   }else {
-    Unimplemented("Template compilation of index {}", tmpl.index());
+    Unimplemented("Pattern compilation of index {}", patt.index());
   }
 }
 
@@ -605,17 +605,17 @@ static void registerLocations(
 // InputDiags is still used as a destination for error messages.
 static void appendTemplateRules(
     InputDiags& ctx,
-    string_view ident, GluedString tmpl_string, JsonLoc jsloc,
+    string_view ident, GluedString patt_string, JsonLoc jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rules, firstUseLocs, id);
 
-  optional<Template> tmpl =
-    templatize(ctx, tokenizePattern(tmpl_string, partPatterns,
+  optional<Pattern> patt =
+    templatize(ctx, tokenizePattern(patt_string, partPatterns,
                                     defaultLexopts()));
-  if(!tmpl.has_value()) return;
+  if(!patt.has_value()) return;
 
-  size_t newIndex = appendTemplateRule(ctx, *tmpl, rules, firstUseLocs);
+  size_t newIndex = appendTemplateRule(ctx, *patt, rules, firstUseLocs);
   rules[newIndex].name(ident);
   if(auto* concat = get_if<ConcatRule>(&rules[newIndex])) {
     concat->outputTmpl = std::move(jsloc);
