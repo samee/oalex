@@ -217,10 +217,10 @@ static TokenOrPart lexTemplateToken(const GluedString& s, size_t& i,
                 : TokenOrPart(OperToken(s.subqstr(st, i-st)));
 }
 
-auto tokenizeTemplateWithoutLabels(const GluedString& s,
-                                   const LexDirective& opts,
-                                   string_view comment_end_error)
-                                   -> vector<TokenOrPart> {
+auto tokenizePatternWithoutLabels(const GluedString& s,
+                                  const LexDirective& opts,
+                                  string_view comment_end_error)
+                                  -> vector<TokenOrPart> {
   size_t i=0;
   vector<TokenOrPart> rv;
   while(true) {
@@ -234,7 +234,7 @@ auto tokenizeTemplateWithoutLabels(const GluedString& s,
   return rv;
 }
 
-static auto tokenizeTemplateKeepNewlines(const GluedString& s,
+static auto tokenizePatternKeepNewlines(const GluedString& s,
     const LexDirective& opts, string_view comment_end_error)
     -> vector<TokenOrPart> {
   size_t i=0, lastBol=0;
@@ -252,12 +252,12 @@ static auto tokenizeTemplateKeepNewlines(const GluedString& s,
   return rv;
 }
 
-static auto tokenizeLabelledTemplate(
+static auto tokenizeLabelledPattern(
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
   vector<TokenOrPart> rv;
-  auto tokenizer = (lexopts.keepAllNewlines ? tokenizeTemplateKeepNewlines
-                                            : tokenizeTemplateWithoutLabels);
+  auto tokenizer = (lexopts.keepAllNewlines ? tokenizePatternKeepNewlines
+                                            : tokenizePatternWithoutLabels);
   if(lexopts.keepAllNewlines && lexopts.skip.indicateBlankLines)
     Bug("skip.indicateBlankLines and keepAllNewlines cannot both be set");
   for(const LabelOrPart& lorp : lblParts) {
@@ -274,10 +274,10 @@ static auto tokenizeLabelledTemplate(
   return rv;
 }
 
-auto tokenizeTemplate(const GluedString& s,
+auto tokenizePattern(const GluedString& s,
                       const map<Ident,PartPattern>& partPatterns,
                       const LexDirective& lexopts) -> vector<TokenOrPart> {
-  return tokenizeLabelledTemplate(
+  return tokenizeLabelledPattern(
       labelParts(s, partPatterns, lexopts.wordChars), lexopts);
 }
 
@@ -600,7 +600,7 @@ auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Template> tv)
 
 auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
   -> optional<Template> {
-  if(tops.empty()) Bug("{} was not expecting an empty template", __func__);
+  if(tops.empty()) Bug("{} was not expecting an empty pattern", __func__);
 
   // Parsing stack: first entry is to construct the root node, while the
   // rest (if any) are for pending '[' brackets.

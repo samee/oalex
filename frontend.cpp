@@ -35,7 +35,7 @@ using oalex::parseJsonLocFromBracketGroup;
 using oalex::parseRegexCharSet;
 using oalex::Template;
 using oalex::templatize;
-using oalex::tokenizeTemplate;
+using oalex::tokenizePattern;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -611,8 +611,8 @@ static void appendTemplateRules(
   for(auto& [id, pp] : partPatterns) registerLocations(rules, firstUseLocs, id);
 
   optional<Template> tmpl =
-    templatize(ctx, tokenizeTemplate(tmpl_string, partPatterns,
-                                     defaultLexopts()));
+    templatize(ctx, tokenizePattern(tmpl_string, partPatterns,
+                                    defaultLexopts()));
   if(!tmpl.has_value()) return;
 
   size_t newIndex = appendTemplateRule(ctx, *tmpl, rules, firstUseLocs);

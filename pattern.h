@@ -69,23 +69,23 @@ struct OperToken : public lex::WholeSegment {
 };
 
 using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
-// This is unlikely to be used outside of tokenizeTemplate(), so for now
+// This is unlikely to be used outside of tokenizePattern(), so for now
 // it is really only exposed for testing.
 // A WholeSegment can never be empty. The bool for each element indicates
 // whether the token should be surrounded by word-boundary anchors when
 // matching.
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizeTemplateWithoutLabels(
+auto tokenizePatternWithoutLabels(
     const lex::GluedString& s, const LexDirective& opts,
     std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizeTemplate(const lex::GluedString& s,
-                      const std::map<Ident,PartPattern>& partPatterns,
-                      const LexDirective& lexopts) -> std::vector<TokenOrPart>;
+auto tokenizePattern(const lex::GluedString& s,
+                     const std::map<Ident,PartPattern>& partPatterns,
+                     const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 // Exposed for testing only.
 bool hasFusedTemplateOpers(InputDiags& ctx,

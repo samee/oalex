@@ -351,7 +351,7 @@ const LexDirective linelexopts = mkLineLexOpts(lexopts);
 void testTokenizeNoLabel() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
   vector<TokenOrPart> observed =
-    tokenizeTemplateWithoutLabels(fquote("def foo(args): //\\n"), lexopts, "");
+    tokenizePatternWithoutLabels(fquote("def foo(args): //\\n"), lexopts, "");
   vector<string> expected{"def", "foo", "(", "args", "):"};
   vector<string> observed_strings;
   for(const auto& tok : observed)
@@ -372,7 +372,7 @@ void testTokenizeNoLabelRunoffComment() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
   GluedString qs = fquote("def foo(args): //\\n");
   qs = qs.subqstr(0, qs.size()-1);  // Remove the last newline
-  tokenizeTemplateWithoutLabels(qs, lexopts, "Missing newline");
+  tokenizePatternWithoutLabels(qs, lexopts, "Missing newline");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
 }
 
@@ -403,7 +403,7 @@ void testTokenizeSuccess() {
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
   vector<string> observed
-    = debugTokens(tokenizeTemplate(tmpl, partspec, lexopts));
+    = debugTokens(tokenizePattern(tmpl, partspec, lexopts));
   vector<string> expected {"word:if", "oper:(", "ident:condexpr", "oper:)",
                            "ident:stmt", "word:else", "ident:stmt"};
   if(observed != expected) BugMe("{} != {}", observed, expected);
@@ -419,13 +419,13 @@ void testTokenizeLabelInComment() {
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), fquote("stmt")}};
-  tokenizeTemplate(tmpl, partspec, lexopts);
+  tokenizePattern(tmpl, partspec, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholders not allowed in comments");
 
   // Now try with linelexopts.
   ctx->diags.clear();
-  tokenizeTemplate(tmpl, partspec, linelexopts);
+  tokenizePattern(tmpl, partspec, linelexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholders not allowed in comments");
 }
@@ -434,12 +434,12 @@ void testTokenizeRunoffComment() {
   char input[] = R"("stmt; // comment")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
   GluedString tmpl = fquote("stmt; // comment");
-  tokenizeTemplate(tmpl, {}, lexopts);
+  tokenizePattern(tmpl, {}, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 
   // Now try with linelexopts.
   ctx->diags.clear();
-  tokenizeTemplate(tmpl, {}, linelexopts);
+  tokenizePattern(tmpl, {}, linelexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 }
 
@@ -485,7 +485,7 @@ void testParaBreaks() {
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
   vector<string> observed
-    = debugTokens(tokenizeTemplate(tmpl, partspec, paralexopts));
+    = debugTokens(tokenizePattern(tmpl, partspec, paralexopts));
   vector<string> expected {"ident:directives", "newline", "word:loren",
                            "word:ipsum", "word:dolor"};
   if(observed != expected) BugMe("{} != {}", observed, expected);
@@ -514,7 +514,7 @@ void testKeepAllNewlines() {
     {fid("amount"), fquote("$1000")},
   };
   vector<string> observed
-    = debugTokens(tokenizeTemplate(tmpl, partspec, linelexopts));
+    = debugTokens(tokenizePattern(tmpl, partspec, linelexopts));
   vector<string> expected {
     "word:timestamp", "oper::", "ident:timestamp_sec", "newline",
     "newline",  // Consequtive newlines not collapsed.
@@ -532,7 +532,7 @@ void testNoEndingNewline() {
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
   GluedString s = fquote("foo bar /* baz */");
   vector<string> observed
-    = debugTokens(tokenizeTemplate(s, {}, linelexopts));
+    = debugTokens(tokenizePattern(s, {}, linelexopts));
   vector<string> expected{"word:foo", "word:bar"};
   if(observed != expected) BugMe("{} != {}", observed, expected);
 }
@@ -555,14 +555,14 @@ void testUnmarkedTemplateOpers() {
     {fid("LongEllipsis"), fquote("....")},
   };
   vector<TokenOrPart> tops
-    = tokenizeTemplate(tmpl, partspec, lexopts);
+    = tokenizePattern(tmpl, partspec, lexopts);
   if(hasFusedTemplateOpers(*ctx, tops)) {
     showDiags(ctx->diags);
     BugMe("Unexpectedly found fused templates even with operators marked");
   }
 
   // Try again with no markings.
-  tops = tokenizeTemplate(tmpl, {}, lexopts);
+  tops = tokenizePattern(tmpl, {}, lexopts);
   if(!hasFusedTemplateOpers(*ctx, tops))
     BugMe("Failed to detect template operators");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Token '|]' incorporates '|'");
@@ -690,7 +690,7 @@ void testTemplateSimpleConcat() {
   char input[] = R"("foo + bar" "foo" "+" "bar")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
   GluedString s = fquote("foo + bar");
-  vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
+  vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
   if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
   // Test subject
@@ -710,7 +710,7 @@ void testTemplateSingleConcat() {
   char input[] = R"("foo")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
   GluedString s = fquote("foo");
-  vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
+  vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
 
   // Test subject
   optional<Template> observed = templatize(*ctx, tops);
@@ -746,7 +746,7 @@ void testTemplateOperators() {
     // Setups
     auto [ctx, fquote] = setupMatchTest(__func__, '"' + inputs[i] + '"');
     GluedString s = fquote(inputs[i]);
-    vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
+    vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
     if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test subject
@@ -788,7 +788,7 @@ void testTemplateErrorCases() {
     const string input = '"' + inputs[i] + '"';
     auto [ctx, fquote] = setupMatchTest(__func__, input);
     GluedString s = fquote(inputs[i]);
-    vector<TokenOrPart> tops = tokenizeTemplate(s, {}, lexopts);
+    vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
     if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test
