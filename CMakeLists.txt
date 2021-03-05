@@ -33,7 +33,7 @@ FetchContent_MakeAvailable(fmt)
 include_directories(${fmt_SOURCE_DIR}/include)
 
 add_library(oalex-bin-lib STATIC codegen.cpp ident.cpp jsonloc_io.cpp lexer.cpp
-                                 regex_io.cpp template.cpp)
+                                 pattern.cpp regex_io.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
@@ -73,10 +73,10 @@ add_executable(ident_test ident.cpp ident_test.cpp
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)
 
-add_executable(template_test template_test.cpp ident.cpp
+add_executable(pattern_test pattern_test.cpp ident.cpp
                $<TARGET_OBJECTS:test_util>)
-target_link_libraries(template_test oalex-bin-lib)
-add_test(template_test template_test)
+target_link_libraries(pattern_test oalex-bin-lib)
+add_test(pattern_test pattern_test)
 
 add_subdirectory(archived)
 add_subdirectory(runtime)

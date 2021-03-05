@@ -24,7 +24,7 @@
 #include "fmt/core.h"
 
 #include "lexer.h"
-#include "template.h"
+#include "pattern.h"
 #include "regex_io.h"
 #include "jsonloc_io.h"
 

@@ -12,7 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "template.h"
+#include "pattern.h"
 #include "lexer.h"
 #include "regex_io.h"
 #include "fmt/core.h"
