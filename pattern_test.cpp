@@ -138,41 +138,41 @@ void testMatchAll() {
     "{" "}"
   )");
 
-  const GluedString tmpl = fquote("if (cond) { ... } else { ... }");
+  const GluedString patt = fquote("if (cond) { ... } else { ... }");
 
   // Test a single match.
   optional<vector<pair<size_t, size_t>>> out
-    = matchAllParts(fquote("cond"), tmpl);
+    = matchAllParts(fquote("cond"), patt);
 
   assertEmptyDiags(__func__, ctx->diags);
-  if(!out) BugMe("Couldn't find 'cond' in: {}", string(tmpl));
+  if(!out) BugMe("Couldn't find 'cond' in: {}", string(patt));
   if(out->size() != 1)
     BugMe("Was expecting a single match. Found {}", out->size());
-  assertHasSubstr(__func__, tmpl, out->at(0).first, "cond");
+  assertHasSubstr(__func__, patt, out->at(0).first, "cond");
 
-  out = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
+  out = matchAllParts(DelimPair{fquote("{"), fquote("}")}, patt);
   assertEmptyDiags(__func__, ctx->diags);
-  if(!out) BugMe("Couldn't find '{ ... }' in: {}", string(tmpl));
+  if(!out) BugMe("Couldn't find '{ ... }' in: {}", string(patt));
   if(out->size() != 2)
     BugMe("Was expecting two matches. Found {}", out->size());
   for(auto& bound : *out) {
-    assertHasSubstr(__func__, tmpl, bound.first, "{");
-    assertHasSubstr(__func__, tmpl, bound.second-"}"s.size(), "}");
+    assertHasSubstr(__func__, patt, bound.first, "{");
+    assertHasSubstr(__func__, patt, bound.second-"}"s.size(), "}");
   }
 }
 
 void testEmptyPatternsFail() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("foo" "")");
-  GluedString tmpl = fquote("foo");
+  GluedString patt = fquote("foo");
   GluedString empty = fquote("");
 
-  auto res1 = matchAllParts(empty, tmpl);
+  auto res1 = matchAllParts(empty, patt);
   if(res1) BugMe("succeeded unexpectedly with an empty pattern");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholder pattern cannot be empty");
 
   ctx->diags.clear();
-  auto res2 = matchAllParts(DelimPair{empty, empty}, tmpl);
+  auto res2 = matchAllParts(DelimPair{empty, empty}, patt);
   if(res2) BugMe("succeeded unexpectedly with a pair of empty patterns");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholder pattern cannot be empty");
@@ -191,15 +191,15 @@ void testConfusingPatterns() {
 void testMatchAllFailsOnOverlap() {
   auto [ctx, fquote] = setupMatchTest(__func__,
                                       R"("ababa { { } }" "aba" "{" "}")");
-  GluedString tmpl = fquote("ababa { { } }");
+  GluedString patt = fquote("ababa { { } }");
 
-  auto res1 = matchAllParts(fquote("aba"), tmpl);
+  auto res1 = matchAllParts(fquote("aba"), patt);
   if(res1) BugMe("succeeded unexpectedly while matching 'aba'");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Pattern 'aba' matches overlapping segments");
 
   ctx->diags.clear();
-  auto res2 = matchAllParts(DelimPair{fquote("{"), fquote("}")}, tmpl);
+  auto res2 = matchAllParts(DelimPair{fquote("{"), fquote("}")}, patt);
   if(res2) BugMe("succeeded unexpectedly while matching '{{ ... }}'");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Pattern '{ ... }' matches overlapping segments");
@@ -207,7 +207,7 @@ void testMatchAllFailsOnOverlap() {
 
 void testUnfinishedMatch() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("{} {" "{" "}")");
-  GluedString tmpl = fquote("{} {");
+  GluedString patt = fquote("{} {");
   auto res = matchAllParts(DelimPair{fquote("{"), fquote("}")}, fquote("{} {"));
   if(!res) BugMe("Was expecting a match in spite of error");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Unterminated segment");
@@ -240,14 +240,14 @@ void testLabelParts() {
   char input[] = R"("if (cond) { ... } else { ... }"
                     "cond" "{" "}" condexpr stmt)";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl = fquote("if (cond) { ... } else { ... }");
+  GluedString patt = fquote("if (cond) { ... } else { ... }");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
-  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
+  vector<variant<GluedString,Ident>> observed = labelParts(patt, partspec, {});
   vector<variant<GluedString,Ident>> expected{
-    tmpl.subqstr(0,4), fid("condexpr"), tmpl.subqstr(8,2),
-    fid("stmt"), tmpl.subqstr(17,6), fid("stmt"),
+    patt.subqstr(0,4), fid("condexpr"), patt.subqstr(8,2),
+    fid("stmt"), patt.subqstr(17,6), fid("stmt"),
   };
   if(observed.size() != expected.size())
     BugMe("Expected {} parts, found {}", expected.size(), observed.size());
@@ -260,12 +260,12 @@ void testLabelParts() {
 void testCrossLabelOverlapFails() {
   char input[] = R"( "[ ] [" "[" "]" index index2)";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  GluedString tmpl = fquote("[ ] [");
+  GluedString patt = fquote("[ ] [");
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "index"), DelimPair{fquote("["), fquote("]")}},
     {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
   };
-  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
+  vector<variant<GluedString,Ident>> observed = labelParts(patt, partspec, {});
   if(!observed.empty()) BugMe("Was expecting an empty vector on error");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part '] ... [' overlaps with '[ ... ]'");
@@ -273,12 +273,12 @@ void testCrossLabelOverlapFails() {
 
 void testNoMatchWarns() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"(" " "foo")");
-  GluedString tmpl = fquote(" ");
+  GluedString patt = fquote(" ");
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "foo"), fquote("foo")},
   };
-  vector<variant<GluedString,Ident>> observed = labelParts(tmpl, partspec, {});
-  vector<variant<GluedString,Ident>> expected{tmpl};
+  vector<variant<GluedString,Ident>> observed = labelParts(patt, partspec, {});
+  vector<variant<GluedString,Ident>> expected{patt};
   if(observed != expected) BugMe("Didn't get the unsplit string");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "No match found for pattern 'foo'");
@@ -299,30 +299,30 @@ void testEmptySuccess() {
 void testNoWordSplit() {
   auto [ctx, fquote, fid] = setupLabelTest(__func__,
       R"("foobar" "w-foo-bar-w" "foo" "bar" "-foo-")");
-  GluedString tmpl = fquote("foobar");
+  GluedString patt = fquote("foobar");
   RegexCharSet wordChars = parseRegexCharSet("[_a-zA-Z]");
   map<Ident,PartPattern> partspec{ {fid("foo"), fquote("foo")} };
-  labelParts(tmpl, partspec, wordChars);
+  labelParts(patt, partspec, wordChars);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part 'foo' ends a run-on word");
 
   ctx->diags.clear();
-  // tmpl unchanged
+  // patt unchanged
   partspec = { {fid("bar"), fquote("bar")} };
-  labelParts(tmpl, partspec, wordChars);
+  labelParts(patt, partspec, wordChars);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Part 'bar' starts a run-on word");
 
   ctx->diags.clear();
-  tmpl = fquote("w-foo-bar-w");
+  patt = fquote("w-foo-bar-w");
   partspec = { {fid("foo"), fquote("foo")}, {fid("bar"), fquote("bar")} };
-  labelParts(tmpl, partspec, wordChars);
+  labelParts(patt, partspec, wordChars);
   assertEmptyDiags(__func__, ctx->diags);
 
   ctx->diags.clear();
-  // tmpl unchanged
+  // patt unchanged
   partspec = { {fid("foo"), fquote("-foo-")}, {fid("bar"), fquote("bar")} };
-  labelParts(tmpl, partspec, wordChars);
+  labelParts(patt, partspec, wordChars);
   assertEmptyDiags(__func__, ctx->diags);
 }
 
@@ -398,12 +398,12 @@ void testTokenizeSuccess() {
                       condexpr: "cond"
                       stmt: "{" "}")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl = fquote("if (cond) { ... } else { ... }");
+  GluedString patt = fquote("if (cond) { ... } else { ... }");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
   vector<string> observed
-    = debugTokens(tokenizePattern(tmpl, partspec, lexopts));
+    = debugTokens(tokenizePattern(patt, partspec, lexopts));
   vector<string> expected {"word:if", "oper:(", "ident:condexpr", "oper:)",
                            "ident:stmt", "word:else", "ident:stmt"};
   if(observed != expected) BugMe("{} != {}", observed, expected);
@@ -415,17 +415,17 @@ void testTokenizeLabelInComment() {
                        condexpr: "cond"
                        stmt: "stmt")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl = fquote("if (cond) stmt;  // Test 'if' condition");
+  GluedString patt = fquote("if (cond) stmt;  // Test 'if' condition");
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), fquote("stmt")}};
-  tokenizePattern(tmpl, partspec, lexopts);
+  tokenizePattern(patt, partspec, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholders not allowed in comments");
 
   // Now try with linelexopts.
   ctx->diags.clear();
-  tokenizePattern(tmpl, partspec, linelexopts);
+  tokenizePattern(patt, partspec, linelexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "Placeholders not allowed in comments");
 }
@@ -433,13 +433,13 @@ void testTokenizeLabelInComment() {
 void testTokenizeRunoffComment() {
   char input[] = R"("stmt; // comment")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
-  GluedString tmpl = fquote("stmt; // comment");
-  tokenizePattern(tmpl, {}, lexopts);
+  GluedString patt = fquote("stmt; // comment");
+  tokenizePattern(patt, {}, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 
   // Now try with linelexopts.
   ctx->diags.clear();
-  tokenizePattern(tmpl, {}, linelexopts);
+  tokenizePattern(patt, {}, linelexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 }
 
@@ -458,7 +458,7 @@ GluedString assertSuccessfulParse(string_view testName, InputDiags& ctx,
   auto opt = lexIndentedSource(ctx, pos, parindent);
   if(!opt.has_value()) {
     showDiags(ctx.diags);
-    Bug("{}: template was not parsed properly", testName);
+    Bug("{}: pattern was not parsed properly", testName);
   }
   return std::move(*opt);
 }
@@ -481,11 +481,11 @@ void testParaBreaks() {
     directives: "directives"
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl
+  GluedString patt
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
   vector<string> observed
-    = debugTokens(tokenizePattern(tmpl, partspec, paralexopts));
+    = debugTokens(tokenizePattern(patt, partspec, paralexopts));
   vector<string> expected {"ident:directives", "newline", "word:loren",
                            "word:ipsum", "word:dolor"};
   if(observed != expected) BugMe("{} != {}", observed, expected);
@@ -506,7 +506,7 @@ void testKeepAllNewlines() {
     amount: "$1000"
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl
+  GluedString patt
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{
     {fid("timestamp_sec"), fquote("<epoch_time>")},
@@ -514,7 +514,7 @@ void testKeepAllNewlines() {
     {fid("amount"), fquote("$1000")},
   };
   vector<string> observed
-    = debugTokens(tokenizePattern(tmpl, partspec, linelexopts));
+    = debugTokens(tokenizePattern(patt, partspec, linelexopts));
   vector<string> expected {
     "word:timestamp", "oper::", "ident:timestamp_sec", "newline",
     "newline",  // Consequtive newlines not collapsed.
@@ -537,10 +537,10 @@ void testNoEndingNewline() {
   if(observed != expected) BugMe("{} != {}", observed, expected);
 }
 
-void testUnmarkedTemplateOpers() {
+void testUnmarkedPatternOpers() {
   char input[] = R"(
   let expr:
-    [a, ... , elt]                  // Okay, parsed as template operators
+    [a, ... , elt]                  // Okay, parsed as pattern operators
     [sql| select * from mytable |]  // Error if unmarked.
     expr .... expr                  // Four dots to provoke errors.
   where:
@@ -548,23 +548,23 @@ void testUnmarkedTemplateOpers() {
     LongEllipsis: "...."
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString tmpl
+  GluedString patt
     = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
   map<Ident,PartPattern> partspec{
     {fid("GhcQuasiQuotes"), DelimPair{fquote("[sql|"), fquote("|]")}},
     {fid("LongEllipsis"), fquote("....")},
   };
   vector<TokenOrPart> tops
-    = tokenizePattern(tmpl, partspec, lexopts);
-  if(hasFusedTemplateOpers(*ctx, tops)) {
+    = tokenizePattern(patt, partspec, lexopts);
+  if(hasFusedPatternOpers(*ctx, tops)) {
     showDiags(ctx->diags);
-    BugMe("Unexpectedly found fused templates even with operators marked");
+    BugMe("Unexpectedly found fused patterns even with operators marked");
   }
 
   // Try again with no markings.
-  tops = tokenizePattern(tmpl, {}, lexopts);
-  if(!hasFusedTemplateOpers(*ctx, tops))
-    BugMe("Failed to detect template operators");
+  tops = tokenizePattern(patt, {}, lexopts);
+  if(!hasFusedPatternOpers(*ctx, tops))
+    BugMe("Failed to detect pattern operators");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Token '|]' incorporates '|'");
 }
 
@@ -685,13 +685,13 @@ auto match(const PatternMatcher& m, const Pattern& p) -> optional<string> {
   return nullopt;
 }
 
-void testTemplateSimpleConcat() {
+void testPatternSimpleConcat() {
   // Setup
   char input[] = R"("foo + bar" "foo" "+" "bar")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
   GluedString s = fquote("foo + bar");
   vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
-  if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
+  if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
   // Test subject
   optional<Pattern> observed = templatize(*ctx, tops);
@@ -705,7 +705,7 @@ void testTemplateSimpleConcat() {
   if(auto err = match(expected, *observed)) BugMe("{}", *err);
 }
 
-void testTemplateSingleConcat() {
+void testPatternSingleConcat() {
   // Setup
   char input[] = R"("foo")";
   auto [ctx, fquote] = setupMatchTest(__func__, input);
@@ -723,7 +723,7 @@ void testTemplateSingleConcat() {
   if(auto err = match("foo", *observed)) BugMe("{}", *err);
 }
 
-void testTemplateOperators() {
+void testPatternOperators() {
   const string inputs[] = {"int [ [const | volatile] * ] x;",
                            "var x = value, ... , x = value;",
                            "stmt; ... stmt;",
@@ -747,7 +747,7 @@ void testTemplateOperators() {
     auto [ctx, fquote] = setupMatchTest(__func__, '"' + inputs[i] + '"');
     GluedString s = fquote(inputs[i]);
     vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
-    if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
+    if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test subject
     optional<Pattern> observed = templatize(*ctx, tops);
@@ -761,7 +761,7 @@ void testTemplateOperators() {
   }
 }
 
-void testTemplateErrorCases() {
+void testPatternErrorCases() {
   string inputs[] = {
     "int [ [const] * x;",
     "int [const] ] x;",
@@ -789,7 +789,7 @@ void testTemplateErrorCases() {
     auto [ctx, fquote] = setupMatchTest(__func__, input);
     GluedString s = fquote(inputs[i]);
     vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
-    if(hasFusedTemplateOpers(*ctx, tops)) BugMe("Input has fused metachars");
+    if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test
     templatize(*ctx, tops);
@@ -868,10 +868,10 @@ int main() {
   testParaBreaks();
   testKeepAllNewlines();
   testNoEndingNewline();
-  testUnmarkedTemplateOpers();
-  testTemplateSimpleConcat();
-  testTemplateSingleConcat();
-  testTemplateOperators();
-  testTemplateErrorCases();
+  testUnmarkedPatternOpers();
+  testPatternSimpleConcat();
+  testPatternSingleConcat();
+  testPatternOperators();
+  testPatternErrorCases();
   testRolloutEllipsis();
 }

@@ -51,7 +51,7 @@ auto matchAllParts(const PartPattern& patt, const lex::GluedString& s)
 //
 // On error, we return an empty vector. An empty `s` input will produce a
 // vector with a single empty GluedString.
-// Note: this function can be used either on templates that skip over
+// Note: this function can be used either on patterns that skip over
 // whitespaces, or those who do not.
 using LabelOrPart = std::variant<lex::GluedString, Ident>;
 auto labelParts(
@@ -88,8 +88,8 @@ auto tokenizePattern(const lex::GluedString& s,
                      const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 // Exposed for testing only.
-bool hasFusedTemplateOpers(InputDiags& ctx,
-                           const std::vector<TokenOrPart>& tops);
+bool hasFusedPatternOpers(InputDiags& ctx,
+                          const std::vector<TokenOrPart>& tops);
 
 using Pattern = std::variant<
   // TokenOrPart components.

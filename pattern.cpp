@@ -205,7 +205,7 @@ auto labelParts(const GluedString& s,
 }
 
 // This function assumes we are starting with ctx.input.sizeGt(i).
-static TokenOrPart lexTemplateToken(const GluedString& s, size_t& i,
+static TokenOrPart lexPatternToken(const GluedString& s, size_t& i,
                              const LexDirective& opts) {
   const size_t st = i;
   const bool isword = matchesRegexCharSet(s[i], opts.wordChars);
@@ -227,7 +227,7 @@ auto tokenizePatternWithoutLabels(const GluedString& s,
     i = opts.skip.acrossLines(s, i);
     if(!s.sizeGt(i)) break;
     else if(s[i] == '\n') rv.push_back(NewlineChar(s, i++));
-    else rv.push_back(lexTemplateToken(s, i, opts));
+    else rv.push_back(lexPatternToken(s, i, opts));
   }
   if(i == Input::npos)
     Error(s, s.size(), s.size()+1, string(comment_end_error));
@@ -245,7 +245,7 @@ static auto tokenizePatternKeepNewlines(const GluedString& s,
       rv.push_back(NewlineChar(s, i-1));
       lastBol = i;
     }else if(!s.sizeGt(i)) break;
-    else rv.push_back(lexTemplateToken(s, i, opts));
+    else rv.push_back(lexPatternToken(s, i, opts));
   }
   if(i == Input::npos)
     Error(s, s.size(), s.size()+1, string(comment_end_error));
@@ -285,14 +285,14 @@ static bool isStrictSubstr(string_view s, string_view t) {
   return isSubstr(s, t) && s != t;
 }
 
-bool hasFusedTemplateOpers(InputDiags& ctx, const vector<TokenOrPart>& tops) {
-  static string_view tmplOpers[] = {"[", "]", "...", "|"};
+bool hasFusedPatternOpers(InputDiags& ctx, const vector<TokenOrPart>& tops) {
+  static string_view pattOpers[] = {"[", "]", "...", "|"};
   bool rv = false;
   for(auto& top : tops) {
     const WholeSegment* tok = get_if<WordToken>(&top);
     if(!tok) tok = get_if<OperToken>(&top);
     if(!tok) continue;
-    for(auto& op : tmplOpers) if(isStrictSubstr(op, **tok)) {
+    for(auto& op : pattOpers) if(isStrictSubstr(op, **tok)) {
       Error(ctx, tok->stPos, tok->enPos,
             format("Token '{}' incorporates '{}'. They must be surrounded by "
                    "whitespace outside of marked regions.", **tok, op));
