@@ -52,6 +52,7 @@ using oalex::labelParts;
 using oalex::LexDirective;
 using oalex::matchAllParts;
 using oalex::OperToken;
+using oalex::parsePattern;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
 using oalex::Pattern;
@@ -65,7 +66,6 @@ using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
 using oalex::showDiags;
 using oalex::Skipper;
-using oalex::templatize;
 using oalex::testInputDiags;
 using oalex::TokenOrPart;
 using oalex::Unimplemented;
@@ -694,7 +694,7 @@ void testPatternSimpleConcat() {
   if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
   // Test subject
-  optional<Pattern> observed = templatize(*ctx, tops);
+  optional<Pattern> observed = parsePattern(*ctx, tops);
 
   // Expectations
   if(!observed.has_value()) {
@@ -713,7 +713,7 @@ void testPatternSingleConcat() {
   vector<TokenOrPart> tops = tokenizePattern(s, {}, lexopts);
 
   // Test subject
-  optional<Pattern> observed = templatize(*ctx, tops);
+  optional<Pattern> observed = parsePattern(*ctx, tops);
 
   // Expect no single-node concat list.
   if(!observed.has_value()) {
@@ -750,7 +750,7 @@ void testPatternOperators() {
     if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test subject
-    optional<Pattern> observed = templatize(*ctx, tops);
+    optional<Pattern> observed = parsePattern(*ctx, tops);
 
     // Expectations
     if(!observed.has_value()) {
@@ -792,7 +792,7 @@ void testPatternErrorCases() {
     if(hasFusedPatternOpers(*ctx, tops)) BugMe("Input has fused metachars");
 
     // Test
-    templatize(*ctx, tops);
+    parsePattern(*ctx, tops);
     assertHasDiagWithSubstr(format("{}[{}]", __func__, i), ctx->diags,
                             expectedDiags[i]);
   }

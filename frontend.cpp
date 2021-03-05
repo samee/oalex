@@ -32,9 +32,9 @@ using fmt::format;
 using oalex::InputDiagsRef;
 using oalex::LexDirective;
 using oalex::parseJsonLocFromBracketGroup;
+using oalex::parsePattern;
 using oalex::parseRegexCharSet;
 using oalex::Pattern;
-using oalex::templatize;
 using oalex::tokenizePattern;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
@@ -611,8 +611,8 @@ static void appendPatternRules(
   for(auto& [id, pp] : partPatterns) registerLocations(rules, firstUseLocs, id);
 
   optional<Pattern> patt =
-    templatize(ctx, tokenizePattern(patt_string, partPatterns,
-                                    defaultLexopts()));
+    parsePattern(ctx, tokenizePattern(patt_string, partPatterns,
+                                      defaultLexopts()));
   if(!patt.has_value()) return;
 
   size_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);

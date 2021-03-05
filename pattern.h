@@ -111,10 +111,10 @@ struct PatternOptional { Pattern part; };
 struct PatternRepeat   { Pattern part; };
 struct PatternFold     { Pattern part, glue; };
 
-auto templatize(InputDiags& ctx, std::vector<TokenOrPart> tops)
+auto parsePattern(InputDiags& ctx, std::vector<TokenOrPart> tops)
   -> std::optional<Pattern>;
 
-// templatize() helper, exposed for testing.
+// parsePattern() helper, exposed for testing.
 struct RolloutEllipsisForTestResult {
   std::string expr, part, glue, err;
 };

@@ -598,7 +598,7 @@ auto repeatFoldOnEllipsis(InputDiags& ctx, vector<Pattern> pv)
   }
 }
 
-auto templatize(InputDiags& ctx, vector<TokenOrPart> tops)
+auto parsePattern(InputDiags& ctx, vector<TokenOrPart> tops)
   -> optional<Pattern> {
   if(tops.empty()) Bug("{} was not expecting an empty pattern", __func__);
 
