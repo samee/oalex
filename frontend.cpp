@@ -535,7 +535,7 @@ static string patternName(const Pattern& patt) {
   else return {};
 }
 
-static ssize_t appendTemplateRule(InputDiags& ctx,
+static ssize_t appendPatternRule(InputDiags& ctx,
     const Pattern& patt, vector<Rule>& rules,
     vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
@@ -559,7 +559,7 @@ static ssize_t appendTemplateRule(InputDiags& ctx,
       // TODO reject unsupported PatternConcat structures.
       // E.g. where patternName() silently fails.
       const Pattern& child = concatPatt->parts[i];
-      ssize_t j = appendTemplateRule(ctx, child, rules, firstUseLocs);
+      ssize_t j = appendPatternRule(ctx, child, rules, firstUseLocs);
       concatRule.comps.push_back({j, patternName(child)});
     }
     emplaceBackAnonRule(rules, firstUseLocs, std::move(concatRule));
@@ -603,7 +603,7 @@ static void registerLocations(
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
-static void appendTemplateRules(
+static void appendPatternRules(
     InputDiags& ctx,
     string_view ident, GluedString patt_string, JsonLoc jsloc,
     vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
@@ -615,7 +615,7 @@ static void appendTemplateRules(
                                     defaultLexopts()));
   if(!patt.has_value()) return;
 
-  size_t newIndex = appendTemplateRule(ctx, *patt, rules, firstUseLocs);
+  size_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);
   rules[newIndex].name(ident);
   if(auto* concat = get_if<ConcatRule>(&rules[newIndex])) {
     concat->outputTmpl = std::move(jsloc);
@@ -694,10 +694,10 @@ static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
                       vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
   if(!requireColonEol(linetoks, 2, ctx)) return;
-  optional<GluedString> tmpl =
+  optional<GluedString> patt =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
-                         "template");
-  if(!tmpl.has_value()) return;
+                         "pattern");
+  if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
   string ident = *getIfIdent(linetoks[1]);
 
@@ -717,8 +717,8 @@ static void parseRule(vector<ExprToken> linetoks,
 
   optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks), ctx);
   if(!jsloc.has_value()) return;
-  appendTemplateRules(ctx, ident, std::move(*tmpl),
-                      std::move(*jsloc), rules, firstUseLocs);
+  appendPatternRules(ctx, ident, std::move(*patt),
+                     std::move(*jsloc), rules, firstUseLocs);
 }
 
 // Checks second token just so it is not a BNF rule of the form
