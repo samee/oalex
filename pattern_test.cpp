@@ -568,16 +568,16 @@ void testUnmarkedTemplateOpers() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Token '|]' incorporates '|'");
 }
 
-class TemplateMatcher {
+class PatternMatcher {
  public:
   enum class Type { leafToken, orList, concat, optional, repeat, fold };
-  TemplateMatcher() = default;
-  TemplateMatcher(const char* d) : token_(d) {}  // implicit ctor
-  TemplateMatcher(string_view d) : token_(d) {}  // implicit ctor
-  TemplateMatcher(Type t, vector<TemplateMatcher> children)
+  PatternMatcher() = default;
+  PatternMatcher(const char* d) : token_(d) {}  // implicit ctor
+  PatternMatcher(string_view d) : token_(d) {}  // implicit ctor
+  PatternMatcher(Type t, vector<PatternMatcher> children)
     : type_(t), children_(std::move(children)) {}
   Type type() const { return type_; }
-  friend auto match(const TemplateMatcher& m, const Pattern& p)
+  friend auto match(const PatternMatcher& m, const Pattern& p)
     -> optional<string>;
  private:
   Type type_ = Type::leafToken;
@@ -588,36 +588,36 @@ class TemplateMatcher {
   //   size() is arbitrary but non-zero for type_ == orList or concat.
   //   size() == 1 for type_ == optional or repeat
   //   size() == 2 for type_ == fold
-  vector<TemplateMatcher> children_;
+  vector<PatternMatcher> children_;
 };
 
-template <class ... Args> TemplateMatcher concatMatcher(Args ... args) {
-  return TemplateMatcher(TemplateMatcher::Type::concat, {args...});
+template <class ... Args> PatternMatcher concatMatcher(Args ... args) {
+  return PatternMatcher(PatternMatcher::Type::concat, {args...});
 }
-template <class ... Args> TemplateMatcher orListMatcher(Args ... args) {
-  return TemplateMatcher(TemplateMatcher::Type::orList, {args...});
+template <class ... Args> PatternMatcher orListMatcher(Args ... args) {
+  return PatternMatcher(PatternMatcher::Type::orList, {args...});
 }
-TemplateMatcher optionalMatcher(TemplateMatcher m) {
-  return TemplateMatcher(TemplateMatcher::Type::optional, {m});
+PatternMatcher optionalMatcher(PatternMatcher m) {
+  return PatternMatcher(PatternMatcher::Type::optional, {m});
 }
-TemplateMatcher repeatMatcher(TemplateMatcher m) {
-  return TemplateMatcher(TemplateMatcher::Type::repeat, {m});
+PatternMatcher repeatMatcher(PatternMatcher m) {
+  return PatternMatcher(PatternMatcher::Type::repeat, {m});
 }
-TemplateMatcher foldMatcher(TemplateMatcher part, TemplateMatcher glue) {
-  return TemplateMatcher(TemplateMatcher::Type::fold, {part,glue});
+PatternMatcher foldMatcher(PatternMatcher part, PatternMatcher glue) {
+  return PatternMatcher(PatternMatcher::Type::fold, {part,glue});
 }
 
 template <class P>
 bool hasType(const Pattern& p) { return holds_alternative<unique_ptr<P>>(p); }
 
-string_view debugMatcherType(const TemplateMatcher& m) {
+string_view debugMatcherType(const PatternMatcher& m) {
   switch(m.type()) {
-    case TemplateMatcher::Type::leafToken: return "leafToken";
-    case TemplateMatcher::Type::orList:    return "orList";
-    case TemplateMatcher::Type::concat:    return "concat";
-    case TemplateMatcher::Type::optional:  return "optional";
-    case TemplateMatcher::Type::repeat:    return "repeat";
-    case TemplateMatcher::Type::fold:      return "fold";
+    case PatternMatcher::Type::leafToken: return "leafToken";
+    case PatternMatcher::Type::orList:    return "orList";
+    case PatternMatcher::Type::concat:    return "concat";
+    case PatternMatcher::Type::optional:  return "optional";
+    case PatternMatcher::Type::repeat:    return "repeat";
+    case PatternMatcher::Type::fold:      return "fold";
     default: Bug("Unknown matcher type {}", static_cast<int>(m.type()));
   }
 }
@@ -630,12 +630,12 @@ string_view debugType(const Pattern& p) {
   Bug("Unknown Pattern type of index {}", p.index());
 }
 
-auto match(const TemplateMatcher& m, const Pattern& p) -> optional<string> {
+auto match(const PatternMatcher& m, const Pattern& p) -> optional<string> {
   // Helpers.
   auto typeError = [&p](string_view expected) {
     return format("Expected {}, received {}", expected, debugType(p));
   };
-  auto vectorMatch = [](const vector<TemplateMatcher>& vm,
+  auto vectorMatch = [](const vector<PatternMatcher>& vm,
                         const vector<Pattern>& vt) -> optional<string> {
     if(vm.size() != vt.size())
       return format("Expected {} children, got {}", vm.size(), vt.size());
@@ -643,7 +643,7 @@ auto match(const TemplateMatcher& m, const Pattern& p) -> optional<string> {
       if(auto err = match(vm[i], vt[i])) return err;
     return nullopt;
   };
-  auto checkChildCount = [](const TemplateMatcher& m,
+  auto checkChildCount = [](const PatternMatcher& m,
                             size_t count) -> optional<string> {
     if(m.children_.size() != count)
       return format("{} matcher should have {} children, found {}",
@@ -651,31 +651,31 @@ auto match(const TemplateMatcher& m, const Pattern& p) -> optional<string> {
     else return nullopt;
   };
 
-  if(m.type_ == TemplateMatcher::Type::leafToken) {
+  if(m.type_ == PatternMatcher::Type::leafToken) {
     const WholeSegment* tok = get_if_unique<WordToken>(&p);
     if(!tok) tok = get_if_unique<OperToken>(&p);
     if(!tok) return typeError("leaf token");
     if(**tok != m.token_)
       return format("Failed to match '{}' with '{}'", m.token_, **tok);
-  }else if(m.type_ == TemplateMatcher::Type::concat) {
+  }else if(m.type_ == PatternMatcher::Type::concat) {
     auto* concat = get_if_unique<PatternConcat>(&p);
     if(!concat) return typeError("concat list");
     return vectorMatch(m.children_, concat->parts);
-  }else if(m.type_ == TemplateMatcher::Type::orList) {
+  }else if(m.type_ == PatternMatcher::Type::orList) {
     auto* orList = get_if_unique<PatternOrList>(&p);
     if(!orList) return typeError("OR list");
     return vectorMatch(m.children_, orList->parts);
-  }else if(m.type_ == TemplateMatcher::Type::optional) {
+  }else if(m.type_ == PatternMatcher::Type::optional) {
     if(auto err = checkChildCount(m, 1)) return err;
     auto* opt = get_if_unique<PatternOptional>(&p);
     if(!opt) return typeError("optional node");
     return match(m.children_[0], opt->part);
-  }else if(m.type_ == TemplateMatcher::Type::repeat) {
+  }else if(m.type_ == PatternMatcher::Type::repeat) {
     if(auto err = checkChildCount(m, 1)) return err;
     auto *rep = get_if_unique<PatternRepeat>(&p);
     if(!rep) return typeError("repeat node");
     return match(m.children_[0], rep->part);
-  }else if(m.type_ == TemplateMatcher::Type::fold) {
+  }else if(m.type_ == PatternMatcher::Type::fold) {
     if(auto err = checkChildCount(m, 2)) return err;
     auto *fold = get_if_unique<PatternFold>(&p);
     if(!fold) return typeError("fold node");
@@ -701,7 +701,7 @@ void testTemplateSimpleConcat() {
     showDiags(ctx->diags);
     BugMe("Pattern-making failed");
   }
-  TemplateMatcher expected = concatMatcher("foo", "+", "bar");
+  PatternMatcher expected = concatMatcher("foo", "+", "bar");
   if(auto err = match(expected, *observed)) BugMe("{}", *err);
 }
 
@@ -729,7 +729,7 @@ void testTemplateOperators() {
                            "stmt; ... stmt;",
                            "stmt; ... ; stmt;",
                            "a a ... a a"};
-  TemplateMatcher expectations[] = {
+  PatternMatcher expectations[] = {
     concatMatcher(
       "int",
       optionalMatcher(concatMatcher(
