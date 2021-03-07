@@ -27,6 +27,16 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
+struct ConcatFlatRule {
+  // outputPlaceholder can be empty if you never need to refer to the result.
+  // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
+  // rules returning a JsonLoc::Map.
+  struct Component { ssize_t idx; std::string outputPlaceholder; };
+  std::vector<Component> comps;
+};
+
+// This ConcatRule will later be removed in favor of ConcatFlatRule and
+// a new OutputTemplate type that will only have outputTmpl.
 struct ConcatRule {
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
@@ -90,7 +100,7 @@ struct Rule {
  private:
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               OrRule, MatchOrError> specifics_;
+               ConcatFlatRule, OrRule, MatchOrError> specifics_;
   std::string name_;
 };
 
