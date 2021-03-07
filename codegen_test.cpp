@@ -76,7 +76,6 @@ void testMatchOrError() {
     .rules = makeVector<Rule>(
         Rule{"hello-world"},
         Rule{MatchOrError{0, "Was expecting a greeting"}}),
-    .skip{cskip},
     .regexOpts{regexOpts},
   };
 
@@ -156,10 +155,9 @@ void testConcatMatch() {
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{parseRegex("/[a-zA-Z]+/")}, Rule{"="},
                               Rule{parseRegex("/[0-9]+/")}, Rule{";"}),
-    .skip{cskip},
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(Rule{SkipPoint{false, &rs.skip}});
+  rs.rules.push_back(Rule{SkipPoint{false, &cskip}});
   rs.rules.push_back(Rule{ConcatRule{{
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: 'asgn', lhs, rhs })")
@@ -185,7 +183,6 @@ void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
                               Rule{parseRegex("/[0-9]+/")}),
-    .skip{cskip},
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(Rule{OrRule{{

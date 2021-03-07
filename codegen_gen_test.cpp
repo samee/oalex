@@ -150,9 +150,9 @@ void generateConcatTest(const OutputStream& cppos,
     Rule{"=", ""},
     regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
     Rule{";", ""},
-    Rule{SkipPoint{false, &rs.skip}, "CommentsAndWhitespace"},
+    Rule{SkipPoint{false, &cskip}, "CommentsAndWhitespace"},
     Rule{"", ""}
-    ), cskip, regexOpts
+    ), regexOpts
   };
   // Produce the helpers: all but the last rule.
   for(size_t i=0; i<size(rs.rules)-1; ++i)
@@ -179,10 +179,10 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
       Rule{":", ""},
       Rule{ExternParser{}, "parseIndentedTmpl"},
-      Rule{SkipPoint{.stayWithinLine=true, &rs.skip}, "ExtSpace"},
+      Rule{SkipPoint{.stayWithinLine=true, &shskip}, "ExtSpace"},
       Rule{ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                        {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl"}
-    ), shskip, regexOpts
+    ), regexOpts
   };
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
@@ -192,7 +192,6 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
                               regexRule(__func__, "/[0-9]+/", "OrCompNumber")),
-    .skip{cskip},
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(Rule{OrRule{{
@@ -209,7 +208,6 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
     .rules = makeVector<Rule>(
         Rule{"hello-world"},
         Rule{MatchOrError{0, "Was expecting a greeting"}, "HelloWorldOrError"}),
-    .skip{cskip},
     .regexOpts{regexOpts},
   };
   codegen(rs, 1, cppos, hos);
@@ -245,7 +243,7 @@ int main(int argc, char* argv[]) {
   auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
   // TODO first-class support for multiple RuleSets in a file.
-  codegenDefaultRegexOptions(RuleSet{{}, cskip, regexOpts}, cppos);
+  codegenDefaultRegexOptions(RuleSet{{}, regexOpts}, cppos);
   linebreaks(); generateSingleStringTest(cppos, hos);
   linebreaks();
   linebreaks();

@@ -73,8 +73,7 @@ struct MatchOrError {
 struct ExternParser { };
 
 struct Rule {
-  // TODO other component types like RawString and Callback (with nested
-  // components).
+  // TODO other component types like RawString.
   template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
   template <class X> Rule(X x, std::string name) :
     specifics_(std::move(x)), name_(std::move(name)) {}
@@ -109,7 +108,6 @@ template <class X> const X* get_if(const Rule* rule) {
 
 struct RuleSet {
   std::vector<Rule> rules;
-  Skipper skip;  // TODO use this
   RegexOptions regexOpts;
 };
 

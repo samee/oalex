@@ -25,7 +25,7 @@ inline const RegexOptions regexOpts{
 };
 
 inline RuleSet singletonRuleSet(Rule r) {
-  RuleSet rs{{}, cskip, regexOpts};
+  RuleSet rs{{}, regexOpts};
   rs.rules.push_back(std::move(r));
   return rs;
 }

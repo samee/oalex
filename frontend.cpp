@@ -809,14 +809,13 @@ static bool hasError(const vector<Diag>& diags) {
 }
 
 auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
-  static const auto* userSkip = new Skipper{{}, {{"#", "\n"}}};
   static const auto* userRegexOpts = new RegexOptions{
     // Do not use user-supplied input. See regex_io.h for details.
     .word = parseRegexCharSet("[0-9A-Za-z_]")
   };
 
   size_t i = 0;
-  RuleSet rs{{}, *userSkip, *userRegexOpts};
+  RuleSet rs{{}, *userRegexOpts};
   vector<Example> examples;
   vector<pair<ssize_t, ssize_t>> firstUseLocs;
   while(ctx.input.sizeGt(i)) {
