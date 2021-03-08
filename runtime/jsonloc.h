@@ -111,6 +111,7 @@ struct JsonLoc {
   //   If those tests later acquire support for placeholders or omitted fields,
   //   we will have to generalize this to some relaxed notion of matching.
   bool operator==(const JsonLoc& that) const;
+  bool operator!=(const JsonLoc& that) const { return !(*this == that); }
 };
 
 template <class X> X* get_if(JsonLoc* json) {

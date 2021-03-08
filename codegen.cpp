@@ -57,6 +57,23 @@ static JsonLoc skip(InputDiags& ctx, ssize_t& i,
 }
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
+             const ConcatFlatRule& seq, const RuleSet& rs) {
+  JsonLoc::Map rv;
+  ssize_t j = i;
+  for(auto& [idx, outname] : seq.comps) {
+    JsonLoc out = eval(ctx, j, rs, idx);
+    if(out.holdsError()) return out;
+    else if(auto* m = get_if<JsonLoc::Map>(&out)) {
+      if(!outname.empty()) Bug("Map rules are not supposed to have names");
+      mapUnion(rv, *m);
+    }
+    else if(!outname.empty()) rv.insert({std::move(outname), std::move(out)});
+  }
+  i = j;
+  return rv;
+}
+
+JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const ConcatRule& seq, const RuleSet& rs) {
   JsonLoc rv = seq.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
@@ -136,6 +153,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   else if(const auto* regex = get_if<unique_ptr<const Regex>>(&r))
     return match(ctx, i, **regex, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
+    return eval(ctx, i, *seq, ruleset);
+  else if(const auto* seq = get_if<ConcatFlatRule>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* ors = get_if<OrRule>(&r))
     return eval(ctx, i, *ors, ruleset);

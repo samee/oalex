@@ -33,6 +33,7 @@ using std::unique_ptr;
 using std::vector;
 using oalex::assertEqual;
 using oalex::Bug;
+using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
 using oalex::get_if;
 using oalex::JsonLoc;
@@ -179,6 +180,39 @@ void testConcatMatch() {
           observed.prettyPrint());
 }
 
+void testConcatFlatMatch() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{"var"}, Rule{parseRegex("/[a-zA-Z]+/")},
+                              Rule{":"}, Rule{"="},
+                              Rule{parseRegex("/[0-9]+/")},
+                              Rule{";"}, Rule{SkipPoint{false, &cskip}}),
+    .regexOpts = regexOpts,
+  };
+  rs.rules.push_back(Rule{ConcatFlatRule{{
+      {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
+  }}});
+  ssize_t varTypeIndex = rs.rules.size() - 1;
+  rs.rules.push_back(Rule{ConcatFlatRule{{
+      {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
+      {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
+  }}});
+  ssize_t declIndex = rs.rules.size() - 1;
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
+  JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
+  JsonLoc observed = eval(ctx, pos, rs, declIndex);
+  // TODO make jslocs fmt::formattable.
+  if(expected != observed)
+    Bug("{}: JsonLocs don't match: {} != {}", __func__,
+        expected.prettyPrint(), observed.prettyPrint());
+  pos = 0;
+  ctx = testInputDiags("var y = 9;");
+  observed = eval(ctx, pos, rs, declIndex);
+  if(!observed.holdsError())
+    BugMe("Was expecting failure on missing type. Got {}",
+          observed.prettyPrint());
+}
+
 void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
@@ -220,6 +254,7 @@ int main() {
   testSingleWordPreserving();
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
+  testConcatFlatMatch();
   testConcatMatch();
   testKeywordsOrNumber();
 }

@@ -59,4 +59,9 @@ inline JsonLoc match(InputDiags& ctx, ssize_t& i,
   return quote(std::string(s), std::exchange(i, j), j);
 }
 
+inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
+  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
+    Bug("maps are supposed to be key-disjoint");
 }
+
+}  // namespace oalex
