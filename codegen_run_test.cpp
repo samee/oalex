@@ -107,6 +107,24 @@ void runSingleRegexTest() {
   }
 }
 
+void runConcatFlatTest() {
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
+  JsonLoc observed = parseFlatDefn(ctx, pos);
+  JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
+  if(observed != expected)
+    BugMe("{} != {}", observed.prettyPrint(), expected.prettyPrint());
+
+  pos = 0;
+  ctx = testInputDiags("var y = 9;");
+  observed = parseFlatDefn(ctx, pos);
+  if(!observed.holdsError())
+    BugMe("Was expecting failure on missing type. Got {}",
+          observed.prettyPrint());
+}
+
+// Dev-note: do not delete when replacing ConcatRule with ConcatFlatRule.
+// Rewrite to make the test instead to make it use ConcatFlatRule.
 void runConcatTest() {
   auto ctx = testInputDiags("int x = 5;  // A declaration");
   ssize_t pos = 0;
@@ -207,6 +225,7 @@ int main() {
   runSingleStringTest();
   runMatchOrErrorTest();
   runSingleRegexTest();
+  runConcatFlatTest();
   runConcatTest();
   runExternParserDeclaration();
   runOrTest();

@@ -325,6 +325,7 @@ parserHeaders(const string& rname,
 
 static void
 codegen(const unique_ptr<const Regex>& regex, const OutputStream& cppos) {
+  // TODO trim this down whenever possible.
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
   cppos("  using oalex::Regex;\n");
@@ -376,6 +377,36 @@ static bool
 hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
   for(auto& comp : comps) if(comp.outputPlaceholder.empty()) return true;
   return false;
+}
+
+static bool
+makesFlattenableMap(const Rule& rule) {
+  return holds_alternative<ConcatFlatRule>(rule) ||
+         holds_alternative<OrRule>(rule);
+}
+
+static void
+codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
+        const OutputStream& cppos) {
+  cppos("  using oalex::JsonLoc;\n");
+  cppos("  ssize_t j = i;\n\n");
+  cppos("  JsonLoc::Map m;\n");
+  cppos("  JsonLoc res = JsonLoc::ErrorValue{};\n");
+  for(auto& [childid, key] : cfrule.comps) {
+    cppos("  res = ");
+      codegenParserCall(ruleset.rules[childid], "j", cppos);
+      cppos(";\n");
+    cppos("  if(res.holdsError()) return res;\n");
+    // TODO Check for duplicate keys at compile-time.
+    if(makesFlattenableMap(ruleset.rules[childid]))
+      cppos("  oalex::mapUnion(m, *oalex::get_if<JsonLoc::Map>(&res));\n");
+    else if(!key.empty())
+      cppos(format("  m.insert({{{}, std::move(res)}});\n", dquoted(key)));
+  }
+  cppos("\n  JsonLoc rv{std::move(m)};\n");
+  cppos("  rv.stPos = i; rv.enPos = j;\n");
+  cppos("  i = j;\n");
+  cppos("  return rv;\n");
 }
 
 static void
@@ -525,6 +556,9 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {
     codegen(*sp, cppos);
   }else if(const auto* seq = get_if<ConcatRule>(&r)) {
+    codegen(ruleset, *seq, cppos);
+  }else if(const auto* seq = get_if<ConcatFlatRule>(&r)) {
+    // TODO suppress hos output, produce static forward decls.
     codegen(ruleset, *seq, cppos);
   }else if(const auto* ors = get_if<OrRule>(&r)) {
     codegen(ruleset, *ors, cppos);

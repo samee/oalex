@@ -28,6 +28,7 @@
 #include <utility>
 using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
+using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
 using oalex::ExternParser;
 using oalex::Input;
@@ -142,6 +143,29 @@ void generateSingleRegexTest(const OutputStream& cppos,
   }
 }
 
+void generateConcatFlatTest(const OutputStream& cppos,
+                            const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{WordPreserving{"var"}},
+                              regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
+                              Rule{":"}, Rule{"="},
+                              regexRule(__func__, "/[0-9]+/", "FlatNumber"),
+                              Rule{";"},
+                              Rule{SkipPoint{false, &cskip}, "FlatSpace"}),
+    .regexOpts = regexOpts,
+  };
+  rs.rules.push_back(Rule{ConcatFlatRule{{
+      {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
+  }}, "FlatVarAndType"});
+  ssize_t varTypeIndex = rs.rules.size() - 1;
+  rs.rules.push_back(Rule{ConcatFlatRule{{
+      {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
+      {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
+  }}, "FlatDefn"});
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVector<Rule>(
@@ -248,6 +272,8 @@ int main(int argc, char* argv[]) {
   linebreaks();
   linebreaks();
   generateSingleRegexTest(cppos, hos);
+  linebreaks();
+  generateConcatFlatTest(cppos, hos);
   linebreaks();
   generateConcatTest(cppos, hos);
   linebreaks();

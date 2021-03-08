@@ -46,6 +46,15 @@ struct ConcatRule {
 
 struct OrRule {
   // The tmpl must have at most a single placeholder, called 'child'.
+  //
+  // While it *is* possible for an OrRule to not return a JsonLoc::Map,
+  // it isn't always allowed. In particular, the frontend needs to ensure that
+  // every OrRule that appears as a component of ConcatFlatRule is a
+  // JsonLoc::Map. This assumption is important whenever canBeFlat() is
+  // used in codegen. The only way to avoid returning a map is to set tmpl
+  // to exactly JsonLoc::Placeholder{"child"}.
+  //
+  // TODO check if this non-map return is a feature we need to support at all.
   struct Component { ssize_t idx; JsonLoc tmpl; };
   std::vector<Component> comps;
 };
