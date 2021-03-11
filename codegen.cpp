@@ -42,8 +42,8 @@ namespace oalex {
 // eval()
 // ------
 
-static JsonLoc skip(InputDiags& ctx, ssize_t& i,
-                 const SkipPoint& sp) {
+static JsonLoc
+skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
   i = sp.stayWithinLine ? sp.skip->withinLine(input, i)
@@ -56,8 +56,9 @@ static JsonLoc skip(InputDiags& ctx, ssize_t& i,
   } else return JsonLoc::String();  // Just something non-error.
 }
 
-JsonLoc eval(InputDiags& ctx, ssize_t& i,
-             const ConcatFlatRule& seq, const RuleSet& rs) {
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i,
+     const ConcatFlatRule& seq, const RuleSet& rs) {
   JsonLoc::Map rv;
   ssize_t j = i;
   for(auto& [idx, outname] : seq.comps) {
@@ -73,8 +74,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
-JsonLoc eval(InputDiags& ctx, ssize_t& i,
-             const ConcatRule& seq, const RuleSet& rs) {
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   JsonLoc rv = seq.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   ssize_t j = i;
@@ -92,15 +93,15 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
-static JsonLoc subtituteOnePlaceholder(JsonLoc tmpl, string_view key,
-                                       const JsonLoc& value) {
+static JsonLoc
+subtituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
   ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
   if(count > 1) Bug("OrRule wasn't expected to have more than one child");
   return tmpl;  // Assumes substitutionsOk();
 }
 
-JsonLoc eval(InputDiags& ctx, ssize_t& i,
-             const OrRule& ors, const RuleSet& rs) {
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   ssize_t j = i;
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
   JsonLoc out{JsonLoc::ErrorValue{}};
@@ -111,8 +112,8 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
   return out;  // Return the last error.
 }
 
-JsonLoc eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me,
-             const RuleSet& rs) {
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   ssize_t oldi = i;
   JsonLoc out = eval(ctx, i, rs, me.compidx);
   if(out.holdsError()) Error(ctx, oldi, i, me.errmsg);
@@ -120,29 +121,35 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me,
 }
 
 // Using std::visit(), since we want to catch missing types at compile-time.
-static string specifics_typename(const std::monostate&)
-  { return "(uninitialized)"; }
-static string specifics_typename(const string&) { return "string"; }
-static string specifics_typename(const WordPreserving&)
-  { return "WordPreserving"; }
-static string specifics_typename(const ExternParser&)
-  { return "ExternParser"; }
-static string specifics_typename(const unique_ptr<const Regex>&)
-  { return "Regex"; }
-static string specifics_typename(const SkipPoint&) { return "SkipPoint"; }
-static string specifics_typename(const ConcatFlatRule&)
-  { return "ConcatFlatRule"; }
-static string specifics_typename(const ConcatRule&) { return "ConcatRule"; }
-static string specifics_typename(const OrRule&) { return "OrRule"; }
-static string specifics_typename(const MatchOrError&) { return "MatchOrError"; }
+static string
+specifics_typename(const std::monostate&) { return "(uninitialized)"; }
+static string
+specifics_typename(const string&) { return "string"; }
+static string
+specifics_typename(const WordPreserving&) { return "WordPreserving"; }
+static string
+specifics_typename(const ExternParser&) { return "ExternParser"; }
+static string
+specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }
+static string
+specifics_typename(const SkipPoint&) { return "SkipPoint"; }
+static string
+specifics_typename(const ConcatFlatRule&) { return "ConcatFlatRule"; }
+static string
+specifics_typename(const ConcatRule&) { return "ConcatRule"; }
+static string
+specifics_typename(const OrRule&) { return "OrRule"; }
+static string
+specifics_typename(const MatchOrError&) { return "MatchOrError"; }
 
-string Rule::specifics_typename() const {
+string
+Rule::specifics_typename() const {
   return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
                     this->specifics_);
 }
 
-JsonLoc eval(InputDiags& ctx, ssize_t& i,
-             const RuleSet& ruleset, ssize_t ruleIndex) {
+JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
   if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
   else if(const auto* wp = get_if<WordPreserving>(&r))
@@ -214,8 +221,9 @@ static void linebreak(const OutputStream& cppos, ssize_t indent) {
 
 static const char* alphabool(bool b) { return b ? "true" : "false"; }
 
-static void genRegexCharSet(const RegexCharSet& cset,
-                            const OutputStream& cppos, ssize_t indent) {
+static void
+genRegexCharSet(const RegexCharSet& cset,
+                const OutputStream& cppos, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
   cppos("RegexCharSet({"); br();
   for(auto& range : cset.ranges) {
@@ -299,8 +307,8 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
   }
 }
 
-void codegenDefaultRegexOptions(const RuleSet& ruleset,
-                                const OutputStream& cppos) {
+void
+codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("const oalex::RegexOptions& defaultRegexOpts() {\n");
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexOptions;\n");
@@ -499,7 +507,8 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
                dquoted(*wp)));
 }
 
-bool Rule::needsName() const {
+bool
+Rule::needsName() const {
   if(holds_alternative<std::string>(specifics_) ||
      holds_alternative<WordPreserving>(specifics_) ||
      false) return false;
@@ -536,8 +545,9 @@ genExternDeclaration(const OutputStream& hos, const string& rname) {
 // an OutputStream::unfmt() for brace-heavy output. Additionally, figure out
 // nested formatters.  I.e.
 //   format("Hello {}", anotherFormattedStringProducer());
-void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
-             const OutputStream& cppos, const OutputStream& hos) {
+void
+codegen(const RuleSet& ruleset, ssize_t ruleIndex,
+        const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleset.rules[ruleIndex];
   if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
   string rname = *r.name();
