@@ -94,6 +94,23 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
 }
 
 static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
+  JsonLoc outfields = eval(ctx, i, rs, out.childidx);
+  if(outfields.holdsError()) return outfields;
+  auto* m = get_if<JsonLoc::Map>(&outfields);
+  if(!m) Bug("Frontend should ensure OutputTmpl only processes maps. Got {}",
+             outfields.prettyPrint());
+  JsonLoc rv = out.outputTmpl;
+  JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
+  for(auto& [id, jsloc] : pmap) {
+    auto it = m->find(id);
+    if(it != m->end()) rv.substitute(pmap, id, std::move(it->second));
+    else rv.substitute(pmap, id, JsonLoc::Map{});
+  }
+  return rv;
+}
+
+static JsonLoc
 subtituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
   ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
   if(count > 1) Bug("OrRule wasn't expected to have more than one child");
@@ -138,6 +155,8 @@ specifics_typename(const ConcatFlatRule&) { return "ConcatFlatRule"; }
 static string
 specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string
+specifics_typename(const OutputTmpl&) { return "OutputTmpl"; }
+static string
 specifics_typename(const OrRule&) { return "OrRule"; }
 static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }
@@ -163,6 +182,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* seq = get_if<ConcatFlatRule>(&r))
     return eval(ctx, i, *seq, ruleset);
+  else if(const auto* out = get_if<OutputTmpl>(&r))
+    return eval(ctx, i, *out, ruleset);
   else if(const auto* ors = get_if<OrRule>(&r))
     return eval(ctx, i, *ors, ruleset);
   else if(const auto* me = get_if<MatchOrError>(&r))

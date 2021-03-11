@@ -44,6 +44,20 @@ struct ConcatRule {
   JsonLoc outputTmpl;
 };
 
+// This is typically used to organize the components of a ConcatFlatRule. The
+// normal usage is that (possibly multiple layers of) ConcatFlatRule produces
+// maps, gets passed down through optionals and OrRules, before being assembled
+// by this OutputTmpl according to the outputs-stanza of a rule.
+//
+// The rule at childidx must produce a JsonLoc::Map, and it is the frontend's
+// job to ensure that. Keys in the child must match placeholder names in
+// outputTmpl. Any key outputTmpl may or may not have is irrelevant. Indeed,
+// outputTmpl is not required to be a JsonLoc::Map at all.
+struct OutputTmpl {
+  ssize_t childidx;
+  JsonLoc outputTmpl;
+};
+
 struct OrRule {
   // The tmpl must have at most a single placeholder, called 'child'.
   //
@@ -109,7 +123,7 @@ struct Rule {
  private:
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OrRule, MatchOrError> specifics_;
+               ConcatFlatRule, OutputTmpl, OrRule, MatchOrError> specifics_;
   std::string name_;
 };
 

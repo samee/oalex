@@ -40,6 +40,7 @@ using oalex::JsonLoc;
 using oalex::makeVector;
 using oalex::MatchOrError;
 using oalex::OrRule;
+using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::Regex;
 using oalex::Rule;
@@ -197,17 +198,22 @@ void testConcatFlatMatch() {
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
   }}});
   ssize_t declIndex = rs.rules.size() - 1;
+  rs.rules.push_back(Rule{OutputTmpl{
+      declIndex, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+  }});
+  ssize_t outIndex = rs.rules.size() - 1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
-  JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
-  JsonLoc observed = eval(ctx, pos, rs, declIndex);
+  JsonLoc expected = *parseJsonLoc(
+      "{var_name: 'x', init_value: {type: 'int', value: '5'}}");
+  JsonLoc observed = eval(ctx, pos, rs, outIndex);
   // TODO make jslocs fmt::formattable.
   if(expected != observed)
     Bug("{}: JsonLocs don't match: {} != {}", __func__,
         expected.prettyPrint(), observed.prettyPrint());
   pos = 0;
   ctx = testInputDiags("var y = 9;");
-  observed = eval(ctx, pos, rs, declIndex);
+  observed = eval(ctx, pos, rs, outIndex);
   if(!observed.holdsError())
     BugMe("Was expecting failure on missing type. Got {}",
           observed.prettyPrint());
