@@ -49,10 +49,19 @@ struct ConcatRule {
 // maps, gets passed down through optionals and OrRules, before being assembled
 // by this OutputTmpl according to the outputs-stanza of a rule.
 //
-// The rule at childidx must produce a JsonLoc::Map, and it is the frontend's
-// job to ensure that. Keys in the child must match placeholder names in
-// outputTmpl. Any key outputTmpl may or may not have is irrelevant. Indeed,
-// outputTmpl is not required to be a JsonLoc::Map at all.
+// If the rule at childidx returns JsonLoc::ErrorValue, it is passed through
+// unchanged like all other rules.
+//
+// Assuming the child component was successful, i.e. it did not return any
+// ErrorValue, there are some requirements on its type. If outputTmpl has any
+// placeholders at all, the rule at childidx must produce a JsonLoc::Map with
+// keys needed to fill it, and it is the frontend's job to ensure that. Keys in
+// the child must match placeholder names in outputTmpl. Any key outputTmpl may
+// or may not have is irrelevant. Indeed, outputTmpl is not required to be a
+// JsonLoc::Map at all.
+//
+// If outputTmpl has no placeholders, any non-error output of childidx is
+// ignored. In that case, we simply produce outputTmpl as is.
 struct OutputTmpl {
   ssize_t childidx;
   JsonLoc outputTmpl;

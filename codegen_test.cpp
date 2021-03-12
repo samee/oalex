@@ -219,6 +219,20 @@ void testConcatFlatMatch() {
           observed.prettyPrint());
 }
 
+void testSingleWordTemplate() {
+  JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{"word"}, Rule{OutputTmpl{0, jsloc}}),
+    .regexOpts = regexOpts,
+  };
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("word and ignored");
+  JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
+  if(jsloc != observed)
+    Bug("{}: JsonLocs don't match: {} != {}", __func__,
+        jsloc.prettyPrint(), observed.prettyPrint());
+}
+
 void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
@@ -261,6 +275,7 @@ int main() {
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
   testConcatFlatMatch();
+  testSingleWordTemplate();
   testConcatMatch();
   testKeywordsOrNumber();
 }

@@ -171,6 +171,17 @@ void generateConcatFlatTest(const OutputStream& cppos,
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateSingleWordTemplate(const OutputStream& cppos,
+                                const OutputStream& hos) {
+  JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
+  RuleSet rs{
+    .rules = makeVector<Rule>(Rule{"word"},
+                              Rule{OutputTmpl{0, jsloc}, "WordTmpl"}),
+    .regexOpts = regexOpts,
+  };
+  codegen(rs, 1, cppos, hos);
+}
+
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVector<Rule>(
@@ -258,7 +269,8 @@ int main(int argc, char* argv[]) {
   fprintf(cppfp.get(),
           "#include \"%s\"\n"
           "using oalex::InputDiags;\n"
-          "using oalex::JsonLoc;\n\n"
+          "using oalex::JsonLoc;\n"
+          "using namespace std::string_literals;\n\n"
           "JsonLoc parseAsgnStmt(InputDiags&, size_t&) {\n"
           "  // Unimplemented\n"
           "  return JsonLoc::ErrorValue{};\n"
@@ -279,6 +291,8 @@ int main(int argc, char* argv[]) {
   generateSingleRegexTest(cppos, hos);
   linebreaks();
   generateConcatFlatTest(cppos, hos);
+  linebreaks();
+  generateSingleWordTemplate(cppos, hos);
   linebreaks();
   generateConcatTest(cppos, hos);
   linebreaks();

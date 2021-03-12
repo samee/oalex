@@ -97,6 +97,7 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
   if(outfields.holdsError()) return outfields;
+  if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
   auto* m = get_if<JsonLoc::Map>(&outfields);
   if(!m) Bug("Frontend should ensure OutputTmpl only processes maps. Got {}",
              outfields.prettyPrint());
@@ -476,11 +477,14 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     codegenParserCall(ruleset.rules[out.childidx], "i", cppos);
     cppos(";\n");
   cppos("  if(outfields.holdsError()) return outfields;\n");
-  cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
-  cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
   map<string,string> placeholders;
-  for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
-    placeholders.insert({key, format("moveEltOrEmpty(*m, {})", dquoted(key))});
+  if(!out.outputTmpl.substitutionsOk()) {
+    cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
+    cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
+    for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
+      placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
+                                       dquoted(key))});
+  }
   cppos("  return ");
     codegen(out.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");

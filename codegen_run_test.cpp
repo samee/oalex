@@ -131,6 +131,15 @@ void runConcatFlatTest() {
           observed.prettyPrint());
 }
 
+void runSingleWordTemplate() {
+  ssize_t pos = 0;
+  auto ctx = testInputDiags("word and ignored");
+  JsonLoc observed = parseWordTmpl(ctx, pos);
+  JsonLoc expected = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
+  if(observed != expected)
+    Bug("{}: {} != {}", observed.prettyPrint(), expected.prettyPrint());
+}
+
 // Dev-note: do not delete when replacing ConcatRule with ConcatFlatRule.
 // Rewrite to make the test instead to make it use ConcatFlatRule.
 void runConcatTest() {
@@ -234,6 +243,7 @@ int main() {
   runMatchOrErrorTest();
   runSingleRegexTest();
   runConcatFlatTest();
+  runSingleWordTemplate();
   runConcatTest();
   runExternParserDeclaration();
   runOrTest();
