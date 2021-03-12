@@ -35,8 +35,8 @@ struct ConcatFlatRule {
   std::vector<Component> comps;
 };
 
-// This ConcatRule will later be removed in favor of ConcatFlatRule and
-// a new OutputTemplate type that will only have outputTmpl.
+// Mostly deprecated. It is still kept around in case I need concatenation
+// without flattening. For the most part, use ConcatFlatRule with OutputTmpl.
 struct ConcatRule {
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
