@@ -379,7 +379,7 @@ codegen(const JsonLoc& jsloc, const OutputStream& cppos,
     auto v = placeholders.find(p->key);
     if(v == placeholders.end())
       Bug("Undefined placeholder in codegen: {}", p->key);
-    cppos(format("std::move({})", v->second));
+    cppos(v->second);
   }else if(auto* s = get_if<JsonLoc::String>(&jsloc)) {
     cppos(format("{}s", dquoted(*s)));
   }else if(auto* v = get_if<JsonLoc::Vector>(&jsloc)) {
@@ -448,7 +448,8 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
     const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
 
     if(!comp.outputPlaceholder.empty() &&
-       !placeholders.insert({comp.outputPlaceholder, resvar}).second)
+       !placeholders.insert({comp.outputPlaceholder,
+                             format("std::move({})", resvar)}).second)
       // This uniqueness is also used in codegen(JsonLoc).
       Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
 
