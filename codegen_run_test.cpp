@@ -116,6 +116,14 @@ void runConcatFlatTest() {
     BugMe("{} != {}", observed.prettyPrint(), expected.prettyPrint());
 
   pos = 0;
+  expected = *parseJsonLoc("{var_name: 'x', "
+                            "init_value: {type: 'int', value: '5'}}");
+  ctx.diags.clear();
+  observed = parseFlatThenAssembled(ctx, pos);
+  if(observed != expected)
+    BugMe("{} != {}", observed.prettyPrint(), expected.prettyPrint());
+
+  pos = 0;
   ctx = testInputDiags("var y = 9;");
   observed = parseFlatDefn(ctx, pos);
   if(!observed.holdsError())

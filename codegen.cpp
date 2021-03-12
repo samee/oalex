@@ -465,6 +465,27 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
     cppos(";\n");
 }
 
+// TODO create a "production mode" that doesn't emit these nullptr checks.
+static void
+codegen(const RuleSet& ruleset, const OutputTmpl& out,
+        const OutputStream& cppos) {
+  cppos("  using oalex::get_if;\n");
+  cppos("  using oalex::JsonLoc;\n");
+  cppos("  using oalex::moveEltOrEmpty;\n");
+  cppos("  JsonLoc outfields = ");
+    codegenParserCall(ruleset.rules[out.childidx], "i", cppos);
+    cppos(";\n");
+  cppos("  if(outfields.holdsError()) return outfields;\n");
+  cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
+  cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
+  map<string,string> placeholders;
+  for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
+    placeholders.insert({key, format("moveEltOrEmpty(*m, {})", dquoted(key))});
+  cppos("  return ");
+    codegen(out.outputTmpl, cppos, placeholders, 2);
+    cppos(";\n");
+}
+
 static void
 codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
@@ -589,6 +610,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(const auto* seq = get_if<ConcatFlatRule>(&r)) {
     // TODO suppress hos output, produce static forward decls.
     codegen(ruleset, *seq, cppos);
+  }else if(const auto* out = get_if<OutputTmpl>(&r)) {
+    codegen(ruleset, *out, cppos);
   }else if(const auto* ors = get_if<OrRule>(&r)) {
     codegen(ruleset, *ors, cppos);
   }else if(const auto* me = get_if<MatchOrError>(&r)) {

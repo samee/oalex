@@ -37,6 +37,7 @@ using oalex::JsonLoc;
 using oalex::makeVector;
 using oalex::MatchOrError;
 using oalex::OutputStream;
+using oalex::OutputTmpl;
 using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::parseRegex;
@@ -162,6 +163,10 @@ void generateConcatFlatTest(const OutputStream& cppos,
       {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
   }}, "FlatDefn"});
+  ssize_t declIndex = rs.rules.size() - 1;
+  rs.rules.push_back(Rule{OutputTmpl{
+      declIndex, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+  }, "FlatThenAssembled"});
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
