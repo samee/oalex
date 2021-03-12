@@ -31,6 +31,7 @@
 using fmt::format;
 using oalex::InputDiagsRef;
 using oalex::LexDirective;
+using oalex::OutputTmpl;
 using oalex::parseJsonLocFromBracketGroup;
 using oalex::parsePattern;
 using oalex::parseRegexCharSet;
@@ -547,7 +548,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
     return findOrAppendIdent(rules, firstUseLocs, ident->preserveCase(), {});
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
-    ConcatRule concatRule{ {}, JsonLoc::Map() };
+    ConcatFlatRule concatRule{ .comps{} };
     for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
       if(i > 0) {
         // Intersperse concat components with SkipPoint components.
@@ -615,16 +616,13 @@ static void appendPatternRules(
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 
-  size_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);
-  rules[newIndex].name(ident);
-  if(auto* concat = get_if<ConcatRule>(&rules[newIndex])) {
-    concat->outputTmpl = std::move(jsloc);
-  }else {
-    auto* m = get_if<JsonLoc::Map>(&jsloc);
-    if(!m || !m->empty())
-      Unimplemented("Custom output template for {} rules",
-                    rules[newIndex].specifics_typename());
-  }
+  // TODO check if child rule is guaranteed to produce JsonLoc::Map if
+  // outputTmpl.substitutionsOk() == false.
+  ssize_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);
+  emplaceBackAnonRule(rules, firstUseLocs, OutputTmpl{
+      .childidx = newIndex, .outputTmpl = std::move(jsloc)
+  });
+  rules.back().name(ident);
 }
 
 // Assumes colonPos > 0, since the error message

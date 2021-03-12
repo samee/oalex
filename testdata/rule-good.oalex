@@ -26,3 +26,11 @@ outputs: { ident: "x", int_value: "5" }
 example decl:
   var x = y;
 outputs error with 'Expected int_value'
+
+rule single_word:
+  Word
+outputs: { keyword: "word" }
+
+example single_word:
+  Word
+outputs: { keyword: "word" }
