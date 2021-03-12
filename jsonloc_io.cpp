@@ -92,7 +92,7 @@ optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, ExprToken expr) {
 optional<JsonLoc> parseMap(InputDiagsRef ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, std::move(elts));
 
-  map<string,JsonLoc> rv;
+  JsonLoc::Map rv;
   for(auto& elt : splitres) {
     if(elt.empty())
       Bug("splitCommaNoEmpty() is returning empty elements.");

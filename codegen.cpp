@@ -102,11 +102,8 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
              outfields.prettyPrint());
   JsonLoc rv = out.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
-  for(auto& [id, jsloc] : pmap) {
-    auto it = m->find(id);
-    if(it != m->end()) rv.substitute(pmap, id, std::move(it->second));
-    else rv.substitute(pmap, id, JsonLoc::Map{});
-  }
+  for(auto& [id, jsloc] : pmap)
+    rv.substitute(pmap, id, moveEltOrEmpty(*m, id));
   return rv;
 }
 

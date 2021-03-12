@@ -48,7 +48,7 @@ struct JsonLoc {
   struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonLoc>;
-  using Map = std::map<std::string,JsonLoc>;
+  using Map = std::map<std::string,JsonLoc, std::less<>>;
   struct Placeholder { std::string key; };
   using Value = std::variant<ErrorValue,Placeholder,String,Vector,Map>;
 
@@ -124,6 +124,12 @@ template <class X> const X* get_if(const JsonLoc* json) {
 
 template <class X> bool holds_alternative(const JsonLoc& json) {
   return std::holds_alternative<X>(json.value);
+}
+
+inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
+  auto it = m.find(key);
+  if(it == m.end()) return JsonLoc::Map{};
+  else return std::move(it->second);
 }
 
 }  // namespace oalex
