@@ -74,6 +74,8 @@ eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
+// This doesn't tolerate missing optional fields. If that's desirable, use
+// ConcatFlatRule composed with OutputTmpl.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   JsonLoc rv = seq.outputTmpl;
@@ -85,7 +87,6 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
     if(out.holdsError()) return out;
     if(!outname.empty()) rv.substitute(pmap, outname, out);
   }
-  // TODO tolerate missing optional fields.
   for(auto& [id, jsloc] : pmap)
     if(holds_alternative<JsonLoc::Placeholder>(*jsloc))
       Bug("Undefined field '{}', should have been caught by frontend", id);
