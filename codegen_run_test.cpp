@@ -112,23 +112,20 @@ void runConcatFlatTest() {
   auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
   JsonLoc observed = parseFlatDefn(ctx, pos);
   JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
-  if(observed != expected)
-    BugMe("{} != {}", observed.prettyPrint(), expected.prettyPrint());
+  assertEqual(__func__, observed, expected);
 
   pos = 0;
   expected = *parseJsonLoc("{var_name: 'x', "
                             "init_value: {type: 'int', value: '5'}}");
   ctx.diags.clear();
   observed = parseFlatThenAssembled(ctx, pos);
-  if(observed != expected)
-    BugMe("{} != {}", observed.prettyPrint(), expected.prettyPrint());
+  assertEqual(__func__, observed, expected);
 
   pos = 0;
   ctx = testInputDiags("var y = 9;");
   observed = parseFlatDefn(ctx, pos);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on missing type. Got {}",
-          observed.prettyPrint());
+    BugMe("Was expecting failure on missing type. Got {}", observed);
 }
 
 void runSingleWordTemplate() {
@@ -136,8 +133,7 @@ void runSingleWordTemplate() {
   auto ctx = testInputDiags("word and ignored");
   JsonLoc observed = parseWordTmpl(ctx, pos);
   JsonLoc expected = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
-  if(observed != expected)
-    Bug("{}: {} != {}", observed.prettyPrint(), expected.prettyPrint());
+  assertEqual(__func__, observed, expected);
 }
 
 // Dev-note: do not delete when replacing ConcatRule with ConcatFlatRule.
@@ -216,15 +212,14 @@ void runOrTest() {
     ssize_t pos = 0;
     auto ctx = testInputDiags(msg);
     JsonLoc observed = parseOneWordOrList(ctx, pos);
-    assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+    assertEqual(__func__, expected, observed);
   }
 
   ssize_t pos = 0;
   auto ctx = testInputDiags("do");
   JsonLoc observed = parseOneWordOrList(ctx, pos);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on keyword 'do'. Got {}",
-          observed.prettyPrint());
+    BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
 }
 
 }  // namespace

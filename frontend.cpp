@@ -871,8 +871,7 @@ string describeTestFailure(const Example& ex, bool succeeded) {
     }
   }else {
     if(auto jsloc = ex.expectation.jsloc()) {
-      return format("Test failed\nWas expecting output {}.",
-                    jsloc->prettyPrint());
+      return format("Test failed\nWas expecting output {}.", *jsloc);
     }else {
       return format("Test failed at {}\n"
                     "Was expecting {} to succeed on input '{}'",

@@ -197,3 +197,10 @@ bool JsonLoc::operator==(const JsonLoc& that) const {
 }
 
 }  // namespace oalex
+
+auto fmt::formatter<oalex::JsonLoc>::parse(format_parse_context& ctx)
+  -> decltype(ctx.begin()) {
+  auto it = ctx.begin();
+  if(it != ctx.end() && *it != '}') oalex::Bug("invalid JsonLoc format");
+  return it;
+}

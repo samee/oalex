@@ -143,7 +143,7 @@ void testJsonLocFailure(const char input[], const char errmsg[]) {
   optional<JsonLoc> res = parseJsonLoc(ctx, i);
   if(res.has_value() && ctx.diags.empty())
     BugMe("Was expecting failure with input '{}'. Got this instead: {}",
-          input, res->prettyPrint());
+          input, *res);
   assertHasDiagWithSubstr(__func__, ctx.diags, errmsg);
 }
 

@@ -100,7 +100,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
   auto* m = get_if<JsonLoc::Map>(&outfields);
   if(!m) Bug("Frontend should ensure OutputTmpl only processes maps. Got {}",
-             outfields.prettyPrint());
+             outfields);
   JsonLoc rv = out.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   for(auto& [id, jsloc] : pmap)

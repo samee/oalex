@@ -21,6 +21,8 @@
 #include <variant>
 #include <vector>
 
+#include <fmt/core.h>
+
 namespace oalex {
 
 // Even though we call it json, we don't in fact support numbers, booleans,
@@ -133,3 +135,12 @@ inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
 }
 
 }  // namespace oalex
+
+template <> struct fmt::formatter<oalex::JsonLoc> {
+  auto parse(format_parse_context& ctx) -> decltype(ctx.begin());
+
+  template <class FormatContext>
+  auto format(const oalex::JsonLoc& jsloc, FormatContext& ctx) {
+    return format_to(ctx.out(), "{}", jsloc.prettyPrint());
+  }
+};

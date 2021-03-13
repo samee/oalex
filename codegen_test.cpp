@@ -171,14 +171,13 @@ void testConcatMatch() {
     stmt: 'asgn', lhs: 'orangeCount', rhs: '5'
   })");
   JsonLoc observed = eval(ctx, pos, rs, concatIndex);
-  assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+  assertEqual(__func__, expected, observed);
 
   pos = 0;
   ctx = testInputDiags("orangeCount = 5 missing-semicolon;");
   observed = eval(ctx, pos, rs, concatIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on missing semicolon. Got {}",
-          observed.prettyPrint());
+    BugMe("Was expecting failure on missing semicolon. Got {}", observed);
 }
 
 void testConcatFlatMatch() {
@@ -207,16 +206,12 @@ void testConcatFlatMatch() {
   JsonLoc expected = *parseJsonLoc(
       "{var_name: 'x', init_value: {type: 'int', value: '5'}}");
   JsonLoc observed = eval(ctx, pos, rs, outIndex);
-  // TODO make jslocs fmt::formattable.
-  if(expected != observed)
-    Bug("{}: JsonLocs don't match: {} != {}", __func__,
-        expected.prettyPrint(), observed.prettyPrint());
+  assertEqual(__func__, expected, observed);
   pos = 0;
   ctx = testInputDiags("var y = 9;");
   observed = eval(ctx, pos, rs, outIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on missing type. Got {}",
-          observed.prettyPrint());
+    BugMe("Was expecting failure on missing type. Got {}", observed);
 }
 
 void testSingleWordTemplate() {
@@ -228,9 +223,7 @@ void testSingleWordTemplate() {
   ssize_t pos = 0;
   auto ctx = testInputDiags("word and ignored");
   JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
-  if(jsloc != observed)
-    Bug("{}: JsonLocs don't match: {} != {}", __func__,
-        jsloc.prettyPrint(), observed.prettyPrint());
+  assertEqual(__func__, jsloc, observed);
 }
 
 void testKeywordsOrNumber() {
@@ -253,15 +246,14 @@ void testKeywordsOrNumber() {
     ssize_t pos = 0;
     auto ctx = testInputDiags(msg);
     JsonLoc observed = eval(ctx, pos, rs, orListIndex);
-    assertEqual(__func__, expected.prettyPrint(), observed.prettyPrint());
+    assertEqual(__func__, expected, observed);
   }
 
   ssize_t pos = 0;
   auto ctx = testInputDiags("do");
   JsonLoc observed = eval(ctx, pos, rs, orListIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on keyword 'do'. Got {}",
-          observed.prettyPrint());
+    BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
 }
 
 }  // namespace
