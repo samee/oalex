@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #pragma once
+#include<charconv>
 #include<cstdio>
 #include<memory>
 #include<variant>
@@ -177,6 +178,17 @@ makeVector(Args ... args) {
   std::vector<V> rv;
   makeVectorImpl(rv, std::move(args)...);
   return rv;
+}
+
+// Used for code-generation and debugging.
+// Avoid std::to_strings to avoid locales.
+template <class Int> std::string
+itos(Int x) {
+  std::string s(std::numeric_limits<Int>::digits10+3, '\0');
+  std::to_chars_result res = std::to_chars(s.data(), s.data()+s.size(), x);
+  if(res.ec != std::errc{}) Bug("Need more memory in itos()");
+  s.resize(res.ptr-s.data());
+  return s;
 }
 
 }  // namespace oalex

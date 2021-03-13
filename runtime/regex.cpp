@@ -72,7 +72,7 @@ string debug(MatchStateType t) {
     case MatchStateType::boolvec: return "boolvec";
     case MatchStateType::optional: return "optional";
     case MatchStateType::statevec: return "statevec";
-    default: return std::to_string(int(t));
+    default: return itos(int(t));
   }
 }
 

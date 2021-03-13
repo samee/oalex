@@ -61,14 +61,13 @@ using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
-using std::to_string;
 using std::unique_ptr;
 using std::vector;
 
 namespace oalex {
 
 MappedPos::operator string() const {
-  return "line " + to_string(this->line);
+  return "line " + itos(this->line);
 }
 
 bool Expectation::matches(const JsonLoc& jsloc,
@@ -341,7 +340,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
   ConcatRule concat{ {}, JsonLoc::Map() };
   size_t argc = 0;
   for(auto&& comp : comps) {
-    string argname = "arg" + std::to_string(++argc);
+    string argname = "arg" + itos(++argc);
     if(comp.size() >= 2 && isToken(comp[0], "word")) {
       const auto* s = get_if<GluedString>(&comp[1]);
       if(s == nullptr || s->ctor() != GluedString::Ctor::squoted) {
@@ -797,7 +796,7 @@ static bool hasUndefinedRules(
 static void fillInNames(vector<Rule>& rules) {
   size_t nc = 1;
   for(auto& rule : rules) if(rule.needsName() && !rule.name().has_value()) {
-    rule.name("rule" + to_string(nc++));
+    rule.name("rule" + itos(nc++));
   }
 }
 
