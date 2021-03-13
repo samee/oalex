@@ -136,11 +136,13 @@ inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
 
 }  // namespace oalex
 
-template <> struct fmt::formatter<oalex::JsonLoc> {
+template <> class fmt::formatter<oalex::JsonLoc> {
+  unsigned indent_ = 0;
+ public:
   auto parse(format_parse_context& ctx) -> decltype(ctx.begin());
 
   template <class FormatContext>
   auto format(const oalex::JsonLoc& jsloc, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", jsloc.prettyPrint());
+    return format_to(ctx.out(), "{}", jsloc.prettyPrint(indent_));
   }
 };

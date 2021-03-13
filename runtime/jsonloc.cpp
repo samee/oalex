@@ -18,6 +18,7 @@
 #include "util.h"
 using fmt::format_to;
 using fmt::memory_buffer;
+using oalex::Bug;
 using std::get;
 using std::get_if;
 using std::holds_alternative;
@@ -200,7 +201,13 @@ bool JsonLoc::operator==(const JsonLoc& that) const {
 
 auto fmt::formatter<oalex::JsonLoc>::parse(format_parse_context& ctx)
   -> decltype(ctx.begin()) {
+  constexpr int max_indent = 100;
   auto it = ctx.begin();
-  if(it != ctx.end() && *it != '}') oalex::Bug("invalid JsonLoc format");
+  while(it != ctx.end() && *it != '}') {
+    if(!isdigit(*it)) Bug("invalid JsonLoc indent");
+    indent_ = 10*indent_ + *it - '0';
+    if(indent_ > max_indent) Bug("Indent can't be more than {}", max_indent);
+    ++it;
+  }
   return it;
 }

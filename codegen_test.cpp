@@ -177,7 +177,7 @@ void testConcatMatch() {
   ctx = testInputDiags("orangeCount = 5 missing-semicolon;");
   observed = eval(ctx, pos, rs, concatIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on missing semicolon. Got {}", observed);
+    BugMe("Was expecting failure on missing semicolon. Got {:2}", observed);
 }
 
 void testConcatFlatMatch() {
@@ -211,7 +211,7 @@ void testConcatFlatMatch() {
   ctx = testInputDiags("var y = 9;");
   observed = eval(ctx, pos, rs, outIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on missing type. Got {}", observed);
+    BugMe("Was expecting failure on missing type. Got {:2}", observed);
 }
 
 void testSingleWordTemplate() {
@@ -253,7 +253,7 @@ void testKeywordsOrNumber() {
   auto ctx = testInputDiags("do");
   JsonLoc observed = eval(ctx, pos, rs, orListIndex);
   if(!observed.holdsError())
-    BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
+    BugMe("Was expecting failure on keyword 'do'. Got {:2}", observed);
 }
 
 }  // namespace
