@@ -764,7 +764,7 @@ static auto parseExample(vector<ExprToken> linetoks,
     optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks2), ctx);
     if(!jsloc.has_value()) return nullopt;
     if(!jsloc->supportsEquality())
-      return Error(ctx, linetoks[3], "Values need to be properly quoted");
+      return Error(ctx, linetoks[2], "Values need to be properly quoted");
     rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),

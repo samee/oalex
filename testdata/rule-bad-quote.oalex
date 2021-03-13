@@ -1,0 +1,7 @@
+# expected-error: Values need to be properly quoted
+
+int_value := /[0-9]+/
+
+example int_value:
+  42
+outputs: { value: 42 }
