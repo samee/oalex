@@ -530,6 +530,9 @@ static ssize_t appendLiteralOrError(
   return newIndex;
 }
 
+// This function returns ConcatFlatRule::Commponent::outputPlaceholder
+// for ConcatFlatRule components. It must be empty for any pattern that is
+// mapped into a map-returning rule.
 static string patternName(const Pattern& patt) {
   if(auto* ident = get_if_unique<Ident>(&patt)) return ident->preserveCase();
   else return {};
@@ -556,8 +559,6 @@ static ssize_t appendPatternRule(InputDiags& ctx,
                             SkipPoint{.stayWithinLine = false,
                                       .skip = &oalexSkip});
       }
-      // TODO reject unsupported PatternConcat structures.
-      // E.g. where patternName() silently fails.
       const Pattern& child = concatPatt->parts[i];
       ssize_t j = appendPatternRule(ctx, child, rules, firstUseLocs);
       concatRule.comps.push_back({j, patternName(child)});
