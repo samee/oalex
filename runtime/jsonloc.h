@@ -143,6 +143,7 @@ template <> class fmt::formatter<oalex::JsonLoc> {
 
   template <class FormatContext>
   auto format(const oalex::JsonLoc& jsloc, FormatContext& ctx) {
-    return format_to(ctx.out(), "{}", jsloc.prettyPrint(indent_));
+    for(char ch : jsloc.prettyPrint(indent_)) *ctx.out() = ch;
+    return ctx.out();
   }
 };
