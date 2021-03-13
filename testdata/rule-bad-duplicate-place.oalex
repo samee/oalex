@@ -1,0 +1,7 @@
+# expected-error: Duplicate placeholder int_value
+
+int_value := /[0-9]+/
+
+rule expr:
+  int_value + 5
+outputs: { type: "plus_five", v1: int_value, v2: int_value }
