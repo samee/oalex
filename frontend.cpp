@@ -160,18 +160,18 @@ class RulesWithLocs {
 };
 
 ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
   rules_.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(thisPos);
-  return ssize()-1;
+  return this->ssize()-1;
 }
 
 ssize_t RulesWithLocs::defineIdent(
     InputDiagsRef ctx, string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
     if(!holds_alternative<monostate>(rules_[i])) {
       Error(ctx, thisPos.first, thisPos.second,
             format("'{}' has multiple definitions", ident));
@@ -180,7 +180,7 @@ ssize_t RulesWithLocs::defineIdent(
   }
   rules_.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(nrange);
-  return ssize()-1;
+  return this->ssize()-1;
 }
 
 template <class...Args> ssize_t
@@ -192,7 +192,7 @@ RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
 
 bool
 RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
-  for(ssize_t i=0; i<ssize(); ++i)
+  for(ssize_t i=0; i<this->ssize(); ++i)
     if(holds_alternative<monostate>(rules_[i])) {
       optional<string> name = rules_[i].name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
