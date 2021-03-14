@@ -116,6 +116,7 @@ class RulesWithLocs {
   vector<Rule> rules;
 
   ssize_t ssize() const { return rules.size(); }
+  Rule& operator[](ssize_t i) { return rules[i]; }
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
@@ -143,9 +144,11 @@ class RulesWithLocs {
      them in error messages. They are implicitly generated, so the user won't
      know what to make of errors about rules they didn't write.
 
+     Returns the index of the new element: newsize - 1
+
      Named rules should use findOrAppendIdent followed by direct assignment.
   */
-  template <class...Args> void emplaceBackAnonRule(Args&&...args);
+  template <class...Args> ssize_t emplaceBackAnonRule(Args&&...args);
 
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(InputDiags& ctx) const;
@@ -181,10 +184,11 @@ ssize_t RulesWithLocs::defineIdent(
   return ssize()-1;
 }
 
-template <class...Args> void
+template <class...Args> ssize_t
 RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
   rules.emplace_back(std::forward<Args>(args)...);
   firstUseLocs_.emplace_back(-1, -1);
+  return rules.size()-1;
 }
 
 bool
@@ -238,7 +242,7 @@ static void parsePolitenessDirective(
     rl.defineIdent(ctx, hello_ident, posPair(linetoks[0]));
   if(hello_index == -1) return;
   if(linetoks.size() == 1) {
-    rl.rules[hello_index] = Rule{
+    rl[hello_index] = Rule{
         MatchOrError{ssize_t(rl.ssize()), "Failed at politeness test"},
         hello_ident};
     rl.emplaceBackAnonRule("Hello!");
@@ -251,7 +255,7 @@ static void parsePolitenessDirective(
   }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
     if(!requireEol(linetoks, 2, ctx)) return;
     const ssize_t nextRuleIndex = rl.ssize();
-    rl.rules[hello_index] = Rule{
+    rl[hello_index] = Rule{
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
     };
     rl.emplaceBackAnonRule("Hello!");
@@ -309,7 +313,7 @@ static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
 }
 static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
                                  string_view ruleName, string_view literal) {
-  rl.rules[ruleIndex] = Rule{
+  rl[ruleIndex] = Rule{
     MatchOrError{rl.ssize(), format("Expected '{}'", literal)},
     string(ruleName)
   };
@@ -317,7 +321,7 @@ static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 }
 static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                                string_view ruleName, RegexPattern regex) {
-  rl.rules[ruleIndex] = Rule{
+  rl[ruleIndex] = Rule{
     MatchOrError{rl.ssize(), format("Expected {}", ruleName)},
     string(ruleName)
   };
@@ -455,12 +459,12 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     return;
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
-      rl.rules[ruleIndex] = Rule(std::move(*c), *ident);
+      rl[ruleIndex] = Rule(std::move(*c), *ident);
     }
     return;
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
-      rl.rules[ruleIndex] = Rule(std::move(*sp), *ident);
+      rl[ruleIndex] = Rule(std::move(*sp), *ident);
     }
     return;
   }else {
@@ -668,12 +672,12 @@ static void appendPatternRules(
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
-  rl.emplaceBackAnonRule(OutputTmpl{
+  newIndex = rl.emplaceBackAnonRule(OutputTmpl{
       .childidx = newIndex,
       .childName = std::move(childName),
       .outputTmpl = std::move(jsloc)
   });
-  rl.rules.back().name(ident);
+  rl[newIndex].name(ident);
 }
 
 // Assumes colonPos > 0, since the error message
@@ -908,7 +912,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           "'require_politeness'",
                           debug(linetoks[0])));
   }
-  if(rl.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
+  if(rl.ssize() == 0) return Error(ctx, 0, "Doesn't insist on politeness");
   if(rl.hasUndefinedRules(ctx) || hasDuplicatePlaceholders(rl.rules, ctx) ||
      hasError(ctx.diags) ||
      false) return nullopt;
