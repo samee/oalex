@@ -115,6 +115,8 @@ class RulesWithLocs {
  public:
   vector<Rule> rules;
 
+  ssize_t ssize() const { return rules.size(); }
+
   /* Searches for ident in rules[].name().
      If found, returns the index.
      If not found, appends a new monostate rule with the ident, and returns the
@@ -153,7 +155,7 @@ class RulesWithLocs {
 };
 
 ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
-  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules[i].name()) {
     if(firstUseLocs_.size() != rules.size())
       Bug("firstUseLocs_ size mismatch: {} != {}",
           firstUseLocs_.size(), rules.size());
@@ -162,12 +164,12 @@ ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
   }
   rules.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(thisPos);
-  return rules.size()-1;
+  return ssize()-1;
 }
 
 ssize_t RulesWithLocs::defineIdent(
     InputDiagsRef ctx, string_view ident, LocPair thisPos) {
-  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules[i].name()) {
     if(!holds_alternative<monostate>(rules[i])) {
       Error(ctx, thisPos.first, thisPos.second,
             format("'{}' has multiple definitions", ident));
@@ -176,7 +178,7 @@ ssize_t RulesWithLocs::defineIdent(
   }
   rules.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(nrange);
-  return rules.size()-1;
+  return ssize()-1;
 }
 
 template <class...Args> void
@@ -191,7 +193,7 @@ RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
     Bug("rules.size() == {} != {} == firstUseLocs_.size(). "
         "The two vectors must always be appended in sync",
         rules.size(), firstUseLocs_.size());
-  for(size_t i=0; i<rules.size(); ++i)
+  for(ssize_t i=0; i<ssize(); ++i)
     if(holds_alternative<monostate>(rules[i])) {
       optional<string> name = rules[i].name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
@@ -237,7 +239,7 @@ static void parsePolitenessDirective(
   if(hello_index == -1) return;
   if(linetoks.size() == 1) {
     rl.rules[hello_index] = Rule{
-        MatchOrError{ssize_t(rl.rules.size()), "Failed at politeness test"},
+        MatchOrError{ssize_t(rl.ssize()), "Failed at politeness test"},
         hello_ident};
     rl.emplaceBackAnonRule("Hello!");
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
@@ -248,7 +250,7 @@ static void parsePolitenessDirective(
                 Expectation::ErrorSubstr{"Failed at politeness test"}});
   }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
     if(!requireEol(linetoks, 2, ctx)) return;
-    const ssize_t nextRuleIndex = rl.rules.size();
+    const ssize_t nextRuleIndex = rl.ssize();
     rl.rules[hello_index] = Rule{
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
     };
@@ -308,7 +310,7 @@ static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
 static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
                                  string_view ruleName, string_view literal) {
   rl.rules[ruleIndex] = Rule{
-    MatchOrError{ssize_t(rl.rules.size()), format("Expected '{}'", literal)},
+    MatchOrError{rl.ssize(), format("Expected '{}'", literal)},
     string(ruleName)
   };
   rl.emplaceBackAnonRule(string(literal));
@@ -316,14 +318,14 @@ static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                                string_view ruleName, RegexPattern regex) {
   rl.rules[ruleIndex] = Rule{
-    MatchOrError{ssize_t(rl.rules.size()), format("Expected {}", ruleName)},
+    MatchOrError{rl.ssize(), format("Expected {}", ruleName)},
     string(ruleName)
   };
   rl.emplaceBackAnonRule(std::move(regex.patt));
 }
 
 ssize_t emplaceBackWordOrError(RulesWithLocs& rl, string_view word) {
-  ssize_t newIndex = rl.rules.size();
+  ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(WordPreserving{word});
   rl.emplaceBackAnonRule(MatchOrError{newIndex, format("Expected '{}'",
                                       word)});
@@ -331,7 +333,7 @@ ssize_t emplaceBackWordOrError(RulesWithLocs& rl, string_view word) {
 }
 ssize_t emplaceBackRegexOrError(RulesWithLocs& rl,
                                 unique_ptr<const Regex> regex) {
-  ssize_t newIndex = rl.rules.size();
+  ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(std::move(regex));
   rl.emplaceBackAnonRule(MatchOrError{newIndex,
                                       "Does not match expected pattern"});
@@ -397,7 +399,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
         Error(ctx, *s, "Expected strings to be single-quoted");
         continue;
       }
-      ssize_t newIndex = rl.rules.size();
+      ssize_t newIndex = rl.ssize();
       rl.emplaceBackAnonRule(monostate{});
       assignLiteralOrError(rl, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
@@ -544,7 +546,7 @@ static const LexDirective& defaultLexopts() {
 // TODO: fix names: append vs emplace
 // TODO: fix parameter order
 static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
-  ssize_t newIndex = rl.rules.size();
+  ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(monostate{});
   assignLiteralOrError(rl, newIndex, {}, literal);
   return newIndex;
@@ -573,7 +575,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
     for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
       if(i > 0) {
         // Intersperse concat components with SkipPoint components.
-        concatRule.comps.push_back({(ssize_t)rl.rules.size(), {}});
+        concatRule.comps.push_back({rl.ssize(), {}});
         rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
                                          .skip = &oalexSkip});
       }
@@ -582,7 +584,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
       concatRule.comps.push_back({j, patternName(child)});
     }
     rl.emplaceBackAnonRule(std::move(concatRule));
-    return rl.rules.size()-1;
+    return rl.ssize()-1;
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
