@@ -467,7 +467,11 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
     cppos(";\n");
 }
 
-// TODO create a "production mode" that doesn't emit these nullptr checks.
+// TODO Make it possible to figure out at compile-time whether a rule produces
+// a JsonLoc::Map. E.g. by having OrRule also autobox its non-map branches.
+// TODO Once we can figure out at compile-time whether something produces a
+// Map, and reflect that in the generated code. E.g. by returning the concrete
+// type.
 static void
 codegen(const RuleSet& ruleset, const OutputTmpl& out,
         const OutputStream& cppos) {

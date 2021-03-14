@@ -77,7 +77,9 @@ struct OrRule {
   // used in codegen. The only way to avoid returning a map is to set tmpl
   // to exactly JsonLoc::Placeholder{"child"}.
   //
-  // TODO check if this non-map return is a feature we need to support at all.
+  // TODO Stop supporting this non-map return value. We could instead
+  // support auto-boxing like ConcatFlatRule and OutputTmpl, where the
+  // component name depends on the chosen index.
   struct Component { ssize_t idx; JsonLoc tmpl; };
   std::vector<Component> comps;
 };
