@@ -97,12 +97,14 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
   return s;
 }
 
-static auto posPair(const ExprToken& x) -> pair<ssize_t,ssize_t> {
+using LocPair = pair<ssize_t,ssize_t>;
+
+static LocPair posPair(const ExprToken& x) {
   return {stPos(x), enPos(x)};
 }
 
 constexpr size_t npos = -1;
-constexpr pair<ssize_t,ssize_t> nrange{-1,-1};
+constexpr LocPair nrange{-1,-1};
 
 /*
   Searches for ident in rules[].name().
@@ -113,8 +115,8 @@ constexpr pair<ssize_t,ssize_t> nrange{-1,-1};
   Assumes ident.empty() == false
 */
 static size_t findOrAppendIdent(
-    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
-    string_view ident, pair<ssize_t, ssize_t> thisPos) {
+    vector<Rule>& rules, vector<LocPair>& firstUseLocs,
+    string_view ident, LocPair thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
     if(firstUseLocs.size() != rules.size())
       Bug("firstUseLocs size mismatch: {} != {}",
@@ -137,8 +139,8 @@ static size_t findOrAppendIdent(
   nrange() so that it is later filled in by findOrAppendIdent.
 */
 static size_t defineIdent(InputDiagsRef ctx, vector<Rule>& rules,
-                          vector<pair<ssize_t,ssize_t>>& firstUseLocs,
-                          string_view ident, pair<ssize_t, ssize_t> thisPos) {
+                          vector<LocPair>& firstUseLocs,
+                          string_view ident, LocPair thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
     if(!holds_alternative<monostate>(rules[i])) {
       Error(ctx, thisPos.first, thisPos.second,
@@ -159,7 +161,7 @@ static size_t defineIdent(InputDiagsRef ctx, vector<Rule>& rules,
 // Named rules should use findOrAppendIdent followed by direct assignment.
 template <class...Args> static void
 emplaceBackAnonRule(vector<Rule>& rules,
-                    vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                    vector<LocPair>& firstUseLocs,
                     Args&&...args) {
   rules.emplace_back(std::forward<Args>(args)...);
   firstUseLocs.emplace_back(-1, -1);
@@ -191,7 +193,7 @@ static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
 }
 static void parsePolitenessDirective(
     const vector<ExprToken>& linetoks, InputDiagsRef ctx,
-    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    vector<Rule>& rules, vector<LocPair>& firstUseLocs,
     vector<Example>& examples) {
   const char hello_ident[] = "required_hello";
   ssize_t hello_index =
@@ -269,7 +271,7 @@ static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
 static void assignLiteralOrError(vector<Rule>& rules,
-                                 vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                 vector<LocPair>& firstUseLocs,
                                  size_t ruleIndex,
                                  string_view ruleName, string_view literal) {
   rules[ruleIndex] = Rule{
@@ -279,7 +281,7 @@ static void assignLiteralOrError(vector<Rule>& rules,
   emplaceBackAnonRule(rules, firstUseLocs, string(literal));
 }
 static void assignRegexOrError(vector<Rule>& rules,
-                                 vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                 vector<LocPair>& firstUseLocs,
                                  size_t ruleIndex,
                                  string_view ruleName,
                                  RegexPattern regex) {
@@ -291,7 +293,7 @@ static void assignRegexOrError(vector<Rule>& rules,
 }
 
 ssize_t emplaceBackWordOrError(vector<Rule>& rules,
-                               vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                               vector<LocPair>& firstUseLocs,
                                string_view word) {
   ssize_t newIndex = rules.size();
   emplaceBackAnonRule(rules, firstUseLocs, WordPreserving{word});
@@ -300,7 +302,7 @@ ssize_t emplaceBackWordOrError(vector<Rule>& rules,
   return newIndex + 1;
 }
 ssize_t emplaceBackRegexOrError(vector<Rule>& rules,
-                                vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+                                vector<LocPair>& firstUseLocs,
                                 unique_ptr<const Regex> regex) {
   ssize_t newIndex = rules.size();
   emplaceBackAnonRule(rules, firstUseLocs, std::move(regex));
@@ -318,7 +320,7 @@ ssize_t emplaceBackRegexOrError(vector<Rule>& rules,
 static auto parseConcatRule(vector<ExprToken> linetoks,
                             InputDiagsRef ctx,
                             vector<Rule>& rules,
-                            vector<pair<ssize_t, ssize_t>>& firstUseLocs)
+                            vector<LocPair>& firstUseLocs)
   -> optional<ConcatRule> {
 
   auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
@@ -407,7 +409,7 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
 static void parseBnfRule(vector<ExprToken> linetoks,
                          InputDiagsRef ctx,
                          vector<Rule>& rules,
-                         vector<pair<ssize_t, ssize_t>>& firstUseLocs) {
+                         vector<LocPair>& firstUseLocs) {
   const optional<string> ident = getIfIdent(linetoks[0]);
   if(!ident.has_value()) {
     Error(ctx, linetoks[0], "Identifier expected");
@@ -525,7 +527,7 @@ static const LexDirective& defaultLexopts() {
 // TODO: fix parameter order
 static ssize_t appendLiteralOrError(
     vector<Rule>& rules,
-    vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    vector<LocPair>& firstUseLocs,
     string_view ident, string_view literal) {
   ssize_t newIndex = rules.size();
   emplaceBackAnonRule(rules, firstUseLocs, monostate{});
@@ -543,7 +545,7 @@ static string patternName(const Pattern& patt) {
 
 static ssize_t appendPatternRule(InputDiags& ctx,
     const Pattern& patt, vector<Rule>& rules,
-    vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+    vector<LocPair>& firstUseLocs) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
     return emplaceBackWordOrError(rules, firstUseLocs, **word);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
@@ -598,7 +600,7 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
 }
 
 static void registerLocations(
-    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs,
+    vector<Rule>& rules, vector<LocPair>& firstUseLocs,
     const Ident& id) {
   findOrAppendIdent(rules, firstUseLocs, id.preserveCase(),
                     {id.stPos(), id.enPos()});
@@ -641,7 +643,7 @@ soleIdent(const Pattern& patt) {
 static void appendPatternRules(
     InputDiags& ctx,
     string_view ident, GluedString patt_string, JsonLoc jsloc,
-    vector<Rule>& rules, vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+    vector<Rule>& rules, vector<LocPair>& firstUseLocs) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rules, firstUseLocs, id);
 
@@ -727,7 +729,7 @@ static bool resemblesRule(const vector<ExprToken>& linetoks) {
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
 static void parseRule(vector<ExprToken> linetoks,
                       InputDiags& ctx, size_t& i, vector<Rule>& rules,
-                      vector<pair<ssize_t,ssize_t>>& firstUseLocs) {
+                      vector<LocPair>& firstUseLocs) {
   if(!requireColonEol(linetoks, 2, ctx)) return;
   optional<GluedString> patt =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
@@ -814,7 +816,7 @@ static auto parseExample(vector<ExprToken> linetoks,
 
 static bool hasUndefinedRules(
     const vector<Rule>& rules,
-    const vector<pair<ssize_t, ssize_t>>& firstUseLocs, InputDiags& ctx) {
+    const vector<LocPair>& firstUseLocs, InputDiags& ctx) {
   if(rules.size() != firstUseLocs.size())
     Bug("rules.size() == {} != {} == firstUseLocs.size(). "
         "The two vectors must always be appended in sync",
@@ -885,7 +887,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   size_t i = 0;
   RuleSet rs{{}, *userRegexOpts};
   vector<Example> examples;
-  vector<pair<ssize_t, ssize_t>> firstUseLocs;
+  vector<LocPair> firstUseLocs;
   while(ctx.input.sizeGt(i)) {
     if(i != ctx.input.bol(i))
       FatalBug(ctx, i, "Rules must start at bol()");
