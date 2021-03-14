@@ -113,10 +113,8 @@ namespace {
 // we can release rules() into the world for codegen, and forget location info.
 class RulesWithLocs {
  public:
-  vector<Rule> rules;
-
-  ssize_t ssize() const { return rules.size(); }
-  Rule& operator[](ssize_t i) { return rules[i]; }
+  ssize_t ssize() const { return rules_.size(); }
+  Rule& operator[](ssize_t i) { return rules_[i]; }
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
@@ -153,59 +151,62 @@ class RulesWithLocs {
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(InputDiags& ctx) const;
 
+  vector<Rule> releaseRules();
+
  private:
+  // Invariant: these two must have equal sizes at all times.
+  vector<Rule> rules_;
   vector<LocPair> firstUseLocs_;
 };
 
 ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules[i].name()) {
-    if(firstUseLocs_.size() != rules.size())
-      Bug("firstUseLocs_ size mismatch: {} != {}",
-          firstUseLocs_.size(), rules.size());
+  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules_[i].name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules.emplace_back(monostate{}, string(ident));
+  rules_.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(thisPos);
   return ssize()-1;
 }
 
 ssize_t RulesWithLocs::defineIdent(
     InputDiagsRef ctx, string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules[i].name()) {
-    if(!holds_alternative<monostate>(rules[i])) {
+  for(ssize_t i=0; i<ssize(); ++i) if(ident == rules_[i].name()) {
+    if(!holds_alternative<monostate>(rules_[i])) {
       Error(ctx, thisPos.first, thisPos.second,
             format("'{}' has multiple definitions", ident));
       return -1;
     }else return i;
   }
-  rules.emplace_back(monostate{}, string(ident));
+  rules_.emplace_back(monostate{}, string(ident));
   firstUseLocs_.push_back(nrange);
   return ssize()-1;
 }
 
 template <class...Args> ssize_t
 RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
-  rules.emplace_back(std::forward<Args>(args)...);
+  rules_.emplace_back(std::forward<Args>(args)...);
   firstUseLocs_.emplace_back(-1, -1);
-  return rules.size()-1;
+  return rules_.size()-1;
 }
 
 bool
 RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
-  if(rules.size() != firstUseLocs_.size())
-    Bug("rules.size() == {} != {} == firstUseLocs_.size(). "
-        "The two vectors must always be appended in sync",
-        rules.size(), firstUseLocs_.size());
   for(ssize_t i=0; i<ssize(); ++i)
-    if(holds_alternative<monostate>(rules[i])) {
-      optional<string> name = rules[i].name();
+    if(holds_alternative<monostate>(rules_[i])) {
+      optional<string> name = rules_[i].name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
       Error(ctx, st, en, format("Rule '{}' was used but never defined", *name));
       return true;
     }
   return false;
+}
+
+vector<Rule>
+RulesWithLocs::releaseRules() {
+  firstUseLocs_.clear();
+  return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
 }  // namespace
@@ -913,12 +914,12 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rl.ssize() == 0) return Error(ctx, 0, "Doesn't insist on politeness");
-  if(rl.hasUndefinedRules(ctx) || hasDuplicatePlaceholders(rl.rules, ctx) ||
-     hasError(ctx.diags) ||
-     false) return nullopt;
-  fillInNames(rl.rules);
-  return ParsedSource{RuleSet{std::move(rl.rules), *userRegexOpts},
-                      std::move(examples)};
+  if(rl.hasUndefinedRules(ctx)) return nullopt;
+  RuleSet rs{rl.releaseRules(), *userRegexOpts};
+  if(hasDuplicatePlaceholders(rs.rules, ctx) ||
+     hasError(ctx.diags)) return nullopt;
+  fillInNames(rs.rules);
+  return ParsedSource{std::move(rs), std::move(examples)};
 }
 
 // TODO make this nicer. Escape with dquoted() on single-line outputs,
