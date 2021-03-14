@@ -74,8 +74,6 @@ eval(InputDiags& ctx, ssize_t& i,
   return rv;
 }
 
-// This doesn't tolerate missing optional fields. If that's desirable, use
-// ConcatFlatRule composed with OutputTmpl.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   JsonLoc rv = seq.outputTmpl;

@@ -37,6 +37,7 @@ struct ConcatFlatRule {
 
 // Mostly deprecated. It is still kept around in case I need concatenation
 // without flattening. For the most part, use ConcatFlatRule with OutputTmpl.
+// E.g. This doesn't tolerate missing optional fields.
 struct ConcatRule {
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
