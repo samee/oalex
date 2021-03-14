@@ -54,17 +54,21 @@ struct ConcatRule {
 // unchanged like all other rules.
 //
 // Assuming the child component was successful, i.e. it did not return any
-// ErrorValue, there are some requirements on its type. If outputTmpl has any
-// placeholders at all, the rule at childidx must produce a JsonLoc::Map with
-// keys needed to fill it, and it is the frontend's job to ensure that. Keys in
-// the child must match placeholder names in outputTmpl. Any key outputTmpl may
-// or may not have is irrelevant. Indeed, outputTmpl is not required to be a
-// JsonLoc::Map at all.
+// ErrorValue, there are some requirements on its type.
 //
-// If outputTmpl has no placeholders, any non-error output of childidx is
-// ignored. In that case, we simply produce outputTmpl as is.
+//   * If the child component returns something that's not a JsonLoc::Map,
+//     it is given a name childName. The outputTmpl will be searched for this
+//     placeholder, and be replaced with the child's return value unchanged.
+//     The frontend must ensure that no other placeholder appears in
+//     outputTmpl. It is, however, valid for outputTmpl to have no placeholders
+//     at all, in which case we return it unchanged (in the absence of a child
+//     error). Child's non-error output will be absorbed in that case.
+//
+//   * If the child component produces a JsonLoc::Map, its keys will represent
+//     placeholders. childName will be ignored in this case.
 struct OutputTmpl {
   ssize_t childidx;
+  std::string childName;  // used only if child is not producing JsonLoc::Map.
   JsonLoc outputTmpl;
 };
 

@@ -165,7 +165,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
   }}, "FlatDefn"});
   ssize_t declIndex = rs.rules.size() - 1;
   rs.rules.push_back(Rule{OutputTmpl{
-      declIndex, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+      declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
   }, "FlatThenAssembled"});
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
@@ -176,7 +176,7 @@ void generateSingleWordTemplate(const OutputStream& cppos,
   JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"word"},
-                              Rule{OutputTmpl{0, jsloc}, "WordTmpl"}),
+                              Rule{OutputTmpl{0, {}, jsloc}, "WordTmpl"}),
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);

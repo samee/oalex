@@ -198,7 +198,7 @@ void testConcatFlatMatch() {
   }}});
   ssize_t declIndex = rs.rules.size() - 1;
   rs.rules.push_back(Rule{OutputTmpl{
-      declIndex, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+      declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
   }});
   ssize_t outIndex = rs.rules.size() - 1;
   ssize_t pos = 0;
@@ -217,7 +217,7 @@ void testConcatFlatMatch() {
 void testSingleWordTemplate() {
   JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"word"}, Rule{OutputTmpl{0, jsloc}}),
+    .rules = makeVector<Rule>(Rule{"word"}, Rule{OutputTmpl{0, {}, jsloc}}),
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;

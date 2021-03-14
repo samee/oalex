@@ -619,11 +619,13 @@ static void appendPatternRules(
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 
-  // TODO check if child rule is guaranteed to produce JsonLoc::Map if
-  // outputTmpl.substitutionsOk() == false.
+  // TODO: Set .childName to be the sole Ident if we are not expecting a
+  // JsonLoc::Map.
   ssize_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);
   emplaceBackAnonRule(rules, firstUseLocs, OutputTmpl{
-      .childidx = newIndex, .outputTmpl = std::move(jsloc)
+      .childidx = newIndex,
+      .childName = {},
+      .outputTmpl = std::move(jsloc)
   });
   rules.back().name(ident);
 }
