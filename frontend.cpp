@@ -88,6 +88,7 @@ static string debug(const ExprToken& x) {
   else return "(bracket group)";
 }
 
+// TODO use Ident::parse(), or use this only in resemble functions.
 static auto getIfIdent(const ExprToken& x) -> optional<string> {
   auto* seg = get_if<WholeSegment>(&x);
   if(!seg) return nullopt;
@@ -123,8 +124,7 @@ class RulesWithLocs {
        firstUseLocs_.
      Assumes ident.empty() == false
   */
-  // TODO this and the next method should accept an actual ident object.
-  ssize_t findOrAppendIdent(string_view ident, LocPair thisPos);
+  ssize_t findOrAppendIdent(const Ident& id);
 
   /* Returns the index of a monostate rule named ident.
        If one already exists, its index is returned with no change.
@@ -136,6 +136,7 @@ class RulesWithLocs {
      In case we are actually appending a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
+  // TODO this method should accept an actual ident object.
   ssize_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
@@ -161,12 +162,14 @@ class RulesWithLocs {
   vector<LocPair> firstUseLocs_;
 };
 
-ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
+ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
+  string rname = id.preserveCase();
+  LocPair thisPos{id.stPos(), id.enPos()};
+  for(ssize_t i=0; i<this->ssize(); ++i) if(rname == rules_[i].name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.emplace_back(monostate{}, string(ident));
+  rules_.emplace_back(monostate{}, std::move(rname));
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
@@ -234,6 +237,9 @@ resemblesX() vs parseX().
     the face of an error just so subsequent parsing has a better chance
     of making forward progress.
 */
+// TODO: delete this code, if only we can have defineIdent() accept an Ident.
+// For now we can't, because this politeness directive makes up an identifier
+// not found in the source code.
 static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
   return !linetoks.empty() && isToken(linetoks[0], "require_politeness");
 }
@@ -414,9 +420,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       if(Ident id = makeIdent(ctx, std::move(*tok)))
-        concat.comps.push_back({
-            rl.findOrAppendIdent(id.preserveCase(), {id.stPos(), id.enPos()}),
-                                argname});
+        concat.comps.push_back({rl.findOrAppendIdent(id), argname});
       else return nullopt;
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
@@ -455,6 +459,7 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
   return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
 }
 
+// FIXME: Rewind and remove rules on error. Something like rl.resize() will help
 static void parseBnfRule(vector<ExprToken> linetoks,
                          InputDiags& ctx,
                          RulesWithLocs& rl) {
@@ -593,7 +598,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
   }else if(get_if_unique<NewlineChar>(&patt)) {
     return appendLiteralOrError(rl, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return rl.findOrAppendIdent(ident->preserveCase(), {});
+    return rl.findOrAppendIdent(*ident);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     ConcatFlatRule concatRule{ .comps{} };
     for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
@@ -634,7 +639,7 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
 }
 
 static void registerLocations(RulesWithLocs& rl, const Ident& id) {
-  rl.findOrAppendIdent(id.preserveCase(), {id.stPos(), id.enPos()});
+  rl.findOrAppendIdent(id);
 }
 
 static bool
