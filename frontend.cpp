@@ -103,7 +103,6 @@ static LocPair posPair(const ExprToken& x) {
   return {stPos(x), enPos(x)};
 }
 
-constexpr size_t npos = -1;
 constexpr LocPair nrange{-1,-1};
 
 namespace {
@@ -123,19 +122,19 @@ class RulesWithLocs {
        firstUseLocs_.
      Assumes ident.empty() == false
   */
-  size_t findOrAppendIdent(string_view ident, LocPair thisPos);
+  ssize_t findOrAppendIdent(string_view ident, LocPair thisPos);
 
   /* Returns the index of a monostate rule named ident.
        If one already exists, its index is returned with no change.
        If one doesn't already exist,
          one is appended and the new index is returned.
      If a non-monostate rule named ident already exists, it produces a
-     "multiple definition" error and returns npos.
+     "multiple definition" error and returns -1.
 
      In case we are actually appending a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
-  size_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
+  ssize_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
      Anonymous rules don't need usage location so far, since we never refer to
@@ -153,7 +152,7 @@ class RulesWithLocs {
   vector<LocPair> firstUseLocs_;
 };
 
-size_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
+ssize_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
     if(firstUseLocs_.size() != rules.size())
       Bug("firstUseLocs_ size mismatch: {} != {}",
@@ -166,13 +165,13 @@ size_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
   return rules.size()-1;
 }
 
-size_t RulesWithLocs::defineIdent(
+ssize_t RulesWithLocs::defineIdent(
     InputDiagsRef ctx, string_view ident, LocPair thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
     if(!holds_alternative<monostate>(rules[i])) {
       Error(ctx, thisPos.first, thisPos.second,
             format("'{}' has multiple definitions", ident));
-      return npos;
+      return -1;
     }else return i;
   }
   rules.emplace_back(monostate{}, string(ident));
@@ -235,7 +234,7 @@ static void parsePolitenessDirective(
   const char hello_ident[] = "required_hello";
   ssize_t hello_index =
     rl.defineIdent(ctx, hello_ident, posPair(linetoks[0]));
-  if(size_t(hello_index) == npos) return;
+  if(hello_index == -1) return;
   if(linetoks.size() == 1) {
     rl.rules[hello_index] = Rule{
         MatchOrError{ssize_t(rl.rules.size()), "Failed at politeness test"},
@@ -391,9 +390,8 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
       continue;
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
-      concat.comps.push_back({
-          ssize_t(rl.findOrAppendIdent(**tok, posPair(*tok))),
-          argname});
+      concat.comps.push_back({rl.findOrAppendIdent(**tok, posPair(*tok)),
+                              argname});
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
         Error(ctx, *s, "Expected strings to be single-quoted");
@@ -439,8 +437,8 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
-  const size_t ruleIndex = rl.defineIdent(ctx, *ident, posPair(linetoks[0]));
-  if(ruleIndex == npos) return;
+  const ssize_t ruleIndex = rl.defineIdent(ctx, *ident, posPair(linetoks[0]));
+  if(ruleIndex == -1) return;
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
     return;
