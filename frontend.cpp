@@ -129,18 +129,17 @@ class RulesWithLocs {
   Assumes ident.empty() == false
 */
 static size_t findOrAppendIdent(
-    vector<Rule>& rules, vector<LocPair>& firstUseLocs,
-    string_view ident, LocPair thisPos) {
-  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
-    if(firstUseLocs.size() != rules.size())
+    RulesWithLocs& rl, string_view ident, LocPair thisPos) {
+  for(size_t i=0; i<rl.rules.size(); ++i) if(ident == rl.rules[i].name()) {
+    if(rl.firstUseLocs.size() != rl.rules.size())
       Bug("firstUseLocs size mismatch: {} != {}",
-          firstUseLocs.size(), rules.size());
-    if(firstUseLocs[i] == nrange) firstUseLocs[i] = thisPos;
+          rl.firstUseLocs.size(), rl.rules.size());
+    if(rl.firstUseLocs[i] == nrange) rl.firstUseLocs[i] = thisPos;
     return i;
   }
-  rules.emplace_back(monostate{}, string(ident));
-  firstUseLocs.push_back(thisPos);
-  return rules.size()-1;
+  rl.rules.emplace_back(monostate{}, string(ident));
+  rl.firstUseLocs.push_back(thisPos);
+  return rl.rules.size()-1;
 }
 /*
   Returns the index of a monostate rule named ident.
@@ -365,8 +364,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       concat.comps.push_back({
-          ssize_t(findOrAppendIdent(rl.rules, rl.firstUseLocs,
-                                    **tok, posPair(*tok))),
+          ssize_t(findOrAppendIdent(rl, **tok, posPair(*tok))),
           argname});
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
@@ -543,8 +541,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
   }else if(get_if_unique<NewlineChar>(&patt)) {
     return appendLiteralOrError(rl, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return findOrAppendIdent(rl.rules, rl.firstUseLocs,
-                             ident->preserveCase(), {});
+    return findOrAppendIdent(rl, ident->preserveCase(), {});
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     ConcatFlatRule concatRule{ .comps{} };
     for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
@@ -590,8 +587,7 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
 }
 
 static void registerLocations(RulesWithLocs& rl, const Ident& id) {
-  findOrAppendIdent(rl.rules, rl.firstUseLocs, id.preserveCase(),
-                    {id.stPos(), id.enPos()});
+  findOrAppendIdent(rl, id.preserveCase(), {id.stPos(), id.enPos()});
 }
 
 static bool
