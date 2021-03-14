@@ -115,13 +115,12 @@ namespace {
 class RulesWithLocs {
  public:
   vector<Rule> rules;
-  vector<LocPair> firstUseLocs;
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
      If not found, appends a new monostate rule with the ident, and returns the
        index of the new element. In this case, it also records thisPos in
-       firstUseLocs.
+       firstUseLocs_.
      Assumes ident.empty() == false
   */
   size_t findOrAppendIdent(string_view ident, LocPair thisPos);
@@ -133,7 +132,7 @@ class RulesWithLocs {
      If a non-monostate rule named ident already exists, it produces a
      "multiple definition" error and returns npos.
 
-     In case we are actually appending a new entry, the firstUseLocs() remains
+     In case we are actually appending a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
   size_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
@@ -146,18 +145,24 @@ class RulesWithLocs {
      Named rules should use findOrAppendIdent followed by direct assignment.
   */
   template <class...Args> void emplaceBackAnonRule(Args&&...args);
+
+  /* This is checked just before producing rules as output */
+  bool hasUndefinedRules(InputDiags& ctx) const;
+
+ private:
+  vector<LocPair> firstUseLocs_;
 };
 
 size_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
   for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
-    if(firstUseLocs.size() != rules.size())
-      Bug("firstUseLocs size mismatch: {} != {}",
-          firstUseLocs.size(), rules.size());
-    if(firstUseLocs[i] == nrange) firstUseLocs[i] = thisPos;
+    if(firstUseLocs_.size() != rules.size())
+      Bug("firstUseLocs_ size mismatch: {} != {}",
+          firstUseLocs_.size(), rules.size());
+    if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
   rules.emplace_back(monostate{}, string(ident));
-  firstUseLocs.push_back(thisPos);
+  firstUseLocs_.push_back(thisPos);
   return rules.size()-1;
 }
 
@@ -171,14 +176,31 @@ size_t RulesWithLocs::defineIdent(
     }else return i;
   }
   rules.emplace_back(monostate{}, string(ident));
-  firstUseLocs.push_back(nrange);
+  firstUseLocs_.push_back(nrange);
   return rules.size()-1;
 }
 
 template <class...Args> void
 RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
   rules.emplace_back(std::forward<Args>(args)...);
-  firstUseLocs.emplace_back(-1, -1);
+  firstUseLocs_.emplace_back(-1, -1);
+}
+
+bool
+RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
+  if(rules.size() != firstUseLocs_.size())
+    Bug("rules.size() == {} != {} == firstUseLocs_.size(). "
+        "The two vectors must always be appended in sync",
+        rules.size(), firstUseLocs_.size());
+  for(size_t i=0; i<rules.size(); ++i)
+    if(holds_alternative<monostate>(rules[i])) {
+      optional<string> name = rules[i].name();
+      if(!name.has_value()) Bug("Anonymous rules should always be initialized");
+      const auto [st, en] = firstUseLocs_[i];
+      Error(ctx, st, en, format("Rule '{}' was used but never defined", *name));
+      return true;
+    }
+  return false;
 }
 
 }  // namespace
@@ -802,22 +824,6 @@ static auto parseExample(vector<ExprToken> linetoks,
   return rv;
 }
 
-static bool hasUndefinedRules(const RulesWithLocs& rl, InputDiags& ctx) {
-  if(rl.rules.size() != rl.firstUseLocs.size())
-    Bug("rules.size() == {} != {} == firstUseLocs.size(). "
-        "The two vectors must always be appended in sync",
-        rl.rules.size(), rl.firstUseLocs.size());
-  for(size_t i=0; i<rl.rules.size(); ++i)
-    if(holds_alternative<monostate>(rl.rules[i])) {
-      optional<string> name = rl.rules[i].name();
-      if(!name.has_value()) Bug("Anonymous rules should always be initialized");
-      const auto [st, en] = rl.firstUseLocs[i];
-      Error(ctx, st, en, format("Rule '{}' was used but never defined", *name));
-      return true;
-    }
-  return false;
-}
-
 static const JsonLoc* getTemplate(const Rule& rule) {
   if(auto* concat = get_if<ConcatRule>(&rule)) return &concat->outputTmpl;
   if(auto* tmpl   = get_if<OutputTmpl>(&rule)) return &tmpl->outputTmpl;
@@ -903,7 +909,7 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
                           debug(linetoks[0])));
   }
   if(rl.rules.empty()) return Error(ctx, 0, "Doesn't insist on politeness");
-  if(hasUndefinedRules(rl, ctx) || hasDuplicatePlaceholders(rl.rules, ctx) ||
+  if(rl.hasUndefinedRules(ctx) || hasDuplicatePlaceholders(rl.rules, ctx) ||
      hasError(ctx.diags) ||
      false) return nullopt;
   fillInNames(rl.rules);
