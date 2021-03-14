@@ -116,66 +116,72 @@ class RulesWithLocs {
  public:
   vector<Rule> rules;
   vector<LocPair> firstUseLocs;
+
+  /* Searches for ident in rules[].name().
+     If found, returns the index.
+     If not found, appends a new monostate rule with the ident, and returns the
+       index of the new element. In this case, it also records thisPos in
+       firstUseLocs.
+     Assumes ident.empty() == false
+  */
+  size_t findOrAppendIdent(string_view ident, LocPair thisPos);
+
+  /* Returns the index of a monostate rule named ident.
+       If one already exists, its index is returned with no change.
+       If one doesn't already exist,
+         one is appended and the new index is returned.
+     If a non-monostate rule named ident already exists, it produces a
+     "multiple definition" error and returns npos.
+
+     In case we are actually appending a new entry, the firstUseLocs() remains
+     nrange() so that it is later filled in by findOrAppendIdent.
+  */
+  size_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
+
+  /* Utility for anon rules that also appends a dummy first-use location entry.
+     Anonymous rules don't need usage location so far, since we never refer to
+     them in error messages. They are implicitly generated, so the user won't
+     know what to make of errors about rules they didn't write.
+
+     Named rules should use findOrAppendIdent followed by direct assignment.
+  */
+  template <class...Args> void emplaceBackAnonRule(Args&&...args);
 };
 
-}  // namespace
-
-/*
-  Searches for ident in rules[].name().
-  If found, returns the index.
-  If not found, appends a new monostate rule with the ident, and returns the
-    index of the new element. In this case, it also records thisPos in
-    firstUseLocs.
-  Assumes ident.empty() == false
-*/
-static size_t findOrAppendIdent(
-    RulesWithLocs& rl, string_view ident, LocPair thisPos) {
-  for(size_t i=0; i<rl.rules.size(); ++i) if(ident == rl.rules[i].name()) {
-    if(rl.firstUseLocs.size() != rl.rules.size())
+size_t RulesWithLocs::findOrAppendIdent(string_view ident, LocPair thisPos) {
+  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+    if(firstUseLocs.size() != rules.size())
       Bug("firstUseLocs size mismatch: {} != {}",
-          rl.firstUseLocs.size(), rl.rules.size());
-    if(rl.firstUseLocs[i] == nrange) rl.firstUseLocs[i] = thisPos;
+          firstUseLocs.size(), rules.size());
+    if(firstUseLocs[i] == nrange) firstUseLocs[i] = thisPos;
     return i;
   }
-  rl.rules.emplace_back(monostate{}, string(ident));
-  rl.firstUseLocs.push_back(thisPos);
-  return rl.rules.size()-1;
+  rules.emplace_back(monostate{}, string(ident));
+  firstUseLocs.push_back(thisPos);
+  return rules.size()-1;
 }
-/*
-  Returns the index of a monostate rule named ident.
-    If one already exists, its index is returned with no change.
-    If one doesn't already exist, one is appended and the new index is returned.
-  If a non-monostate rule named ident already exists, it produces a
-    "multiple definition" error and returns npos.
 
-  In case we are actually appending a new entry, the firstUseLocs() remains
-  nrange() so that it is later filled in by findOrAppendIdent.
-*/
-static size_t defineIdent(InputDiagsRef ctx, RulesWithLocs& rl,
-                          string_view ident, LocPair thisPos) {
-  for(size_t i=0; i<rl.rules.size(); ++i) if(ident == rl.rules[i].name()) {
-    if(!holds_alternative<monostate>(rl.rules[i])) {
+size_t RulesWithLocs::defineIdent(
+    InputDiagsRef ctx, string_view ident, LocPair thisPos) {
+  for(size_t i=0; i<rules.size(); ++i) if(ident == rules[i].name()) {
+    if(!holds_alternative<monostate>(rules[i])) {
       Error(ctx, thisPos.first, thisPos.second,
             format("'{}' has multiple definitions", ident));
       return npos;
     }else return i;
   }
-  rl.rules.emplace_back(monostate{}, string(ident));
-  rl.firstUseLocs.push_back(nrange);
-  return rl.rules.size()-1;
+  rules.emplace_back(monostate{}, string(ident));
+  firstUseLocs.push_back(nrange);
+  return rules.size()-1;
 }
 
-// Utility for anon rules that also appends a dummy first-use location entry.
-// Anonymous rules don't need usage location so far, since we never refer to
-// them in error messages. They are implicitly generated, so the user won't
-// know what to make of errors about rules they didn't write.
-//
-// Named rules should use findOrAppendIdent followed by direct assignment.
-template <class...Args> static void
-emplaceBackAnonRule(RulesWithLocs& rl, Args&&...args) {
-  rl.rules.emplace_back(std::forward<Args>(args)...);
-  rl.firstUseLocs.emplace_back(-1, -1);
+template <class...Args> void
+RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
+  rules.emplace_back(std::forward<Args>(args)...);
+  firstUseLocs.emplace_back(-1, -1);
 }
+
+}  // namespace
 
 static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
                        InputDiagsRef ctx) {
@@ -206,13 +212,13 @@ static void parsePolitenessDirective(
     RulesWithLocs& rl, vector<Example>& examples) {
   const char hello_ident[] = "required_hello";
   ssize_t hello_index =
-    defineIdent(ctx, rl, hello_ident, posPair(linetoks[0]));
+    rl.defineIdent(ctx, hello_ident, posPair(linetoks[0]));
   if(size_t(hello_index) == npos) return;
   if(linetoks.size() == 1) {
     rl.rules[hello_index] = Rule{
         MatchOrError{ssize_t(rl.rules.size()), "Failed at politeness test"},
         hello_ident};
-    emplaceBackAnonRule(rl, "Hello!");
+    rl.emplaceBackAnonRule("Hello!");
     size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
     examples.push_back(
         Example{testLine, "required_hello", "Hello!", Expectation::Success});
@@ -225,14 +231,14 @@ static void parsePolitenessDirective(
     rl.rules[hello_index] = Rule{
         MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
     };
-    emplaceBackAnonRule(rl, "Hello!");
+    rl.emplaceBackAnonRule("Hello!");
     InputDiags tmplinput{Input{"{msg: msg}"}};
     size_t tmplpos = 0;
     ConcatRule single{
       {{hello_index, "msg"}},
       *parseJsonLoc(tmplinput, tmplpos)
     };
-    emplaceBackAnonRule(rl, std::move(single), "required_hello_in_json");
+    rl.emplaceBackAnonRule(std::move(single), "required_hello_in_json");
   }else Error(ctx, linetoks[1], "Was expecting end of line or 'jsonized'");
 }
 
@@ -284,7 +290,7 @@ static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
     MatchOrError{ssize_t(rl.rules.size()), format("Expected '{}'", literal)},
     string(ruleName)
   };
-  emplaceBackAnonRule(rl, string(literal));
+  rl.emplaceBackAnonRule(string(literal));
 }
 static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                                string_view ruleName, RegexPattern regex) {
@@ -292,22 +298,22 @@ static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
     MatchOrError{ssize_t(rl.rules.size()), format("Expected {}", ruleName)},
     string(ruleName)
   };
-  emplaceBackAnonRule(rl, std::move(regex.patt));
+  rl.emplaceBackAnonRule(std::move(regex.patt));
 }
 
 ssize_t emplaceBackWordOrError(RulesWithLocs& rl, string_view word) {
   ssize_t newIndex = rl.rules.size();
-  emplaceBackAnonRule(rl, WordPreserving{word});
-  emplaceBackAnonRule(rl, MatchOrError{newIndex, format("Expected '{}'",
-                                       word)});
+  rl.emplaceBackAnonRule(WordPreserving{word});
+  rl.emplaceBackAnonRule(MatchOrError{newIndex, format("Expected '{}'",
+                                      word)});
   return newIndex + 1;
 }
 ssize_t emplaceBackRegexOrError(RulesWithLocs& rl,
                                 unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.rules.size();
-  emplaceBackAnonRule(rl, std::move(regex));
-  emplaceBackAnonRule(rl, MatchOrError{newIndex,
-                                       "Does not match expected pattern"});
+  rl.emplaceBackAnonRule(std::move(regex));
+  rl.emplaceBackAnonRule(MatchOrError{newIndex,
+                                      "Does not match expected pattern"});
   return newIndex + 1;
 }
 
@@ -364,7 +370,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       concat.comps.push_back({
-          ssize_t(findOrAppendIdent(rl, **tok, posPair(*tok))),
+          ssize_t(rl.findOrAppendIdent(**tok, posPair(*tok))),
           argname});
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
@@ -372,7 +378,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
         continue;
       }
       ssize_t newIndex = rl.rules.size();
-      emplaceBackAnonRule(rl, monostate{});
+      rl.emplaceBackAnonRule(monostate{});
       assignLiteralOrError(rl, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
     }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
@@ -411,7 +417,7 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
-  const size_t ruleIndex = defineIdent(ctx, rl, *ident, posPair(linetoks[0]));
+  const size_t ruleIndex = rl.defineIdent(ctx, *ident, posPair(linetoks[0]));
   if(ruleIndex == npos) return;
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
@@ -519,7 +525,7 @@ static const LexDirective& defaultLexopts() {
 // TODO: fix parameter order
 static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.rules.size();
-  emplaceBackAnonRule(rl, monostate{});
+  rl.emplaceBackAnonRule(monostate{});
   assignLiteralOrError(rl, newIndex, {}, literal);
   return newIndex;
 }
@@ -541,21 +547,21 @@ static ssize_t appendPatternRule(InputDiags& ctx,
   }else if(get_if_unique<NewlineChar>(&patt)) {
     return appendLiteralOrError(rl, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return findOrAppendIdent(rl, ident->preserveCase(), {});
+    return rl.findOrAppendIdent(ident->preserveCase(), {});
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     ConcatFlatRule concatRule{ .comps{} };
     for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
       if(i > 0) {
         // Intersperse concat components with SkipPoint components.
         concatRule.comps.push_back({(ssize_t)rl.rules.size(), {}});
-        emplaceBackAnonRule(rl, SkipPoint{.stayWithinLine = false,
-                                          .skip = &oalexSkip});
+        rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
+                                         .skip = &oalexSkip});
       }
       const Pattern& child = concatPatt->parts[i];
       ssize_t j = appendPatternRule(ctx, child, rl);
       concatRule.comps.push_back({j, patternName(child)});
     }
-    emplaceBackAnonRule(rl, std::move(concatRule));
+    rl.emplaceBackAnonRule(std::move(concatRule));
     return rl.rules.size()-1;
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
@@ -587,7 +593,7 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
 }
 
 static void registerLocations(RulesWithLocs& rl, const Ident& id) {
-  findOrAppendIdent(rl, id.preserveCase(), {id.stPos(), id.enPos()});
+  rl.findOrAppendIdent(id.preserveCase(), {id.stPos(), id.enPos()});
 }
 
 static bool
@@ -640,7 +646,7 @@ static void appendPatternRules(
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
-  emplaceBackAnonRule(rl, OutputTmpl{
+  rl.emplaceBackAnonRule(OutputTmpl{
       .childidx = newIndex,
       .childName = std::move(childName),
       .outputTmpl = std::move(jsloc)
