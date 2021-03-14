@@ -604,6 +604,37 @@ static void registerLocations(
                     {id.stPos(), id.enPos()});
 }
 
+static bool
+soleIdentImpl(const Pattern& patt, const Ident** result) {
+  if(holds_one_of_unique<WordToken,OperToken,NewlineChar>(patt)) return true;
+  if(auto* id = get_if_unique<Ident>(&patt)) {
+    if(*result != nullptr) return false;
+    else { *result = id; return true; }
+  }
+
+  if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
+    for(auto& p : seq->parts) if(!soleIdentImpl(p, result)) return false;
+    return false;
+  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
+    for(auto& p : ors->parts) if(!soleIdentImpl(p, result)) return false;
+    return false;
+  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
+    return soleIdentImpl(opt->part, result);
+  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
+    return soleIdentImpl(rep->part, result);
+  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
+    return soleIdentImpl(fold->part, result) &&
+           soleIdentImpl(fold->glue, result);
+  }else Bug("Unknown pattern used for soleIdent(), index {}", patt.index());
+}
+
+static const Ident*
+soleIdent(const Pattern& patt) {
+  const Ident* rv = nullptr;
+  soleIdentImpl(patt, &rv);
+  return rv;
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -619,12 +650,13 @@ static void appendPatternRules(
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 
-  // TODO: Set .childName to be the sole Ident if we are not expecting a
-  // JsonLoc::Map.
+  string childName;
+  if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
+
   ssize_t newIndex = appendPatternRule(ctx, *patt, rules, firstUseLocs);
   emplaceBackAnonRule(rules, firstUseLocs, OutputTmpl{
       .childidx = newIndex,
-      .childName = {},
+      .childName = std::move(childName),
       .outputTmpl = std::move(jsloc)
   });
   rules.back().name(ident);

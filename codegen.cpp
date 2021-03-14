@@ -97,9 +97,14 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
   if(outfields.holdsError()) return outfields;
   if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
+  JsonLoc::Map container;
   auto* m = get_if<JsonLoc::Map>(&outfields);
-  if(!m) Bug("Frontend should ensure OutputTmpl only processes maps. Got {}",
-             outfields);
+  if(!m) {
+    if(out.childName.empty())
+      Bug("OutputTmpl child must be named, or they need to produce a Map");
+    container.insert({out.childName, std::move(outfields)});
+    m = &container;
+  }
   JsonLoc rv = out.outputTmpl;
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   for(auto& [id, jsloc] : pmap)
@@ -481,9 +486,20 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     cppos(";\n");
   cppos("  if(outfields.holdsError()) return outfields;\n");
   map<string,string> placeholders;
+  // Dev-note: we only produce Bug() if reaching a given control path indicates
+  // a bug in the code *generator*.
   if(!out.outputTmpl.substitutionsOk()) {
     cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
-    cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
+    if(out.childName.empty())
+      cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
+    else {
+      cppos("  if(m == nullptr) {\n");
+      cppos("    return ");
+        codegen(out.outputTmpl, cppos,
+                map<string,string>{{out.childName, "std::move(outfields)"}}, 4);
+        cppos(";\n");
+      cppos("  }\n");
+    }
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
                                        dquoted(key))});

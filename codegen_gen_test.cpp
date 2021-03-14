@@ -173,10 +173,12 @@ void generateConcatFlatTest(const OutputStream& cppos,
 
 void generateSingleWordTemplate(const OutputStream& cppos,
                                 const OutputStream& hos) {
-  JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
+  JsonLoc jsloc = JsonLoc::Map{{"keyword",
+    JsonLoc{JsonLoc::Placeholder{"the_word"}, 0, 0}}};
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"word"},
-                              Rule{OutputTmpl{0, {}, jsloc}, "WordTmpl"}),
+                              Rule{OutputTmpl{0, "the_word", jsloc},
+                                   "WordTmpl"}),
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);

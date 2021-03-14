@@ -34,3 +34,11 @@ outputs: { keyword: "word" }
 example single_word:
   Word
 outputs: { keyword: "word" }
+
+rule single_non_terminal:
+  int_value
+outputs: { int_value, type: "literal-int" }
+
+example single_non_terminal:
+  42
+outputs: { int_value: "42", type: "literal-int" }
