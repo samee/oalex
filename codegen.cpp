@@ -570,6 +570,12 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
                dquoted(*wp)));
 }
 
+void
+Rule::deferred_name(string_view name) {
+  if(!name_.empty()) Bug("Cannot rename rule {} to {}", name_, name);
+  name_ = name;
+}
+
 bool
 Rule::needsName() const {
   if(holds_alternative<std::string>(specifics_) ||

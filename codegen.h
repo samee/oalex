@@ -130,7 +130,7 @@ struct Rule {
   std::optional<std::string> name() const {
     if(name_.empty()) return std::nullopt; else return name_;
   }
-  void name(std::string_view name) { name_ = name; }
+  void deferred_name(std::string_view name);
   bool needsName() const;
 
   template <class X> friend bool holds_alternative(const Rule& rule);
