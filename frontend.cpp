@@ -212,8 +212,10 @@ RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
 
 void RulesWithLocs::resize_down(ssize_t n) noexcept {
   if(n >= this->ssize()) return;
-  static_assert(std::is_nothrow_move_constructible_v<Rule>);
-  rules_.erase(rules_.begin()+n, rules_.end());
+  // Don't use erase() because it needs an assignment operator.
+  // Don't use resize() because it needs default constructor.
+  // Repeated pop_back() it is.
+  while(n < this->ssize()) rules_.pop_back();
   firstUseLocs_.resize(n);
 }
 
@@ -289,26 +291,22 @@ static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
 static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
-                                 string_view ruleName, string_view literal) {
-  rl[ruleIndex] = Rule{
-    MatchOrError{rl.ssize(), format("Expected '{}'", literal)},
-    string(ruleName)
-  };
+                                 string_view literal) {
+  rl[ruleIndex].deferred_assign(MatchOrError{
+      rl.ssize(), format("Expected '{}'", literal)
+  });
   rl.emplaceBackAnonRule(string(literal));
 }
 static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(monostate{});
-  assignLiteralOrError(rl, newIndex, {}, literal);
+  assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }
 
 static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                               string_view ruleName, RegexPattern regex) {
-  rl[ruleIndex] = Rule{
-    MatchOrError{rl.ssize(), format("Expected {}", ruleName)},
-    string(ruleName)
-  };
+                               string errmsg, RegexPattern regex) {
+  rl[ruleIndex].deferred_assign(MatchOrError{rl.ssize(), std::move(errmsg)});
   rl.emplaceBackAnonRule(std::move(regex.patt));
 }
 
@@ -463,20 +461,21 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
   }else if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
-    assignLiteralOrError(rl, ruleIndex, *ident, *literal);
+    assignLiteralOrError(rl, ruleIndex, *literal);
     rewinder.disarm();
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
-    assignRegexOrError(rl, ruleIndex, *ident, std::move(*regex));
+    string errmsg = format("Expected {}", *ident);
+    assignRegexOrError(rl, ruleIndex, std::move(errmsg), std::move(*regex));
     rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
-      rl[ruleIndex] = Rule(std::move(*c), *ident);
+      rl[ruleIndex].deferred_assign(std::move(*c));
       rewinder.disarm();
     }
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
-      rl[ruleIndex] = Rule(std::move(*sp), *ident);
+      rl[ruleIndex].deferred_assign(std::move(*sp));
       rewinder.disarm();
     }
   }else {
@@ -671,11 +670,11 @@ static void appendPatternRules(
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident, {});  // TODO fill in location
   if(newIndex2 == -1) return;
-  rl[newIndex2] = Rule(OutputTmpl{
+  rl[newIndex2].deferred_assign(OutputTmpl{
       .childidx = newIndex,
       .childName = std::move(childName),
       .outputTmpl = std::move(jsloc)
-  }, string(ident));  // TODO don't specify ident twice.
+  });
 }
 
 // Assumes colonPos > 0, since the error message

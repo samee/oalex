@@ -193,24 +193,15 @@ void generateConcatTest(const OutputStream& cppos,
     regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
     Rule{";", ""},
     Rule{SkipPoint{false, &cskip}, "CommentsAndWhitespace"},
-    Rule{"", ""}
+    Rule{ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
+                     {3,"value"}, {5,""}, {4,""}},
+                    *parseJsonLoc("{id, value}")}, "Definition"},
+    Rule{ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
+                     {4,""}}, *parseJsonLoc("{rhs, lhs}")}, "Assignment"}
     ), regexOpts
   };
-  // Produce the helpers: all but the last rule.
-  for(size_t i=0; i<size(rs.rules)-1; ++i)
+  for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
-
-  Rule testRules[] = {
-    {ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
-                 {3,"value"}, {5,""}, {4,""}},
-                *parseJsonLoc("{id, value}")}, "Definition"},
-    {ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""}, {4,""}},
-                *parseJsonLoc("{rhs, lhs}")}, "Assignment"},
-  };
-  for(size_t i=0; i<size(testRules); ++i) {
-    rs.rules[size(rs.rules)-1] = std::move(testRules[i]);
-    codegen(rs, size(rs.rules)-1, cppos, hos);
-  }
 }
 
 void generateExternParserDeclaration(const OutputStream& cppos,

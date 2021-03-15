@@ -126,12 +126,23 @@ struct Rule {
   template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
   template <class X> Rule(X x, std::string name) :
     specifics_(std::move(x)), name_(std::move(name)) {}
+
+  // This is just to discourage mutation in the frontend, which led to
+  // suboptimal coding style (e.g. having to specify the name twice).
+  // See deferred_name() and deferred_assign() below.
+  Rule(Rule&&) = default;
+  Rule& operator=(const Rule&) = delete;
+
   std::string specifics_typename() const;  // Used for debugging/logging.
   std::optional<std::string> name() const {
     if(name_.empty()) return std::nullopt; else return name_;
   }
   void deferred_name(std::string_view name);
   bool needsName() const;
+
+  // Assign to specifics if it is in std::monostate.
+  // We disallow later assignments to discourage mutation.
+  template <class X> void deferred_assign(X x);
 
   template <class X> friend bool holds_alternative(const Rule& rule);
   template <class X> friend X* get_if(Rule* rule);
@@ -142,6 +153,13 @@ struct Rule {
                ConcatFlatRule, OutputTmpl, OrRule, MatchOrError> specifics_;
   std::string name_;
 };
+
+template <class X> inline void
+Rule::deferred_assign(X x) {
+  if(!std::holds_alternative<std::monostate>(specifics_))
+    oalex::Bug("deferred_assign() cannot be used on non-monostate Rules");
+  specifics_ = std::move(x);
+}
 
 template <class X> bool holds_alternative(const Rule& rule) {
   return std::holds_alternative<X>(rule.specifics_);
