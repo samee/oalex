@@ -1,8 +1,8 @@
 # expected-error: The expected error should be on this line
 
-require_politeness
+hello := "Hello!"
 
-example required_hello:
+example hello:
   Hello!
 outputs error with
   'Some error'

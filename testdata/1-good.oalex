@@ -1,12 +1,12 @@
 # Some comment
 
-require_politeness
+hello := "Hello!"
 another_string := "something else"
 
-example required_hello:
+example hello:
   Hello!
 outputs success
 
-example required_hello:
+example hello:
   Go away!
-outputs error with 'Failed at politeness'
+outputs error with 'Expected \'Hello!\''

@@ -1,7 +1,7 @@
 # expected-error: Expected end of line
 
-require_politeness
+hello := "Hello!"
 
-example required_hello:
+example hello:
   Hello!
 outputs success and more

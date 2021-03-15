@@ -1,2 +1,2 @@
 # This file is intentionally empty
-# expected-error: Doesn't insist on politeness
+# expected-error: File doesn't define any rule

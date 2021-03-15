@@ -1,5 +1,5 @@
 # expected-error: Was expecting a ':' after this
 
-require_politeness
+hello := "Hello!"
 
 example required_hello not provided

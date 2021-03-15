@@ -928,11 +928,10 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
       parseRule(std::move(linetoks), ctx, i, rl);
     }else
       return Error(ctx, linetoks[0],
-                   format("Unexpected '{}', was expecting 'example' or "
-                          "'require_politeness'",
+                   format("Unexpected '{}', was expecting 'example' or 'rule'",
                           debug(linetoks[0])));
   }
-  if(rl.ssize() == 0) return Error(ctx, 0, "Doesn't insist on politeness");
+  if(rl.ssize() == 0) return Error(ctx, 0, "File doesn't define any rule");
   if(rl.hasUndefinedRules(ctx)) return nullopt;
   RuleSet rs{rl.releaseRules(), *userRegexOpts};
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||

@@ -1,7 +1,7 @@
 # expected-error: Was expecting 'outputs'
 
-require_politeness
+hello := "Hello!"
 
-example required_hello:
+example hello:
   Hello!
 produces 'Hello'

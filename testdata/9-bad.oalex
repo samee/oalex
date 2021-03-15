@@ -1,6 +1,6 @@
 # expected-error: Input block needs to be on the following line
 
-require_politeness
+hello := "Hello!"
 
-example required_hello: "Hello!"
+example hello: "Hello!"
 

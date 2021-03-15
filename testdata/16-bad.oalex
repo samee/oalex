@@ -1,7 +1,7 @@
 # expected-error: Was expecting ': {', 'success', or 'error with'
 
-require_politeness
+hello := "Hello!"
 
-example required_hello:
+example hello:
   Hello!
 outputs 'Hello'

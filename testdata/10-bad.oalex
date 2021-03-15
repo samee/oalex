@@ -1,6 +1,6 @@
 # expected-error: No indented example input follows
 
-require_politeness
+hello := "Hello!"
 
-example required_hello:
+example hello:
 

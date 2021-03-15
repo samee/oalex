@@ -1,3 +1,3 @@
-# expected-error: was expecting 'example' or 'require_politeness'
+# expected-error: was expecting 'example' or 'rule'
 
 discourage_hello

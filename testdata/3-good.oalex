@@ -1,15 +1,17 @@
-require_politeness jsonized
+rule hello_in_json:
+  Hello!
+outputs: { msg: 'Hello!' }
 
-example required_hello_in_json:
+example hello_in_json:
   Hello!
 outputs: {
   msg: 'Hello!'
 }
 
-example required_hello_in_json:
+example hello_in_json:
   Hello!
 outputs success
 
-example required_hello_in_json:
+example hello_in_json:
   GoodBye
-outputs error with 'Failed at politeness test'
+outputs error with 'Expected \'Hello\''
