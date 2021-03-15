@@ -306,15 +306,14 @@ static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
   rl.emplaceBackAnonRule(std::move(regex.patt));
 }
 
-ssize_t emplaceBackWordOrError(RulesWithLocs& rl, string_view word) {
+ssize_t appendWordOrError(RulesWithLocs& rl, string_view word) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(WordPreserving{word});
   rl.emplaceBackAnonRule(MatchOrError{newIndex, format("Expected '{}'",
                                       word)});
   return newIndex + 1;
 }
-ssize_t emplaceBackRegexOrError(RulesWithLocs& rl,
-                                unique_ptr<const Regex> regex) {
+ssize_t appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(std::move(regex));
   rl.emplaceBackAnonRule(MatchOrError{newIndex,
@@ -375,7 +374,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
         Error(ctx, comp[1], "Expected quoted string");
         continue;
       }
-      ssize_t newIndex = emplaceBackWordOrError(rl, *s);
+      ssize_t newIndex = appendWordOrError(rl, *s);
       concat.comps.push_back({newIndex, argname});
       if(comp.size() > 2) {
         Error(ctx, comp[2], "Was expecting a comma");
@@ -401,7 +400,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
       assignLiteralOrError(rl, newIndex, {}, *s);
       concat.comps.push_back({newIndex, argname});
     }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
-      ssize_t newIndex = emplaceBackRegexOrError(rl, std::move(regex->patt));
+      ssize_t newIndex = appendRegexOrError(rl, std::move(regex->patt));
       concat.comps.push_back({newIndex, argname});
     }else {
       Error(ctx, comp[0], "Was expecting a string or an identifier");
@@ -554,8 +553,6 @@ static const LexDirective& defaultLexopts() {
   return *var;
 }
 
-// TODO: fix names: append vs emplace
-// TODO: fix parameter order
 static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(monostate{});
@@ -574,7 +571,7 @@ static string patternName(const Pattern& patt) {
 static ssize_t appendPatternRule(InputDiags& ctx,
     const Pattern& patt, RulesWithLocs& rl) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
-    return emplaceBackWordOrError(rl, **word);
+    return appendWordOrError(rl, **word);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
     return appendLiteralOrError(rl, **oper);
   }else if(get_if_unique<NewlineChar>(&patt)) {
