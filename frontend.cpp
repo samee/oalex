@@ -154,6 +154,9 @@ class RulesWithLocs {
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(InputDiags& ctx) const;
 
+  /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
+  void resize_down(ssize_t n) noexcept;
+
   vector<Rule> releaseRules();
 
  private:
@@ -206,6 +209,13 @@ RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
       return true;
     }
   return false;
+}
+
+void RulesWithLocs::resize_down(ssize_t n) noexcept {
+  if(n >= this->ssize()) return;
+  static_assert(std::is_nothrow_move_constructible_v<Rule>);
+  rules_.erase(rules_.begin()+n, rules_.end());
+  firstUseLocs_.resize(n);
 }
 
 vector<Rule>
@@ -418,7 +428,22 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
   return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
 }
 
-// FIXME: Rewind and remove rules on error. Something like rl.resize() will help
+namespace {
+
+// Resets RulesWithLoc back to initial size unless disarm() is called.
+class RuleRewinder {
+ public:
+  explicit RuleRewinder(RulesWithLocs& rl)
+    : rl{&rl}, orig_size{rl.ssize()} {}
+  ~RuleRewinder() { if(rl) rl->resize_down(orig_size); }
+  void disarm() { rl = nullptr; }
+ private:
+  RulesWithLocs* rl;
+  ssize_t orig_size;
+};
+
+}  // namespace
+
 static void parseBnfRule(vector<ExprToken> linetoks,
                          InputDiags& ctx,
                          RulesWithLocs& rl) {
@@ -427,33 +452,31 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
+  RuleRewinder rewinder(rl);
   const ssize_t ruleIndex = rl.defineIdent(ctx, *ident, posPair(linetoks[0]));
   if(ruleIndex == -1) return;
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
-    return;
-  }
-  if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
+  }else if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
     assignLiteralOrError(rl, ruleIndex, *ident, *literal);
-    return;
+    rewinder.disarm();
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
     assignRegexOrError(rl, ruleIndex, *ident, std::move(*regex));
-    return;
+    rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
       rl[ruleIndex] = Rule(std::move(*c), *ident);
+      rewinder.disarm();
     }
-    return;
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
       rl[ruleIndex] = Rule(std::move(*sp), *ident);
+      rewinder.disarm();
     }
-    return;
   }else {
     Error(ctx, linetoks[2], "Expected string literal");
-    return;
   }
 }
 
