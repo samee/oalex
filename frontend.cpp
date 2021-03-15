@@ -227,57 +227,6 @@ static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
   return true;
 }
 
-/*
-resemblesX() vs parseX().
-  - resemblesX() is the lookahead. It does enough sanitization to commit to
-    this parsing branch. It only returns a bool, never any diagnosis.
-  - parseX() is called after resemblesX() passes. It can still fail, but
-    is expected to produce actual diagnostics. Failure does not cause
-    backtracking. Indeed, it can choose to consume additional characters in
-    the face of an error just so subsequent parsing has a better chance
-    of making forward progress.
-*/
-// TODO: delete this code, if only we can have defineIdent() accept an Ident.
-// For now we can't, because this politeness directive makes up an identifier
-// not found in the source code.
-static bool resemblesPolitenessDirective(const vector<ExprToken>& linetoks) {
-  return !linetoks.empty() && isToken(linetoks[0], "require_politeness");
-}
-static void parsePolitenessDirective(
-    const vector<ExprToken>& linetoks, InputDiagsRef ctx,
-    RulesWithLocs& rl, vector<Example>& examples) {
-  const char hello_ident[] = "required_hello";
-  ssize_t hello_index =
-    rl.defineIdent(ctx, hello_ident, posPair(linetoks[0]));
-  if(hello_index == -1) return;
-  if(linetoks.size() == 1) {
-    rl[hello_index] = Rule{
-        MatchOrError{ssize_t(rl.ssize()), "Failed at politeness test"},
-        hello_ident};
-    rl.emplaceBackAnonRule("Hello!");
-    size_t testLine = ctx.input->rowCol(stPos(linetoks[0])).first;
-    examples.push_back(
-        Example{testLine, "required_hello", "Hello!", Expectation::Success});
-    examples.push_back(
-        Example{testLine, "required_hello", "Goodbye!",
-                Expectation::ErrorSubstr{"Failed at politeness test"}});
-  }else if(linetoks.size() >= 2 && isToken(linetoks[1], "jsonized")) {
-    if(!requireEol(linetoks, 2, ctx)) return;
-    const ssize_t nextRuleIndex = rl.ssize();
-    rl[hello_index] = Rule{
-        MatchOrError{nextRuleIndex, "Failed at politeness test"}, hello_ident
-    };
-    rl.emplaceBackAnonRule("Hello!");
-    InputDiags tmplinput{Input{"{msg: msg}"}};
-    size_t tmplpos = 0;
-    ConcatRule single{
-      {{hello_index, "msg"}},
-      *parseJsonLoc(tmplinput, tmplpos)
-    };
-    rl.emplaceBackAnonRule(std::move(single), "required_hello_in_json");
-  }else Error(ctx, linetoks[1], "Was expecting end of line or 'jsonized'");
-}
-
 static char bracketStart(BracketType bt) {
   switch(bt) {
     case BracketType::square: return '[';
@@ -317,6 +266,16 @@ get_if_in_bound(const vector<ExprToken>& toks, size_t i,
   return get_if<T>(&toks[i]);
 }
 
+/*
+resemblesX() vs parseX().
+  - resemblesX() is the lookahead. It does enough sanitization to commit to
+    this parsing branch. It only returns a bool, never any diagnosis.
+  - parseX() is called after resemblesX() passes. It can still fail, but
+    is expected to produce actual diagnostics. Failure does not cause
+    backtracking. Indeed, it can choose to consume additional characters in
+    the face of an error just so subsequent parsing has a better chance
+    of making forward progress.
+*/
 static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
@@ -919,8 +878,6 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
     }
     if(resemblesBnfRule(linetoks)) {
       parseBnfRule(std::move(linetoks), ctx, rl);
-    }else if(resemblesPolitenessDirective(linetoks)) {
-      parsePolitenessDirective(linetoks, ctx, rl, examples);
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
