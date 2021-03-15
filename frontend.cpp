@@ -146,9 +146,8 @@ class RulesWithLocs {
 
      Returns the index of the new element: newsize - 1
 
-     Named rules should use findOrAppendIdent followed by direct assignment.
+     Named rules should use defineIdent followed by direct assignment.
   */
-  // TODO inspect uses and see if they really are used for anon cases.
   template <class...Args> ssize_t emplaceBackAnonRule(Args&&...args);
 
   /* This is checked just before producing rules as output */
@@ -670,12 +669,13 @@ static void appendPatternRules(
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
-  newIndex = rl.emplaceBackAnonRule(OutputTmpl{
+  ssize_t newIndex2 = rl.defineIdent(ctx, ident, {});  // TODO fill in location
+  if(newIndex2 == -1) return;
+  rl[newIndex2] = Rule(OutputTmpl{
       .childidx = newIndex,
       .childName = std::move(childName),
       .outputTmpl = std::move(jsloc)
-  });
-  rl[newIndex].name(ident);
+  }, string(ident));  // TODO don't specify ident twice.
 }
 
 // Assumes colonPos > 0, since the error message

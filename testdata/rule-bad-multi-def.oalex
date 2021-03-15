@@ -1,0 +1,9 @@
+# expected-error: 'hello' has multiple definitions
+
+rule hello:
+  Hello
+outputs: { msg: "simple hello" }
+
+rule hello:
+  Hello there!
+outputs: { msg: "friendlier hello" }
