@@ -297,6 +297,13 @@ static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
   };
   rl.emplaceBackAnonRule(string(literal));
 }
+static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
+  ssize_t newIndex = rl.ssize();
+  rl.emplaceBackAnonRule(monostate{});
+  assignLiteralOrError(rl, newIndex, {}, literal);
+  return newIndex;
+}
+
 static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                                string_view ruleName, RegexPattern regex) {
   rl[ruleIndex] = Rule{
@@ -396,8 +403,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
         continue;
       }
       ssize_t newIndex = rl.ssize();
-      rl.emplaceBackAnonRule(monostate{});
-      assignLiteralOrError(rl, newIndex, {}, *s);
+      appendLiteralOrError(rl, *s);
       concat.comps.push_back({newIndex, argname});
     }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
       ssize_t newIndex = appendRegexOrError(rl, std::move(regex->patt));
@@ -551,13 +557,6 @@ static const LexDirective& defaultLexopts() {
     false
   };
   return *var;
-}
-
-static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
-  ssize_t newIndex = rl.ssize();
-  rl.emplaceBackAnonRule(monostate{});
-  assignLiteralOrError(rl, newIndex, {}, literal);
-  return newIndex;
 }
 
 // This function returns ConcatFlatRule::Commponent::outputPlaceholder
