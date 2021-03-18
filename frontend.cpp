@@ -99,11 +99,6 @@ static auto getIfIdent(const ExprToken& x) -> optional<string> {
 }
 
 using LocPair = pair<ssize_t,ssize_t>;
-
-static LocPair posPair(const ExprToken& x) {
-  return {stPos(x), enPos(x)};
-}
-
 constexpr LocPair nrange{-1,-1};
 
 namespace {
@@ -136,8 +131,7 @@ class RulesWithLocs {
      In case we are actually appending a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
-  // TODO this method should accept an actual ident object.
-  ssize_t defineIdent(InputDiagsRef ctx, string_view ident, LocPair thisPos);
+  ssize_t defineIdent(InputDiagsRef ctx, const Ident& ident);
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
      Anonymous rules don't need usage location so far, since we never refer to
@@ -176,16 +170,16 @@ ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
   return this->ssize()-1;
 }
 
-ssize_t RulesWithLocs::defineIdent(
-    InputDiagsRef ctx, string_view ident, LocPair thisPos) {
-  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
+ssize_t RulesWithLocs::defineIdent(InputDiagsRef ctx, const Ident& ident) {
+  string s = ident.preserveCase();
+  for(ssize_t i=0; i<this->ssize(); ++i) if(s == rules_[i].name()) {
     if(!holds_alternative<monostate>(rules_[i])) {
-      Error(ctx, thisPos.first, thisPos.second,
-            format("'{}' has multiple definitions", ident));
+      Error(ctx, ident.stPos(), ident.enPos(),
+            format("'{}' has multiple definitions", s));
       return -1;
     }else return i;
   }
-  rules_.emplace_back(monostate{}, string(ident));
+  rules_.emplace_back(monostate{}, std::move(s));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
@@ -449,13 +443,13 @@ class RuleRewinder {
 static void parseBnfRule(vector<ExprToken> linetoks,
                          InputDiags& ctx,
                          RulesWithLocs& rl) {
-  const optional<string> ident = getIfIdent(linetoks[0]);
-  if(!ident.has_value()) {
+  const Ident ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[0]));
+  if(!ident) {
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
   RuleRewinder rewinder(rl);
-  const ssize_t ruleIndex = rl.defineIdent(ctx, *ident, posPair(linetoks[0]));
+  const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
   if(ruleIndex == -1) return;
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
@@ -465,7 +459,7 @@ static void parseBnfRule(vector<ExprToken> linetoks,
     rewinder.disarm();
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
-    string errmsg = format("Expected {}", *ident);
+    string errmsg = format("Expected {}", ident.preserveCase());
     assignRegexOrError(rl, ruleIndex, std::move(errmsg), std::move(*regex));
     rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
@@ -654,7 +648,7 @@ soleIdent(const Pattern& patt) {
 // InputDiags is still used as a destination for error messages.
 static void appendPatternRules(
     InputDiags& ctx,
-    const WholeSegment& ident, GluedString patt_string, JsonLoc jsloc,
+    const Ident& ident, GluedString patt_string, JsonLoc jsloc,
     RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
@@ -668,7 +662,7 @@ static void appendPatternRules(
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
-  ssize_t newIndex2 = rl.defineIdent(ctx, *ident, posPair(ident));
+  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
   rl[newIndex2].deferred_assign(OutputTmpl{
       .childidx = newIndex,
@@ -748,14 +742,15 @@ static void parseRule(vector<ExprToken> linetoks,
                          "pattern");
   if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
-  const auto ident = std::get<WholeSegment>(linetoks[1]);
+  const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
 
   // Consume next line for the outputs stanza.
   if(auto opt = lexNextLine(ctx, i);
      opt.has_value() && matchesTokens(*opt, {"outputs"}))
     linetoks = std::move(*opt);
   else {
-    Error(ctx, i, format("outputs stanza missing in rule {}", *ident));
+    Error(ctx, i, format("outputs stanza missing in rule {}",
+                         ident.preserveCase()));
     return;
   }
 
