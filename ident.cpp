@@ -16,6 +16,8 @@
 #include<algorithm>
 #include<cctype>
 #include<vector>
+#include "lexer.h"
+using oalex::lex::WholeSegment;
 using std::all_of;
 using std::string;
 using std::string_view;
@@ -57,34 +59,54 @@ bool operator<(const Ident& a, const Ident& b) {
 
 const size_t kMaxIdentLen = 100;
 
+// Note: this returns false for an empty string.
+static bool hasAlnum(const string& s) {
+  for(char ch : s) if(isalnum(ch)) return true;
+  return false;
+}
+
+// TODO use LocPair
+Ident Ident::parseFromString(InputDiagsRef ctx, string s, size_t stPos) {
+  const size_t enPos = stPos + s.size();
+  if(!hasAlnum(s))
+    return Error(ctx, stPos, enPos, "Identifier must have a digit or letter");
+  if(s[0] == '_' || s.back()  == '_')
+    return Error(ctx, stPos, enPos,
+                 "Identifiers with leading or trailing underscores"
+                 " are not supported for forward compatibility");
+  if(isdigit(s[0]))
+    return Error(ctx, stPos, stPos+1, "Identifiers cannot start with a digit");
+  for(size_t j=1; j<s.size(); ++j) if(s[j] == '_' && s[j-1] == '_')
+    return Error(ctx, j+stPos-1, j+stPos+1,
+                 "Consecutive underscores are not allowed for "
+                 "forward compatibility");
+  Ident rv;
+  rv.orig_ = std::move(s);
+  rv.stPos_ = stPos;
+  rv.enPos_ = enPos;
+  return rv;
+}
+
+static bool isIdentChar(char ch) { return ch=='_' || isalnum(ch); }
+
 Ident Ident::parse(InputDiagsRef ctx, size_t& i) {
   const InputPiece& input = *ctx.input;
-  bool alluscore = true;
   size_t l;
   for(l=0; input.sizeGt(i+l); ++l) {
     if(l >= kMaxIdentLen) Fatal(ctx, i, i+l, "Identifier too long");
-    char ch = input[i+l];
-    if(ch!='_' && !isalnum(ch)) break;
-    if(isalnum(ch)) alluscore = false;
+    if(!isIdentChar(input[i+l])) break;
   }
-  Ident rv;
-  rv.orig_ = input.substr(i,l);
-  size_t o = i;
-  i+=l;
-  rv.stPos_ = input.inputPos(o);
-  rv.enPos_ = input.inputPos(i);
-
-  if(alluscore)
-    return Error(ctx, o, o+l, "Identifier must have a digit or letter");
-  if(input[o] == '_' || input[o+l-1] == '_')
-    return Error(ctx, o, o+l, "Identifiers with leading or trailing underscores"
-                              " are not supported for forward compatibility");
-  if(isdigit(input[o]))
-    return Error(ctx, o, o+1, "Identifiers cannot start with a digit");
-  for(size_t j=o+1; j<o+l; ++j) if(input[j] == '_' && input[j-1] == '_')
-    return Error(ctx, j-1, j+1, "Consecutive underscores are not allowed for "
-                                "forward compatibility");
+  const Ident rv = parseFromString(ctx, input.substr(i,l), input.inputPos(i));
+  if(rv) i += l;
   return rv;
+}
+
+Ident Ident::parse(InputDiagsRef ctx, const WholeSegment& s) {
+  if(s->size() > kMaxIdentLen)
+    return Error(ctx, s.stPos, s.enPos, "Identifier too long");
+  for(size_t i=0; i<s->size(); ++i) if(!isIdentChar(s.data[i]))
+    return Error(ctx, s.stPos+i, s.stPos+i+1, "Invalid identifier character");
+  return parseFromString(ctx, *s, s.stPos);
 }
 
 template <class Cb>

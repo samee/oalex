@@ -68,7 +68,7 @@ add_executable(regex_io_test regex_io_test.cpp
 target_link_libraries(regex_io_test oalex-bin-lib)
 add_test(regex_io_test regex_io_test)
 
-add_executable(ident_test ident.cpp ident_test.cpp
+add_executable(ident_test ident.cpp ident_test.cpp lexer.cpp regex_io.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(ident_test oalex)
 add_test(ident_test ident_test)

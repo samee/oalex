@@ -17,6 +17,7 @@
 #include<unordered_set>
 #include<string_view>
 #include"runtime/test_util.h"
+#include"lexer.h"
 using namespace oalex;
 using namespace std;
 
@@ -44,6 +45,15 @@ void testParseErrors() {
   };
   for(const auto& [s,err] : tests) {
     assertProducesDiag(__func__, s, err, OALEX_VOIDIFY(Ident::parse));
+  }
+  pair<string,string> wholetests[] = {
+    {string(101,'x'), "Identifier too long"},
+    {"foo bar", "Invalid identifier character"},
+  };
+  for(const auto& [s,err] : wholetests) {
+    InputDiags ctx{Input{string(s)}};
+    auto rv = Ident::parse(ctx, lex::WholeSegment(0, s.size(), s));
+    assertHasDiagWithSubstr(__func__, ctx.diags, err);
   }
 }
 

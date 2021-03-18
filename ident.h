@@ -44,14 +44,22 @@
 
 namespace oalex {
 
+// Forward declaration, since we don't want to depend on lexer.h in the header.
+// TODO refactor this class out of lexer.h, so we don't need to link
+// ident_test.cpp with regex_io.cpp.
+namespace lex { struct WholeSegment; }
+
 // Dev-note: This really could be a subclass of WholeSegment.
 class Ident {
   std::string orig_;
   size_t stPos_ = std::string::npos, enPos_ = std::string::npos;
   Ident(std::nullopt_t) {}
+  static Ident parseFromString(InputDiagsRef ctx,
+                               std::string s, size_t stPos);
  public:
   Ident() = default;
   static Ident parse(InputDiagsRef ctx, size_t& i);
+  static Ident parse(InputDiagsRef ctx, const lex::WholeSegment& s);
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;
