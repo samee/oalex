@@ -654,7 +654,7 @@ soleIdent(const Pattern& patt) {
 // InputDiags is still used as a destination for error messages.
 static void appendPatternRules(
     InputDiags& ctx,
-    string_view ident, GluedString patt_string, JsonLoc jsloc,
+    const WholeSegment& ident, GluedString patt_string, JsonLoc jsloc,
     RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
@@ -668,7 +668,7 @@ static void appendPatternRules(
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident, {});  // TODO fill in location
+  ssize_t newIndex2 = rl.defineIdent(ctx, *ident, posPair(ident));
   if(newIndex2 == -1) return;
   rl[newIndex2].deferred_assign(OutputTmpl{
       .childidx = newIndex,
@@ -748,14 +748,14 @@ static void parseRule(vector<ExprToken> linetoks,
                          "pattern");
   if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
-  string ident = *getIfIdent(linetoks[1]);
+  const auto ident = std::get<WholeSegment>(linetoks[1]);
 
   // Consume next line for the outputs stanza.
   if(auto opt = lexNextLine(ctx, i);
      opt.has_value() && matchesTokens(*opt, {"outputs"}))
     linetoks = std::move(*opt);
   else {
-    Error(ctx, i, format("outputs stanza missing in rule {}", ident));
+    Error(ctx, i, format("outputs stanza missing in rule {}", *ident));
     return;
   }
 
