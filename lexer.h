@@ -95,7 +95,7 @@ class GluedString final : public LexSegment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
-  GluedString(InputDiags& ctx, WholeSegment s);
+  explicit GluedString(WholeSegment s);
   friend auto lexQuotedString(InputDiags& ctx, size_t& i)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)
@@ -130,12 +130,11 @@ class GluedString final : public LexSegment, public InputPiece {
  private:
   std::string s_;  // escape codes already interpreted.
   Ctor ctor_;  // Records how this object was constructed.
-  InputDiags* ctx_;  // Used for adding diags and implementing InputPiece.
   std::vector<IndexRelation> index_map_;
   GluedString(size_t st, size_t en, std::string_view s, Ctor ctor,
-               InputDiags* ctx, std::vector<IndexRelation> imap)
+              std::vector<IndexRelation> imap)
     : LexSegment(st,en,type_tag), s_(s), ctor_(ctor),
-      ctx_(ctx), index_map_(std::move(imap)) {}
+      index_map_(std::move(imap)) {}
   GluedString() = delete;
 };
 

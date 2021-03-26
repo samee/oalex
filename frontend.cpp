@@ -588,7 +588,7 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
   for(const auto& [p, j] : jsloc.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
     Ident id = Ident::parse(ctx, seg);
-    if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
+    if(id) rv.insert({id, GluedString(std::move(seg))});
   }
   return rv;
 }

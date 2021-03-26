@@ -357,9 +357,9 @@ WholeSegment::WholeSegment(const GluedString& s)
   : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
     data(string(s)) { }
 
-GluedString::GluedString(InputDiags& ctx, WholeSegment s)
+GluedString::GluedString(WholeSegment s)
   : LexSegment(s.stPos, s.enPos, type_tag),
-    s_(std::move(*s)), ctor_(Ctor::wholeSegment), ctx_(&ctx),
+    s_(std::move(*s)), ctor_(Ctor::wholeSegment),
     index_map_({IndexRelation{.inputPos = s.stPos, .quotePos = 0}}) {}
 
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
@@ -390,7 +390,7 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
   return GluedString(st, en, this->substr(pos, len), Ctor::subqstr,
-                     ctx_, std::move(imap));
+                     std::move(imap));
 }
 
 size_t GluedString::inputPos(size_t pos) const {
@@ -544,8 +544,7 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
     if(input[i] == quote) {
       rst.markUsed(++i);
       if(!error)
-        return GluedString(rst.start(), i, s, toCtor(quote),
-                           &ctx, std::move(imap));
+        return GluedString(rst.start(), i, s, toCtor(quote), std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
       if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
@@ -588,7 +587,7 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
     if(line == fence) {
       GluedString s(fenceStart, i-1,
                      input.substr(inputStart, lineStart-inputStart),
-                     GluedString::Ctor::fenced, &ctx, std::move(imap));
+                     GluedString::Ctor::fenced, std::move(imap));
       rst.markUsed(i);
       return s;
     } else imap.push_back(IndexRelation{.inputPos = i,
@@ -624,7 +623,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   if(allblank) return nullopt;
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = rv.size()});
   GluedString qs(rst.start(), i, std::move(rv), GluedString::Ctor::indented,
-                 &ctx, std::move(imap));
+                 std::move(imap));
   rst.markUsed(i);
   return qs;
 }
