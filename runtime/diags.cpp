@@ -40,7 +40,7 @@ static string locationString(const Diag& diag) {
   else return format("{}:{}", diag.stLine, diag.stPos);
 }
 
-string locationString(const InputPiece& input, size_t st, size_t en) {
+string locationString(const Input& input, size_t st, size_t en) {
   return locationString(Diag{input, st, en, Diag::error, string()});
 }
 

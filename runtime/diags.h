@@ -22,7 +22,7 @@ struct Diag {
   enum Severity { error,warning,note } severity;
   size_t stLine, stPos, enLine, enPos;  // These ranges are inclusive.
   std::string msg;
-  Diag(const InputPiece& input, size_t st, size_t en,
+  Diag(const Input& input, size_t st, size_t en,
        Severity sev, std::string msg)
     : severity(sev), msg(msg) {
     std::tie(stLine,stPos) = input.rowCol(st);
@@ -32,11 +32,11 @@ struct Diag {
 };
 
 struct InputDiagsRef {
-  const InputPiece* input;
+  const Input* input;
   std::vector<Diag>* diags;
 };
 
-std::string locationString(const InputPiece& input, size_t st, size_t en);
+std::string locationString(const Input& input, size_t st, size_t en);
 
 // Typically, we don't expect this to be called directly. This is merely a
 // helper for the more convenient Error(), Warning(), and Note().

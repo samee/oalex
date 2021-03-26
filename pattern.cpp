@@ -174,7 +174,8 @@ auto labelParts(InputDiags& ctx, const GluedString& s,
         Error(ctx, s.inputPos(st), s.inputPos(en),
               format("Part '{}' overlaps with '{}' at {}", debug(patt),
                      debug(partPatterns.at(ovlap->second.second)),
-                     locationString(s, ovlap->first, ovlap->second.first)));
+                     locationString(ctx.input, s.inputPos(ovlap->first),
+                                    s.inputPos(ovlap->second.first))));
         matchError = true;
       }
       // Disallow labels chopping up a word into two.
@@ -203,8 +204,8 @@ auto labelParts(InputDiags& ctx, const GluedString& s,
     if(st < lastEn)
       Bug("Overlapping intervals should have been caught earlier: {}"
           " starts before ending another interval at {}",
-          locationString(s, st, en),
-          locationString(s, lastEn, lastEn+1));
+          locationString(ctx.input, s.inputPos(st), s.inputPos(en)),
+          locationString(ctx.input, s.inputPos(lastEn), s.inputPos(lastEn+1)));
     if(st > lastEn) rv.push_back(s.subqstr(lastEn, st-lastEn));
     rv.push_back(id);
     lastEn = en;
