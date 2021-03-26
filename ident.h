@@ -58,7 +58,7 @@ class Ident {
                                std::string s, size_t stPos);
  public:
   Ident() = default;
-  static Ident parse(InputDiagsRef ctx, size_t& i);
+  static Ident parse(InputDiags& ctx, size_t& i);
   static Ident parse(InputDiagsRef ctx, const lex::WholeSegment& s);
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
