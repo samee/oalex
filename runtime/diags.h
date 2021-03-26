@@ -129,6 +129,9 @@ inline void InputDiags::markUsed(size_t st, size_t en) {
   }
 }
 
+inline DiagsDest::DiagsDest(class InputDiags& ctx)
+  : input_(&ctx.input), diags_(&ctx.diags) {}
+
 class Resetter {
   size_t oldi_, chkpoint_, *targeti_;
   InputDiags *ctx_;
