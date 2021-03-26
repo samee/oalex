@@ -639,7 +639,7 @@ static void appendPatternRules(
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
   optional<Pattern> patt =
-    parsePattern(ctx, tokenizePattern(patt_string, partPatterns,
+    parsePattern(ctx, tokenizePattern(ctx, patt_string, partPatterns,
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 

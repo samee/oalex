@@ -54,15 +54,17 @@ static string debug(const PartPattern& pp) {
   Bug("Unknown PartPattern with index {}", pp.index());
 }
 
-static auto matchAllParts(const GluedString& spatt, const GluedString& s)
+static auto matchAllParts(InputDiags& ctx,
+                          const GluedString& spatt, const GluedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
-  if(spatt.empty())
-    return Error(spatt, 0, spatt.size(), "Placeholder pattern cannot be empty");
+  if(spatt.empty()) return Error(ctx, spatt.stPos, spatt.enPos,
+                                 "Placeholder pattern cannot be empty");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+spatt.size() <= s.size(); ++i)
     if(s.substr(i, spatt.size()) == string_view(spatt)) {
       if(!rv.empty() && i<rv.back().second)
-        return Error(s, rv.back().first, i + spatt.size(),
+        return Error(ctx,
+                     s.inputPos(rv.back().first), s.inputPos(i + spatt.size()),
                      format("Pattern '{}' matches overlapping segments",
                             debug(spatt)));
       else rv.push_back(make_pair(i, i+spatt.size()));
@@ -70,27 +72,30 @@ static auto matchAllParts(const GluedString& spatt, const GluedString& s)
   return rv;
 }
 
-static auto matchAllParts(const DelimPair& dpatt, const GluedString& s)
+static auto matchAllParts(InputDiags& ctx,
+                          const DelimPair& dpatt, const GluedString& s)
   -> optional<vector<pair<size_t,size_t>>> {
   if(dpatt.st.empty() || dpatt.en.empty()) {
     const GluedString& qs = (dpatt.st.empty() ? dpatt.st : dpatt.en);
-    return Error(qs, 0, qs.size(), "Placeholder pattern cannot be empty");
+    return Error(ctx, qs.stPos, qs.enPos,
+                 "Placeholder pattern cannot be empty");
   }
   if(dpatt.st.find(dpatt.en, 1) != string::npos)
-    return Error(dpatt.en, 0, dpatt.en.size(),
+    return Error(ctx, dpatt.en.stPos, dpatt.en.enPos,
                  "End pattern is a substring of the start pattern");
   vector<pair<size_t, size_t>> rv;
   for(size_t i=0; i+dpatt.st.size() <= s.size(); ++i)
     if(s.substr(i, dpatt.st.size()) == string_view(dpatt.st)) {
       if(!rv.empty() && i<rv.back().second) {
-        return Error(s, rv.back().first,
-                     max(rv.back().second, i + dpatt.st.size()),
+        return Error(ctx, s.inputPos(rv.back().first),
+                     s.inputPos(max(rv.back().second, i + dpatt.st.size())),
                      format("Pattern '{}' matches overlapping segments",
                             debug(dpatt)));
       }
       size_t j = s.find(dpatt.en, i+1);
       if(j == string::npos) {
-        Error(s, i, i+dpatt.st.size(), "Unterminated segment");
+        Error(ctx, s.inputPos(i), s.inputPos(i+dpatt.st.size()),
+              "Unterminated segment");
         continue;  // recover
       }
       rv.push_back(make_pair(i, j+dpatt.en.size()));
@@ -100,10 +105,13 @@ static auto matchAllParts(const DelimPair& dpatt, const GluedString& s)
 
 // TODO: Produce error message for every `return nullopt` here.
 // Disallows empty patt.
-auto matchAllParts(const PartPattern& patt, const GluedString& s)
+auto matchAllParts(InputDiags& ctx,
+                   const PartPattern& patt, const GluedString& s)
   -> optional<vector<pair<size_t, size_t>>> {
-  if(auto* spatt = get_if<GluedString>(&patt)) return matchAllParts(*spatt, s);
-  if(auto* dpatt = get_if<DelimPair>(&patt)) return matchAllParts(*dpatt, s);
+  if(auto* spatt = get_if<GluedString>(&patt))
+    return matchAllParts(ctx, *spatt, s);
+  if(auto* dpatt = get_if<DelimPair>(&patt))
+    return matchAllParts(ctx, *dpatt, s);
   Bug("matchAllParts() called with unknown variant: index {}", patt.index());
 }
 
@@ -142,7 +150,7 @@ static const GluedString& pattStart(const PartPattern& patt) {
   Bug("pattStart() called with unknown index {}", patt.index());
 }
 
-auto labelParts(const GluedString& s,
+auto labelParts(InputDiags& ctx, const GluedString& s,
                 const map<Ident,PartPattern>& partPatterns,
                 const RegexCharSet& wordChars)
     -> vector<LabelOrPart> {
@@ -151,17 +159,19 @@ auto labelParts(const GluedString& s,
   IntervalMap m;
   auto isword = [&](char ch) { return matchesRegexCharSet(ch, wordChars); };
   for(auto& [id,patt] : partPatterns) {
-    auto matches = matchAllParts(patt, s);
+    auto matches = matchAllParts(ctx, patt, s);
     if(!matches) { matchError = true; continue; }
     // TODO report the correct end location for DelimPair
-    if(matches->empty())
-      Error(pattStart(patt), 0, pattStart(patt).size(),
+    if(matches->empty()) {
+      const GluedString& ps = pattStart(patt);
+      Error(ctx, ps.stPos, ps.enPos,
             format("No match found for pattern '{}'", debug(patt)));
+    }
     for(const auto& [st,en] : *matches) {
       const IntervalMap::value_type interval{st, {en, id}};
       const IntervalMap::value_type* ovlap = insert(m, interval);
       if(ovlap) {
-        Error(s, st, en,
+        Error(ctx, s.inputPos(st), s.inputPos(en),
               format("Part '{}' overlaps with '{}' at {}", debug(patt),
                      debug(partPatterns.at(ovlap->second.second)),
                      locationString(s, ovlap->first, ovlap->second.first)));
@@ -169,7 +179,7 @@ auto labelParts(const GluedString& s,
       }
       // Disallow labels chopping up a word into two.
       if(st != 0 && isword(s[st-1]) && isword(s[st]))
-        Error(s, st-1, format(
+        Error(ctx, s.inputPos(st-1), format(
                 "Part '{}' starts a run-on word. "
                 "Either rename the word, or add a space before it",
                 debug(patt)));
@@ -177,7 +187,7 @@ auto labelParts(const GluedString& s,
         Bug("matchAllPatterns() is producing empty intervals for pattern '{}'",
             debug(patt));
       if(s.sizeGt(en) && isword(s[en-1]) && isword(s[en]))
-        Error(s, en-1, format(
+        Error(ctx, s.inputPos(en-1), format(
                 "Part '{}' ends a run-on word. "
                 "Either rename the word, or add a space after it",
                 debug(patt)));
@@ -217,7 +227,7 @@ static TokenOrPart lexPatternToken(const GluedString& s, size_t& i,
                 : TokenOrPart(OperToken(s.subqstr(st, i-st)));
 }
 
-auto tokenizePatternWithoutLabels(const GluedString& s,
+auto tokenizePatternWithoutLabels(InputDiags& ctx, const GluedString& s,
                                   const LexDirective& opts,
                                   string_view comment_end_error)
                                   -> vector<TokenOrPart> {
@@ -230,11 +240,11 @@ auto tokenizePatternWithoutLabels(const GluedString& s,
     else rv.push_back(lexPatternToken(s, i, opts));
   }
   if(i == Input::npos)
-    Error(s, s.size(), s.size()+1, string(comment_end_error));
+    Error(ctx, std::max(1ul, s.enPos)-1, string(comment_end_error));
   return rv;
 }
 
-static auto tokenizePatternKeepNewlines(const GluedString& s,
+static auto tokenizePatternKeepNewlines(InputDiags& ctx, const GluedString& s,
     const LexDirective& opts, string_view comment_end_error)
     -> vector<TokenOrPart> {
   size_t i=0, lastBol=0;
@@ -248,11 +258,12 @@ static auto tokenizePatternKeepNewlines(const GluedString& s,
     else rv.push_back(lexPatternToken(s, i, opts));
   }
   if(i == Input::npos)
-    Error(s, s.size(), s.size()+1, string(comment_end_error));
+    Error(ctx, std::max(1ul, s.enPos)-1, string(comment_end_error));
   return rv;
 }
 
 static auto tokenizeLabelledPattern(
+    InputDiags& ctx,
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
   vector<TokenOrPart> rv;
@@ -265,8 +276,7 @@ static auto tokenizeLabelledPattern(
     else if(auto* qs = get_if<GluedString>(&lorp)) {
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
-      vector<TokenOrPart> toks
-        = tokenizer(*qs, lexopts, err);
+      vector<TokenOrPart> toks = tokenizer(ctx, *qs, lexopts, err);
       move(toks.begin(), toks.end(), back_inserter(rv));
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
@@ -274,11 +284,11 @@ static auto tokenizeLabelledPattern(
   return rv;
 }
 
-auto tokenizePattern(const GluedString& s,
-                      const map<Ident,PartPattern>& partPatterns,
-                      const LexDirective& lexopts) -> vector<TokenOrPart> {
-  return tokenizeLabelledPattern(
-      labelParts(s, partPatterns, lexopts.wordChars), lexopts);
+auto tokenizePattern(InputDiags& ctx, const GluedString& s,
+                     const map<Ident,PartPattern>& partPatterns,
+                     const LexDirective& lexopts) -> vector<TokenOrPart> {
+  return tokenizeLabelledPattern(ctx,
+      labelParts(ctx, s, partPatterns, lexopts.wordChars), lexopts);
 }
 
 static bool isStrictSubstr(string_view s, string_view t) {

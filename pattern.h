@@ -39,7 +39,8 @@ struct LexDirective {
 struct DelimPair { lex::GluedString st, en; };
 using PartPattern = std::variant<lex::GluedString, DelimPair>;
 
-auto matchAllParts(const PartPattern& patt, const lex::GluedString& s)
+auto matchAllParts(InputDiags& ctx,
+                   const PartPattern& patt, const lex::GluedString& s)
   -> std::optional<std::vector<std::pair<size_t, size_t>>>;
 
 // Params:
@@ -55,6 +56,7 @@ auto matchAllParts(const PartPattern& patt, const lex::GluedString& s)
 // whitespaces, or those who do not.
 using LabelOrPart = std::variant<lex::GluedString, Ident>;
 auto labelParts(
+    InputDiags& ctx,
     const lex::GluedString& s,
     const std::map<Ident,PartPattern>& partPatterns,
     const RegexCharSet& wordChars)
@@ -77,13 +79,14 @@ using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizePatternWithoutLabels(
+    InputDiags& ctx,
     const lex::GluedString& s, const LexDirective& opts,
     std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizePattern(const lex::GluedString& s,
+auto tokenizePattern(InputDiags& ctx, const lex::GluedString& s,
                      const std::map<Ident,PartPattern>& partPatterns,
                      const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 

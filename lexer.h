@@ -128,7 +128,6 @@ class GluedString final : public LexSegment, public InputPiece {
   std::optional<WholeSegment> getSegment() const;
   Ctor ctor() const { return ctor_; }
 
-  operator InputDiagsRef() const { return {this, &ctx_->diags}; }  // implicit
  private:
   std::string s_;  // escape codes already interpreted.
   Ctor ctor_;  // Records how this object was constructed.
