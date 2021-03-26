@@ -23,6 +23,9 @@ using std::nullopt_t;
 
 namespace oalex {
 
+InputDiagsRef::InputDiagsRef(class InputDiags& ctx)
+  : input_(&ctx.input), diags_(&ctx.diags) {}
+
 static string severityString(Diag::Severity sev) {
   switch(sev) {
     case Diag::error: return "error";
