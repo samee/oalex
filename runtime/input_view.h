@@ -22,6 +22,9 @@
 
 namespace oalex {
 
+// This pure virtual class is only used by the class Skipper now,
+// just so it can work both on processed (e.g. indented patterns) and
+// unprocessed inputs.
 class InputPiece {
  public:
   virtual char operator[](size_t sz) const = 0;
@@ -31,7 +34,6 @@ class InputPiece {
     { return count >= s.size() && hasPrefix(pos,s); }
   virtual size_t find(char ch, size_t pos) const = 0;
   virtual size_t bol(size_t i) const = 0;
-  virtual size_t inputPos(size_t pos) const = 0;
   virtual std::string substr(size_t st,  size_t len) const = 0;
   virtual ~InputPiece() = default;
 };
@@ -107,7 +109,6 @@ class Input final : public InputPiece {
 
   static constexpr size_t defaultMaxLineLength = 5000;
   size_t maxLineLength() const { return maxLineLength_; }
-  virtual size_t inputPos(size_t pos) const final { return pos; }
 
  private:
   mutable std::string buf_;

@@ -96,7 +96,7 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
     if(l >= kMaxIdentLen) Fatal(ctx, i, i+l, "Identifier too long");
     if(!isIdentChar(input[i+l])) break;
   }
-  const Ident rv = parseFromString(ctx, input.substr(i,l), input.inputPos(i));
+  const Ident rv = parseFromString(ctx, input.substr(i,l), i);
   if(rv) i += l;
   return rv;
 }
