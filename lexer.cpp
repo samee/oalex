@@ -393,10 +393,6 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
                      ctx_, std::move(imap));
 }
 
-pair<size_t,size_t> GluedString::rowCol(size_t pos) const {
-  return ctx_->input.rowCol(this->inputPos(pos));
-}
-
 size_t GluedString::inputPos(size_t pos) const {
   auto it = --upperBound(index_map_, pos);
   return it->inputPos + pos - it->quotePos;
