@@ -319,20 +319,6 @@ ssize_t appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   return newIndex + 1;
 }
 
-static Ident
-makeIdent(const GluedString& gs) {
-  size_t i = 0;
-  Ident id = Ident::parse(gs, i);
-  if(!id) Error(gs, 0, gs.size(), "Not a valid identifier");
-  return id;
-}
-
-static Ident
-makeIdent(InputDiags& ctx, WholeSegment s) {
-  GluedString gs(ctx, std::move(s));
-  return makeIdent(gs);
-}
-
 /* This function is called when linetoks is of the form
    {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
    parses the part after "Concat". On success, it returns a ConcatRule that
@@ -385,7 +371,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
       continue;
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
-      if(Ident id = makeIdent(ctx, std::move(*tok)))
+      if(Ident id = Ident::parse(ctx, *tok))
         concat.comps.push_back({rl.findOrAppendIdent(id), argname});
       else return nullopt;
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
@@ -601,9 +587,8 @@ static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
   map<Ident, PartPattern> rv;
   for(const auto& [p, j] : jsloc.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
-    GluedString gs(ctx, std::move(seg));
-    Ident id = makeIdent(gs);
-    if(id) rv.insert({id, std::move(gs)});
+    Ident id = Ident::parse(ctx, seg);
+    if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
   }
   return rv;
 }
