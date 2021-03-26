@@ -66,7 +66,7 @@ static bool hasAlnum(const string& s) {
 }
 
 // TODO use LocPair
-Ident Ident::parseFromString(InputDiagsRef ctx, string s, size_t stPos) {
+Ident Ident::parseFromString(DiagsDest ctx, string s, size_t stPos) {
   const size_t enPos = stPos + s.size();
   if(!hasAlnum(s))
     return Error(ctx, stPos, enPos, "Identifier must have a digit or letter");
@@ -101,7 +101,7 @@ Ident Ident::parse(InputDiags& ctx, size_t& i) {
   return rv;
 }
 
-Ident Ident::parse(InputDiagsRef ctx, const WholeSegment& s) {
+Ident Ident::parse(DiagsDest ctx, const WholeSegment& s) {
   if(s->size() > kMaxIdentLen)
     return Error(ctx, s.stPos, s.enPos, "Identifier too long");
   for(size_t i=0; i<s->size(); ++i) if(!isIdentChar(s.data[i]))

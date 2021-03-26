@@ -31,11 +31,11 @@ struct Diag {
   explicit operator std::string() const;
 };
 
-class InputDiagsRef {
+class DiagsDest {
   const Input* input_;
   std::vector<Diag>* diags_;
  public:
-  InputDiagsRef(class InputDiags& ctx);  // implicit
+  DiagsDest(class InputDiags& ctx);  // implicit
 
   // Typically, we don't expect this to be called directly. This is merely a
   // helper for the more convenient Error(), Warning(), and Note().
@@ -53,53 +53,53 @@ class InputDiagsRef {
 std::string locationString(const Input& input, size_t st, size_t en);
 
 [[noreturn]] inline void
-FatalBug(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+FatalBug(DiagsDest ctx, size_t st, size_t en, std::string msg) {
   Bug("{}", std::string(ctx.makeDiag(st, en, Diag::error, std::move(msg))));
 }
 
 [[noreturn]] inline void
-Fatal(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+Fatal(DiagsDest ctx, size_t st, size_t en, std::string msg) {
   UserError("{}", std::string(ctx.makeDiag(st, en,
                                            Diag::error, std::move(msg))));
 }
 
 inline std::nullopt_t
-Error(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+Error(DiagsDest ctx, size_t st, size_t en, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, en, Diag::error, std::move(msg));
 }
 
 inline std::nullopt_t
-Warning(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+Warning(DiagsDest ctx, size_t st, size_t en, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, en, Diag::warning, std::move(msg));
 }
 
 inline std::nullopt_t
-Note(InputDiagsRef ctx, size_t st, size_t en, std::string msg) {
+Note(DiagsDest ctx, size_t st, size_t en, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, en, Diag::note, std::move(msg));
 }
 
 [[noreturn]] inline void
-FatalBug(InputDiagsRef ctx, size_t st, std::string msg) {
+FatalBug(DiagsDest ctx, size_t st, std::string msg) {
   FatalBug(ctx, st, st+1, std::move(msg));
 }
 
 [[noreturn]] inline void
-Fatal(InputDiagsRef ctx, size_t st, std::string msg) {
+Fatal(DiagsDest ctx, size_t st, std::string msg) {
   Fatal(ctx, st, st+1, std::move(msg));
 }
 
 inline std::nullopt_t
-Error(InputDiagsRef ctx, size_t st, std::string msg) {
+Error(DiagsDest ctx, size_t st, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, st+1, Diag::error, std::move(msg));
 }
 
 inline std::nullopt_t
-Warning(InputDiagsRef ctx, size_t st, std::string msg) {
+Warning(DiagsDest ctx, size_t st, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, st+1, Diag::warning, std::move(msg));
 }
 
 inline std::nullopt_t
-Note(InputDiagsRef ctx, size_t st, std::string msg) {
+Note(DiagsDest ctx, size_t st, std::string msg) {
   return ctx.pushDiagReturnNullOpt(st, st+1, Diag::note, std::move(msg));
 }
 

@@ -18,8 +18,8 @@
 #include "lexer.h"
 #include "runtime/util.h"
 using oalex::Bug;
+using oalex::DiagsDest;
 using oalex::InputDiags;
-using oalex::InputDiagsRef;
 using oalex::JsonLoc;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -38,9 +38,9 @@ using std::vector;
 
 namespace {
 
-optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, ExprToken expr);
-optional<JsonLoc> parseMap(InputDiagsRef ctx, vector<ExprToken> elts);
-optional<JsonLoc> parseVector(InputDiagsRef ctx, vector<ExprToken> elts);
+optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr);
+optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts);
+optional<JsonLoc> parseVector(DiagsDest ctx, vector<ExprToken> elts);
 
 bool isIdent(string_view s) {
   if(s.empty()) return false;
@@ -49,7 +49,7 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<WholeSegment> parseIdent(InputDiagsRef ctx, const ExprToken& expr) {
+optional<WholeSegment> parseIdent(DiagsDest ctx, const ExprToken& expr) {
   auto* seg = get_if<WholeSegment>(&expr);
   if(!seg) return Error(ctx, expr,"Was expecting an identifier");
   if(!isIdent(seg->data)) {
@@ -65,7 +65,7 @@ bool isErrorValue(const vector<ExprToken>& v) {
   return seg && seg->data == "error_value";
 }
 
-optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, ExprToken expr) {
+optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(auto id = parseIdent(ctx, *seg))
       return JsonLoc(JsonLoc::Placeholder{id->data}, id->stPos, id->enPos);
@@ -89,7 +89,7 @@ optional<JsonLoc> parseJsonLoc(InputDiagsRef ctx, ExprToken expr) {
 
 // TODO diags should throw after 3 or so errors.
 // This is a reasonable example of what error-handling oalex could facilitate.
-optional<JsonLoc> parseMap(InputDiagsRef ctx, vector<ExprToken> elts) {
+optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, std::move(elts));
 
   JsonLoc::Map rv;
@@ -129,7 +129,7 @@ optional<JsonLoc> parseMap(InputDiagsRef ctx, vector<ExprToken> elts) {
 }
 
 optional<JsonLoc>
-parseVector(InputDiagsRef ctx, vector<ExprToken> elts) {
+parseVector(DiagsDest ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, std::move(elts));
 
   vector<JsonLoc> rv;
@@ -144,15 +144,15 @@ parseVector(InputDiagsRef ctx, vector<ExprToken> elts) {
   return JsonLoc(rv);
 }
 
-bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr);
+bool allStringsSingleQuoted(DiagsDest ctx, const ExprToken& expr);
 
-bool allStringsSingleQuoted(InputDiagsRef ctx, const BracketGroup& bg) {
+bool allStringsSingleQuoted(DiagsDest ctx, const BracketGroup& bg) {
   for(const auto& c : bg.children)
     if(!allStringsSingleQuoted(ctx, c)) return false;
   return true;
 }
 
-bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
+bool allStringsSingleQuoted(DiagsDest ctx, const ExprToken& expr) {
   if(holds_alternative<WholeSegment>(expr)) return true;
   if(auto* qs = get_if<GluedString>(&expr)) {
     if(qs->ctor() != GluedString::Ctor::squoted) {
@@ -171,7 +171,7 @@ bool allStringsSingleQuoted(InputDiagsRef ctx, const ExprToken& expr) {
 
 namespace oalex {
 
-optional<JsonLoc> parseJsonLocFromBracketGroup(InputDiagsRef ctx,
+optional<JsonLoc> parseJsonLocFromBracketGroup(DiagsDest ctx,
                                                BracketGroup bg) {
   if(bg.type == BracketType::paren) return nullopt;
   if(bg.type == BracketType::square)

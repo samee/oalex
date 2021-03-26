@@ -54,12 +54,12 @@ class Ident {
   std::string orig_;
   size_t stPos_ = std::string::npos, enPos_ = std::string::npos;
   Ident(std::nullopt_t) {}
-  static Ident parseFromString(InputDiagsRef ctx,
+  static Ident parseFromString(DiagsDest ctx,
                                std::string s, size_t stPos);
  public:
   Ident() = default;
   static Ident parse(InputDiags& ctx, size_t& i);
-  static Ident parse(InputDiagsRef ctx, const lex::WholeSegment& s);
+  static Ident parse(DiagsDest ctx, const lex::WholeSegment& s);
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;

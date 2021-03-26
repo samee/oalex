@@ -233,12 +233,12 @@ std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 // list. Note that this is different from Python's "".split(',') which returns
 // a single empty string.
 std::vector<std::vector<ExprToken>>
-splitCommaNoEmpty(InputDiagsRef ctx, std::vector<ExprToken> elts);
+splitCommaNoEmpty(DiagsDest ctx, std::vector<ExprToken> elts);
 
 // Helpers for diags.h that point to a specific token.
 // T can be either an ExprToken or a LexSegment derivative.
 template <class T> std::nullopt_t
-Error(InputDiagsRef ctx, const T& t, std::string msg) {
+Error(DiagsDest ctx, const T& t, std::string msg) {
   const LexSegment& seg = lexSegment(t);
   return Error(ctx, seg.stPos, seg.enPos, std::move(msg));
 }

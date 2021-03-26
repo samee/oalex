@@ -30,7 +30,7 @@
 #include "jsonloc_io.h"
 
 using fmt::format;
-using oalex::InputDiagsRef;
+using oalex::DiagsDest;
 using oalex::LexDirective;
 using oalex::Note;
 using oalex::OutputTmpl;
@@ -131,7 +131,7 @@ class RulesWithLocs {
      In case we are actually appending a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
-  ssize_t defineIdent(InputDiagsRef ctx, const Ident& ident);
+  ssize_t defineIdent(DiagsDest ctx, const Ident& ident);
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
      Anonymous rules don't need usage location so far, since we never refer to
@@ -170,7 +170,7 @@ ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
   return this->ssize()-1;
 }
 
-ssize_t RulesWithLocs::defineIdent(InputDiagsRef ctx, const Ident& ident) {
+ssize_t RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   string s = ident.preserveCase();
   for(ssize_t i=0; i<this->ssize(); ++i) if(s == rules_[i].name()) {
     if(!holds_alternative<monostate>(rules_[i])) {
@@ -222,7 +222,7 @@ RulesWithLocs::releaseRules() {
 }  // namespace
 
 static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
-                       InputDiagsRef ctx) {
+                       DiagsDest ctx) {
   if(linetoks.size() < eolPos)
     Bug("requireEol({}) assumes earlier tokens are already processed", eolPos);
   if(linetoks.size() > eolPos) {
@@ -242,7 +242,7 @@ static char bracketStart(BracketType bt) {
 }
 
 static bool requireBracketType(const BracketGroup& bg, BracketType bt,
-                               InputDiagsRef ctx) {
+                               DiagsDest ctx) {
   if(bg.type != bt) {
     Error(ctx, bg.stPos, format("Was expecting '{}'", bracketStart(bt)));
     return false;
@@ -251,7 +251,7 @@ static bool requireBracketType(const BracketGroup& bg, BracketType bt,
 
 template <class T> T*
 get_if_in_bound(vector<ExprToken>& toks, size_t i,
-                InputDiagsRef ctx) {
+                DiagsDest ctx) {
   if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
   if(i >= toks.size()) {
     Error(ctx, enPos(toks.back()), "Unexpected end of expression");
@@ -262,7 +262,7 @@ get_if_in_bound(vector<ExprToken>& toks, size_t i,
 
 template <class T> const T*
 get_if_in_bound(const vector<ExprToken>& toks, size_t i,
-                InputDiagsRef ctx) {
+                DiagsDest ctx) {
   if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
   if(i >= toks.size()) {
     Error(ctx, enPos(toks.back()), "Unexpected end of expression");
@@ -399,7 +399,7 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
 }
 
 static auto parseSkipPoint(const vector<ExprToken>& linetoks,
-                           InputDiagsRef ctx) -> optional<SkipPoint> {
+                           DiagsDest ctx) -> optional<SkipPoint> {
   auto* seg = get_if_in_bound<WholeSegment>(linetoks, 3, ctx);
   if(!seg) return nullopt;
   bool withinLine;
@@ -695,7 +695,7 @@ static auto parseIndentedBlock(InputDiags& ctx, size_t& i,
 //          or (b) return a more general type here that can be sanitized by
 //                 the caller.
 template <int pos>
-static auto parseOutputBraces(vector<ExprToken> linetoks, InputDiagsRef ctx)
+static auto parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx)
   -> optional<JsonLoc> {
   static_assert(pos > 0, "pos must be positive for proper error-reporting");
   BracketGroup* bg;

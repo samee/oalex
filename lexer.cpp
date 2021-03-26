@@ -705,7 +705,7 @@ optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
 }
 
 vector<vector<ExprToken>>
-splitCommaNoEmpty(InputDiagsRef ctx, vector<ExprToken> elts) {
+splitCommaNoEmpty(DiagsDest ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> rv;
   rv.emplace_back();
   for(auto&& elt : elts) {

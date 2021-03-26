@@ -32,5 +32,5 @@ std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 std::optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i);
 
 std::optional<JsonLoc> parseJsonLocFromBracketGroup(
-    InputDiagsRef ctx, lex::BracketGroup bg);
+    DiagsDest ctx, lex::BracketGroup bg);
 }  // namespace oalex
