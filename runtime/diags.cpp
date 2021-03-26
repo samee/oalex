@@ -40,8 +40,8 @@ static string locationString(const Diag& diag) {
   else return format("{}:{}", diag.stLine, diag.stPos);
 }
 
-string locationString(const Input& input, size_t st, size_t en) {
-  return locationString(Diag{input, st, en, Diag::error, string()});
+string DiagsDest::locationString(size_t st, size_t en) const {
+  return oalex::locationString(Diag{*input_, st, en, Diag::error, string()});
 }
 
 Diag::operator string() const {

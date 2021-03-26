@@ -39,7 +39,7 @@ struct LexDirective {
 struct DelimPair { lex::GluedString st, en; };
 using PartPattern = std::variant<lex::GluedString, DelimPair>;
 
-auto matchAllParts(InputDiags& ctx,
+auto matchAllParts(DiagsDest ctx,
                    const PartPattern& patt, const lex::GluedString& s)
   -> std::optional<std::vector<std::pair<size_t, size_t>>>;
 
@@ -56,7 +56,7 @@ auto matchAllParts(InputDiags& ctx,
 // whitespaces, or those who do not.
 using LabelOrPart = std::variant<lex::GluedString, Ident>;
 auto labelParts(
-    InputDiags& ctx,
+    DiagsDest ctx,
     const lex::GluedString& s,
     const std::map<Ident,PartPattern>& partPatterns,
     const RegexCharSet& wordChars)
@@ -79,19 +79,19 @@ using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizePatternWithoutLabels(
-    InputDiags& ctx,
+    DiagsDest ctx,
     const lex::GluedString& s, const LexDirective& opts,
     std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // This function doesn't make sense if we are keeping all spaces.
 // Expects unixified linefeeds, since it uses skippers.
-auto tokenizePattern(InputDiags& ctx, const lex::GluedString& s,
+auto tokenizePattern(DiagsDest ctx, const lex::GluedString& s,
                      const std::map<Ident,PartPattern>& partPatterns,
                      const LexDirective& lexopts) -> std::vector<TokenOrPart>;
 
 // Exposed for testing only.
-bool hasFusedPatternOpers(InputDiags& ctx,
+bool hasFusedPatternOpers(DiagsDest ctx,
                           const std::vector<TokenOrPart>& tops);
 
 using Pattern = std::variant<
@@ -114,7 +114,7 @@ struct PatternOptional { Pattern part; };
 struct PatternRepeat   { Pattern part; };
 struct PatternFold     { Pattern part, glue; };
 
-auto parsePattern(InputDiags& ctx, std::vector<TokenOrPart> tops)
+auto parsePattern(DiagsDest ctx, std::vector<TokenOrPart> tops)
   -> std::optional<Pattern>;
 
 // parsePattern() helper, exposed for testing.

@@ -145,7 +145,7 @@ class RulesWithLocs {
   template <class...Args> ssize_t emplaceBackAnonRule(Args&&...args);
 
   /* This is checked just before producing rules as output */
-  bool hasUndefinedRules(InputDiags& ctx) const;
+  bool hasUndefinedRules(DiagsDest ctx) const;
 
   /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
   void resize_down(ssize_t n) noexcept;
@@ -192,7 +192,7 @@ RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
 }
 
 bool
-RulesWithLocs::hasUndefinedRules(InputDiags& ctx) const {
+RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
     if(holds_alternative<monostate>(rules_[i])) {
       optional<string> name = rules_[i].name();
@@ -326,7 +326,7 @@ ssize_t appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
    nullopt.
 */
 static auto parseConcatRule(vector<ExprToken> linetoks,
-                            InputDiags& ctx, RulesWithLocs& rl)
+                            DiagsDest ctx, RulesWithLocs& rl)
   -> optional<ConcatRule> {
 
   auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
@@ -426,8 +426,7 @@ class RuleRewinder {
 
 }  // namespace
 
-static void parseBnfRule(vector<ExprToken> linetoks,
-                         InputDiags& ctx,
+static void parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx,
                          RulesWithLocs& rl) {
   const Ident ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[0]));
   if(!ident) {
@@ -484,7 +483,7 @@ static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
   return WholeSegment(bol, indent_end, input);
 }
 
-static bool goodIndent(InputDiags& ctx, const WholeSegment& indent1,
+static bool goodIndent(DiagsDest ctx, const WholeSegment& indent1,
                        const WholeSegment& indent2) {
   IndentCmp cmpres = indentCmp(*indent1, *indent2);
   if(cmpres == IndentCmp::bad) {
@@ -545,7 +544,7 @@ static string patternName(const Pattern& patt) {
   else return {};
 }
 
-static ssize_t appendPatternRule(InputDiags& ctx,
+static ssize_t appendPatternRule(DiagsDest ctx,
     const Pattern& patt, RulesWithLocs& rl) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
     return appendWordOrError(rl, **word);
@@ -576,7 +575,7 @@ static ssize_t appendPatternRule(InputDiags& ctx,
 }
 
 // We can later add where-stanza arguments for extracting partPatterns
-static auto makePartPatterns(InputDiags& ctx, const JsonLoc& jsloc)
+static auto makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc)
   -> map<Ident,PartPattern> {
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
@@ -632,7 +631,7 @@ soleIdent(const Pattern& patt) {
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
 static void appendPatternRules(
-    InputDiags& ctx,
+    DiagsDest ctx,
     const Ident& ident, GluedString patt_string, JsonLoc jsloc,
     RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
@@ -659,7 +658,7 @@ static void appendPatternRules(
 // Assumes colonPos > 0, since the error message
 // is attached to the previous token in linetok.
 static bool requireColonEol(const vector<ExprToken>& linetoks,
-                            size_t colonPos, InputDiags& ctx) {
+                            size_t colonPos, DiagsDest ctx) {
   if(linetoks.size() <= colonPos || !isToken(linetoks[colonPos], ":")) {
     Error(ctx, enPos(linetoks[colonPos-1]), "Was expecting a ':' after this");
     return false;
@@ -826,7 +825,7 @@ static auto hasDuplicatePlaceholders(const JsonLoc& tmpl)
 // in codegen, instead of copying them. Doing it at the end allows us to not
 // miss it in any of the places we create an outputTmpl.
 static bool hasDuplicatePlaceholders(
-    const vector<Rule>& rules, InputDiags& ctx) {
+    const vector<Rule>& rules, DiagsDest ctx) {
   for(const Rule& rule : rules) if(const JsonLoc* tmpl = getTemplate(rule)) {
     if(auto opt = hasDuplicatePlaceholders(*tmpl)) {
       auto [p1, p2, key] = *opt;

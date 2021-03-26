@@ -48,9 +48,8 @@ class DiagsDest {
                 Diag::Severity sev, std::string msg) const {
     return Diag(*input_, st, en, sev, std::move(msg));
   }
+  std::string locationString(size_t st, size_t en) const;
 };
-
-std::string locationString(const Input& input, size_t st, size_t en);
 
 [[noreturn]] inline void
 FatalBug(DiagsDest ctx, size_t st, size_t en, std::string msg) {
