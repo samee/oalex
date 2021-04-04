@@ -222,6 +222,29 @@ void runOrTest() {
     BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
 }
 
+void runFlattenOnDemand() {
+  const pair<string, JsonLoc> unflatData[] = {
+    {"let", *parseJsonLoc("{next_token: {keyword: 'let'}}")},
+    {"42", *parseJsonLoc("{next_token: {number: '42'}}")},
+  };
+  for(auto& [msg, expected] : unflatData) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = parseUnflattenSingleConcat(ctx, pos);
+    assertEqual(__func__, expected, observed);
+  }
+  const pair<string, JsonLoc> flatData[] = {
+    {"let", *parseJsonLoc("{keyword: 'let'}")},
+    {"42", *parseJsonLoc("{number: '42'}")},
+  };
+  for(auto& [msg, expected] : flatData) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = parseFlattenSingleConcat(ctx, pos);
+    assertEqual(__func__, expected, observed);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -242,4 +265,5 @@ int main() {
   runConcatTest();
   runExternParserDeclaration();
   runOrTest();
+  runFlattenOnDemand();
 }

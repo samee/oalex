@@ -58,8 +58,8 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
 
 static bool
 makesFlattenableMap(const Rule& rule) {
-  return holds_alternative<ConcatFlatRule>(rule) ||
-         holds_alternative<OrRule>(rule);
+  if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
+  else return holds_alternative<ConcatFlatRule>(rule);
 }
 
 static string
@@ -69,7 +69,6 @@ ruleDebugId(const RuleSet& rs, ssize_t i) {
   else return format("rule {}", i);
 }
 
-// FIXME: eval() was not using makesFlattenableMap(). Test change in behavior.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i,
      const ConcatFlatRule& seq, const RuleSet& rs) {

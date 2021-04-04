@@ -21,6 +21,7 @@
 #include "runtime/test_util.h"
 #include <iterator>
 #include <string_view>
+#include <tuple>
 #include <vector>
 using fmt::format;
 using std::back_inserter;
@@ -29,6 +30,7 @@ using std::pair;
 using std::size;
 using std::string;
 using std::string_view;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 using oalex::assertEqual;
@@ -233,10 +235,10 @@ void testKeywordsOrNumber() {
                               Rule{parseRegex("/[0-9]+/")}),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(Rule{OrRule{{
+  rs.rules.push_back(Rule{OrRule{.comps{
       {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
       {2, *parseJsonLoc("{number: child}")},
-  }}});
+  }, .flattenOnDemand = false}});
   const ssize_t orListIndex = rs.rules.size()-1;
 
   const pair<string, JsonLoc> goodInputOutputPairs[] = {
@@ -257,6 +259,39 @@ void testKeywordsOrNumber() {
     BugMe("Was expecting failure on keyword 'do'. Got {:2}", observed);
 }
 
+void testFlattenOnDemand() {
+  // ConcatFlatRule of a single child is a bit weird, but let's say the
+  // frontend is dumb (ahem!)
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"let"}, Rule{parseRegex("/[0-9]+/")},
+        Rule{OrRule{.comps{
+          {0, *parseJsonLoc("{keyword: child}")},
+          {1, *parseJsonLoc("{number: child}")},
+        }, .flattenOnDemand = false}},
+        Rule{ConcatFlatRule{{{2, "next_token"}}}}
+      ), .regexOpts{regexOpts},
+  };
+  const ssize_t ruleidx = rs.rules.size()-1;
+
+  const tuple<string, bool, JsonLoc> inputOutputPairs[] = {
+    {"let", false, *parseJsonLoc("{next_token: {keyword: 'let'}}")},
+    {"let", true, *parseJsonLoc("{keyword: 'let'}")},
+    {"42", false, *parseJsonLoc("{next_token: {number: '42'}}")},
+    {"42", true, *parseJsonLoc("{number: '42'}")},
+  };
+  for(auto& [msg, fod, expected] : inputOutputPairs) {
+    get_if<OrRule>(&rs.rules[2])->flattenOnDemand = fod;
+    get_if<ConcatFlatRule>(&rs.rules[3])->comps[0].outputPlaceholder =
+      (fod ? "" : "next_token");
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = eval(ctx, pos, rs, ruleidx);
+    assertEqual(__func__, expected, observed);
+  }
+
+}
+
 }  // namespace
 
 int main() {
@@ -271,5 +306,6 @@ int main() {
   testSingleWordTemplate();
   testConcatMatch();
   testKeywordsOrNumber();
+  testFlattenOnDemand();
 }
 

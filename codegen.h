@@ -79,18 +79,13 @@ struct OrRule {
   // pass the child's result unchanged by using
   // tmpl = JsonLoc::Placeholder{"child"}
   //
-  // While it *is* possible for an OrRule to not return a JsonLoc::Map,
-  // it isn't always allowed. In particular, the frontend needs to ensure that
-  // every OrRule that appears as a component of ConcatFlatRule is a
-  // JsonLoc::Map. This assumption is important whenever makesFlattenableMap()
-  // is used in codegen. The only way to avoid returning a map is to set tmpl
-  // to exactly JsonLoc::Placeholder{"child"}.
-  //
-  // TODO Stop supporting this non-map return value. We could instead
-  // support auto-boxing like ConcatFlatRule and OutputTmpl, where the
-  // component name depends on the chosen index.
+  // If flattenOnDemand is true, and some ConcatFlatRule considers this OrRule
+  // to be a child component, this needs to always return a JsonLoc::Map.
+  // As a general rule, flattenOnDemand is false for named multi-match rules,
+  // but true for anonymous subparts of a pattern.
   struct Component { ssize_t idx; JsonLoc tmpl; };
   std::vector<Component> comps;
+  bool flattenOnDemand;
 };
 
 struct SkipPoint {

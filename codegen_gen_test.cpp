@@ -229,10 +229,10 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
                               regexRule(__func__, "/[0-9]+/", "OrCompNumber")),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(nmRule(OrRule{{
+  rs.rules.push_back(nmRule(OrRule{.comps{
       {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
       {2, *parseJsonLoc("{number: child}")},
-  }}, "OneWordOrList"));
+  }, .flattenOnDemand = false}, "OneWordOrList"));
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
@@ -247,6 +247,29 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
     .regexOpts{regexOpts},
   };
   codegen(rs, 1, cppos, hos);
+}
+
+void generateFlattenOnDemand(const OutputStream& cppos,
+                             const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber")
+      ), .regexOpts{regexOpts},
+  };
+  OrRule orrule{.comps{
+    {0, *parseJsonLoc("{keyword: child}")},
+    {1, *parseJsonLoc("{number: child}")},
+  }, .flattenOnDemand = false};
+  rs.rules.push_back(nmRule(orrule, "UnflattenKeywordOrNumber"));
+  rs.rules.push_back(nmRule(ConcatFlatRule{{{2, "next_token"}}},
+                            "UnflattenSingleConcat"));
+  orrule.flattenOnDemand = true;
+  rs.rules.push_back(nmRule(orrule, "FlattenKeywordOrNumber"));
+  rs.rules.push_back(nmRule(ConcatFlatRule{{{4, ""}}},
+                            "FlattenSingleConcat"));
+
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
 }  // namespace
@@ -297,5 +320,7 @@ int main(int argc, char* argv[]) {
   generateOrTest(cppos, hos);
   linebreaks();
   generateMatchOrErrorTest(cppos, hos);
+  linebreaks();
+  generateFlattenOnDemand(cppos, hos);
   return 0;
 }
