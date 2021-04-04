@@ -19,6 +19,7 @@
 #include <string_view>
 #include <vector>
 #include <utility>
+#include "ident.h"
 #include "runtime/jsonloc.h"
 #include "runtime/regex.h"
 #include "runtime/skipper.h"
@@ -125,7 +126,7 @@ struct Rule {
   // TODO other component types like RawString.
   template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
   template <class X> Rule(X x, std::string name) :
-    specifics_(std::move(x)), name_(std::move(name)) {}
+    specifics_(std::move(x)), name_(Ident::parseGenerated(name)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
@@ -135,7 +136,7 @@ struct Rule {
 
   std::string specifics_typename() const;  // Used for debugging/logging.
   std::optional<std::string> name() const {
-    if(name_.empty()) return std::nullopt; else return name_;
+    if(!name_) return std::nullopt; else return name_.preserveCase();
   }
   void deferred_name(std::string_view name);
   bool needsName() const;
@@ -151,7 +152,7 @@ struct Rule {
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
                ConcatFlatRule, OutputTmpl, OrRule, MatchOrError> specifics_;
-  std::string name_;
+  Ident name_;
 };
 
 template <class X> inline void
