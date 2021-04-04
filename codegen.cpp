@@ -56,6 +56,20 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
   } else return JsonLoc::String();  // Just something non-error.
 }
 
+static bool
+makesFlattenableMap(const Rule& rule) {
+  return holds_alternative<ConcatFlatRule>(rule) ||
+         holds_alternative<OrRule>(rule);
+}
+
+static string
+ruleDebugId(const RuleSet& rs, ssize_t i) {
+  if(optional<Ident> opt = rs.rules[i].name())
+    return format("rule '{}'", opt->preserveCase());
+  else return format("rule {}", i);
+}
+
+// FIXME: eval() was not using makesFlattenableMap(). Test change in behavior.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i,
      const ConcatFlatRule& seq, const RuleSet& rs) {
@@ -64,8 +78,12 @@ eval(InputDiags& ctx, ssize_t& i,
   for(auto& [idx, outname] : seq.comps) {
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsError()) return out;
-    else if(auto* m = get_if<JsonLoc::Map>(&out)) {
-      if(!outname.empty()) Bug("Map rules are not supposed to have names");
+    else if(makesFlattenableMap(rs.rules[idx])) {
+      auto* m = get_if<JsonLoc::Map>(&out);
+      if(!m) Bug("Child {} was expected to return a map, got: {}",
+                 ruleDebugId(rs, idx), out);
+      if(!outname.empty())
+        Bug("Flattenable children are not supposed to have names");
       mapUnion(rv, *m);
     }
     else if(!outname.empty()) rv.insert({std::move(outname), std::move(out)});
@@ -408,12 +426,6 @@ static bool
 hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
   for(auto& comp : comps) if(comp.outputPlaceholder.empty()) return true;
   return false;
-}
-
-static bool
-makesFlattenableMap(const Rule& rule) {
-  return holds_alternative<ConcatFlatRule>(rule) ||
-         holds_alternative<OrRule>(rule);
 }
 
 static void
