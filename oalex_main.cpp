@@ -280,9 +280,11 @@ JsonLoc processStdin(const RuleSet& rs) {
   return JsonLoc::ErrorValue{};
 }
 
+// TODO have Example use Ident instead of using preserveCase() here.
 ssize_t findRule(const RuleSet& ruleSet, string_view ruleName) {
   for(ssize_t i=0; i*1ul<ruleSet.rules.size(); ++i)
-    if(ruleSet.rules[i].name() == ruleName) return i;
+    if(auto nm = ruleSet.rules[i].name())
+      if(nm->preserveCase() == ruleName) return i;
   return -1;
 }
 

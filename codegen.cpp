@@ -343,15 +343,15 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
 }
 
 static void
-parserHeaders(const string& rname,
+parserHeaders(const Ident& rname,
               const OutputStream& cppos, const OutputStream& hos) {
   hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             rname));
+             rname.preserveCase()));
 
   // TODO complex parsers should have comments with the source line.
   cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
                                       "ssize_t& i) ",
-               rname));
+               rname.preserveCase()));
 }
 
 static void
@@ -595,10 +595,10 @@ codegenParserCall(const Rule& rule, string_view posVar,
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
-  else if(optional<string> rname = rule.name()) {
+  else if(optional<Ident> rname = rule.name()) {
     if(holds_alternative<ExternParser>(rule))
-      cppos(format("{}(ctx, {});", *rname, posVar));
-    else cppos(format("parse{}(ctx, {})", *rname, posVar));
+      cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
+    else cppos(format("parse{}(ctx, {})", rname->preserveCase(), posVar));
   }
   // When adding a new branch here, remember to change Rule::needsName().
   else Unimplemented("nameless component of type {}",
@@ -606,9 +606,9 @@ codegenParserCall(const Rule& rule, string_view posVar,
 }
 
 static void
-genExternDeclaration(const OutputStream& hos, const string& rname) {
+genExternDeclaration(const OutputStream& hos, const Ident& rname) {
   hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& j);\n",
-             rname));
+             rname.preserveCase()));
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
@@ -620,7 +620,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
         const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleset.rules[ruleIndex];
   if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
-  string rname = *r.name();
+  Ident rname = *r.name();
 
   if(holds_alternative<ExternParser>(r)) {
     genExternDeclaration(hos, rname);

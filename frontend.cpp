@@ -159,9 +159,8 @@ class RulesWithLocs {
 };
 
 ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
-  string rname = id.preserveCase();
   LocPair thisPos{id.stPos(), id.enPos()};
-  for(ssize_t i=0; i<this->ssize(); ++i) if(rname == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i].name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
@@ -171,11 +170,10 @@ ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
 }
 
 ssize_t RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
-  string s = ident.preserveCase();
-  for(ssize_t i=0; i<this->ssize(); ++i) if(s == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
     if(!holds_alternative<monostate>(rules_[i])) {
       Error(ctx, ident.stPos(), ident.enPos(),
-            format("'{}' has multiple definitions", s));
+            format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
     }else return i;
   }
@@ -195,10 +193,11 @@ bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
     if(holds_alternative<monostate>(rules_[i])) {
-      optional<string> name = rules_[i].name();
+      optional<Ident> name = rules_[i].name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
-      Error(ctx, st, en, format("Rule '{}' was used but never defined", *name));
+      Error(ctx, st, en, format("Rule '{}' was used but never defined",
+                                name->preserveCase()));
       return true;
     }
   return false;

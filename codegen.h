@@ -135,8 +135,9 @@ struct Rule {
   Rule& operator=(const Rule&) = delete;
 
   std::string specifics_typename() const;  // Used for debugging/logging.
-  std::optional<std::string> name() const {
-    if(!name_) return std::nullopt; else return name_.preserveCase();
+  // Returns optional to make it harder to forget the empty case.
+  std::optional<Ident> name() const {
+    if(!name_) return std::nullopt; else return name_;
   }
   void deferred_name(Ident name);
   bool needsName() const;
