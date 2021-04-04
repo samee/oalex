@@ -165,7 +165,7 @@ ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.emplace_back(monostate{}, std::move(rname));
+  rules_.emplace_back(monostate{}, id);
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
@@ -179,7 +179,7 @@ ssize_t RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
       return -1;
     }else return i;
   }
-  rules_.emplace_back(monostate{}, std::move(s));
+  rules_.emplace_back(monostate{}, ident);
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }

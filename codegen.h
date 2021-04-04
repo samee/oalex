@@ -125,8 +125,8 @@ struct ExternParser { };
 struct Rule {
   // TODO other component types like RawString.
   template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
-  template <class X> Rule(X x, std::string name) :
-    specifics_(std::move(x)), name_(Ident::parseGenerated(name)) {}
+  template <class X> Rule(X x, Ident name) :
+    specifics_(std::move(x)), name_(std::move(name)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).

@@ -31,6 +31,7 @@ using oalex::codegenDefaultRegexOptions;
 using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
 using oalex::ExternParser;
+using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
@@ -48,6 +49,7 @@ using oalex::SkipPoint;
 using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
+using oalex::test::nmRule;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
@@ -113,9 +115,9 @@ auto writeOrFail(FILE* fp, string_view s) {
 
 void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
-  RuleSet rs = singletonRuleSet(Rule{"hello", "HelloPrefix"});
+  RuleSet rs = singletonRuleSet(nmRule("hello", "HelloPrefix"));
   codegen(rs, 0, cppos, hos);
-  rs = singletonRuleSet(Rule{WordPreserving{"hello"}, "HelloKeyword"});
+  rs = singletonRuleSet(nmRule(WordPreserving{"hello"}, "HelloKeyword"));
   codegen(rs, 0, cppos, hos);
 }
 
@@ -125,7 +127,7 @@ Rule regexRule(const string& testName,
   size_t i = 0;
   auto regex = parseRegex(regex_input, i);
   assertEmptyDiags(testName, regex_input.diags);
-  return Rule{std::move(regex), fname};
+  return nmRule(std::move(regex), fname);
 }
 
 void generateSingleRegexTest(const OutputStream& cppos,
@@ -152,21 +154,21 @@ void generateConcatFlatTest(const OutputStream& cppos,
                               Rule{":"}, Rule{"="},
                               regexRule(__func__, "/[0-9]+/", "FlatNumber"),
                               Rule{";"},
-                              Rule{SkipPoint{false, &cskip}, "FlatSpace"}),
+                              nmRule(SkipPoint{false, &cskip}, "FlatSpace")),
     .regexOpts = regexOpts,
   };
-  rs.rules.push_back(Rule{ConcatFlatRule{{
+  rs.rules.push_back(nmRule(ConcatFlatRule{{
       {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
-  }}, "FlatVarAndType"});
+  }}, "FlatVarAndType"));
   ssize_t varTypeIndex = rs.rules.size() - 1;
-  rs.rules.push_back(Rule{ConcatFlatRule{{
+  rs.rules.push_back(nmRule(ConcatFlatRule{{
       {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
-  }}, "FlatDefn"});
+  }}, "FlatDefn"));
   ssize_t declIndex = rs.rules.size() - 1;
-  rs.rules.push_back(Rule{OutputTmpl{
+  rs.rules.push_back(nmRule(OutputTmpl{
       declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
-  }, "FlatThenAssembled"});
+  }, "FlatThenAssembled"));
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
@@ -177,8 +179,8 @@ void generateSingleWordTemplate(const OutputStream& cppos,
     JsonLoc{JsonLoc::Placeholder{"the_word"}, 0, 0}}};
   RuleSet rs{
     .rules = makeVector<Rule>(Rule{"word"},
-                              Rule{OutputTmpl{0, "the_word", jsloc},
-                                   "WordTmpl"}),
+                              nmRule(OutputTmpl{0, "the_word", jsloc},
+                                   "WordTmpl")),
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);
@@ -187,17 +189,17 @@ void generateSingleWordTemplate(const OutputStream& cppos,
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVector<Rule>(
-    Rule{WordPreserving{"int"}, "Type"},
+    nmRule(WordPreserving{"int"}, "Type"),
     regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
-    Rule{"=", ""},
+    Rule{"="},
     regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
-    Rule{";", ""},
-    Rule{SkipPoint{false, &cskip}, "CommentsAndWhitespace"},
-    Rule{ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
-                     {3,"value"}, {5,""}, {4,""}},
-                    *parseJsonLoc("{id, value}")}, "Definition"},
-    Rule{ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
-                     {4,""}}, *parseJsonLoc("{rhs, lhs}")}, "Assignment"}
+    Rule{";"},
+    nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
+    nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
+                       {3,"value"}, {5,""}, {4,""}},
+                      *parseJsonLoc("{id, value}")}, "Definition"),
+    nmRule(ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
+                       {4,""}}, *parseJsonLoc("{rhs, lhs}")}, "Assignment")
     ), regexOpts
   };
   for(size_t i=0; i<size(rs.rules); ++i)
@@ -208,13 +210,13 @@ void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {} };
   RuleSet rs { oalex::makeVector<Rule>(
-      Rule{WordPreserving{"let"}, ""},
+      Rule{WordPreserving{"let"}},
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
-      Rule{":", ""},
-      Rule{ExternParser{}, "parseIndentedTmpl"},
-      Rule{SkipPoint{.stayWithinLine=true, &shskip}, "ExtSpace"},
-      Rule{ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
-                       {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl"}
+      Rule{":"},
+      nmRule(ExternParser{}, "parseIndentedTmpl"),
+      nmRule(SkipPoint{.stayWithinLine=true, &shskip}, "ExtSpace"),
+      nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
+                         {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl")
     ), regexOpts
   };
   for(size_t i=0; i<size(rs.rules); ++i)
@@ -227,10 +229,10 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
                               regexRule(__func__, "/[0-9]+/", "OrCompNumber")),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(Rule{OrRule{{
+  rs.rules.push_back(nmRule(OrRule{{
       {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
       {2, *parseJsonLoc("{number: child}")},
-  }}, "OneWordOrList"});
+  }}, "OneWordOrList"));
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
@@ -240,7 +242,8 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
   RuleSet rs{
     .rules = makeVector<Rule>(
         Rule{"hello-world"},
-        Rule{MatchOrError{0, "Was expecting a greeting"}, "HelloWorldOrError"}),
+        nmRule(MatchOrError{0, "Was expecting a greeting"},
+               "HelloWorldOrError")),
     .regexOpts{regexOpts},
   };
   codegen(rs, 1, cppos, hos);

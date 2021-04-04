@@ -50,6 +50,7 @@ using oalex::testInputDiags;
 using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
+using oalex::test::nmRule;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 
@@ -160,10 +161,10 @@ void testConcatMatch() {
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(Rule{SkipPoint{false, &cskip}});
-  rs.rules.push_back(Rule{ConcatRule{{
+  rs.rules.push_back(nmRule(ConcatRule{{
       {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
     }, *parseJsonLoc(R"({ stmt: 'asgn', lhs, rhs })")
-  }, "asgn"});
+  }, "asgn"));
   ssize_t concatIndex = rs.rules.size()-1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");

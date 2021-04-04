@@ -24,6 +24,11 @@ inline const RegexOptions regexOpts{
   .word = oalex::parseRegexCharSet("[0-9A-Za-z_]")
 };
 
+template <class X>
+Rule nmRule(X x, std::string s) {
+  return Rule{std::move(x), Ident::parseGenerated(s)};
+}
+
 inline RuleSet singletonRuleSet(Rule r) {
   RuleSet rs{{}, regexOpts};
   rs.rules.push_back(std::move(r));
