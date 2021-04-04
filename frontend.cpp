@@ -88,14 +88,14 @@ static string debug(const ExprToken& x) {
   else return "(bracket group)";
 }
 
-// TODO use Ident::parse(), or use this only in resemble functions.
-static auto getIfIdent(const ExprToken& x) -> optional<string> {
+// TODO move to ident.cpp and provide validity guarnatees.
+static bool resemblesIdent(const ExprToken& x) {
   auto* seg = get_if<WholeSegment>(&x);
-  if(!seg) return nullopt;
+  if(!seg) return false;
   const string& s = **seg;
-  if(s.empty() || isdigit(s[0])) return nullopt;
-  for(char ch : s) if(!isalnum(ch) && ch != '_') return nullopt;
-  return s;
+  if(s.empty() || isdigit(s[0])) return false;
+  for(char ch : s) if(!isalnum(ch) && ch != '_') return false;
+  return true;
 }
 
 using LocPair = pair<ssize_t,ssize_t>;
@@ -713,7 +713,7 @@ static auto parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx)
 // if possible.
 static bool resemblesRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "rule")
-         && getIfIdent(linetoks[1]).has_value();
+         && resemblesIdent(linetoks[1]);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
@@ -752,7 +752,7 @@ static void parseRule(vector<ExprToken> linetoks,
 // if possible.
 static bool resemblesExample(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "example")
-         && getIfIdent(linetoks[1]).has_value();
+         && resemblesIdent(linetoks[1]);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
@@ -762,7 +762,9 @@ static auto parseExample(vector<ExprToken> linetoks,
   Example rv;
   // Guaranteed to succeed by resemblesExample().
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
-  rv.ruleName = *getIfIdent(linetoks[1]);
+  rv.ruleName = Ident::parse(ctx, *get_if<WholeSegment>(&linetoks[1]))
+                .preserveCase();
+  if(rv.ruleName.empty()) return nullopt;
 
   if(auto sampleInput =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
