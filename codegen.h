@@ -138,7 +138,7 @@ struct Rule {
   std::optional<std::string> name() const {
     if(!name_) return std::nullopt; else return name_.preserveCase();
   }
-  void deferred_name(std::string_view name);
+  void deferred_name(Ident name);
   bool needsName() const;
 
   // Assign to specifics if it is in std::monostate.

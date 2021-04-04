@@ -571,9 +571,10 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
 }
 
 void
-Rule::deferred_name(string_view name) {
-  if(name_) Bug("Cannot rename rule {} to {}", name_.preserveCase(), name);
-  name_ = Ident::parseGenerated(string(name));
+Rule::deferred_name(Ident name) {
+  if(name_) Bug("Cannot rename rule {} to {}",
+                name_.preserveCase(), name.preserveCase());
+  name_ = name;
 }
 
 bool

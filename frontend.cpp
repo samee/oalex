@@ -841,7 +841,7 @@ static bool hasDuplicatePlaceholders(
 static void fillInNames(vector<Rule>& rules) {
   size_t nc = 1;
   for(auto& rule : rules) if(rule.needsName() && !rule.name().has_value()) {
-    rule.deferred_name("rule" + itos(nc++));
+    rule.deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
   }
 }
 
