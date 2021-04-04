@@ -37,6 +37,7 @@ using oalex::codegen;
 using oalex::codegenDefaultRegexOptions;
 using oalex::Diag;
 using oalex::Example;
+using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::is_in;
@@ -280,11 +281,10 @@ JsonLoc processStdin(const RuleSet& rs) {
   return JsonLoc::ErrorValue{};
 }
 
-// TODO have Example use Ident instead of using preserveCase() here.
-ssize_t findRule(const RuleSet& ruleSet, string_view ruleName) {
+ssize_t findRule(const RuleSet& ruleSet, const Ident& ruleName) {
   for(ssize_t i=0; i*1ul<ruleSet.rules.size(); ++i)
     if(auto nm = ruleSet.rules[i].name())
-      if(nm->preserveCase() == ruleName) return i;
+      if(nm == ruleName) return i;
   return -1;
 }
 
@@ -295,7 +295,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   ssize_t ruleIndex = findRule(rs, ex.ruleName);
   if(ruleIndex < 0)
     Bug("Rule {} not found. The frontend should have already "
-        "detected this error", ex.ruleName);
+        "detected this error", ex.ruleName.preserveCase());
   JsonLoc jsloc = eval(ctx, pos, rs, findRule(rs, ex.ruleName));
   if (ex.expectation.matches(jsloc, ctx.diags)) return true;
 

@@ -14,6 +14,7 @@
 
 #pragma once
 #include <vector>
+#include "ident.h"
 #include "oalex.h"
 #include "codegen.h"
 
@@ -78,7 +79,7 @@ struct MappedPos {
 
 struct Example {
   MappedPos mappedPos;
-  std::string ruleName;
+  Ident ruleName;
   std::string sampleInput;
   Expectation expectation;
 };

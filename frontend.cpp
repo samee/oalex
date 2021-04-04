@@ -762,9 +762,8 @@ static auto parseExample(vector<ExprToken> linetoks,
   Example rv;
   // Guaranteed to succeed by resemblesExample().
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
-  rv.ruleName = Ident::parse(ctx, *get_if<WholeSegment>(&linetoks[1]))
-                .preserveCase();
-  if(rv.ruleName.empty()) return nullopt;
+  rv.ruleName = Ident::parse(ctx, *get_if<WholeSegment>(&linetoks[1]));
+  if(!rv.ruleName) return nullopt;
 
   if(auto sampleInput =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
@@ -906,7 +905,7 @@ string describeTestFailure(const Example& ex, bool succeeded) {
       return format("Test failed at {}\n"
                     "Was expecting {} to fail on input '{}'. "
                     "Succeeded unexpectedly.", string(ex.mappedPos),
-                    ex.ruleName, input);
+                    ex.ruleName.preserveCase(), input);
     }else {
       return format("Test failed at {}\n"
                     "Was expecting failure with substring '{}'.",
@@ -918,7 +917,7 @@ string describeTestFailure(const Example& ex, bool succeeded) {
     }else {
       return format("Test failed at {}\n"
                     "Was expecting {} to succeed on input '{}'",
-                    string(ex.mappedPos), ex.ruleName, input);
+                    string(ex.mappedPos), ex.ruleName.preserveCase(), input);
     }
   }
 }
