@@ -60,6 +60,12 @@ class Ident {
   Ident() = default;
   static Ident parse(InputDiags& ctx, size_t& i);
   static Ident parse(DiagsDest ctx, const lex::WholeSegment& s);
+
+  /* parseGenerated() dies on invalid input. It is expected to be used only
+  for hardcoded inputs and sanitized inputs. It also preserves the invariant
+  that for all valid input s, Ident::parseGenerate(s).preserveCase() == s. */
+  static Ident parseGenerated(std::string s);
+
   std::string toSnakeCase() const;
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;

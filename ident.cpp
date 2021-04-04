@@ -109,6 +109,15 @@ Ident Ident::parse(DiagsDest ctx, const WholeSegment& s) {
   return parseFromString(ctx, *s, s.stPos);
 }
 
+Ident Ident::parseGenerated(string s) {
+  if(s.empty()) return Ident{};
+  InputDiags ctx{Input{s}};
+  size_t i = 0;
+  Ident rv = Ident::parse(ctx, i);
+  if(!ctx.diags.empty()) Bug("Couldn't parse generated ident '{}'", s);
+  return rv;
+}
+
 template <class Cb>
 auto splitAt(string_view s, Cb isSeparator) -> vector<string> {
   vector<string> rv;
