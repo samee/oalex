@@ -346,12 +346,12 @@ static void
 parserHeaders(const Ident& rname,
               const OutputStream& cppos, const OutputStream& hos) {
   hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             rname.preserveCase()));
+             rname.toUCamelCase()));
 
   // TODO complex parsers should have comments with the source line.
   cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
                                       "ssize_t& i) ",
-               rname.preserveCase()));
+               rname.toUCamelCase()));
 }
 
 static void
@@ -598,7 +598,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
   else if(optional<Ident> rname = rule.name()) {
     if(holds_alternative<ExternParser>(rule))
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
-    else cppos(format("parse{}(ctx, {})", rname->preserveCase(), posVar));
+    else cppos(format("parse{}(ctx, {})", rname->toUCamelCase(), posVar));
   }
   // When adding a new branch here, remember to change Rule::needsName().
   else Unimplemented("nameless component of type {}",
