@@ -130,7 +130,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
 }
 
 static JsonLoc
-subtituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
+substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
   ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
   if(count > 1) Bug("OrRule wasn't expected to have more than one child");
   return tmpl;  // Assumes substitutionsOk();
@@ -142,7 +142,7 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   JsonLoc out{JsonLoc::ErrorValue{}};
   for(auto& [idx, tmpl]: ors.comps) {
     out = eval(ctx, i, rs, idx);
-    if(!out.holdsError()) return subtituteOnePlaceholder(tmpl, "child", out);
+    if(!out.holdsError()) return substituteOnePlaceholder(tmpl, "child", out);
   }
   return out;  // Return the last error.
 }
