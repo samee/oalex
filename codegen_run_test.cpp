@@ -245,6 +245,23 @@ void runFlattenOnDemand() {
   }
 }
 
+void runLookaheads() {
+  const pair<string, JsonLoc> testdata[] = {
+    {"var x = y; ignore", *parseJsonLoc("{var: 'x', init_value: 'y'}")},
+    {"x = y; ignore", *parseJsonLoc("{lhs: 'x', rhs: 'y'}")},
+    {"var = x; ignore", JsonLoc{JsonLoc::ErrorValue{}}},
+  };
+  for(auto& [msg, expected] : testdata) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = parseLookaheadSimpleStmt(ctx, pos);
+    if(expected.holdsError()) {
+      if(!observed.holdsError())
+        BugMe("Expected error on '{}', got {}", msg, observed);
+    }else assertEqual(__func__, expected, observed);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -266,4 +283,5 @@ int main() {
   runExternParserDeclaration();
   runOrTest();
   runFlattenOnDemand();
+  runLookaheads();
 }

@@ -539,13 +539,27 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
   for(auto& [lidx, pidx, tmpl] : orRule.comps) {
-    if(lidx != -1) Unimplemented("OrRule resemblance-checker");
-    cppos("  res = ");
-      codegenParserCall(ruleset.rules[pidx], "i", cppos);
-      cppos(";\n");
-    cppos("  if(!res.holdsError()) return ");
-      codegen(tmpl, cppos, {{"child", "res"}}, 2);
-      cppos(";\n");
+    if(lidx == -1) {
+      cppos("  res = ");
+        codegenParserCall(ruleset.rules[pidx], "i", cppos);
+        cppos(";\n");
+      cppos("  if(!res.holdsError()) return ");
+        codegen(tmpl, cppos, {{"child", "res"}}, 2);
+        cppos(";\n");
+    }else {
+      if(!ruleset.rules[lidx].name().has_value())
+        Bug("The frontend must always name every lookidx");
+      cppos(format("  if(quietMatch(ctx.input, i, parse{})) {{\n",
+                   ruleset.rules[lidx].name()->toUCamelCase()));
+      cppos("    res = ");
+        codegenParserCall(ruleset.rules[pidx], "i", cppos);
+        cppos(";\n");
+      cppos("    if(!res.holdsError()) return ");
+        codegen(tmpl, cppos, {{"child", "res"}}, 4);
+        cppos(";\n");
+      cppos("    else return res;\n");
+      cppos("  }\n");
+    }
   }
   cppos("  return res;\n");
 }

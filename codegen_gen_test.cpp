@@ -50,6 +50,7 @@ using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
 using oalex::test::nmRule;
+using oalex::test::onlyChild;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
@@ -272,6 +273,29 @@ void generateFlattenOnDemand(const OutputStream& cppos,
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
+        nmRule(WordPreserving{"var"}, "lookahead_var_keyword"),
+        regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
+        Rule{"="}, Rule{";"},
+        nmRule(ConcatFlatRule{{
+          {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
+          {2, "init_value"}, {0, ""}, {4, ""},
+        }}, "decl"),
+        nmRule(ConcatFlatRule{{
+          {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
+        }}, "asgn"),
+        nmRule(OrRule{.comps{ {1, 5, onlyChild}, {-1, 6, onlyChild} },
+                      .flattenOnDemand = true}, "lookahead_simple_stmt")),
+    .regexOpts{regexOpts},
+  };
+
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -322,5 +346,7 @@ int main(int argc, char* argv[]) {
   generateMatchOrErrorTest(cppos, hos);
   linebreaks();
   generateFlattenOnDemand(cppos, hos);
+  linebreaks();
+  generateLookaheads(cppos, hos);
   return 0;
 }
