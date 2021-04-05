@@ -250,6 +250,7 @@ void testKeywordsOrNumber() {
     auto ctx = testInputDiags(msg);
     JsonLoc observed = eval(ctx, pos, rs, orListIndex);
     assertEqual(__func__, expected, observed);
+    assertEqual(__func__, pos, ssize_t(msg.size()));
   }
 
   ssize_t pos = 0;

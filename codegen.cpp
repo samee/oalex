@@ -138,11 +138,10 @@ subtituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
 
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
-  ssize_t j = i;
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
   JsonLoc out{JsonLoc::ErrorValue{}};
   for(auto& [idx, tmpl]: ors.comps) {
-    out = eval(ctx, j, rs, idx);
+    out = eval(ctx, i, rs, idx);
     if(!out.holdsError()) return subtituteOnePlaceholder(tmpl, "child", out);
   }
   return out;  // Return the last error.
