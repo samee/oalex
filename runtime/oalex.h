@@ -18,51 +18,6 @@
 #include "diags.h"
 #include "input_view.h"
 #include "jsonloc.h"
+#include "parser_helpers.h"
 #include "regex.h"
 #include "skipper.h"
-
-namespace oalex {
-
-inline static JsonLoc quote(std::string input, size_t stPos, size_t enPos) {
-  JsonLoc rv = std::move(input);
-  rv.stPos = stPos; rv.enPos = enPos;
-  return rv;
-}
-
-// We might move these into a separate file if we no longer depend on most
-// of the runtime headers.
-inline JsonLoc match(InputDiags& ctx, ssize_t& i, std::string_view s) {
-  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
-  ssize_t oldi = std::exchange(i, i+s.size());
-  return quote(std::string(s), oldi, i);
-}
-
-inline JsonLoc match(InputDiags& ctx, ssize_t& i,
-                     const Regex& regex, const RegexOptions& ropts) {
-  size_t oldi = i;
-  if(consumeGreedily(ctx.input, sign_cast<size_t&>(i), regex, ropts))
-    return quote(ctx.input.substr(oldi, i-oldi), oldi, i);
-  else return JsonLoc::ErrorValue{};
-}
-
-// This version discards matches if it is appearing to split a word into two.
-// Providing an empty wordChars {} here is equivalent to calling it without
-// wordChars.
-inline JsonLoc match(InputDiags& ctx, ssize_t& i,
-                     const RegexCharSet& wordChars,
-                     std::string_view s) {
-  if(s.empty()) return quote("", i, 0);  // Frontend should disallow this.
-  if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
-  const ssize_t j = i+s.size();
-  if(ctx.input.sizeGt(j) && matchesRegexCharSet(ctx.input[j-1], wordChars)
-                         && matchesRegexCharSet(ctx.input[j], wordChars))
-    return JsonLoc::ErrorValue{};
-  return quote(std::string(s), std::exchange(i, j), j);
-}
-
-inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
-  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
-    Bug("maps are supposed to be key-disjoint");
-}
-
-}  // namespace oalex
