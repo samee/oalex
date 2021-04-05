@@ -33,7 +33,8 @@ inline static JsonLoc quote(std::string input, size_t stPos, size_t enPos) {
 // of the runtime headers.
 inline JsonLoc match(InputDiags& ctx, ssize_t& i, std::string_view s) {
   if(!ctx.input.hasPrefix(i, s)) return JsonLoc::ErrorValue{};
-  return quote(std::string(s), std::exchange(i, i+s.size()), i+s.size());
+  ssize_t oldi = std::exchange(i, i+s.size());
+  return quote(std::string(s), oldi, i);
 }
 
 inline JsonLoc match(InputDiags& ctx, ssize_t& i,
