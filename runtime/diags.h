@@ -31,6 +31,11 @@ struct Diag {
   explicit operator std::string() const;
 };
 
+inline bool hasError(const std::vector<Diag>& diags) {
+  for(const auto& d : diags) if(d.severity == Diag::error) return true;
+  return false;
+}
+
 class DiagsDest {
   const Input* input_;
   std::vector<Diag>* diags_;

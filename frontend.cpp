@@ -845,11 +845,6 @@ static void fillInNames(vector<Rule>& rules) {
   }
 }
 
-static bool hasError(const vector<Diag>& diags) {
-  for(const auto& d : diags) if(d.severity == Diag::error) return true;
-  return false;
-}
-
 auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   static const auto* userRegexOpts = new RegexOptions{
     // Do not use user-supplied input. See regex_io.h for details.
