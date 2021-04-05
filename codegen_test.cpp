@@ -53,6 +53,7 @@ using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
 using oalex::test::nmRule;
+using oalex::test::onlyChild;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 
@@ -290,7 +291,39 @@ void testFlattenOnDemand() {
     JsonLoc observed = eval(ctx, pos, rs, ruleidx);
     assertEqual(__func__, expected, observed);
   }
+}
 
+void testLookaheads() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{SkipPoint{false, &cskip}},
+        Rule{WordPreserving{"var"}}, Rule{parseRegex("/[a-z]+/")},
+        Rule{"="}, Rule{";"},
+        nmRule(ConcatFlatRule{{
+          {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
+          {2, "init_value"}, {0, ""}, {4, ""},
+        }}, "decl"),
+        nmRule(ConcatFlatRule{{
+          {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
+        }}, "asgn"),
+        nmRule(OrRule{.comps{ {1, 5, onlyChild}, {-1, 6, onlyChild} },
+                      .flattenOnDemand = true}, "simple_stmt")),
+    .regexOpts{regexOpts},
+  };
+  const pair<string, JsonLoc> testdata[] = {
+    {"var x = y; ignore", *parseJsonLoc("{var: 'x', init_value: 'y'}")},
+    {"x = y; ignore", *parseJsonLoc("{lhs: 'x', rhs: 'y'}")},
+    {"var = x; ignore", JsonLoc{JsonLoc::ErrorValue{}}},
+  };
+  for(auto& [msg, expected] : testdata) {
+    ssize_t pos = 0;
+    auto ctx = testInputDiags(msg);
+    JsonLoc observed = eval(ctx, pos, rs, 7);
+    if(expected.holdsError()) {
+      if(!observed.holdsError())
+        BugMe("Expected error on '{}', got {}", msg, observed);
+    }else assertEqual(__func__, expected, observed);
+  }
 }
 
 }  // namespace
@@ -308,5 +341,6 @@ int main() {
   testConcatMatch();
   testKeywordsOrNumber();
   testFlattenOnDemand();
+  testLookaheads();
 }
 
