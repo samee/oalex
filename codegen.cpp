@@ -140,8 +140,9 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
   JsonLoc out{JsonLoc::ErrorValue{}};
-  for(auto& [idx, tmpl]: ors.comps) {
-    out = eval(ctx, i, rs, idx);
+  for(auto& [lidx, pidx, tmpl]: ors.comps) {
+    if(lidx != -1) Unimplemented("OrRule resemblance-checker");
+    out = eval(ctx, i, rs, pidx);
     if(!out.holdsError()) return substituteOnePlaceholder(tmpl, "child", out);
   }
   return out;  // Return the last error.
@@ -524,9 +525,10 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
-  for(auto& [idx, tmpl] : orRule.comps) {
+  for(auto& [lidx, pidx, tmpl] : orRule.comps) {
+    if(lidx != -1) Unimplemented("OrRule resemblance-checker");
     cppos("  res = ");
-      codegenParserCall(ruleset.rules[idx], "i", cppos);
+      codegenParserCall(ruleset.rules[pidx], "i", cppos);
       cppos(";\n");
     cppos("  if(!res.holdsError()) return ");
       codegen(tmpl, cppos, {{"child", "res"}}, 2);

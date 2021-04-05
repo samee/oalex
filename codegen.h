@@ -83,7 +83,10 @@ struct OrRule {
   // to be a child component, this needs to always return a JsonLoc::Map.
   // As a general rule, flattenOnDemand is false for named multi-match rules,
   // but true for anonymous subparts of a pattern.
-  struct Component { ssize_t idx; JsonLoc tmpl; };
+  //
+  // Setting lookidx to -1 makes this rule not do a separate lookahead.
+  // parseidx must always be a valid index.
+  struct Component { ssize_t lookidx, parseidx; JsonLoc tmpl; };
   std::vector<Component> comps;
   bool flattenOnDemand;
 };

@@ -236,8 +236,8 @@ void testKeywordsOrNumber() {
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(Rule{OrRule{.comps{
-      {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
-      {2, *parseJsonLoc("{number: child}")},
+      {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
+      {-1, 2, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false}});
   const ssize_t orListIndex = rs.rules.size()-1;
 
@@ -267,8 +267,8 @@ void testFlattenOnDemand() {
     .rules = makeVector<Rule>(
         Rule{"let"}, Rule{parseRegex("/[0-9]+/")},
         Rule{OrRule{.comps{
-          {0, *parseJsonLoc("{keyword: child}")},
-          {1, *parseJsonLoc("{number: child}")},
+          {-1, 0, *parseJsonLoc("{keyword: child}")},
+          {-1, 1, *parseJsonLoc("{number: child}")},
         }, .flattenOnDemand = false}},
         Rule{ConcatFlatRule{{{2, "next_token"}}}}
       ), .regexOpts{regexOpts},

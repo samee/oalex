@@ -230,8 +230,8 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(nmRule(OrRule{.comps{
-      {0, JsonLoc{"if"}}, {1, JsonLoc{"while"}},
-      {2, *parseJsonLoc("{number: child}")},
+      {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
+      {-1, 2, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false}, "OneWordOrList"));
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
@@ -257,8 +257,8 @@ void generateFlattenOnDemand(const OutputStream& cppos,
       ), .regexOpts{regexOpts},
   };
   OrRule orrule{.comps{
-    {0, *parseJsonLoc("{keyword: child}")},
-    {1, *parseJsonLoc("{number: child}")},
+    {-1, 0, *parseJsonLoc("{keyword: child}")},
+    {-1, 1, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false};
   rs.rules.push_back(nmRule(orrule, "UnflattenKeywordOrNumber"));
   rs.rules.push_back(nmRule(ConcatFlatRule{{{2, "next_token"}}},
