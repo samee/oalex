@@ -37,4 +37,25 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
   return quote(string(s), std::exchange(i, j), j);
 }
 
+bool quietMatch(const Input& input, ssize_t i, GeneratedParser parser) {
+  /* TODO codegen proper resemblance checkers.
+
+  <rant>
+  Instead, we are now abusing normal parsers as resemblance checkers,
+  using hacks to discard their diagnostics. This is especially egregious
+  when one notices that we are needlessly keeping copies of inputs here,
+  in a function that is called *more* frequently than normal parsers. At least,
+  we should be able to make Input a more lightweight type that doesn't need to
+  make input copies.
+
+  Human-written parsers don't usually have such adapter functions.
+  We shouldn't have them either.
+  </rant>
+  */
+  InputDiags proxy{Input{[&]() { return input[i++]; } }};
+  ssize_t pos = 0;
+  JsonLoc res = parser(proxy, pos);
+  return !res.holdsError() && !hasError(proxy.diags);
+}
+
 }  // namespace oalex

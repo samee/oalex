@@ -37,4 +37,8 @@ inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
     Bug("maps are supposed to be key-disjoint");
 }
 
+// Converts a parser into a resemblance-checker.
+using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
+bool quietMatch(const Input& input, ssize_t i, GeneratedParser parser);
+
 }  // namespace oalex
