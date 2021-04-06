@@ -220,8 +220,9 @@ std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 
 // This one is not meant for tentative parsing. Produces error diags if
 // anything is wrong. It joins multiple lines together if necessary for
-// bracket-matching.
-std::optional<std::vector<ExprToken>> lexNextLine(InputDiags& lex, size_t& i);
+// bracket-matching. Returns empty on errors or on eof (distinguished by
+// lex.sizeGt(i)).
+std::vector<ExprToken> lexNextLine(InputDiags& lex, size_t& i);
 
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);

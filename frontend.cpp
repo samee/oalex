@@ -728,9 +728,9 @@ static void parseRule(vector<ExprToken> linetoks,
   const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
 
   // Consume next line for the outputs stanza.
-  if(auto opt = lexNextLine(ctx, i);
-     opt.has_value() && matchesTokens(*opt, {"outputs"}))
-    linetoks = std::move(*opt);
+  if(auto toks = lexNextLine(ctx, i);
+     !toks.empty() && matchesTokens(toks, {"outputs"}))
+    linetoks = std::move(toks);
   else {
     Error(ctx, i, format("outputs stanza missing in rule {}",
                          ident.preserveCase()));
@@ -771,9 +771,8 @@ static auto parseExample(vector<ExprToken> linetoks,
     rv.sampleInput = std::move(*sampleInput);
   }else return nullopt;
 
-  vector<ExprToken> linetoks2;
-  if(auto opt = lexNextLine(ctx, i)) linetoks2 = std::move(*opt);
-  else return nullopt;
+  vector<ExprToken> linetoks2 = lexNextLine(ctx, i);
+  if(linetoks2.empty()) return nullopt;
 
   if(matchesTokens(linetoks2, {"outputs", "success"})) {
     if(!requireEol(linetoks2, 2, ctx)) return nullopt;
@@ -857,17 +856,12 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
   while(ctx.input.sizeGt(i)) {
     if(i != ctx.input.bol(i))
       FatalBug(ctx, i, "Rules must start at bol()");
-    optional<vector<ExprToken>> linetoks_opt = lexNextLine(ctx, i);
-    if(!linetoks_opt.has_value()) return nullopt;
-    auto& linetoks = *linetoks_opt;
-
-    // Any `continue` after this point results in the following lines
-    // being processed.
+    vector<ExprToken> linetoks = lexNextLine(ctx, i);
     if(linetoks.empty()) {
-      if(ctx.input.sizeGt(i))
-        FatalBug(ctx, i, "lexNextLine() returned empty before EOF");
+      if(ctx.input.sizeGt(i)) return nullopt;  // Error case
       else break;
     }
+
     if(resemblesBnfRule(linetoks)) {
       parseBnfRule(std::move(linetoks), ctx, rl);
     }else if(resemblesExample(linetoks)) {

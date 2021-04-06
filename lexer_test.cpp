@@ -530,16 +530,16 @@ void nextLineSuccessImpl(
     vector<ExprMatcher> expectedResult) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t pos = 0;
-  optional<vector<ExprToken>> observedResult = lexNextLine(ctx, pos);
-  if(!observedResult.has_value()) {
+  vector<ExprToken> observedResult = lexNextLine(ctx, pos);
+  if(observedResult.empty()) {
     showDiags(ctx.diags);
     Bug("{} failed: Couldn't process input:\n{}", testName, testInput);
   }
-  if(observedResult->size() != expectedResult.size())
+  if(observedResult.size() != expectedResult.size())
     Bug("{} failed: output size unexpected: {} != {}", testName,
-        observedResult->size(), expectedResult.size());
-  for(size_t i=0; i<observedResult->size(); ++i) {
-    if(auto err = matcher::match(expectedResult[i], observedResult->at(i)))
+        observedResult.size(), expectedResult.size());
+  for(size_t i=0; i<observedResult.size(); ++i) {
+    if(auto err = matcher::match(expectedResult[i], observedResult.at(i)))
       Bug("{} failed at result index {}: {}", testName, i, *err);
   }
 }

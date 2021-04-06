@@ -682,7 +682,7 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   return *rv;
 }
 
-optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
+vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
   if(i != ctx.input.bol(i)) FatalBug(ctx, i, "lexNextLine() must start at bol");
   Resetter rst(ctx, i);
   while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
@@ -695,7 +695,7 @@ optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
     optional<ExprToken> tok = lexBracketGroup(ctx, i);
     if(!tok.has_value()) {
       tok = lexSingleToken(ctx, i);
-      if(!tok.has_value()) return nullopt;
+      if(!tok.has_value()) return {};
     }
     i = enPos(*tok);
     rv.push_back(std::move(*tok));
