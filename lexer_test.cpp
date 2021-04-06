@@ -102,13 +102,13 @@ void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<WholeSegment>> res = lexSectionHeader(ctx, i);
-  if(!res || !ctx.diags.empty()) {
+  vector<WholeSegment> res = lexSectionHeader(ctx, i);
+  if(res.empty() || !ctx.diags.empty()) {
     for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
     Bug("{} failed", testName);
   }else {
     vector<string> observed;
-    for(const WholeSegment& t : *res) observed.push_back(*t);
+    for(const WholeSegment& t : res) observed.push_back(*t);
     if(expected != observed)
       Bug("{}: {} != {}", testName, expected, observed);
   }
@@ -118,8 +118,8 @@ void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
   InputDiags ctx{testInputDiags(testInput)};
   size_t i = 0;
-  optional<vector<WholeSegment>> res = lexSectionHeader(ctx, i);
-  if(res && ctx.diags.empty())
+  vector<WholeSegment> res = lexSectionHeader(ctx, i);
+  if(!res.empty() && ctx.diags.empty())
     Bug("Test {} succeeded unexpectedly", testName);
   if(!expectedDiag.empty())
     assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);

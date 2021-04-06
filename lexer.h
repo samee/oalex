@@ -210,8 +210,7 @@ enum class IndentCmp { bad, lt, eq, gt };
 IndentCmp indentCmp(std::string_view indent1, std::string_view indent2);
 
 std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
-std::optional<std::vector<WholeSegment>>
-  lexSectionHeader(InputDiags& lex, size_t& i);
+std::vector<WholeSegment> lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexQuotedString(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexFencedSource(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexIndentedSource(InputDiags& lex, size_t& i,

@@ -136,7 +136,7 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
 //       - Will likely depend on parser-global bools.
 //       - Likely signature: foo(InputDiags&,size_t&);
 
-optional<vector<WholeSegment>>
+vector<WholeSegment>
 lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   Resetter rst(ctx, i);
@@ -148,8 +148,8 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
     if(isSectionHeaderNonSpace(input[i])) {
       if(optional<WholeSegment> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
-      else return nullopt;
-    }else return nullopt;
+      else return {};
+    }else return {};
   }
   rst.markUsed(i);
   return rv;
@@ -648,8 +648,9 @@ lookaheadParIndent(InputDiags& ctx, size_t i) {
 //   * We find a content line followed immediately by a line of just dashes,
 //     with no intervening blank line.
 //   * Any leading or trailing space or tabs are discarded. So are comments.
-// If any of these conditions fail, we promptly return nullopt. A content line
-// is one where the only non-comment characters are in /[0-9A-Za-z_ \t]+/.
+// If any of these conditions fail, we promptly return an empty result. A
+// content line is one where the only non-comment characters are in
+// /[0-9A-Za-z_ \t]+/. Valid content lines are never blank.
 //
 // Additionally, we produce errors if:
 //   * They are indented.
@@ -658,15 +659,15 @@ lookaheadParIndent(InputDiags& ctx, size_t i) {
 // TODO: We should also produce errors if there is an invalid character in
 // an otherwise good section header. The same for some odd character in a line
 // overwhelmed with dashes.
-optional<vector<WholeSegment>> lexSectionHeader(InputDiags& ctx, size_t& i) {
-  if(i != ctx.input.bol(i)) return nullopt;
+vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
+  if(i != ctx.input.bol(i)) return {};
 
   Resetter rst(ctx, i);
   while(auto j = skipBlankLine(ctx,i)) i = *j;
   optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
-  if(!rv) return nullopt;
+  if(!rv) return {};
   optional<size_t> stDash=lexDashLine(ctx,i);
-  if(!stDash) return nullopt;
+  if(!stDash) return {};
   rst.markUsed(i);
 
   size_t stCont=rv->at(0).stPos;
@@ -678,7 +679,7 @@ optional<vector<WholeSegment>> lexSectionHeader(InputDiags& ctx, size_t& i) {
     Error(ctx, input.bol(*stDash), *stDash-1,
           "Dashes in a section header must not be indented");
 
-  return rv;
+  return *rv;
 }
 
 optional<vector<ExprToken>> lexNextLine(InputDiags& ctx, size_t& i) {
