@@ -65,19 +65,23 @@ inline ExprMatcher exprMatcher(GluedMatcher gm) { return gm; }
 
 }  // namespace internal
 
-template <class ... Args> BracketGroupMatcher squareBrackets(Args ... args) {
+template <class ... Args> std::vector<ExprMatcher> matchvec(Args&& ... args) {
+  return {internal::exprMatcher(std::forward<Args>(args))...};
+}
+
+template <class ... Args> BracketGroupMatcher squareBrackets(Args&& ... args) {
   return BracketGroupMatcher{BracketType::square,
-                             {internal::exprMatcher(args)...}};
+                             matchvec(std::forward<Args>(args)...)};
 }
 
-template <class ... Args> BracketGroupMatcher braces(Args ... args) {
+template <class ... Args> BracketGroupMatcher braces(Args&& ... args) {
   return BracketGroupMatcher{BracketType::brace,
-                             {internal::exprMatcher(args)...}};
+                             matchvec(std::forward<Args>(args)...)};
 }
 
-template <class ... Args> BracketGroupMatcher parens(Args ... args) {
+template <class ... Args> BracketGroupMatcher parens(Args&& ... args) {
   return BracketGroupMatcher{BracketType::paren,
-                             {internal::exprMatcher(args)...}};
+                             matchvec(std::forward<Args>(args)...)};
 }
 
 // Returns error. `nullopt` means no error.
