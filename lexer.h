@@ -222,6 +222,9 @@ std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 // anything is wrong. It joins multiple lines together if necessary for
 // bracket-matching. Returns empty on errors or on eof (distinguished by
 // lex.sizeGt(i)).
+// Requires i == lex.input.bol(i) on entry,
+// ensures the same condition on exit, so it's safe to call this function
+// multiple times in succession.
 std::vector<ExprToken> lexNextLine(InputDiags& lex, size_t& i);
 
 // Used, for instance, to lex list of lookaheads,

@@ -545,6 +545,7 @@ void nextLineSuccessImpl(
   if(observedResult.size() != expectedResult.size())
     Bug("{} failed: output size unexpected: {} != {}", testName,
         observedResult.size(), expectedResult.size());
+  assertEqual(__func__, pos, ctx.input.bol(pos));
   for(size_t i=0; i<observedResult.size(); ++i) {
     if(auto err = matcher::match(expectedResult[i], observedResult.at(i)))
       Bug("{} failed at result index {}: {}", testName, i, *err);
