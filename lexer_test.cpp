@@ -693,6 +693,10 @@ int main() {
 
   lexListEntriesSuccess();
   lexListEntriesFailure("Eof", "", "");
+  lexListEntriesFailure("Offside", R"(
+    | pancake [
+    whipped cream ] syrup
+    )", "Needs to be indented further");
   lexListEntriesFailure("Bad start", R"(
     | pancake
     whipped cream syrup

@@ -276,6 +276,18 @@ optional<BracketType> lexCloseBracket(const Input& input, size_t& i) {
   }
 }
 
+static size_t
+closeBracketStart(const BracketGroup& bg) {
+  switch(bg.type) {
+    case BracketType::square:
+    case BracketType::brace:
+    case BracketType::paren:
+      return bg.enPos-1;
+    default:
+      Bug("Unknown bracket type in {}", __func__);
+  }
+}
+
 string debugChar(char ch) {
   if(isprint(ch)) return format("'{}'", ch);
   else return format("\\x{:02x}", int(ch));
@@ -563,6 +575,29 @@ lexListEntry(InputDiags& ctx, size_t& i, char bullet, string_view refindent) {
   }
 }
 
+static size_t
+findOffsideToken(const Input& input, string_view refindent,
+                 vector<ExprToken>::const_iterator begin,
+                 vector<ExprToken>::const_iterator end) {
+  for(auto it = begin; it != end; ++it) {
+    const ExprToken& tok = *it;
+    if(auto* bg = get_if<BracketGroup>(&tok)) {
+      if(auto rv = findOffsideToken(input, refindent,
+                                    bg->children.begin(), bg->children.end()))
+        return rv;
+
+      // Special-case bracket end char,
+      // since we don't check those anywhere else.
+      size_t closeSt = closeBracketStart(*bg);
+      IndentCmp cmp = indentCmp(substrFromBol(input, closeSt), refindent);
+      if(cmp == IndentCmp::lt || cmp == IndentCmp::eq) return closeSt;
+    }
+    IndentCmp cmp = indentCmp(substrFromBol(input, stPos(tok)), refindent);
+    if(cmp == IndentCmp::lt || cmp == IndentCmp::eq) return stPos(tok);
+  }
+  return Input::npos;
+}
+
 vector<vector<ExprToken>>
 lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
   const Input& input = ctx.input;
@@ -584,7 +619,16 @@ lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
     rst.markUsed(i);
   }
 
-  // TODO Post-process for indent check
+  // Post-process for indent check
+  for(const auto& entry : rv) {
+    // Skip the bullet token.
+    size_t off = findOffsideToken(ctx.input, refindent,
+                                  ++entry.begin(), entry.end());
+    if(off != Input::npos) {
+      Error(ctx, off, "Needs to be indented further");
+      break;
+    }
+  }
   return rv;
 }
 
