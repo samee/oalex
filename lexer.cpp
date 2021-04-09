@@ -480,10 +480,11 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   if(!lookaheadStart(ctx,i)) return nullopt;
 
   BracketType bt;
+  const size_t bstart = i;
   if(auto btOpt = lexOpenBracket(input,i)) bt=*btOpt;
   else return nullopt;
 
-  BracketGroup bg(i,Input::npos,bt);
+  BracketGroup bg(bstart,Input::npos,bt);
   while(true) {
     if(!lookaheadStart(ctx,i)) {  // lookaheadStart is false on EOF.
       Error(ctx, i, format("Match not found for '{}'.", openBracket(bt)));

@@ -416,6 +416,9 @@ void bracketGroupSuccess() {
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
 
+  assertEqual("stPos in bracketGroupSuccess()", bgopt->stPos, size_t{0});
+  assertEqual("enPos in bracketGroupSuccess()", bgopt->enPos, input.size());
+
   if(bgopt.has_value() && ctx.diags.empty()) {
     if(auto err = matcher::match(expected, std::move(*bgopt)))
       BugMe("Failed: {}", *err);
