@@ -224,6 +224,16 @@ std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 // lex.sizeGt(i)).
 std::vector<ExprToken> lexNextLine(InputDiags& lex, size_t& i);
 
+// Used, for instance, to lex list of lookaheads,
+// with the leader character set to '|'.
+// On parse error, it still returns and consumes as many lines as possible.
+// No obvious indication is returned to indicate that this has happened,
+//   other than diagnostic errors in lex.diags.
+// Callers should check for severe errors by checking if the return value is
+// empty(), but should otherwise keep parsing from the next line.
+std::vector<std::vector<ExprToken>>
+lexListEntries(InputDiags& lex, size_t& i, char bullet);
+
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 

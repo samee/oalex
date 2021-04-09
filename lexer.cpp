@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -55,6 +56,8 @@
 
 using fmt::format;
 using std::function;
+using std::get_if;
+using std::make_move_iterator;
 using std::min;
 using std::nullopt;
 using std::numeric_limits;
@@ -206,6 +209,9 @@ string getline(InputDiags& ctx, size_t& i) {
   return rv;
 }
 
+constexpr char badIndentMsg[] = "Indentation mixes tabs and spaces differently "
+                                "from the previous line";
+
 // If ctx.input[i] starts a blank line, return "".
 // If the indentation is less than parindent, return nullopt.
 // Else, return the source line with parindent stripped out.
@@ -229,8 +235,7 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
   if(cmp == IndentCmp::lt) return nullopt;
 
   if(cmp == IndentCmp::bad) {
-    Error(ctx, i, j, "Indentation mixes tabs and spaces differently "
-                     "from the previous line");
+    Error(ctx, i, j, badIndentMsg);
     getline(ctx, i);  // Skip to end of line.
     return "";        // Don't return any of it.
   }
@@ -514,6 +519,73 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
       else if(i == oldi) ++i;
     }
   }
+}
+
+static string substrFromBol(const Input& input, size_t i) {
+  size_t bol = input.bol(i);
+  return input.substr(bol, i-bol);
+}
+
+// Even in case of an error, it increments i to the end of the last line it
+// could successfully parse.
+static vector<ExprToken>
+lexListEntry(InputDiags& ctx, size_t& i, char bullet, string_view refindent) {
+  const Input& input = ctx.input;
+  Resetter rst(ctx, i);
+  vector<ExprToken> rv;
+
+  while(true) {
+    vector<ExprToken> line = lexNextLine(ctx, i);
+    if(line.empty() && !input.sizeGt(i)) return rv;
+
+    size_t char1 = stPos(line[0]);
+    IndentCmp cmp = indentCmp(substrFromBol(input, char1), refindent);
+    if(cmp == IndentCmp::bad) {
+      rst.markUsed(i);   // Don't come back to this line for the next entry.
+      Error(ctx, input.bol(char1), char1, badIndentMsg);
+      return rv;
+    }else if(cmp == IndentCmp::lt) return rv;
+    else if(cmp == IndentCmp::eq) {  // Must be the first token of some entry.
+      if(!rv.empty()) return rv;     // The *next* entry is about to start.
+      // Else, we are just starting the current entry.
+      else if(!isToken(line[0], string_view(&bullet, 1))) {
+        rst.markUsed(i);
+        Error(ctx, i, i+1,
+              format("New list entries should start with '{}'. "
+                     "Continuation of old entries should be indented more.",
+                     bullet));
+        return rv;
+      }
+    }
+    rv.insert(rv.end(), make_move_iterator(line.begin()),
+                        make_move_iterator(line.end()));
+    rst.markUsed(i);
+  }
+}
+
+vector<vector<ExprToken>>
+lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
+  const Input& input = ctx.input;
+  if(i != input.bol(i))
+    FatalBug(ctx, i,
+        format("lexListEntries() must start at bol(), got string '{}'",
+               debugPrefix(ctx.input, i)));
+  Resetter rst(ctx, i);
+
+  size_t first_char_pos = i;
+  if(!lookaheadStart(ctx, first_char_pos)) return {};
+  string refindent = substrFromBol(input, first_char_pos);
+
+  vector<vector<ExprToken>> rv;
+  while(true) {
+    vector<ExprToken> list_entry = lexListEntry(ctx, i, bullet, refindent);
+    if(list_entry.empty()) break;
+    rv.push_back(std::move(list_entry));
+    rst.markUsed(i);
+  }
+
+  // TODO Post-process for indent check
+  return rv;
 }
 
 // Returns nullopt on eof. Throws on invalid language character.

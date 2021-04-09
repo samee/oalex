@@ -48,6 +48,7 @@ using oalex::lex::indentCmp;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexFencedSource;
 using oalex::lex::lexIndentedSource;
+using oalex::lex::lexListEntries;
 using oalex::lex::lexNextLine;
 using oalex::lex::lexQuotedString;
 using oalex::lex::lexSectionHeader;
@@ -58,6 +59,7 @@ using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
 using oalex::lex::matcher::ExprMatcher;
 using oalex::lex::matcher::glued;
+using oalex::lex::matcher::matchvec;
 using oalex::lex::matcher::parens;
 using oalex::lex::matcher::RegexPatternMatcher;
 using oalex::lex::matcher::squareBrackets;
@@ -556,6 +558,51 @@ void nextLineFailureImpl(
                      OALEX_VOIDIFY(lexNextLine));
 }
 
+void lexListEntriesSuccess() {
+  const string input = R"(
+    | a b c -> list entry 1
+    | d e f -> list entry 2 | (
+        things continued
+        in brackets
+      )
+      | indented bullets
+    | g h i
+  all but ignored in the end)";
+  const vector<vector<ExprMatcher>> expected{
+    matchvec("|", "a", "b", "c", "->", "list", "entry", "1"),
+    matchvec("|", "d", "e", "f", "->", "list", "entry", "2", "+",
+             parens("things", "continued", "in", "brackets"),
+             "|", "indented", "bullets"),
+    matchvec("|", "g", "h", "i"),
+  };
+  InputDiags ctx{testInputDiags(input)};
+  size_t i = ctx.input.find('\n', 0) + 1;
+  vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
+  if(observed.empty() || !ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    BugMe("lexListEntries failed");
+  }
+  assertEqual(__func__, observed.size(), expected.size());
+  for(size_t j = 0; j < observed.size(); ++j) {
+    assertEqual(__func__, expected[j].size(), observed[j].size());
+    for(size_t k = 0; k < observed.size(); ++k)
+      if(auto err = matcher::match(expected[j][k], observed[j][k]))
+        BugMe("Failed: {}", *err);
+  }
+}
+
+void lexListEntriesFailure(string_view testName, string input,
+                           string_view expectedDiag) {
+  InputDiags ctx{testInputDiags(input)};
+  size_t i = ctx.input.find('\n', 0) + 1;
+  vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
+  if(expectedDiag.empty()) {
+    if(!observed.empty()) BugMe("Was expecting empty result");
+    return;
+  }
+  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+}
+
 void testIndentCmp() {
   assertEqual(__func__ + string("lt"), indentCmp("\t ", "\t  "), IndentCmp::lt);
   assertEqual(__func__ + string("eq"), indentCmp("\t ", "\t "), IndentCmp::eq);
@@ -643,6 +690,16 @@ int main() {
   nextLineFailure(badLine, "Unexpected end of line");
   nextLineFailure(badEagerRecovery, "Invalid hex code");
   nextLineFailure(invalidCharInput, "Unexpected character");
+
+  lexListEntriesSuccess();
+  lexListEntriesFailure("Eof", "", "");
+  lexListEntriesFailure("Bad start", R"(
+    | pancake
+    whipped cream syrup
+    )", "should start with '|'");
+  lexListEntriesFailure("Bad indent", "\n  | pancake\n \t| bacon\n",
+                        "mixes tabs and spaces");
+  // TODO test for avoiding redundant errors.
 
   testIndentCmp();
 }
