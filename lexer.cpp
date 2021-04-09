@@ -581,17 +581,13 @@ lexLinesIndentedAtLeast(InputDiags& ctx, size_t& i,
     vector<ExprToken> line = lexNextLine(ctx, i);
     if(line.empty()) return rv;
     IndentCmp cmp = firstCharIndent(ctx.input, line, refindent);
-    if(cmp == IndentCmp::lt) return rv;
+    if(cmp == IndentCmp::lt ||
+       (cmp == IndentCmp::eq && !isToken(line[0], string_view(&bullet, 1))))
+      return rv;
     if(cmp == IndentCmp::bad) {
       size_t char1 = stPos(line[0]);
       Error(ctx, ctx.input.bol(char1), char1, badIndentMsg);
       return rv;
-    }
-    if(cmp == IndentCmp::eq && !isToken(line[0], string_view(&bullet, 1))) {
-      Error(ctx, line[0],
-            format("New list entries should start with '{}'. "
-                   "Continuation of old entries should be indented more.",
-                   bullet));
     }
     rv.push_back(std::move(line));
     rst.markUsed(i);

@@ -568,7 +568,7 @@ void lexListEntriesSuccess() {
       )
       | indented bullets
     | g h i
-  all but ignored in the end)";
+    all but ignored in the end)";
   const vector<vector<ExprMatcher>> expected{
     matchvec("|", "a", "b", "c", "->", "list", "entry", "1"),
     matchvec("|", "d", "e", "f", "->", "list", "entry", "2", "+",
@@ -698,10 +698,6 @@ int main() {
     | pancake [
     whipped cream ] syrup
     )", "Needs to be indented further");
-  lexListEntriesFailure("Bad start", R"(
-    | pancake
-    whipped cream syrup
-    )", "should start with '|'");
   lexListEntriesFailure("Bad indent", "\n  | pancake\n \t| bacon\n",
                         "mixes tabs and spaces");
 
