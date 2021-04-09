@@ -116,4 +116,10 @@ auto Input::allNewlines(string_view s) -> vector<size_t> {
   return rv;
 }
 
+string debugPrefix(const InputPiece& input, size_t i) {
+  constexpr size_t maxsz = 13;
+  return input.sizeGt(i+maxsz) ? input.substr(i, maxsz-3) + "..."
+                               : input.substr(i, maxsz);
+}
+
 }  // namespace oalex

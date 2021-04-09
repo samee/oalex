@@ -683,7 +683,11 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
 }
 
 vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
-  if(i != ctx.input.bol(i)) FatalBug(ctx, i, "lexNextLine() must start at bol");
+  if(i != ctx.input.bol(i))
+    FatalBug(ctx, i,
+        format("lexNextLine() must start at bol, got '{}'",
+               debugPrefix(ctx.input, i)));
+
   Resetter rst(ctx, i);
   while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
 

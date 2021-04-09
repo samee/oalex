@@ -124,4 +124,7 @@ class Input final : public InputPiece {
   static std::vector<size_t> allNewlines(std::string_view s);
 };
 
+// Produces a short prefix of the string for debugging.
+std::string debugPrefix(const InputPiece& input, size_t i);
+
 }  // namespace oalex
