@@ -227,7 +227,8 @@ std::vector<ExprToken> lexNextLine(InputDiags& lex, size_t& i);
 // Returns nullopt on eof. Throws on invalid language character.
 std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 
-// This is meant for parsing lists. As such, it never returns empty elements.
+// This is meant for parsing a comma-separated sequence. As such, it never
+// returns empty elements.
 // Errors out if it finds one, unless it's the last element. If the last
 // element is empty, it is silently discarded to allow a trailing comma in a
 // list. Note that this is different from Python's "".split(',') which returns
