@@ -46,6 +46,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 #include "fmt/core.h"
 
@@ -59,11 +60,12 @@ using std::function;
 using std::get_if;
 using std::make_move_iterator;
 using std::min;
+using std::mem_fn;
 using std::nullopt;
 using std::numeric_limits;
 using std::optional;
 using std::pair;
-using std::shared_ptr;
+using std::remove_if;
 using std::stoi;
 using std::string;
 using std::string_view;
@@ -538,43 +540,6 @@ static string substrFromBol(const Input& input, size_t i) {
   return input.substr(bol, i-bol);
 }
 
-// Even in case of an error, it increments i to the end of the last line it
-// could successfully parse.
-static vector<ExprToken>
-lexListEntry(InputDiags& ctx, size_t& i, char bullet, string_view refindent) {
-  const Input& input = ctx.input;
-  Resetter rst(ctx, i);
-  vector<ExprToken> rv;
-
-  while(true) {
-    vector<ExprToken> line = lexNextLine(ctx, i);
-    if(line.empty() && !input.sizeGt(i)) return rv;
-
-    size_t char1 = stPos(line[0]);
-    IndentCmp cmp = indentCmp(substrFromBol(input, char1), refindent);
-    if(cmp == IndentCmp::bad) {
-      rst.markUsed(i);   // Don't come back to this line for the next entry.
-      Error(ctx, input.bol(char1), char1, badIndentMsg);
-      return rv;
-    }else if(cmp == IndentCmp::lt) return rv;
-    else if(cmp == IndentCmp::eq) {  // Must be the first token of some entry.
-      if(!rv.empty()) return rv;     // The *next* entry is about to start.
-      // Else, we are just starting the current entry.
-      else if(!isToken(line[0], string_view(&bullet, 1))) {
-        rst.markUsed(i);
-        Error(ctx, i, i+1,
-              format("New list entries should start with '{}'. "
-                     "Continuation of old entries should be indented more.",
-                     bullet));
-        return rv;
-      }
-    }
-    rv.insert(rv.end(), make_move_iterator(line.begin()),
-                        make_move_iterator(line.end()));
-    rst.markUsed(i);
-  }
-}
-
 static size_t
 findOffsideToken(const Input& input, string_view refindent,
                  vector<ExprToken>::const_iterator begin,
@@ -598,6 +563,60 @@ findOffsideToken(const Input& input, string_view refindent,
   return Input::npos;
 }
 
+// Assumes line is non-empty.
+static IndentCmp
+firstCharIndent(const Input& input, const vector<ExprToken>& line,
+                string_view refindent) {
+  return indentCmp(substrFromBol(input, stPos(line[0])), refindent);
+}
+
+// Even though return_value itself can be empty,
+// every element return_value[i] that it does have are non-empty vectors.
+static vector<vector<ExprToken>>
+lexLinesIndentedAtLeast(InputDiags& ctx, size_t& i,
+                        string_view refindent, char bullet) {
+  Resetter rst(ctx, i);
+  vector<vector<ExprToken>> rv;
+  while(true) {
+    vector<ExprToken> line = lexNextLine(ctx, i);
+    if(line.empty()) return rv;
+    IndentCmp cmp = firstCharIndent(ctx.input, line, refindent);
+    if(cmp == IndentCmp::lt) return rv;
+    if(cmp == IndentCmp::bad) {
+      size_t char1 = stPos(line[0]);
+      Error(ctx, ctx.input.bol(char1), char1, badIndentMsg);
+      return rv;
+    }
+    if(cmp == IndentCmp::eq && !isToken(line[0], string_view(&bullet, 1))) {
+      Error(ctx, line[0],
+            format("New list entries should start with '{}'. "
+                   "Continuation of old entries should be indented more.",
+                   bullet));
+    }
+    rv.push_back(std::move(line));
+    rst.markUsed(i);
+  }
+}
+
+// Assumes lines[0] is already indented at refindent.
+// Assumes lines[i] is non-empty for all i.
+static void
+mergeListLines(InputDiags& ctx, vector<vector<ExprToken>>& lines,
+               string_view refindent) {
+  if(lines.empty()) return;
+  size_t i=0;
+  for(size_t j=1; j<lines.size(); ++j) {
+    IndentCmp cmp = firstCharIndent(ctx.input, lines[j], refindent);
+    if(cmp == IndentCmp::eq) { i=j; continue; }
+    lines[i].insert(lines[i].end(), make_move_iterator(lines[j].begin()),
+                                    make_move_iterator(lines[j].end()));
+    lines[j].clear();
+  }
+  lines.erase(remove_if(lines.begin(), lines.end(),
+                        mem_fn(&vector<ExprToken>::empty)),
+              lines.end());
+}
+
 vector<vector<ExprToken>>
 lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
   const Input& input = ctx.input;
@@ -611,13 +630,10 @@ lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
   if(!lookaheadStart(ctx, first_char_pos)) return {};
   string refindent = substrFromBol(input, first_char_pos);
 
-  vector<vector<ExprToken>> rv;
-  while(true) {
-    vector<ExprToken> list_entry = lexListEntry(ctx, i, bullet, refindent);
-    if(list_entry.empty()) break;
-    rv.push_back(std::move(list_entry));
-    rst.markUsed(i);
-  }
+  vector<vector<ExprToken>> rv =
+    lexLinesIndentedAtLeast(ctx, i, refindent, bullet);
+  if(rv.empty()) return {};
+  mergeListLines(ctx, rv, refindent);
 
   // Post-process for indent check
   for(const auto& entry : rv) {
