@@ -343,7 +343,7 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
   while(true) {
     if(i>=indent1.size() && i>=indent2.size()) return IndentCmp::eq;
     if(i>=indent1.size()) return IndentCmp::lt;
-    if(i>=indent2.size()) return IndentCmp::eq;
+    if(i>=indent2.size()) return IndentCmp::gt;
     if(indent1[i]!=indent2[i]) return IndentCmp::bad;
     ++i;
   }

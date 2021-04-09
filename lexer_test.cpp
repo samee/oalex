@@ -43,8 +43,8 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
-using oalex::lex::NewlineChar;
-using oalex::lex::WholeSegment;
+using oalex::lex::IndentCmp;
+using oalex::lex::indentCmp;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexFencedSource;
 using oalex::lex::lexIndentedSource;
@@ -52,6 +52,8 @@ using oalex::lex::lexNextLine;
 using oalex::lex::lexQuotedString;
 using oalex::lex::lexSectionHeader;
 using oalex::lex::lookahead;
+using oalex::lex::NewlineChar;
+using oalex::lex::WholeSegment;
 using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
 using oalex::lex::matcher::ExprMatcher;
@@ -551,6 +553,14 @@ void nextLineFailureImpl(
                      OALEX_VOIDIFY(lexNextLine));
 }
 
+void testIndentCmp() {
+  assertEqual(__func__ + string("lt"), indentCmp("\t ", "\t  "), IndentCmp::lt);
+  assertEqual(__func__ + string("eq"), indentCmp("\t ", "\t "), IndentCmp::eq);
+  assertEqual(__func__ + string("gt"), indentCmp("\t  ", "\t "), IndentCmp::gt);
+  assertEqual(__func__ + string("bad"), indentCmp("\t ", " \t"),
+                                        IndentCmp::bad);
+}
+
 }  // namespace
 
 #define headerSuccess(test, expected) \
@@ -630,4 +640,6 @@ int main() {
   nextLineFailure(badLine, "Unexpected end of line");
   nextLineFailure(badEagerRecovery, "Invalid hex code");
   nextLineFailure(invalidCharInput, "Unexpected character");
+
+  testIndentCmp();
 }
