@@ -58,6 +58,19 @@ void assertHasDiagWithSubstr(string_view testName, const vector<Diag>& diags,
   Bug("{} didn't get the expected diag: {}", testName, expectedDiag);
 }
 
+void assertHasDiagWithSubstrOnce(
+    string_view testName, const vector<Diag>& diags,
+    string_view expectedDiag) {
+  size_t c = 0;
+  for(const Diag& d : diags) if(isSubstr(expectedDiag, d.msg)) c++;
+  if(c == 1) return;
+  showDiags(diags);
+  if(c == 0)
+    Bug("{} didn't get the expected diag: {}", testName, expectedDiag);
+  else
+    Bug("{} emitted the expected diag too many times", testName);
+}
+
 void assertHasDiagWithSubstrAt(string_view testName, const vector<Diag>& diags,
                                string_view expectedDiag, size_t expectedStPos) {
   for(const Diag& d : diags) {

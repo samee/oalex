@@ -601,7 +601,7 @@ void lexListEntriesFailure(string_view testName, string input,
     if(!observed.empty()) BugMe("Was expecting empty result");
     return;
   }
-  assertHasDiagWithSubstr(testName, ctx.diags, expectedDiag);
+  assertHasDiagWithSubstrOnce(testName, ctx.diags, expectedDiag);
 }
 
 void testIndentCmp() {
@@ -704,7 +704,6 @@ int main() {
     )", "should start with '|'");
   lexListEntriesFailure("Bad indent", "\n  | pancake\n \t| bacon\n",
                         "mixes tabs and spaces");
-  // TODO test for avoiding redundant errors.
 
   testIndentCmp();
 }

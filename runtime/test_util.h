@@ -70,6 +70,10 @@ void assertHasDiagWithSubstr(std::string_view testName,
                              const std::vector<oalex::Diag>& diags,
                              std::string_view expectedDiag);
 
+void assertHasDiagWithSubstrOnce(std::string_view testName,
+                                 const std::vector<oalex::Diag>& diags,
+                                 std::string_view expectedDiag);
+
 void assertHasDiagWithSubstrAt(std::string_view testName,
                                const std::vector<oalex::Diag>& diags,
                                std::string_view expectedDiag,
