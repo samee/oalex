@@ -628,6 +628,7 @@ lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
 
   vector<vector<ExprToken>> rv =
     lexLinesIndentedAtLeast(ctx, i, refindent, bullet);
+  rst.markUsed(i);
   if(rv.empty()) return {};
   mergeListLines(ctx, rv, refindent);
 

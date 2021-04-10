@@ -583,6 +583,8 @@ void lexListEntriesSuccess() {
     showDiags(ctx.diags);
     BugMe("lexListEntries failed");
   }
+  assertEqual("lexListEntries end position", input.substr(i, 11),
+                                             "    all but"s);
   assertEqual(__func__, observed.size(), expected.size());
   for(size_t j = 0; j < observed.size(); ++j) {
     assertEqual(__func__, expected[j].size(), observed[j].size());
