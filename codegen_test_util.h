@@ -43,6 +43,4 @@ template <class X> RuleSet singletonRuleSet(X x) {
 void assertJsonLocIsString(std::string_view testName, const JsonLoc& jsloc,
                            std::string_view s, size_t stPos, size_t enPos);
 
-inline const JsonLoc onlyChild(JsonLoc::Placeholder{"child"}, 0, 0);
-
 }  // namespace oalex::test

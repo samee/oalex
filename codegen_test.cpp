@@ -44,6 +44,7 @@ using oalex::MatchOrError;
 using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
+using oalex::passthroughTmpl;
 using oalex::Regex;
 using oalex::Rule;
 using oalex::RuleSet;
@@ -53,7 +54,6 @@ using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
 using oalex::test::nmRule;
-using oalex::test::onlyChild;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 
@@ -306,7 +306,8 @@ void testLookaheads() {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
-        nmRule(OrRule{.comps{ {1, 5, onlyChild}, {-1, 6, onlyChild} },
+        nmRule(OrRule{.comps{{1, 5, passthroughTmpl},
+                             {-1, 6, passthroughTmpl}},
                       .flattenOnDemand = true}, "simple_stmt")),
     .regexOpts{regexOpts},
   };

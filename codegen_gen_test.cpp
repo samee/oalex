@@ -42,6 +42,7 @@ using oalex::OutputTmpl;
 using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::parseRegex;
+using oalex::passthroughTmpl;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
@@ -50,7 +51,6 @@ using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
 using oalex::test::nmRule;
-using oalex::test::onlyChild;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
@@ -287,7 +287,8 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
-        nmRule(OrRule{.comps{ {1, 5, onlyChild}, {-1, 6, onlyChild} },
+        nmRule(OrRule{.comps{ {1, 5, passthroughTmpl},
+                              {-1, 6, passthroughTmpl} },
                       .flattenOnDemand = true}, "lookahead_simple_stmt")),
     .regexOpts{regexOpts},
   };

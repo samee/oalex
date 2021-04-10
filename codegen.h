@@ -73,11 +73,12 @@ struct OutputTmpl {
   JsonLoc outputTmpl;
 };
 
+inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
+
 struct OrRule {
   // The tmpl must have at most a single placeholder, called 'child'.
   // This is what takes the successful child's value. It is possible to
-  // pass the child's result unchanged by using
-  // tmpl = JsonLoc::Placeholder{"child"}
+  // pass the child's result unchanged by using passthroughTmpl.
   //
   // If flattenOnDemand is true, and some ConcatFlatRule considers this OrRule
   // to be a child component, this needs to always return a JsonLoc::Map.
