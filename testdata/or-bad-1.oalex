@@ -1,0 +1,3 @@
+# expected-error: Expected identifier
+rule stmt lookaheads:
+|

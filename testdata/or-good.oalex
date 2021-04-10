@@ -1,0 +1,43 @@
+rule simple_stmt lookaheads:
+| var_keyword -> decl
+| asgn
+
+# Coded like this to make it a "word". TODO better syntax
+rule var_keyword:
+  var
+outputs: {}  # TODO support `outputs success`
+
+rule decl:
+  var ident = int_value
+outputs: {
+  stmt: "decl",
+  varname: ident,
+  init_value: int_value,
+}
+
+ident := /[_a-zA-Z]+/
+int_value := /-?[0-9]+/
+
+rule asgn:
+  ident = int_value
+outputs: {
+  stmt: "asgn",
+  lhs: ident,
+  rhs: int_value,
+}
+
+example simple_stmt:
+  var x = 5
+outputs: {
+  stmt: "decl",
+  varname: "x",
+  init_value: "5",
+}
+
+example simple_stmt:
+  x = 5
+outputs: {
+  stmt: "asgn",
+  lhs: "x",
+  rhs: "5",
+}

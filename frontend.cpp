@@ -37,6 +37,7 @@ using oalex::OutputTmpl;
 using oalex::parseJsonLocFromBracketGroup;
 using oalex::parsePattern;
 using oalex::parseRegexCharSet;
+using oalex::passthroughTmpl;
 using oalex::Pattern;
 using oalex::tokenizePattern;
 using oalex::lex::enPos;
@@ -48,6 +49,7 @@ using oalex::lex::IndentCmp;
 using oalex::lex::indentCmp;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
+using oalex::lex::lexListEntries;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookaheadParIndent;
 using oalex::lex::NewlineChar;
@@ -747,6 +749,65 @@ static void parseRule(vector<ExprToken> linetoks,
   appendPatternRules(ctx, ident, std::move(*patt), std::move(*jsloc), rl);
 }
 
+// For error-locating, it assumes !v.empty().
+static Ident parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v,
+                                   size_t idx) {
+  if(v.size() <= idx) {
+    Error(ctx, enPos(v.back()), "Expected identifier after this");
+    return {};
+  }
+  Ident rv;
+  auto* seg = get_if<WholeSegment>(&v[idx]);
+  if(seg) rv = Ident::parse(ctx, *seg);
+  if(!rv) Error(ctx, v[idx], "Expected identifier");
+  return rv;
+}
+
+static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
+         && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
+}
+
+static void parseLookaheadRule(vector<ExprToken> linetoks,
+                               InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
+  if(!requireColonEol(linetoks, 3, ctx)) return;
+  vector<vector<ExprToken>> branches = lexListEntries(ctx, i, '|');
+  if(branches.empty()) {
+    Error(ctx, enPos(linetoks.back()),
+          "Expected lookahead branches after this");
+    return;
+  }
+  const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
+  OrRule orRule{.comps{}, .flattenOnDemand{false}};
+  for(const auto& branch : branches) {
+    if(branch.empty())
+      Bug("lexListEntries() should return at least the bullet");
+    const Ident id1 = parseIdentFromExprVec(ctx, branch, 1);
+    if(!id1) continue;
+    if(branch.size() == 2) {
+      orRule.comps.push_back({
+          .lookidx = -1, .parseidx = rl.findOrAppendIdent(id1),
+          .tmpl{passthroughTmpl}
+      });
+      continue;
+    }
+    if(!isToken(branch[2], "->")) {
+      Error(ctx, branch[2], "Expected '->'");
+      continue;
+    }
+    const Ident id2 = parseIdentFromExprVec(ctx, branch, 3);
+    if(!id2) continue;
+    if(!requireEol(branch, 4, ctx)) continue;
+    orRule.comps.push_back({
+        .lookidx = rl.findOrAppendIdent(id1),
+        .parseidx = rl.findOrAppendIdent(id2),
+        .tmpl{passthroughTmpl}
+    });
+  }
+  ssize_t orIndex = rl.defineIdent(ctx, ruleName);
+  rl[orIndex].deferred_assign(std::move(orRule));
+}
+
 // Checks second token just so it is not a BNF rule of the form
 // `example :=`. We want to avoid requiring too many reserved keywords
 // if possible.
@@ -867,6 +928,8 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
+    }else if(resemblesLookaheadRule(linetoks)) {
+      parseLookaheadRule(std::move(linetoks), ctx, i, rl);
     }else if(resemblesRule(linetoks)) {
       parseRule(std::move(linetoks), ctx, i, rl);
     }else

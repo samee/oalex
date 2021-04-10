@@ -1,0 +1,3 @@
+# expected-error: Expected '->'
+rule stmt lookaheads:
+| id >>
