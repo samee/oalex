@@ -60,7 +60,9 @@ bool quietMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   We shouldn't have them either.
   </rant>
   */
-  InputDiags proxy{Input{[&]() { return input[i++]; } }};
+  InputDiags proxy{Input{[&]() {
+    return input.sizeGt(i) ? input[i++] : -1;
+  } }};
   ssize_t pos = 0;
   JsonLoc res = parser(proxy, pos);
   return !res.holdsError() && !hasError(proxy.diags);
