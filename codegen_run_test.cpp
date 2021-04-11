@@ -250,6 +250,7 @@ void runLookaheads() {
     {"var x = y; ignore", *parseJsonLoc("{var: 'x', init_value: 'y'}")},
     {"x = y; ignore", *parseJsonLoc("{lhs: 'x', rhs: 'y'}")},
     {"var = x; ignore", JsonLoc{JsonLoc::ErrorValue{}}},
+    {".blastoff", *parseJsonLoc("{directive: 'blastoff'}")},
   };
   for(auto& [msg, expected] : testdata) {
     ssize_t pos = 0;

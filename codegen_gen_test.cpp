@@ -287,7 +287,10 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
+        nmRule(".", "dot"),
+        nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
         nmRule(OrRule{.comps{ {1, 5, passthroughTmpl},
+                              {7, 8, passthroughTmpl},
                               {-1, 6, passthroughTmpl} },
                       .flattenOnDemand = true}, "lookahead_simple_stmt")),
     .regexOpts{regexOpts},

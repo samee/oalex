@@ -533,6 +533,20 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     cppos(";\n");
 }
 
+// TODO refactor parser name synthesis.
+static void
+codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
+                 const OutputStream& cppos) {
+  const Rule& rule = ruleset.rules[lidx];
+  if(const auto* s = get_if<string>(&rule))
+    cppos(format("ctx.input.hasPrefix(i, {})", dquoted(*s)));
+  else if(const auto* wp = get_if<WordPreserving>(&rule))
+    cppos(format("oalex::quietMatch(ctx, i, defaultRegexOpts().word, {})",
+                 dquoted(**wp)));
+  else cppos(format("quietMatch(ctx.input, i, parse{})",
+                    rule.name()->toUCamelCase()));
+}
+
 static void
 codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
@@ -549,8 +563,10 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
     }else {
       if(!ruleset.rules[lidx].name().has_value())
         Bug("The frontend must always name every lookidx");
-      cppos(format("  if(quietMatch(ctx.input, i, parse{})) {{\n",
-                   ruleset.rules[lidx].name()->toUCamelCase()));
+      cppos("  if(");
+        codegenLookahead(ruleset, lidx, cppos);
+        cppos(") {\n");
+      // TODO optimize the passthroughChild case with `return res;`
       cppos("    res = ");
         codegenParserCall(ruleset.rules[pidx], "i", cppos);
         cppos(";\n");
