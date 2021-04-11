@@ -41,3 +41,11 @@ outputs: {
   lhs: "x",
   rhs: "5",
 }
+
+example simple_stmt:
+  varx = 5
+outputs: {
+  stmt: "asgn",
+  lhs: "varx",
+  rhs: "5",
+}
