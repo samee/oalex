@@ -448,7 +448,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  JsonLoc::Map m;\n");
   cppos("  JsonLoc res = JsonLoc::ErrorValue{};\n");
   for(auto& [childid, key] : cfrule.comps) {
-    cppos("  res = ");
+    cppos("\n  res = ");
       codegenParserCall(ruleset.rules[childid], "j", cppos);
       cppos(";\n");
     cppos("  if(res.holdsError()) return res;\n");
@@ -482,7 +482,7 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
       // This uniqueness is also used in codegen(JsonLoc).
       Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
 
-    cppos(format("  {}{} = ", decl, resvar));
+    cppos(format("\n  {}{} = ", decl, resvar));
       codegenParserCall(ruleset.rules[comp.idx], "j", cppos);
       cppos(";\n");
     cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
