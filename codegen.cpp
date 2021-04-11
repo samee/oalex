@@ -553,6 +553,19 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
 }
 
 static void
+codegenReturnErrorOrTmpl(string_view resvar, const JsonLoc& tmpl,
+                         const OutputStream& cppos) {
+  if(isPassthroughTmpl(tmpl)) {
+    cppos(format("    return {};\n", resvar));
+  }else {
+    cppos(format("    if(!{}.holdsError()) return ", resvar));
+      codegen(tmpl, cppos, {{"child", string(resvar)}}, 4);
+      cppos(";\n");
+    cppos(format("    else return {};\n", resvar));
+  }
+}
+
+static void
 codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
@@ -569,14 +582,10 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
       cppos("  if(");
         codegenLookahead(ruleset, lidx, cppos);
         cppos(") {\n");
-      // TODO optimize the passthroughChild case with `return res;`
       cppos("    res = ");
         codegenParserCall(ruleset.rules[pidx], "i", cppos);
         cppos(";\n");
-      cppos("    if(!res.holdsError()) return ");
-        codegen(tmpl, cppos, {{"child", "res"}}, 4);
-        cppos(";\n");
-      cppos("    else return res;\n");
+      codegenReturnErrorOrTmpl("res", tmpl, cppos);
       cppos("  }\n");
     }
   }

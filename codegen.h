@@ -74,6 +74,9 @@ struct OutputTmpl {
 };
 
 inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
+inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
+  return isPlaceholder(jsloc, "child");
+}
 
 struct OrRule {
   // The tmpl must have at most a single placeholder, called 'child'.

@@ -128,6 +128,11 @@ template <class X> bool holds_alternative(const JsonLoc& json) {
   return std::holds_alternative<X>(json.value);
 }
 
+inline bool isPlaceholder(const JsonLoc& jsloc, std::string_view pname) {
+  if(auto* p = get_if<JsonLoc::Placeholder>(&jsloc)) return p->key == pname;
+  else return false;
+}
+
 inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
   auto it = m.find(key);
   if(it == m.end()) return JsonLoc::Map{};
