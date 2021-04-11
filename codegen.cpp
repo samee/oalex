@@ -543,6 +543,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::quietMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
+  // When adding a new branch here, remember to change Rule::needsName().
   else {
     if(!rule.name().has_value())
       Bug("The frontend must always name lookidx for {} rules",
@@ -645,7 +646,7 @@ Rule::deferred_name(Ident name) {
 }
 
 bool
-Rule::needsName() const {
+Rule::needsName([[maybe_unused]] bool isLookaheadTarget) const {
   if(holds_alternative<std::string>(specifics_) ||
      holds_alternative<WordPreserving>(specifics_) ||
      false) return false;

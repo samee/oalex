@@ -145,7 +145,7 @@ struct Rule {
     if(!name_) return std::nullopt; else return name_;
   }
   void deferred_name(Ident name);
-  bool needsName() const;
+  bool needsName(bool isLookaheadTarget) const;
 
   // Assign to specifics if it is in std::monostate.
   // We disallow later assignments to discourage mutation.
