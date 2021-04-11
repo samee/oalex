@@ -29,6 +29,8 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
 // This version discards matches if it is appearing to split a word into two.
 // Providing an empty wordChars {} here is equivalent to calling it without
 // wordChars.
+bool quietMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
+                std::string_view s);
 JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
               std::string_view s);
 
