@@ -543,8 +543,13 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::quietMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
-  else cppos(format("quietMatch(ctx.input, i, parse{})",
-                    rule.name()->toUCamelCase()));
+  else {
+    if(!rule.name().has_value())
+      Bug("The frontend must always name lookidx for {} rules",
+          rule.specifics_typename());
+    cppos(format("quietMatch(ctx.input, i, parse{})",
+                  rule.name()->toUCamelCase()));
+  }
 }
 
 static void
@@ -561,8 +566,6 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         codegen(tmpl, cppos, {{"child", "res"}}, 2);
         cppos(";\n");
     }else {
-      if(!ruleset.rules[lidx].name().has_value())
-        Bug("The frontend must always name every lookidx");
       cppos("  if(");
         codegenLookahead(ruleset, lidx, cppos);
         cppos(") {\n");

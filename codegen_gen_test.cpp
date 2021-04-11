@@ -277,7 +277,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVector<Rule>(
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
-        nmRule(WordPreserving{"var"}, "lookahead_var_keyword"),
+        Rule{WordPreserving{"var"}},
         regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
         Rule{"="}, Rule{";"},
         nmRule(ConcatFlatRule{{
@@ -287,7 +287,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
-        nmRule(".", "dot"),
+        Rule{"."},
         nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
         nmRule(OrRule{.comps{ {1, 5, passthroughTmpl},
                               {7, 8, passthroughTmpl},
