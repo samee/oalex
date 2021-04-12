@@ -763,6 +763,28 @@ static Ident parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v,
   return rv;
 }
 
+// Dev-note: maybe move to pattern.h
+static bool isUserWord(string_view s) {
+  for(char ch : s) if(!matchesRegexCharSet(ch, defaultLexopts().wordChars))
+    return false;
+  return true;
+}
+
+// Assumes linetoks.size() > idx
+static ssize_t
+lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
+                   RulesWithLocs& rl) {
+  if(auto* s = get_if<GluedString>(&linetoks[idx])) {
+    if(!isUserWord(*s)) {
+      Error(ctx, *s, "Non-word inline lookahead");
+      return -1;
+    }else return rl.emplaceBackAnonRule(WordPreserving{*s});
+  }
+  const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
+  if(!lookId) return -1;
+  return rl.findOrAppendIdent(lookId);
+}
+
 static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
@@ -791,8 +813,8 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       });
       continue;
     }
-    const Ident lookId = parseIdentFromExprVec(ctx, branch, 1);
-    if(!lookId) continue;
+    ssize_t lookidx = lookaheadRuleIndex(ctx, branch, 1, rl);
+    if(lookidx == -1) continue;
     if(!isToken(branch[2], "->")) {
       Error(ctx, branch[2], "Expected '->'");
       continue;
@@ -801,7 +823,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     if(!parseId) continue;
     if(!requireEol(branch, 4, ctx)) continue;
     orRule.comps.push_back({
-        .lookidx = rl.findOrAppendIdent(lookId),
+        .lookidx = lookidx,
         .parseidx = rl.findOrAppendIdent(parseId),
         .tmpl{passthroughTmpl}
     });

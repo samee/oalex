@@ -1,0 +1,23 @@
+# expected-error: Non-word inline lookahead
+rule simple_stmt lookaheads:
+| "my var" -> decl
+| asgn
+
+rule decl:
+  var ident = int_value
+outputs: {
+  stmt: "decl",
+  varname: ident,
+  init_value: int_value,
+}
+
+ident := /[_a-zA-Z]+/
+int_value := /-?[0-9]+/
+
+rule asgn:
+  ident = int_value
+outputs: {
+  stmt: "asgn",
+  lhs: ident,
+  rhs: int_value,
+}

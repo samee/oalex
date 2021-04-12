@@ -1,11 +1,6 @@
 rule simple_stmt lookaheads:
-| var_keyword -> decl
+| "var" -> decl
 | asgn
-
-# Coded like this to make it a "word". TODO better syntax
-rule var_keyword:
-  var
-outputs: {}  # TODO support `outputs success`
 
 rule decl:
   var ident = int_value
