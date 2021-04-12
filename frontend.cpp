@@ -782,25 +782,27 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
-    const Ident id1 = parseIdentFromExprVec(ctx, branch, 1);
-    if(!id1) continue;
-    if(branch.size() == 2) {
+    if(branch.size() <= 2) {
+      const Ident parseId = parseIdentFromExprVec(ctx, branch, 1);
+      if(!parseId) continue;
       orRule.comps.push_back({
-          .lookidx = -1, .parseidx = rl.findOrAppendIdent(id1),
+          .lookidx = -1, .parseidx = rl.findOrAppendIdent(parseId),
           .tmpl{passthroughTmpl}
       });
       continue;
     }
+    const Ident lookId = parseIdentFromExprVec(ctx, branch, 1);
+    if(!lookId) continue;
     if(!isToken(branch[2], "->")) {
       Error(ctx, branch[2], "Expected '->'");
       continue;
     }
-    const Ident id2 = parseIdentFromExprVec(ctx, branch, 3);
-    if(!id2) continue;
+    const Ident parseId = parseIdentFromExprVec(ctx, branch, 3);
+    if(!parseId) continue;
     if(!requireEol(branch, 4, ctx)) continue;
     orRule.comps.push_back({
-        .lookidx = rl.findOrAppendIdent(id1),
-        .parseidx = rl.findOrAppendIdent(id2),
+        .lookidx = rl.findOrAppendIdent(lookId),
+        .parseidx = rl.findOrAppendIdent(parseId),
         .tmpl{passthroughTmpl}
     });
   }
