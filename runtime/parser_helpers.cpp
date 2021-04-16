@@ -6,6 +6,11 @@ using std::string_view;
 
 namespace oalex {
 
+JsonLoc errorValue(DiagsDest ctx, ssize_t i, string msg) {
+  Error(ctx, i, std::move(msg));
+  return JsonLoc::ErrorValue{};
+}
+
 static JsonLoc quote(string input, size_t stPos, size_t enPos) {
   JsonLoc rv = std::move(input);
   rv.stPos = stPos; rv.enPos = enPos;

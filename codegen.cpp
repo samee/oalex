@@ -189,6 +189,8 @@ specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string
 specifics_typename(const OutputTmpl&) { return "OutputTmpl"; }
 static string
+specifics_typename(const ErrorRule&) { return "ErrorRule"; }
+static string
 specifics_typename(const OrRule&) { return "OrRule"; }
 static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }
@@ -216,6 +218,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* out = get_if<OutputTmpl>(&r))
     return eval(ctx, i, *out, ruleset);
+  else if(const auto* err = get_if<ErrorRule>(&r))
+    return errorValue(ctx, i, err->msg);
   else if(const auto* ors = get_if<OrRule>(&r))
     return eval(ctx, i, *ors, ruleset);
   else if(const auto* me = get_if<MatchOrError>(&r))
@@ -533,6 +537,12 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     cppos(";\n");
 }
 
+static void
+codegen(const ErrorRule& errRule, const OutputStream& cppos) {
+  cppos(format("  return oalex::errorValue(ctx, i, {});\n",
+               dquoted(errRule.msg)));
+}
+
 // TODO refactor parser name synthesis.
 static void
 codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
@@ -646,10 +656,11 @@ Rule::deferred_name(Ident name) {
 }
 
 bool
-Rule::needsName([[maybe_unused]] bool isLookaheadTarget) const {
+Rule::needsName(bool isLookaheadTarget) const {
   if(holds_alternative<std::string>(specifics_) ||
      holds_alternative<WordPreserving>(specifics_) ||
      false) return false;
+  if(holds_alternative<ErrorRule>(specifics_)) return !isLookaheadTarget;
   else return true;
 }
 
@@ -663,6 +674,9 @@ codegenParserCall(const Rule& rule, string_view posVar,
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
+  else if(const auto* err = get_if<ErrorRule>(&rule))
+    cppos(format("oalex::errorValue(ctx, {}, {})",
+                 posVar, dquoted(err->msg)));
   else if(optional<Ident> rname = rule.name()) {
     if(holds_alternative<ExternParser>(rule))
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
@@ -710,6 +724,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *seq, cppos);
   }else if(const auto* out = get_if<OutputTmpl>(&r)) {
     codegen(ruleset, *out, cppos);
+  }else if(const auto* err = get_if<ErrorRule>(&r)) {
+    codegen(*err, cppos);
   }else if(const auto* ors = get_if<OrRule>(&r)) {
     codegen(ruleset, *ors, cppos);
   }else if(const auto* me = get_if<MatchOrError>(&r)) {

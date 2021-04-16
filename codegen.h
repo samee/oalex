@@ -95,6 +95,12 @@ struct OrRule {
   bool flattenOnDemand;
 };
 
+// This Rule is used as an OrRule target when something else fails, or in
+// response to an obviously bad lookahead.
+struct ErrorRule {
+  std::string msg;
+};
+
 struct SkipPoint {
   bool stayWithinLine = false;  // If true, skip comments should end in '\n'
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
@@ -119,6 +125,8 @@ struct WordPreserving {
 // This is used for initial testing only. Real-life grammars should instead
 // compose tentative-mode parsing with unconditional errors, whenever all of
 // that is implemented.
+// Deprecated in favor of a composition of OrRule and ErrorRule.
+// TODO remove completely when ErrorRule is functional.
 struct MatchOrError {
   ssize_t compidx;
   std::string errmsg;
@@ -157,7 +165,8 @@ struct Rule {
  private:
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OutputTmpl, OrRule, MatchOrError> specifics_;
+               ConcatFlatRule, OutputTmpl, OrRule, ErrorRule, MatchOrError>
+               specifics_;
   Ident name_;
 };
 

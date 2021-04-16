@@ -22,6 +22,8 @@
 
 namespace oalex {
 
+JsonLoc errorValue(DiagsDest ctx, ssize_t i, std::string msg);
+
 JsonLoc match(InputDiags& ctx, ssize_t& i, std::string_view s);
 JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
               const RegexOptions& ropts);

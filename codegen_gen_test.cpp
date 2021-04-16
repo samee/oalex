@@ -30,6 +30,7 @@ using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
 using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
+using oalex::ErrorRule;
 using oalex::ExternParser;
 using oalex::Ident;
 using oalex::Input;
@@ -250,6 +251,24 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
   codegen(rs, 1, cppos, hos);
 }
 
+void generateErrorRuleTest(const OutputStream& cppos,
+                           const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"hello-world"},
+        Rule{ErrorRule{"Was expecting a greeting"}},
+        nmRule(OrRule{
+          // This ErrorValue is actually ignored.
+          // It could have been anything else.
+          .comps{{-1, 0, passthroughTmpl},
+                 {-1, 1, JsonLoc::ErrorValue{}}},
+          .flattenOnDemand{false},
+        }, "ErrorRuleHelloWorld")),
+    .regexOpts{regexOpts},
+  };
+  codegen(rs, 2, cppos, hos);
+}
+
 void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
   RuleSet rs{
@@ -353,6 +372,8 @@ int main(int argc, char* argv[]) {
   generateOrTest(cppos, hos);
   linebreaks();
   generateMatchOrErrorTest(cppos, hos);
+  linebreaks();
+  generateErrorRuleTest(cppos, hos);
   linebreaks();
   generateFlattenOnDemand(cppos, hos);
   linebreaks();

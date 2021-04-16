@@ -59,19 +59,19 @@ void runSingleStringTest() {
   if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
 }
 
-void runMatchOrErrorTest() {
+void runMatchOrErrorTest(JsonLoc (*parse)(InputDiags&, ssize_t&)) {
   // First, try a success case.
   const string msg = "hello-world";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  JsonLoc jsloc = parseHelloWorldOrError(ctx, pos);
+  JsonLoc jsloc = parse(ctx, pos);
   assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
 
   // Then, a failure case.
   const string msg2 = "goodbye";
   ctx = testInputDiags(msg2);
   pos = 0;
-  parseHelloWorldOrError(ctx, pos);
+  parse(ctx, pos);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
@@ -277,7 +277,8 @@ int main() {
     Bug("parseAsgn() returning success, but is unimplemented!");
 
   runSingleStringTest();
-  runMatchOrErrorTest();
+  runMatchOrErrorTest(&parseHelloWorldOrError);
+  runMatchOrErrorTest(&parseErrorRuleHelloWorld);
   runSingleRegexTest();
   runConcatFlatTest();
   runSingleWordTemplate();

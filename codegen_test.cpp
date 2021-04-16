@@ -37,6 +37,7 @@ using oalex::assertEqual;
 using oalex::Bug;
 using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
+using oalex::ErrorRule;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::makeVector;
@@ -97,6 +98,36 @@ void testMatchOrError() {
   ctx = testInputDiags(msg2);
   pos = 0;
   eval(ctx, pos, rs, 1);
+  assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
+}
+
+void testErrorRule() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"hello-world"},
+        Rule{ErrorRule{"Was expecting a greeting"}},
+        Rule{OrRule{
+          // This ErrorValue is actually ignored.
+          // It could have been anything else.
+          .comps{{-1, 0, passthroughTmpl},
+                 {-1, 1, JsonLoc::ErrorValue{}}},
+          .flattenOnDemand{false},
+        }}),
+    .regexOpts{regexOpts},
+  };
+
+  // First, try a success case.
+  const string msg = "hello-world";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc jsloc = eval(ctx, pos, rs, 2);
+  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+
+  // Then, a failure case.
+  const string msg2 = "goodbye";
+  ctx = testInputDiags(msg2);
+  pos = 0;
+  eval(ctx, pos, rs, 2);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
@@ -333,6 +364,7 @@ int main() {
   testSingleStringMatch();
   testSingleStringMismatch();
   testMatchOrError();
+  testErrorRule();
   testSingleSkip();
   testSingleWordPreserving();
   testSkipFailsOnUnfinishedComment();
