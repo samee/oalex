@@ -88,7 +88,8 @@ MappedPos::operator string() const {
 
 bool Expectation::matches(const JsonLoc& jsloc,
                           const std::vector<Diag>& diags) const {
-  if(jsloc.holdsError()==success_) return false;
+  bool observed_success = (!jsloc.holdsError() && diags.empty());
+  if(observed_success != success_) return false;
   if(success_)
     return jsloc_.supportsEquality() ? jsloc == jsloc_ : true;
   for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
@@ -861,7 +862,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     }
     if(resemblesErrorBranch(branch, 3)) {
       string_view err = parseErrorBranch(ctx, branch, 3);
-      // TODO assert empty diags on success cases of `oalex_main_test.py`
+      // TODO deduplicate SkipRules in codegen
       if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
                          rl.emplaceBackAnonRule(ErrorRule{string(err)}));
     }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))

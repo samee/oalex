@@ -92,6 +92,10 @@ def eval_testdata_files():
         print(f"`oalex test` failed on {filename}. Error output:")
         print(result.stderr.decode("utf-8"))
         sys.exit(1)
+      else:
+        output = result.stderr.decode('utf-8')
+        assert len(output) == 0, \
+            "Was expecting tests to succeed quietly. Got output:\n" + output
 
 def test_gen_compiles():
   # Right now I'm only using two test files, since I'm a little worried
