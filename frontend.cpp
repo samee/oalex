@@ -635,7 +635,7 @@ soleIdentImpl(const Pattern& patt, const Ident** result) {
 static const Ident*
 soleIdent(const Pattern& patt) {
   const Ident* rv = nullptr;
-  soleIdentImpl(patt, &rv);
+  if(!soleIdentImpl(patt, &rv)) return nullptr;
   return rv;
 }
 
@@ -861,6 +861,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     }
     if(resemblesErrorBranch(branch, 3)) {
       string_view err = parseErrorBranch(ctx, branch, 3);
+      // TODO assert empty diags on success cases of `oalex_main_test.py`
       if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
                          rl.emplaceBackAnonRule(ErrorRule{string(err)}));
     }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))

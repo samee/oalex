@@ -94,10 +94,10 @@ def eval_testdata_files():
         sys.exit(1)
 
 def test_gen_compiles():
-  # Right now I'm only using a single test file, since I'm a little worried
+  # Right now I'm only using two test files, since I'm a little worried
   # about increasing unit-test runtime. Running g++ multiple times can be a
   # problem.
-  testfiles = ["concat-good-1.oalex"]
+  testfiles = ["concat-good-1.oalex", "or-good.oalex"]
   with tempfile.TemporaryDirectory() as tempdir:
     for filename in testfiles:
       infile = os.path.join(sysargs.testdata, filename)
