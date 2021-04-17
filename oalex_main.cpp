@@ -299,7 +299,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   JsonLoc jsloc = eval(ctx, pos, rs, ruleIndex);
   if (ex.expectation.matches(jsloc, ctx.diags)) return true;
 
-  bool success = (!jsloc.holdsError() && ctx.diags.empty());
+  bool success = Example::runSucceeded(jsloc, ctx.diags);
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
   if(!jsloc.holdsError())
     fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());

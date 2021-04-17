@@ -35,7 +35,6 @@ struct ParsedSource {
 // This is the output component of each example.
 // Initialized either as Expectation::Success, or as
 // Expectation::ErrorSubstr{msg}.
-// TODO: add a JsonLoc field, both as a class member and as a matches() param.
 class Expectation {
  public:
   // Constructor tags
@@ -82,6 +81,9 @@ struct Example {
   Ident ruleName;
   std::string sampleInput;
   Expectation expectation;
+  static bool runSucceeded(const JsonLoc& jsloc,
+                           const std::vector<Diag>& diags)
+    { return !jsloc.holdsError() && diags.empty(); }
 };
 
 std::string describeTestFailure(const Example& ex, bool succeeded);

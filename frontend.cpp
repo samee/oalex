@@ -88,8 +88,7 @@ MappedPos::operator string() const {
 
 bool Expectation::matches(const JsonLoc& jsloc,
                           const std::vector<Diag>& diags) const {
-  bool observed_success = (!jsloc.holdsError() && diags.empty());
-  if(observed_success != success_) return false;
+  if(Example::runSucceeded(jsloc, diags) != success_) return false;
   if(success_)
     return jsloc_.supportsEquality() ? jsloc == jsloc_ : true;
   for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
