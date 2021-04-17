@@ -1,3 +1,6 @@
+# This no-look `asgn` rule is different from the `_ -> asgn` I was planning.
+# This version can fall back to a different rule. The hypothetical blank-match
+# version cannot, since that match always succeeds.
 rule simple_stmt lookaheads:
 | "var" -> decl
 | int_value -> error 'Statement cannot start with a number'
