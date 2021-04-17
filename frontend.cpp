@@ -792,6 +792,12 @@ static Ident parseSingleIdentBranch(
   else return parseId;
 }
 
+static void orRuleAppendPassthrough(OrRule& orRule, ssize_t parseIdx) {
+  orRule.comps.push_back({
+      .lookidx = -1, .parseidx = parseIdx, .tmpl{passthroughTmpl}
+      });
+}
+
 static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
@@ -812,12 +818,8 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
     if(branch.size() <= 2) {
-      const Ident parseId = parseIdentFromExprVec(ctx, branch, 1);
-      if(!parseId) continue;
-      orRule.comps.push_back({
-          .lookidx = -1, .parseidx = rl.findOrAppendIdent(parseId),
-          .tmpl{passthroughTmpl}
-      });
+      if(const Ident parseId = parseIdentFromExprVec(ctx, branch, 1))
+        orRuleAppendPassthrough(orRule, rl.findOrAppendIdent(parseId));
       continue;
     }
     ssize_t lookidx = lookaheadRuleIndex(ctx, branch, 1, rl);
