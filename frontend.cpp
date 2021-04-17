@@ -785,6 +785,13 @@ lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
   return rl.findOrAppendIdent(lookId);
 }
 
+static Ident parseSingleIdentBranch(
+    DiagsDest ctx, const vector<ExprToken>& branch, ssize_t rhsidx) {
+  const Ident parseId = parseIdentFromExprVec(ctx, branch, rhsidx);
+  if(!parseId || !requireEol(branch, rhsidx+1, ctx)) return Ident{};
+  else return parseId;
+}
+
 static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
@@ -819,14 +826,11 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       Error(ctx, branch[2], "Expected '->'");
       continue;
     }
-    const Ident parseId = parseIdentFromExprVec(ctx, branch, 3);
-    if(!parseId) continue;
-    if(!requireEol(branch, 4, ctx)) continue;
-    orRule.comps.push_back({
-        .lookidx = lookidx,
-        .parseidx = rl.findOrAppendIdent(parseId),
-        .tmpl{passthroughTmpl}
-    });
+    if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
+      orRule.comps.push_back({
+          .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
+          .tmpl{passthroughTmpl}
+      });
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
   rl[orIndex].deferred_assign(std::move(orRule));
