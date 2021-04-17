@@ -1,0 +1,4 @@
+# expected-error: Expected keyword 'error' after 'quiet'
+
+rule var lookaheads:
+| "var" -> quiet down

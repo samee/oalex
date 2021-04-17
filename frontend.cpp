@@ -479,15 +479,19 @@ static void parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx,
 // and they will match anything, even other ExprToken types.
 // But thsoe wildcards do need *some* token to match against, so we return false
 // if tokens.size() is too small.
-static bool matchesTokens(const vector<ExprToken>& tokens,
+static bool matchesTokens(const vector<ExprToken>& tokens, ssize_t start,
                           const vector<string_view>& expectations) {
-  if(tokens.size() < expectations.size()) return false;
+  if(start + tokens.size() < expectations.size()) return false;
   for(size_t i=0; i<expectations.size(); ++i)
-    if(!expectations[i].empty() && !isToken(tokens[i], expectations[i]))
+    if(!expectations[i].empty() && !isToken(tokens[start+i], expectations[i]))
       return false;
   return true;
 }
 
+static bool matchesTokens(const vector<ExprToken>& tokens,
+                          const vector<string_view>& expectations) {
+  return matchesTokens(tokens, 0, expectations);
+}
 
 static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
   ssize_t bol = input.bol(stPos(tok));
@@ -864,6 +868,12 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       // TODO deduplicate SkipRules in codegen
       if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
                          rl.emplaceBackAnonRule(ErrorRule{string(err)}));
+    }else if(matchesTokens(branch, 3, {"quiet"})) {
+      if(branch.size() <= 4 || !isToken(branch[4], "error")) {
+        Error(ctx, enPos(branch[3]), "Expected keyword 'error' after 'quiet'");
+        continue;
+      }
+      Unimplemented("quiet error");
     }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
       orRule.comps.push_back({
           .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
