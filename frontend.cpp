@@ -822,9 +822,10 @@ static string_view parseErrorBranch(
   return rv;
 }
 
-static void orRuleAppendPassthrough(OrRule& orRule, ssize_t parseIdx) {
+static void
+orRuleAppendPassthrough(OrRule& orRule, ssize_t lookIdx, ssize_t parseIdx) {
   orRule.comps.push_back({
-      .lookidx = -1, .parseidx = parseIdx, .tmpl{passthroughTmpl}
+      .lookidx = lookIdx, .parseidx = parseIdx, .tmpl{passthroughTmpl}
       });
 }
 
@@ -849,7 +850,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       Bug("lexListEntries() should return at least the bullet");
     if(branch.size() <= 2) {
       if(const Ident parseId = parseIdentFromExprVec(ctx, branch, 1))
-        orRuleAppendPassthrough(orRule, rl.findOrAppendIdent(parseId));
+        orRuleAppendPassthrough(orRule, -1, rl.findOrAppendIdent(parseId));
       continue;
     }
     ssize_t lookidx = lookaheadRuleIndex(ctx, branch, 1, rl);
@@ -860,7 +861,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     }
     if(resemblesErrorBranch(branch, 3)) {
       string_view err = parseErrorBranch(ctx, branch, 3);
-      if(!err.empty()) orRuleAppendPassthrough(orRule,
+      if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
                          rl.emplaceBackAnonRule(ErrorRule{string(err)}));
     }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
       orRule.comps.push_back({

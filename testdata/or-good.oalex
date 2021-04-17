@@ -14,8 +14,12 @@ outputs: {
   init_value: int_value,
 }
 
-ident := /[_a-zA-Z]+/
+ident_regex := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
+
+rule ident lookaheads:
+| "var" -> error 'Reserved keyword "var" cannot be a variable name'
+| ident_regex
 
 rule asgn:
   ident = int_value
@@ -52,3 +56,7 @@ outputs: {
 example simple_stmt:
   4: varx = 5;
 outputs error with 'Statement cannot start with a number'
+
+example decl:
+  var var = 5
+outputs error with 'Reserved keyword "var" cannot be a variable name'
