@@ -71,6 +71,17 @@ using std::vector;
 
 namespace oalex {
 
+#ifndef __cpp_lib_ssize
+// TODO: Remove this when we start requiring C++20
+template <class C>
+constexpr auto ssize(const C& c)
+  -> std::common_type_t<std::ptrdiff_t,
+                        std::make_signed_t<decltype(c.size())>> {
+  return c.size();
+}
+#endif
+
+
 MappedPos::operator string() const {
   return "line " + itos(this->line);
 }
@@ -792,6 +803,25 @@ static Ident parseSingleIdentBranch(
   else return parseId;
 }
 
+static bool resemblesErrorBranch(
+    const vector<ExprToken>& branch, ssize_t rhsidx) {
+  return ssize(branch) > rhsidx+1 && isToken(branch[rhsidx], "error");
+}
+
+static string_view parseErrorBranch(
+    DiagsDest ctx, const vector<ExprToken>& branch, ssize_t rhsidx) {
+  if(!requireEol(branch, rhsidx+2, ctx)) return "";
+  const auto* s = get_if<GluedString>(&branch[rhsidx+1]);
+  if(s == nullptr || (s->ctor() != GluedString::Ctor::squoted &&
+                      s->ctor() != GluedString::Ctor::dquoted)) {
+    Error(ctx, branch[rhsidx+1], "Expected a quoted error message");
+    return "";
+  }
+  string_view rv = *s;
+  if(rv.empty()) Error(ctx, *s, "Error message cannot be empty");
+  return rv;
+}
+
 static void orRuleAppendPassthrough(OrRule& orRule, ssize_t parseIdx) {
   orRule.comps.push_back({
       .lookidx = -1, .parseidx = parseIdx, .tmpl{passthroughTmpl}
@@ -828,7 +858,11 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       Error(ctx, branch[2], "Expected '->'");
       continue;
     }
-    if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
+    if(resemblesErrorBranch(branch, 3)) {
+      string_view err = parseErrorBranch(ctx, branch, 3);
+      if(!err.empty()) orRuleAppendPassthrough(orRule,
+                         rl.emplaceBackAnonRule(ErrorRule{string(err)}));
+    }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
       orRule.comps.push_back({
           .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
           .tmpl{passthroughTmpl}

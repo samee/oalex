@@ -1,0 +1,6 @@
+# expected-error: Expected a quoted error message
+
+some_string := "Use 'var' instead"
+
+rule stmt lookaheads:
+| "let" -> error some_string

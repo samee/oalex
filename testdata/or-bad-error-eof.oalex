@@ -1,0 +1,4 @@
+# expected-error: Expected end of line
+
+rule stmt lookaheads:
+| "let" -> error "Use 'var' instead" extra_data

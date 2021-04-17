@@ -1,5 +1,6 @@
 rule simple_stmt lookaheads:
 | "var" -> decl
+| int_value -> error 'Statement cannot start with a number'
 | asgn
 
 rule decl:
@@ -44,3 +45,7 @@ outputs: {
   lhs: "varx",
   rhs: "5",
 }
+
+example simple_stmt:
+  4: varx = 5;
+outputs error with 'Statement cannot start with a number'
