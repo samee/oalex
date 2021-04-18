@@ -663,7 +663,7 @@ Rule::needsName(bool isLookaheadTarget) const {
   if(holds_alternative<std::string>(specifics_) ||
      holds_alternative<WordPreserving>(specifics_) ||
      false) return false;
-  if(holds_alternative<ErrorRule>(specifics_)) return !isLookaheadTarget;
+  if(holds_alternative<ErrorRule>(specifics_)) return isLookaheadTarget;
   else return true;
 }
 
