@@ -5,6 +5,7 @@ rule simple_stmt lookaheads:
 | "var" -> decl
 | int_value -> error 'Statement cannot start with a number'
 | asgn
+| error 'Invalid statement'
 
 rule decl:
   var ident = int_value
@@ -18,7 +19,6 @@ ident_regex := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
 
 # TODO non-word inline lookaheads
-# TODO support error msg on no-look branches
 rule ident lookaheads:
 | "var" -> error 'Reserved keyword "var" cannot be a variable name'
 | ident_regex
@@ -58,6 +58,10 @@ outputs: {
 example simple_stmt:
   4: varx = 5;
 outputs error with 'Statement cannot start with a number'
+
+example simple_stmt:
+  (lisp s-expression)
+outputs error with 'Invalid statement'
 
 example decl:
   var var = 5

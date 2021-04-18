@@ -1,3 +1,4 @@
-# expected-error: Expected '->'
+# expected-error: Expected end of line
+# TODO The diag should say "Expected end of line or '->'"
 rule stmt lookaheads:
 | id >>

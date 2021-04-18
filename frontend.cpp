@@ -834,6 +834,11 @@ orRuleAppendPassthrough(OrRule& orRule, ssize_t lookIdx, ssize_t parseIdx) {
 }
 
 static bool
+resemblesLookaheadBranch(const vector<ExprToken>& branch) {
+  return branch.size() >= 3 && isToken(branch[2], "->");
+}
+
+static bool
 parseLookaheadBranchAction(const vector<ExprToken>& branch,
                            ssize_t pos, ssize_t lookidx,
                            DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
@@ -876,18 +881,14 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
-    if(branch.size() <= 2) {
-      if(const Ident parseId = parseIdentFromExprVec(ctx, branch, 1))
-        orRuleAppendPassthrough(orRule, -1, rl.findOrAppendIdent(parseId));
-      continue;
+    ssize_t lookidx = -1;
+    ssize_t actionPos = 1;
+    if(resemblesLookaheadBranch(branch)) {
+      lookidx = lookaheadRuleIndex(ctx, branch, 1, rl);
+      if(lookidx == -1) continue;
+      actionPos += 2;   // Skip over "->"
     }
-    ssize_t lookidx = lookaheadRuleIndex(ctx, branch, 1, rl);
-    if(lookidx == -1) continue;
-    if(!isToken(branch[2], "->")) {
-      Error(ctx, branch[2], "Expected '->'");
-      continue;
-    }
-    if(!parseLookaheadBranchAction(branch, 3, lookidx, ctx, orRule, rl))
+    if(!parseLookaheadBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))
       continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
