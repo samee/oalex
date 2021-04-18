@@ -873,7 +873,8 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
         Error(ctx, enPos(branch[3]), "Expected keyword 'error' after 'quiet'");
         continue;
       }
-      Unimplemented("quiet error");
+      orRuleAppendPassthrough(orRule, lookidx,
+                              rl.emplaceBackAnonRule(ErrorRule{string{}}));
     }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
       orRule.comps.push_back({
           .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),

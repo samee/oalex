@@ -17,6 +17,8 @@ outputs: {
 ident_regex := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
 
+# TODO non-word inline lookaheads
+# TODO support error msg on no-look branches
 rule ident lookaheads:
 | "var" -> error 'Reserved keyword "var" cannot be a variable name'
 | ident_regex
@@ -60,3 +62,21 @@ outputs error with 'Statement cannot start with a number'
 example decl:
   var var = 5
 outputs error with 'Reserved keyword "var" cannot be a variable name'
+
+# TODO success test with end-position marker, like codegen ignored tests.
+
+rule simple_stmt_flipped lookaheads:
+| asgn_quiet
+| "var" -> decl
+
+rule asgn_quiet lookaheads:
+| "var" -> quiet error
+| asgn
+
+example simple_stmt_flipped:
+  var x = 5
+outputs: { stmt: "decl", varname: "x", init_value: "5" }
+
+example simple_stmt_flipped:
+  x = 5
+outputs: { stmt: "asgn", lhs: "x", rhs: "5" }

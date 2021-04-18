@@ -96,7 +96,8 @@ struct OrRule {
 };
 
 // This Rule is used as an OrRule target when something else fails, or in
-// response to an obviously bad lookahead.
+// response to an obviously bad lookahead. Empty message indicates quiet
+// failure that produces no diagnostics (as opposed to an empty error diag).
 struct ErrorRule {
   std::string msg;
 };
