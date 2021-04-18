@@ -95,7 +95,8 @@ def eval_testdata_files():
       else:
         output = result.stderr.decode('utf-8')
         assert len(output) == 0, \
-            "Was expecting tests to succeed quietly. Got output:\n" + output
+            f"Was expecting test {filename} to succeed quietly. " + \
+            f"Got output:\n{output}"
 
 def test_gen_compiles():
   # Right now I'm only using two test files, since I'm a little worried

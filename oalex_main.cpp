@@ -288,6 +288,11 @@ ssize_t findRule(const RuleSet& ruleSet, const Ident& ruleName) {
   return -1;
 }
 
+bool atInputEnd(const Input& input, size_t pos) {
+  return !input.sizeGt(pos) ||
+         (!input.sizeGt(pos+1) && input[pos] == '\n');
+}
+
 // Returns true on success.
 bool testExample(const RuleSet& rs, const Example& ex) {
   InputDiags ctx{Input{ex.sampleInput}};
@@ -297,6 +302,11 @@ bool testExample(const RuleSet& rs, const Example& ex) {
     Bug("Rule {} not found. The frontend should have already "
         "detected this error", ex.ruleName.preserveCase());
   JsonLoc jsloc = eval(ctx, pos, rs, ruleIndex);
+  if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos))
+    fprintf(stderr, "Did not consume the entire input at success. "
+                    "Stopped parsing at position %ld '%s'", pos,
+                    debugPrefix(ctx.input, pos).c_str());
+
   if (ex.expectation.matches(jsloc, ctx.diags)) return true;
 
   bool success = Example::runSucceeded(jsloc, ctx.diags);
