@@ -833,6 +833,30 @@ orRuleAppendPassthrough(OrRule& orRule, ssize_t lookIdx, ssize_t parseIdx) {
       });
 }
 
+static bool
+parseLookaheadBranchAction(const vector<ExprToken>& branch,
+                           ssize_t pos, ssize_t lookidx,
+                           DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
+  if(resemblesErrorBranch(branch, pos)) {
+    string_view err = parseErrorBranch(ctx, branch, pos);
+    // TODO deduplicate SkipRules in codegen
+    if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
+                       rl.emplaceBackAnonRule(ErrorRule{string(err)}));
+  }else if(matchesTokens(branch, pos, {"quiet"})) {
+    if(ssize(branch) <= pos+1 || !isToken(branch[pos+1], "error")) {
+      Error(ctx, enPos(branch[pos]), "Expected keyword 'error' after 'quiet'");
+      return false;
+    }
+    orRuleAppendPassthrough(orRule, lookidx,
+                            rl.emplaceBackAnonRule(ErrorRule{string{}}));
+  }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos))
+    orRule.comps.push_back({
+        .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
+        .tmpl{passthroughTmpl}
+    });
+  return true;
+}
+
 static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
@@ -863,23 +887,8 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
       Error(ctx, branch[2], "Expected '->'");
       continue;
     }
-    if(resemblesErrorBranch(branch, 3)) {
-      string_view err = parseErrorBranch(ctx, branch, 3);
-      // TODO deduplicate SkipRules in codegen
-      if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
-                         rl.emplaceBackAnonRule(ErrorRule{string(err)}));
-    }else if(matchesTokens(branch, 3, {"quiet"})) {
-      if(branch.size() <= 4 || !isToken(branch[4], "error")) {
-        Error(ctx, enPos(branch[3]), "Expected keyword 'error' after 'quiet'");
-        continue;
-      }
-      orRuleAppendPassthrough(orRule, lookidx,
-                              rl.emplaceBackAnonRule(ErrorRule{string{}}));
-    }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, 3))
-      orRule.comps.push_back({
-          .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
-          .tmpl{passthroughTmpl}
-      });
+    if(!parseLookaheadBranchAction(branch, 3, lookidx, ctx, orRule, rl))
+      continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
   rl[orIndex].deferred_assign(std::move(orRule));
