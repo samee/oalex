@@ -158,8 +158,9 @@ struct Rule {
     if(!name_) return std::nullopt; else return name_;
   }
   void deferred_name(Ident name);
-  // isTentativeTarget should be true if this rule is a target of either some
-  // OrRule::comps[].lookidx in the containing RuleSet
+  // isTentativeTarget should be true if this rule is a target of either some:
+  // * OrRule::comps[].lookidx in the containing RuleSet, or some
+  // * QuietMatch::compidx in the containing RuleSet
   bool needsName(bool isTentativeTarget) const;
 
   // Assign to specifics if it is in std::monostate.
