@@ -50,6 +50,17 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
   }else return JsonLoc::ErrorValue();
 }
 
+// It's not static because we reuse this in codegen.cpp:eval(), but it's
+// not in the header file since I have no intention of supporting this hack in
+// the long run.
+// This proxy object both discards diags and defends against
+// overly enthusiastic forgetBefore().
+InputDiags substrProxy(const Input& input, ssize_t i) {
+  return InputDiags{Input{[&input, i]() mutable {
+    return input.sizeGt(i) ? input[i++] : -1;
+  } }};
+}
+
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   /* TODO codegen proper resemblance checkers.
 
@@ -65,12 +76,9 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   We shouldn't have them either.
   </rant>
   */
-  InputDiags proxy{Input{[&]() {
-    return input.sizeGt(i) ? input[i++] : -1;
-  } }};
+  InputDiags proxy = substrProxy(input, i);
   ssize_t pos = 0;
-  JsonLoc res = parser(proxy, pos);
-  return !res.holdsError();
+  return !parser(proxy, pos).holdsError();
 }
 
 }  // namespace oalex

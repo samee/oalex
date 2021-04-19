@@ -136,14 +136,15 @@ substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
   return tmpl;  // Assumes substitutionsOk();
 }
 
+// Defined in parser_helpers.cpp, but intentionally not exposed in header.
+InputDiags substrProxy(const Input& input, ssize_t i);
+
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
 static bool
 evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
-  // Use a proxy object to defend against misguided forgetBefore().
-  InputDiags proxy{Input{[&]() { return input[i++]; } }};
+  InputDiags proxy = substrProxy(input, i);
   ssize_t pos = 0;
-  JsonLoc res = eval(proxy, pos, rs, ruleIndex);
-  return !res.holdsError();
+  return !eval(proxy, pos, rs, ruleIndex).holdsError();
 }
 
 static JsonLoc

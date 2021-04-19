@@ -1,0 +1,10 @@
+long_word := "aVeryLongWordIndeedDontShortenIt"
+short_word := "shortWord"
+
+rule long_look lookaheads:
+| long_word -> error "too long"
+| short_word
+
+example long_look:
+  shortWord
+outputs success
