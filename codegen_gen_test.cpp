@@ -44,6 +44,7 @@ using oalex::OrRule;
 using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::passthroughTmpl;
+using oalex::QuietMatch;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
@@ -324,6 +325,21 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"string1"}, Rule{"string2"},
+        nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
+        nmRule(QuietMatch{2}, "string1_quiet"),
+        nmRule(OrRule{.comps{{-1, 3, passthroughTmpl},
+                             {-1, 1, passthroughTmpl}},
+                      .flattenOnDemand = false}, "quiet_match_test")),
+    .regexOpts{regexOpts},
+  };
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -378,5 +394,7 @@ int main(int argc, char* argv[]) {
   generateFlattenOnDemand(cppos, hos);
   linebreaks();
   generateLookaheads(cppos, hos);
+  linebreaks();
+  generateQuietTest(cppos, hos);
   return 0;
 }

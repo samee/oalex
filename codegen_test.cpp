@@ -46,6 +46,7 @@ using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::passthroughTmpl;
+using oalex::QuietMatch;
 using oalex::Regex;
 using oalex::Rule;
 using oalex::RuleSet;
@@ -358,6 +359,26 @@ void testLookaheads() {
   }
 }
 
+void testQuietMatch() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"string1"}, Rule{"string2"},
+        nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
+        nmRule(QuietMatch{2}, "string1_quiet"),
+        nmRule(OrRule{.comps{{-1, 3, passthroughTmpl},
+                             {-1, 1, passthroughTmpl}},
+                      .flattenOnDemand = false}, "quiet_match_test")),
+    .regexOpts{regexOpts},
+  };
+  auto ctx = testInputDiags("string2");
+  ssize_t pos = 0;
+  JsonLoc observed = eval(ctx, pos, rs, 4);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -375,5 +396,6 @@ int main() {
   testKeywordsOrNumber();
   testFlattenOnDemand();
   testLookaheads();
+  testQuietMatch();
 }
 

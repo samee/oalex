@@ -197,6 +197,8 @@ specifics_typename(const OutputTmpl&) { return "OutputTmpl"; }
 static string
 specifics_typename(const ErrorRule&) { return "ErrorRule"; }
 static string
+specifics_typename(const QuietMatch&) { return "QuietMatch"; }
+static string
 specifics_typename(const OrRule&) { return "OrRule"; }
 static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }
@@ -227,7 +229,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(const auto* err = get_if<ErrorRule>(&r)) {
     if(err->msg.empty()) return JsonLoc::ErrorValue{};
     else return errorValue(ctx, i, err->msg);
-  }
+  }else if(const auto* qm = get_if<QuietMatch>(&r))
+    return evalQuiet(ctx.input, i, ruleset, qm->compidx);
   else if(const auto* ors = get_if<OrRule>(&r))
     return eval(ctx, i, *ors, ruleset);
   else if(const auto* me = get_if<MatchOrError>(&r))
@@ -552,6 +555,15 @@ codegen(const ErrorRule& errRule, const OutputStream& cppos) {
                     dquoted(errRule.msg)));
 }
 
+// FIXME these targets need names.
+// TODO factor out parser-name synthesis.
+static void
+codegen(const RuleSet& ruleset, const QuietMatch& qm,
+        const OutputStream& cppos) {
+  cppos(format("  return oalex::quietMatch(ctx.input, i, parse{});\n",
+               ruleset.rules[qm.compidx].name()->toUCamelCase()));
+}
+
 // TODO refactor parser name synthesis.
 static void
 codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
@@ -737,6 +749,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *out, cppos);
   }else if(const auto* err = get_if<ErrorRule>(&r)) {
     codegen(*err, cppos);
+  }else if(const auto* qm = get_if<QuietMatch>(&r)) {
+    codegen(ruleset, *qm, cppos);
   }else if(const auto* ors = get_if<OrRule>(&r)) {
     codegen(ruleset, *ors, cppos);
   }else if(const auto* me = get_if<MatchOrError>(&r)) {

@@ -102,6 +102,10 @@ struct ErrorRule {
   std::string msg;
 };
 
+// Literally wraps a rule in quietMatch(). Currently not used in frontend.cpp,
+// but it will be used as part of PatternOrList compilation.
+struct QuietMatch { ssize_t compidx; };
+
 struct SkipPoint {
   bool stayWithinLine = false;  // If true, skip comments should end in '\n'
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
@@ -166,8 +170,8 @@ struct Rule {
  private:
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OutputTmpl, OrRule, ErrorRule, MatchOrError>
-               specifics_;
+               ConcatFlatRule, OutputTmpl, OrRule, ErrorRule, QuietMatch,
+               MatchOrError> specifics_;
   Ident name_;
 };
 

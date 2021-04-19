@@ -267,6 +267,16 @@ void runLookaheads() {
   }
 }
 
+void runQuietTest() {
+  auto ctx = testInputDiags("string2");
+  ssize_t pos = 0;
+  JsonLoc observed = parseQuietMatchTest(ctx, pos);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -290,4 +300,5 @@ int main() {
   runOrTest();
   runFlattenOnDemand();
   runLookaheads();
+  runQuietTest();
 }
