@@ -1,0 +1,20 @@
+# What I need is a peekMatch that produces errors.
+# We need to test if a success-returning but error-making peekMatch()
+# is considered a successful peek or failed peek.
+
+acceptTestWord := "TestWord"
+rejectTestWord := "BadWord"
+
+rule matchAfterAbsorb lookaheads:
+| rejectTestWord   # This will produce error messages on "TestWord"
+| acceptTestWord   # But then we accept "TestWord" anyway.
+
+# The question now is: if matchAfterAbsorb is used as a lookahead,
+# is it considered a success or failure? It tests peekMatch().
+rule peekTester lookaheads:
+| matchAfterAbsorb -> acceptTestWord
+| error 'Failed to absorb errors'
+
+example peekTester:
+  TestWord
+outputs success

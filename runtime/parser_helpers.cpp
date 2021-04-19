@@ -70,7 +70,7 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   } }};
   ssize_t pos = 0;
   JsonLoc res = parser(proxy, pos);
-  return !res.holdsError() && !hasError(proxy.diags);
+  return !res.holdsError();
 }
 
 }  // namespace oalex

@@ -143,7 +143,7 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
   InputDiags proxy{Input{[&]() { return input[i++]; } }};
   ssize_t pos = 0;
   JsonLoc res = eval(proxy, pos, rs, ruleIndex);
-  return !res.holdsError() && !hasError(proxy.diags);
+  return !res.holdsError();
 }
 
 static JsonLoc
