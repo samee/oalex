@@ -31,8 +31,8 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
 // This version discards matches if it is appearing to split a word into two.
 // Providing an empty wordChars {} here is equivalent to calling it without
 // wordChars.
-bool quietMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
-                std::string_view s);
+bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
+               std::string_view s);
 JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
               std::string_view s);
 
@@ -43,6 +43,6 @@ inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
 
 // Converts a parser into a resemblance-checker.
 using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
-bool quietMatch(const Input& input, ssize_t i, GeneratedParser parser);
+bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
 
 }  // namespace oalex

@@ -554,14 +554,14 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   if(const auto* s = get_if<string>(&rule))
     cppos(format("ctx.input.hasPrefix(i, {})", dquoted(*s)));
   else if(const auto* wp = get_if<WordPreserving>(&rule))
-    cppos(format("oalex::quietMatch(ctx, i, defaultRegexOpts().word, {})",
+    cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
   // When adding a new branch here, remember to change Rule::needsName().
   else {
     if(!rule.name().has_value())
       Bug("The frontend must always name lookidx for {} rules",
           rule.specifics_typename());
-    cppos(format("quietMatch(ctx.input, i, parse{})",
+    cppos(format("oalex::peekMatch(ctx.input, i, parse{})",
                   rule.name()->toUCamelCase()));
   }
 }

@@ -31,8 +31,8 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
   else return JsonLoc::ErrorValue{};
 }
 
-bool quietMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
-                string_view s) {
+bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
+               string_view s) {
   if(s.empty()) return true;  // Frontend should disallow this.
   if(!ctx.input.hasPrefix(i, s)) return false;
   const ssize_t j = i+s.size();
@@ -44,13 +44,13 @@ bool quietMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
 
 JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
               string_view s) {
-  if(quietMatch(ctx, i, wordChars, s)) {
+  if(peekMatch(ctx, i, wordChars, s)) {
     const ssize_t j = i+s.size();
     return quote(string(s), std::exchange(i, j), j);
   }else return JsonLoc::ErrorValue();
 }
 
-bool quietMatch(const Input& input, ssize_t i, GeneratedParser parser) {
+bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   /* TODO codegen proper resemblance checkers.
 
   <rant>
