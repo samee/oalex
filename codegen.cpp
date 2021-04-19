@@ -138,7 +138,7 @@ substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
 
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
 static bool
-evalCheck(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
+evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
   // Use a proxy object to defend against misguided forgetBefore().
   InputDiags proxy{Input{[&]() { return input[i++]; } }};
   ssize_t pos = 0;
@@ -151,11 +151,11 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
   JsonLoc out{JsonLoc::ErrorValue{}};
   for(auto& [lidx, pidx, tmpl]: ors.comps) {
-    if(lidx != -1 && !evalCheck(ctx.input, i, rs, lidx)) continue;
+    if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
     if(!out.holdsError()) return substituteOnePlaceholder(tmpl, "child", out);
 
-    // If we passed evalCheck(), don't try anything else.
+    // If we passed evalPeek(), don't try anything else.
     if(lidx != -1) return out;
   }
   return out;  // Return the last error.
