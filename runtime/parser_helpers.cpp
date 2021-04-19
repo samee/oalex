@@ -69,6 +69,12 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
 
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   /* TODO codegen proper resemblance checkers.
+     TODO while this is here, add a flag to InputDiags to disable errors
+     with an RAII-controlled flag. Although, I'd have to then think about how
+     to do this whiel preserving the type signature to accept an Input type
+     and not InputDiags or DiagsDest. Speaking of DiagsDest, that should then
+     have to support this too, or we should at least forbid DiagsDest
+     construction in this state.
 
   <rant>
   Instead, we are now abusing normal parsers as resemblance checkers,
