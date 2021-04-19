@@ -140,11 +140,16 @@ substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
 InputDiags substrProxy(const Input& input, ssize_t i);
 
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
-static bool
-evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
+static JsonLoc evalQuiet(const Input& input, ssize_t& i,
+                         const RuleSet& rs, ssize_t ruleIndex) {
   InputDiags proxy = substrProxy(input, i);
   ssize_t pos = 0;
-  return !eval(proxy, pos, rs, ruleIndex).holdsError();
+  return eval(proxy, pos, rs, ruleIndex);
+}
+
+static bool
+evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
+  return !evalQuiet(input, i, rs, ruleIndex).holdsError();
 }
 
 static JsonLoc
