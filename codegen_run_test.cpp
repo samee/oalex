@@ -246,15 +246,18 @@ void runFlattenOnDemand() {
 }
 
 void runLookaheads() {
+  // Pad inputs with an extra space since peekMatch() uses a proxy object
+  // that often gets offset-computation wrong that is only exposed if input
+  // doesn't start at offset 0.
   const pair<string, JsonLoc> testdata[] = {
-    {"var x = y; ignore", *parseJsonLoc("{var: 'x', init_value: 'y'}")},
-    {"x = y; ignore", *parseJsonLoc("{lhs: 'x', rhs: 'y'}")},
-    {"var = x; ignore", JsonLoc{JsonLoc::ErrorValue{}}},
-    {"4:", *parseJsonLoc("{line_number: '4'}")},
-    {".blastoff", *parseJsonLoc("{directive: 'blastoff'}")},
+    {" var x = y; ignore", *parseJsonLoc("{var: 'x', init_value: 'y'}")},
+    {" x = y; ignore", *parseJsonLoc("{lhs: 'x', rhs: 'y'}")},
+    {" var = x; ignore", JsonLoc{JsonLoc::ErrorValue{}}},
+    {" 4:", *parseJsonLoc("{line_number: '4'}")},
+    {" .blastoff", *parseJsonLoc("{directive: 'blastoff'}")},
   };
   for(auto& [msg, expected] : testdata) {
-    ssize_t pos = 0;
+    ssize_t pos = 1;
     auto ctx = testInputDiags(msg);
     JsonLoc observed = parseLookaheadSimpleStmt(ctx, pos);
     if(expected.holdsError()) {

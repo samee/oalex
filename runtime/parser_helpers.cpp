@@ -62,6 +62,12 @@ InputDiags substrProxy(const Input& input, ssize_t i) {
 }
 
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
+  // The only difference between this and quietMatch() is that
+  // peekMatch() accepts `i` by value.
+  return !quietMatch(input, i, parser).holdsError();
+}
+
+JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   /* TODO codegen proper resemblance checkers.
 
   <rant>
@@ -78,7 +84,9 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   */
   InputDiags proxy = substrProxy(input, i);
   ssize_t pos = 0;
-  return !parser(proxy, pos).holdsError();
+  JsonLoc rv = parser(proxy, pos);
+  if(!rv.holdsError()) i += pos;
+  return rv;
 }
 
 }  // namespace oalex

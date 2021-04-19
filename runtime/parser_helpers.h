@@ -44,5 +44,6 @@ inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
 // Converts a parser into a resemblance-checker.
 using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
+JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
 
 }  // namespace oalex
