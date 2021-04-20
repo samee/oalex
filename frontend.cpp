@@ -582,6 +582,21 @@ static ssize_t appendPatternConcat(
   return rl.ssize()-1;
 }
 
+static ssize_t appendPatternOrList(
+    DiagsDest ctx, const PatternOrList& orPatt, RulesWithLocs& rl) {
+  OrRule orRule{.comps{}, .flattenOnDemand=true};
+  for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
+    const Pattern& child = orPatt.parts[i];
+    ssize_t j = appendPatternRule(ctx, child, rl);
+    if(i+1 != ssize(orPatt.parts)) j = rl.emplaceBackAnonRule(QuietMatch{j});
+    if(string pname = patternName(child); !pname.empty())
+      orRule.comps.push_back({-1, j, JsonLoc::Map{{pname, passthroughTmpl}}});
+    else orRule.comps.push_back({-1, j, passthroughTmpl});
+  }
+  rl.emplaceBackAnonRule(std::move(orRule));
+  return rl.ssize()-1;
+}
+
 static ssize_t appendPatternRule(DiagsDest ctx,
     const Pattern& patt, RulesWithLocs& rl) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
@@ -594,6 +609,8 @@ static ssize_t appendPatternRule(DiagsDest ctx,
     return rl.findOrAppendIdent(*ident);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     return appendPatternConcat(ctx, *concatPatt, rl);
+  }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
+    return appendPatternOrList(ctx, *orPatt, rl);
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }

@@ -18,3 +18,14 @@ rule peekTester lookaheads:
 example peekTester:
   TestWord
 outputs success
+
+rule orPattern:
+  rejectTestWord | acceptTestWord
+outputs: { acceptTestWord, rejectTestWord }
+
+example orPattern:
+  TestWord
+outputs: {
+  acceptTestWord: "TestWord",
+  rejectTestWord: {},  # TODO revisit if we want to use moveEltOrEmpty()
+}
