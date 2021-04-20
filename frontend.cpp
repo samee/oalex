@@ -552,12 +552,34 @@ static const LexDirective& defaultLexopts() {
   return *var;
 }
 
+// Forward decl.
+static ssize_t appendPatternRule(DiagsDest ctx, const Pattern& patt,
+                                 RulesWithLocs& rl);
+
 // This function returns ConcatFlatRule::Commponent::outputPlaceholder
 // for ConcatFlatRule components. It must be empty for any pattern that is
 // mapped into a map-returning rule.
 static string patternName(const Pattern& patt) {
   if(auto* ident = get_if_unique<Ident>(&patt)) return ident->preserveCase();
   else return {};
+}
+
+static ssize_t appendPatternConcat(
+    DiagsDest ctx, const PatternConcat& concatPatt, RulesWithLocs& rl) {
+  ConcatFlatRule concatRule{ .comps{} };
+  for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
+    if(i > 0) {
+      // Intersperse concat components with SkipPoint components.
+      concatRule.comps.push_back({rl.ssize(), {}});
+      rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
+                                       .skip = &oalexSkip});
+    }
+    const Pattern& child = concatPatt.parts[i];
+    ssize_t j = appendPatternRule(ctx, child, rl);
+    concatRule.comps.push_back({j, patternName(child)});
+  }
+  rl.emplaceBackAnonRule(std::move(concatRule));
+  return rl.ssize()-1;
 }
 
 static ssize_t appendPatternRule(DiagsDest ctx,
@@ -571,20 +593,7 @@ static ssize_t appendPatternRule(DiagsDest ctx,
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
     return rl.findOrAppendIdent(*ident);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
-    ConcatFlatRule concatRule{ .comps{} };
-    for(ssize_t i = 0; i < (ssize_t)concatPatt->parts.size(); ++i) {
-      if(i > 0) {
-        // Intersperse concat components with SkipPoint components.
-        concatRule.comps.push_back({rl.ssize(), {}});
-        rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
-                                         .skip = &oalexSkip});
-      }
-      const Pattern& child = concatPatt->parts[i];
-      ssize_t j = appendPatternRule(ctx, child, rl);
-      concatRule.comps.push_back({j, patternName(child)});
-    }
-    rl.emplaceBackAnonRule(std::move(concatRule));
-    return rl.ssize()-1;
+    return appendPatternConcat(ctx, *concatPatt, rl);
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
