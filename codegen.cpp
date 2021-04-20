@@ -677,11 +677,11 @@ Rule::deferred_name(Ident name) {
 }
 
 bool
-Rule::needsName(bool isLookaheadTarget) const {
+Rule::needsName(bool isTentativeTarget) const {
   if(holds_alternative<std::string>(specifics_) ||
      holds_alternative<WordPreserving>(specifics_) ||
      false) return false;
-  if(holds_alternative<ErrorRule>(specifics_)) return isLookaheadTarget;
+  if(holds_alternative<ErrorRule>(specifics_)) return isTentativeTarget;
   else return true;
 }
 

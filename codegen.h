@@ -158,7 +158,9 @@ struct Rule {
     if(!name_) return std::nullopt; else return name_;
   }
   void deferred_name(Ident name);
-  bool needsName(bool isLookaheadTarget) const;
+  // isTentativeTarget should be true if this rule is a target of either some
+  // OrRule::comps[].lookidx in the containing RuleSet
+  bool needsName(bool isTentativeTarget) const;
 
   // Assign to specifics if it is in std::monostate.
   // We disallow later assignments to discourage mutation.
