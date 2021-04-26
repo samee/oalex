@@ -78,7 +78,6 @@ add_executable(pattern_test pattern_test.cpp ident.cpp
 target_link_libraries(pattern_test oalex-bin-lib)
 add_test(pattern_test pattern_test)
 
-add_subdirectory(archived)
 add_subdirectory(runtime)
 
 add_executable(oalex-bin oalex_main.cpp frontend.cpp)
