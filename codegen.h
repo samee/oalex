@@ -197,6 +197,7 @@ template <class X> const X* get_if(const Rule* rule) {
   return std::get_if<X>(&rule->specifics_);
 }
 
+// TODO this needs a debug() printer.
 struct RuleSet {
   std::vector<Rule> rules;
   RegexOptions regexOpts;

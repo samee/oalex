@@ -588,6 +588,27 @@ static ssize_t appendPatternOrList(
   return rl.ssize()-1;
 }
 
+static ssize_t appendPatternOptional(
+    DiagsDest ctx, const PatternOptional& optPatt, RulesWithLocs& rl) {
+  ssize_t i;
+  OrRule orRule{.comps{}, .flattenOnDemand=true};
+
+  i = appendPatternRule(ctx, optPatt.part, rl);
+  i = rl.emplaceBackAnonRule(QuietMatch{i});
+  orRule.comps.push_back({-1, i, passthroughTmpl});
+
+  // This branch always produces a Map on success.
+  i = rl.emplaceBackAnonRule(string{});
+  i = rl.emplaceBackAnonRule(OutputTmpl{
+      .childidx = i,
+      .childName = "child",
+      .outputTmpl = passthroughTmpl,
+  });
+  orRule.comps.push_back({-1, i, JsonLoc::Map{}});
+
+  return rl.emplaceBackAnonRule(std::move(orRule));
+}
+
 static ssize_t appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
   ssize_t i = rl.findOrAppendIdent(ident);
   return rl.emplaceBackAnonRule(ConcatFlatRule{{
@@ -609,6 +630,8 @@ static ssize_t appendPatternRule(DiagsDest ctx,
     return appendPatternConcat(ctx, *concatPatt, rl);
   }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
     return appendPatternOrList(ctx, *orPatt, rl);
+  }else if(auto* optPatt = get_if_unique<PatternOptional>(&patt)) {
+    return appendPatternOptional(ctx, *optPatt, rl);
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
@@ -682,6 +705,7 @@ static void appendPatternRules(
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 
+  // TODO consider changing OutputTmpl::childName to type Ident.
   string childName;
   if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
 

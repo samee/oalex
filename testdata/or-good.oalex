@@ -7,8 +7,10 @@ rule simple_stmt lookaheads:
 | asgn
 | error 'Invalid statement'
 
+# TODO Allow the use of literal strings in optional brackets, like
+# "[ this ]", where 'this' is not a template part.
 rule decl:
-  var ident = int_value
+  var ident [ = int_value ]
 outputs: {
   stmt: "decl",
   varname: ident,
@@ -37,6 +39,15 @@ outputs: {
   stmt: "decl",
   varname: "x",
   init_value: "5",
+}
+
+# No initial value
+example simple_stmt:
+  var x
+outputs: {
+  stmt: "decl",
+  varname: "x",
+  init_value: {},
 }
 
 example simple_stmt:

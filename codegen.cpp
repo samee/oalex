@@ -154,6 +154,7 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
   return !evalQuiet(input, i, rs, ruleIndex).holdsError();
 }
 
+// TODO we need an `eval test -v` that produces verbose debug logs.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
