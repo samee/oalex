@@ -144,7 +144,9 @@ static JsonLoc evalQuiet(const Input& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex) {
   InputDiags proxy = substrProxy(input, i);
   ssize_t pos = 0;
-  return eval(proxy, pos, rs, ruleIndex);
+  JsonLoc res = eval(proxy, pos, rs, ruleIndex);
+  if(!res.holdsError()) i += pos;
+  return res;
 }
 
 static bool

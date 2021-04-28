@@ -29,3 +29,16 @@ outputs: {
   acceptTestWord: "TestWord",
   rejectTestWord: {},  # TODO revisit if we want to use moveEltOrEmpty()
 }
+
+rule orThenCat:
+  orPattern is bad
+outputs: { orPattern }
+
+example orThenCat:
+  BadWord is bad
+outputs: {
+  orPattern: {
+    acceptTestWord: {},
+    rejectTestWord: "BadWord",
+  }
+}
