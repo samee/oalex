@@ -556,14 +556,6 @@ static const LexDirective& defaultLexopts() {
 static ssize_t appendPatternRule(DiagsDest ctx, const Pattern& patt,
                                  RulesWithLocs& rl);
 
-// This function returns ConcatFlatRule::Commponent::outputPlaceholder
-// for ConcatFlatRule components. It must be empty for any pattern that is
-// mapped into a map-returning rule.
-static string patternName(const Pattern& patt) {
-  if(auto* ident = get_if_unique<Ident>(&patt)) return ident->preserveCase();
-  else return {};
-}
-
 static ssize_t appendPatternConcat(
     DiagsDest ctx, const PatternConcat& concatPatt, RulesWithLocs& rl) {
   ConcatFlatRule concatRule{ .comps{} };
@@ -576,12 +568,13 @@ static ssize_t appendPatternConcat(
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
-    concatRule.comps.push_back({j, patternName(child)});
+    concatRule.comps.push_back({j, {}});
   }
   rl.emplaceBackAnonRule(std::move(concatRule));
   return rl.ssize()-1;
 }
 
+// TODO failed tests should output location. Or tests should have names.
 static ssize_t appendPatternOrList(
     DiagsDest ctx, const PatternOrList& orPatt, RulesWithLocs& rl) {
   OrRule orRule{.comps{}, .flattenOnDemand=true};
@@ -589,12 +582,17 @@ static ssize_t appendPatternOrList(
     const Pattern& child = orPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
     if(i+1 != ssize(orPatt.parts)) j = rl.emplaceBackAnonRule(QuietMatch{j});
-    if(string pname = patternName(child); !pname.empty())
-      orRule.comps.push_back({-1, j, JsonLoc::Map{{pname, passthroughTmpl}}});
-    else orRule.comps.push_back({-1, j, passthroughTmpl});
+    orRule.comps.push_back({-1, j, passthroughTmpl});
   }
   rl.emplaceBackAnonRule(std::move(orRule));
   return rl.ssize()-1;
+}
+
+static ssize_t appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
+  ssize_t i = rl.findOrAppendIdent(ident);
+  return rl.emplaceBackAnonRule(ConcatFlatRule{{
+      {i, ident.preserveCase()},
+  }});
 }
 
 static ssize_t appendPatternRule(DiagsDest ctx,
@@ -606,7 +604,7 @@ static ssize_t appendPatternRule(DiagsDest ctx,
   }else if(get_if_unique<NewlineChar>(&patt)) {
     return appendLiteralOrError(rl, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return rl.findOrAppendIdent(*ident);
+    return appendPatternIdent(*ident, rl);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
     return appendPatternConcat(ctx, *concatPatt, rl);
   }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
