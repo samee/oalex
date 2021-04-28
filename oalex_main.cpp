@@ -302,12 +302,15 @@ bool testExample(const RuleSet& rs, const Example& ex) {
     Bug("Rule {} not found. The frontend should have already "
         "detected this error", ex.ruleName.preserveCase());
   JsonLoc jsloc = eval(ctx, pos, rs, ruleIndex);
-  if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos))
-    fprintf(stderr, "Did not consume the entire input at success. "
-                    "Stopped parsing at position %ld '%s'", pos,
-                    debugPrefix(ctx.input, pos).c_str());
 
-  if (ex.expectation.matches(jsloc, ctx.diags)) return true;
+  if (ex.expectation.matches(jsloc, ctx.diags)) {
+    if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos)) {
+      fprintf(stderr, "Did not consume the entire input at success. "
+                      "Stopped parsing at position %ld '%s'", pos,
+                      debugPrefix(ctx.input, pos).c_str());
+      return false;
+    }else return true;
+  }
 
   bool success = Example::runSucceeded(jsloc, ctx.diags);
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
