@@ -130,6 +130,49 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
 }
 
 static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
+  if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  if(loop.breakBefore == ssize_t(loop.children.comps.size()))
+    Unimplemented("Non-optional repeats");
+  JsonLoc::Map rv;
+  ssize_t maxsize = 0;
+  auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) mutable {
+    if(name.empty()) return;
+    JsonLoc::Map::iterator it = rv.find(name);
+    if(it == rv.end()) {
+      if(maxsize > 1) Unimplemented("Late addition needs static key collation");
+      it = rv.insert({name, JsonLoc::Vector{}}).first;
+    }
+    auto v = get_if<JsonLoc::Vector>(&it->second);
+    if(!v) Bug("All elements should be vectors");
+    v->push_back(std::move(val));
+    maxsize = std::max(maxsize, ssize(*v));
+  };
+  ssize_t j = i;
+  for(ssize_t childi = 0; ; ++childi) {
+    // TODO special-case breakBefore == loop.children.size()
+    if(childi == ssize(loop.children.comps)) childi = 0;
+    auto& [ruleidx, outname] = loop.children.comps[childi];
+    JsonLoc out = eval(ctx, j, rs, ruleidx);
+    if(out.holdsError()) {
+      if(childi == loop.breakBefore) break;
+      else return out;
+    }else if(makesFlattenableMap(rs.rules[ruleidx])) {
+      // TODO refactor out this validation between here and ConcatFlatRule.
+      auto* m = get_if<JsonLoc::Map>(&out);
+      if(!m) Bug("LoopRule child {} was expected to return a map, got {}",
+                 ruleDebugId(rs, ruleidx), out);
+      if(!outname.empty())
+        Bug("Flattenable loop children are not supposed to have names");
+      for(auto& [k,v] : *m) addChild(k, std::move(v));
+
+    }else if(!outname.empty()) addChild(outname, std::move(out));
+  }
+  i = j;
+  return rv;
+}
+
+static JsonLoc
 substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
   ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
   if(count > 1) Bug("OrRule wasn't expected to have more than one child");
@@ -198,6 +241,8 @@ specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string
 specifics_typename(const OutputTmpl&) { return "OutputTmpl"; }
 static string
+specifics_typename(const LoopRule&) { return "LoopRule"; }
+static string
 specifics_typename(const ErrorRule&) { return "ErrorRule"; }
 static string
 specifics_typename(const QuietMatch&) { return "QuietMatch"; }
@@ -229,6 +274,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* out = get_if<OutputTmpl>(&r))
     return eval(ctx, i, *out, ruleset);
+  else if(const auto* loop = get_if<LoopRule>(&r))
+    return eval(ctx, i, *loop, ruleset);
   else if(const auto* err = get_if<ErrorRule>(&r)) {
     if(err->msg.empty()) return JsonLoc::ErrorValue{};
     else return errorValue(ctx, i, err->msg);

@@ -73,6 +73,19 @@ struct OutputTmpl {
   JsonLoc outputTmpl;
 };
 
+// Produces a loop that keeps parsing children. It stops right before
+// children.comps[breakBefore]. If lookidx == -1, it will just try to parse
+// this child, and break out of the loop if it fails. If lookidx != -1, it
+// will use that rule as the lookahead decider.
+struct LoopRule{
+  ConcatFlatRule children;
+  enum LookaheadType { lookBreak, lookIterate };
+  ssize_t breakBefore;
+  LookaheadType lookType;  // ignored if no lookahead
+  ssize_t lookidx;  // -1 means no lookahead.
+};
+
+
 inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
 inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
   return isPlaceholder(jsloc, "child");
@@ -173,8 +186,8 @@ struct Rule {
  private:
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OutputTmpl, OrRule, ErrorRule, QuietMatch,
-               MatchOrError> specifics_;
+               ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
+               QuietMatch, MatchOrError> specifics_;
   Ident name_;
 };
 

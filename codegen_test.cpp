@@ -40,6 +40,7 @@ using oalex::ConcatRule;
 using oalex::ErrorRule;
 using oalex::get_if;
 using oalex::JsonLoc;
+using oalex::LoopRule;
 using oalex::makeVector;
 using oalex::MatchOrError;
 using oalex::OrRule;
@@ -379,6 +380,82 @@ void testQuietMatch() {
   }
 }
 
+void testLoopRule() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{MatchOrError{4, "Expected an identifier"}}, Rule{"+"},
+        Rule{SkipPoint{false, &cskip}},
+        nmRule(LoopRule{
+          .children{ConcatFlatRule{{
+            {0, "operand"}, {2, ""}, {1, ""}, {2, ""}
+          }}},
+          .breakBefore = 2,
+          .lookType = LoopRule::lookIterate,
+          .lookidx = -1,
+        }, "sum"),
+        Rule{parseRegex("/[a-z]+/")}
+    ),
+    .regexOpts{regexOpts},
+  };
+  tuple<string, JsonLoc, ssize_t> goodcases[] = {
+    {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
+    {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
+    {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
+    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 6},
+  };
+  for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
+    auto ctx = testInputDiags(msg);
+    ssize_t pos = 0;
+    JsonLoc observed = eval(ctx, pos, rs, 3);
+    assertEqual(__func__, expectedJsloc, observed);
+    if(expectedEnd == -1) expectedEnd = msg.size();
+    assertEqual(__func__, expectedEnd, pos);
+  }
+  pair<string, string> badcases[] = {
+    {"(boo!)", "Expected an identifier"},
+    {"a ++", "Expected an identifier"},
+  };
+  for(auto& [msg, expectedDiag] : badcases) {
+    auto ctx = testInputDiags(msg);
+    ssize_t pos = 0;
+    JsonLoc observed = eval(ctx, pos, rs, 3);
+    if(!observed.holdsError())
+      Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
+    assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
+  }
+}
+
+
+// Flattenable child is processed on a different branch. Test that too.
+void testLoopFlattening() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{parseRegex("/[-+]/")},
+        Rule{parseRegex("/[a-z]+/")},
+        Rule{MatchOrError{1, "Expected an identifier"}},
+        Rule{ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }}},
+        Rule{SkipPoint{false, &cskip}},
+        Rule{","},
+        nmRule(LoopRule{
+          .children{ConcatFlatRule{{
+            {3, ""}, {4, ""}, {5, ""}, {4, ""}
+          }}},
+          .breakBefore = 2,
+          .lookType = LoopRule::lookIterate,
+          .lookidx = -1,
+        }, "sum")
+    ),
+    .regexOpts{regexOpts},
+  };
+  auto ctx = testInputDiags("+a, -b");
+  ssize_t pos = 0;
+  JsonLoc observed = eval(ctx, pos, rs, 6);
+  if(!ctx.diags.empty()) showDiags(ctx.diags);
+  assertEqual(__func__, pos, ssize_t(6));
+  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"
+                                      " sign: ['+', '-']}"), observed);
+}
+
 }  // namespace
 
 int main() {
@@ -397,5 +474,7 @@ int main() {
   testFlattenOnDemand();
   testLookaheads();
   testQuietMatch();
+  testLoopRule();
+  testLoopFlattening();
 }
 
