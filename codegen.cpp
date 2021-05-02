@@ -132,8 +132,6 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  if(loop.breakBefore == ssize_t(loop.children.comps.size()))
-    Unimplemented("Non-optional repeats");
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) mutable {
@@ -149,13 +147,15 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     maxsize = std::max(maxsize, ssize(*v));
   };
   ssize_t j = i;
+  bool first = true;
   for(ssize_t childi = 0; ; ++childi) {
-    // TODO special-case breakBefore == loop.children.size()
     if(childi == ssize(loop.children.comps)) childi = 0;
     auto& [ruleidx, outname] = loop.children.comps[childi];
     JsonLoc out = eval(ctx, j, rs, ruleidx);
     if(out.holdsError()) {
       if(childi == loop.breakBefore) break;
+      else if(childi == 0 && ssize(loop.children.comps) == loop.breakBefore &&
+              !first) break;
       else return out;
     }else if(makesFlattenableMap(rs.rules[ruleidx])) {
       // TODO refactor out this validation between here and ConcatFlatRule.
@@ -167,6 +167,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       for(auto& [k,v] : *m) addChild(k, std::move(v));
 
     }else if(!outname.empty()) addChild(outname, std::move(out));
+    first = false;
   }
   i = j;
   return rv;

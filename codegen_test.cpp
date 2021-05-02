@@ -423,6 +423,28 @@ void testLoopRule() {
       Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
+
+  // breakBefore == n is special-cased. Check that it works.
+  rs.rules.push_back(Rule{","});
+  rs.rules.push_back(nmRule(LoopRule{
+      .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}},
+      .breakBefore = 4,
+      .lookType = LoopRule::lookIterate,
+      .lookidx = -1,
+  }, "list_prefix"));
+  auto ctx = testInputDiags("a, b,");
+  ssize_t pos = 0;
+  JsonLoc observed = eval(ctx, pos, rs, 6);
+  if(!ctx.diags.empty()) showDiags(ctx.diags);
+  assertEqual(__func__, pos, ssize_t(5));
+  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"), observed);
+
+  ctx = testInputDiags("!");
+  pos = 0;
+  observed = eval(ctx, pos, rs, 6);
+  if(!observed.holdsError())
+    Bug("Was expecting an error on mandatory repeats. Got {}", observed);
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
 }
 
 
