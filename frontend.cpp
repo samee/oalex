@@ -71,17 +71,6 @@ using std::vector;
 
 namespace oalex {
 
-#ifndef __cpp_lib_ssize
-// TODO: Remove this when we start requiring C++20
-template <class C>
-constexpr auto ssize(const C& c)
-  -> std::common_type_t<std::ptrdiff_t,
-                        std::make_signed_t<decltype(c.size())>> {
-  return c.size();
-}
-#endif
-
-
 MappedPos::operator string() const {
   return "line " + itos(this->line);
 }
