@@ -390,16 +390,21 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("}\n");
 }
 
+static string
+parserName(const Ident& rname) {
+  return "parse" + rname.toUCamelCase();
+}
+
 static void
 parserHeaders(const Ident& rname,
               const OutputStream& cppos, const OutputStream& hos) {
-  hos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             rname.toUCamelCase()));
+  hos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
+             parserName(rname)));
 
   // TODO complex parsers should have comments with the source line.
-  cppos(format("oalex::JsonLoc parse{}(oalex::InputDiags& ctx, "
+  cppos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, "
                                       "ssize_t& i) ",
-               rname.toUCamelCase()));
+               parserName(rname)));
 }
 
 static void
@@ -558,16 +563,15 @@ codegen(const ErrorRule& errRule, const OutputStream& cppos) {
                     dquoted(errRule.msg)));
 }
 
-// FIXME these targets need names.
-// TODO factor out parser-name synthesis.
 static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
-  cppos(format("  return oalex::quietMatch(ctx.input, i, parse{});\n",
-               ruleset.rules[qm.compidx].name()->toUCamelCase()));
+  if(optional<Ident> name = ruleset.rules[qm.compidx].name())
+    cppos(format("  return oalex::quietMatch(ctx.input, i, {});\n",
+                 parserName(*name)));
+  else Bug("QuietMatch::compidx targets need to have names");
 }
 
-// TODO refactor parser name synthesis.
 static void
 codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  const OutputStream& cppos) {
@@ -579,11 +583,10 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  dquoted(**wp)));
   // When adding a new branch here, remember to change Rule::needsName().
   else {
-    if(!rule.name().has_value())
-      Bug("The frontend must always name lookidx for {} rules",
-          rule.specifics_typename());
-    cppos(format("oalex::peekMatch(ctx.input, i, parse{})",
-                  rule.name()->toUCamelCase()));
+    if(optional<Ident> name = rule.name())
+      cppos(format("oalex::peekMatch(ctx.input, i, {})", parserName(*name)));
+    else Bug("The frontend must always name lookidx for {} rules",
+             rule.specifics_typename());
   }
 }
 
@@ -706,7 +709,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
   else if(optional<Ident> rname = rule.name()) {
     if(holds_alternative<ExternParser>(rule))
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
-    else cppos(format("parse{}(ctx, {})", rname->toUCamelCase(), posVar));
+    else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
   // When adding a new branch here, remember to change Rule::needsName().
   else Unimplemented("nameless component of type {}",
