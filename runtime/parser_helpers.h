@@ -36,16 +36,16 @@ bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
 JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
               std::string_view s);
 
-inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
-  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
-    Bug("maps are supposed to be key-disjoint");
-}
-
 // Converts a parser into a resemblance-checker.
 using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
 
+
+inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
+  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
+    Bug("maps are supposed to be key-disjoint");
+}
 
 // TODO Consider splitting this function into two by the doCreate parameter.
 void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
