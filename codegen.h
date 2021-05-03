@@ -81,8 +81,8 @@ struct LoopRule{
   ConcatFlatRule children;
   enum LookaheadType { lookBreak, lookIterate };
   ssize_t breakBefore;
-  LookaheadType lookType;  // ignored if no lookahead
-  ssize_t lookidx;  // -1 means no lookahead.
+  LookaheadType lookType;  // ignored if no lookahead. Unimplemented.
+  ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
 };
 
 
