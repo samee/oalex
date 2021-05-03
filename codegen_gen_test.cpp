@@ -36,6 +36,7 @@ using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::LoopRule;
 using oalex::makeVector;
 using oalex::MatchOrError;
 using oalex::OutputStream;
@@ -340,6 +341,50 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
+        Rule{"+"},
+        nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
+        nmRule(LoopRule{
+          .children{ConcatFlatRule{{
+            {0, "operand"}, {2, ""}, {1, ""}, {2, ""}
+          }}},
+          .breakBefore = 2,
+          .lookType = LoopRule::lookIterate,
+          .lookidx = -1,
+        }, "LoopSum"),
+        regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
+
+        // Parsers for breakBefore == n, since that's special-cased.
+        Rule{","},
+        nmRule(LoopRule{
+          .children = ConcatFlatRule{
+            {{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}
+          },
+          .breakBefore = 4,
+          .lookType = LoopRule::lookIterate,
+          .lookidx = -1,
+        }, "ListPrefix"),
+
+        // Flattenable child.
+        regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
+        nmRule(ConcatFlatRule{{ {7, "sign"}, {0, "elements"} }},
+               "LoopFlatElt"),
+        nmRule(LoopRule{
+          .children{{ {8, ""}, {2, ""}, {5, ""}, {2, ""} }},
+          .breakBefore = 4,
+          .lookType = LoopRule::lookIterate, .lookidx = -1,
+        }, "SignedListPrefix")
+    ),
+    .regexOpts{regexOpts},
+  };
+
+  for(ssize_t i=0; i<ssize(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -396,5 +441,7 @@ int main(int argc, char* argv[]) {
   generateLookaheads(cppos, hos);
   linebreaks();
   generateQuietTest(cppos, hos);
+  linebreaks();
+  generateLoopRuleTest(cppos, hos);
   return 0;
 }

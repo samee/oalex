@@ -277,6 +277,59 @@ void runQuietTest() {
   }
 }
 
+void runLoopRuleTest() {
+  tuple<string, JsonLoc, ssize_t> goodcases[] = {
+    {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
+    {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
+    {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
+    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 6},
+  };
+  for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
+    auto ctx = testInputDiags(msg);
+    ssize_t pos = 0;
+    JsonLoc observed = parseLoopSum(ctx, pos);
+    assertEqual(__func__, expectedJsloc, observed);
+    if(expectedEnd == -1) expectedEnd = msg.size();
+    assertEqual(__func__, expectedEnd, pos);
+  }
+  pair<string, string> badcases[] = {
+    {"(boo!)", "Expected an identifier"},
+    {"a ++", "Expected an identifier"},
+  };
+  for(auto& [msg, expectedDiag] : badcases) {
+    auto ctx = testInputDiags(msg);
+    ssize_t pos = 0;
+    JsonLoc observed = parseLoopSum(ctx, pos);
+    if(!observed.holdsError())
+      Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
+    assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
+  }
+
+  // Parsers for breakBefore == n, since that's special-cased.
+  auto ctx = testInputDiags("a, b,");
+  ssize_t pos = 0;
+  JsonLoc observed = parseListPrefix(ctx, pos);
+  if(!ctx.diags.empty()) showDiags(ctx.diags);
+  assertEqual(__func__, pos, ssize_t(5));
+  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"), observed);
+
+  // Flattenable child.
+  ctx = testInputDiags("!");
+  pos = 0;
+  observed = parseListPrefix(ctx, pos);
+  if(!observed.holdsError())
+    Bug("Was expecting an error on mandatory repeats. Got {}", observed);
+  assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
+
+  ctx = testInputDiags("+a, -b,");
+  pos = 0;
+  observed = parseSignedListPrefix(ctx, pos);
+  if(!ctx.diags.empty()) showDiags(ctx.diags);
+  assertEqual(__func__, pos, ssize_t(7));
+  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"
+                                      " sign: ['+', '-']}"), observed);
+}
+
 }  // namespace
 
 int main() {
@@ -301,4 +354,5 @@ int main() {
   runFlattenOnDemand();
   runLookaheads();
   runQuietTest();
+  runLoopRuleTest();
 }

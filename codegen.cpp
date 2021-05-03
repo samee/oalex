@@ -605,6 +605,49 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
 }
 
 static void
+codegen(const RuleSet& ruleset, const LoopRule& loop,
+        const OutputStream& cppos) {
+  if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  cppos("  using oalex::JsonLoc;\n");
+  cppos("  using oalex::mapCreateOrAppend;\n");
+  cppos("  using oalex::mapCreateOrAppendAllElts;\n");
+  cppos("  ssize_t j = i;\n\n");
+  cppos("  JsonLoc::Map m;\n");
+  cppos("  bool first = true;\n");
+  cppos("  while(true) {\n");
+  cppos("    JsonLoc res = JsonLoc::ErrorValue{};\n\n");
+  for(ssize_t childidx = 0; childidx < ssize(loop.children.comps); ++childidx) {
+    auto& [childid,key] = loop.children.comps[childidx];
+    cppos("    res = ");
+      codegenParserCall(ruleset.rules[childid], "j", cppos);
+      cppos(";\n");
+    if(childidx == 0 && loop.breakBefore == ssize(loop.children.comps)) {
+      cppos("    if(res.holdsError()) {\n");
+      cppos("      if(first) return res;\n");
+      cppos("      else break;\n");
+      cppos("    }\n");
+    }else if(childidx == loop.breakBefore)
+      cppos("    if(res.holdsError()) break;\n");
+    else cppos("    if(res.holdsError()) return res;\n");
+    if(makesFlattenableMap(ruleset.rules[childid])) {
+      // TODO test this branch for eval.
+      cppos("    mapCreateOrAppendAllElts(m,\n");
+      cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
+    }
+    else if(!key.empty())
+      cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
+                   dquoted(key)));
+    cppos("\n");
+  }
+  cppos("    first = false;\n");
+  cppos("  }\n");
+  cppos("  JsonLoc rv{std::move(m)};\n");
+  cppos("  rv.stPos = i; rv.enPos = j;\n");
+  cppos("  i = j;\n");
+  cppos("  return rv;\n");
+}
+
+static void
 codegen(const ErrorRule& errRule, const OutputStream& cppos) {
   if(errRule.msg.empty()) cppos("  return JsonLoc::ErrorValue{};\n");
   else cppos(format("  return oalex::errorValue(ctx, i, {});\n",
@@ -801,6 +844,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *seq, cppos);
   }else if(const auto* out = get_if<OutputTmpl>(&r)) {
     codegen(ruleset, *out, cppos);
+  }else if(const auto* loop = get_if<LoopRule>(&r)) {
+    codegen(ruleset, *loop, cppos);
   }else if(const auto* err = get_if<ErrorRule>(&r)) {
     codegen(*err, cppos);
   }else if(const auto* qm = get_if<QuietMatch>(&r)) {

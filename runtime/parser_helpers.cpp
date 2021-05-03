@@ -95,4 +95,18 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   return rv;
 }
 
+void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
+                       JsonLoc v, bool doCreate) {
+  if(doCreate) {
+    if(!m.insert({k, JsonLoc::Vector{std::move(v)}}).second)
+      Bug("Collision in loop elements with name '{}'", k);
+  }else {
+    auto it = m.find(k);
+    if(it == m.end())
+      Bug("Need to create element after the first iteration");
+    oalex::get_if<JsonLoc::Vector>(&it->second)->push_back(std::move(v));
+  }
+}
+
+
 }  // namespace oalex

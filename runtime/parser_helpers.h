@@ -46,4 +46,13 @@ using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
 
+
+// TODO Consider splitting this function into two by the doCreate parameter.
+void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
+                       JsonLoc v, bool doCreate);
+inline void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2,
+                                     bool doCreate) {
+  for(auto& [k,v] : m2) mapCreateOrAppend(m1, k, std::move(v), doCreate);
+}
+
 }  // namespace oalex
