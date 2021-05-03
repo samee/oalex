@@ -77,6 +77,14 @@ struct OutputTmpl {
 // children.comps[breakBefore]. If lookidx == -1, it will just try to parse
 // this child, and break out of the loop if it fails. If lookidx != -1, it
 // will use that rule as the lookahead decider.
+// TODO simplify this struct. It tries to do too much.
+//   This will enable us to significantly reduce the complexity in eval(),
+//   codegen(), and unit tests. it duplicates too much logic from
+//   ConcatFlatRule and in future, OrRule.  It should be able to do all the
+//   same things with two parts: a part component and an optional glue.
+//   Concatenation can be handled by ConcatFlatRule, while lookahead can be
+//   handled by OrRule. We can interpret a null-matching success from a
+//   glue-rule to be the break condition.
 struct LoopRule{
   ConcatFlatRule children;
   enum LookaheadType { lookBreak, lookIterate };
