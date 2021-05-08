@@ -40,7 +40,7 @@ class DiagsDest {
   const Input* input_;
   std::vector<Diag>* diags_;
  public:
-  DiagsDest(class InputDiags& ctx);  // implicit
+  DiagsDest(struct InputDiags& ctx);  // implicit
 
   // Typically, we don't expect this to be called directly. This is merely a
   // helper for the more convenient Error(), Warning(), and Note().
@@ -133,7 +133,7 @@ inline void InputDiags::markUsed(size_t st, size_t en) {
   }
 }
 
-inline DiagsDest::DiagsDest(class InputDiags& ctx)
+inline DiagsDest::DiagsDest(struct InputDiags& ctx)
   : input_(&ctx.input), diags_(&ctx.diags) {}
 
 class Resetter {
