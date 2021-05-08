@@ -459,7 +459,7 @@ struct RolloutEllipsisResult {
 struct EllipsisError{
   string err;
   template <class Iter> operator RolloutEllipsisResult<Iter>() && {
-    return {{}, {}, {}, {}, {}, .err{std::move(this->err)}};
+    return {{}, {}, {}, {}, {}, {std::move(this->err)}};
   }
 };
 

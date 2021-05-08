@@ -113,7 +113,7 @@ void testErrorRule() {
           // It could have been anything else.
           .comps{{-1, 0, passthroughTmpl},
                  {-1, 1, JsonLoc::ErrorValue{}}},
-          .flattenOnDemand{false},
+          .flattenOnDemand = false,
         }}),
     .regexOpts{regexOpts},
   };

@@ -218,7 +218,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
       Rule{":"},
       nmRule(ExternParser{}, "parseIndentedTmpl"),
-      nmRule(SkipPoint{.stayWithinLine=true, &shskip}, "ExtSpace"),
+      nmRule(SkipPoint{.stayWithinLine=true, .skip=&shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl")
     ), regexOpts
@@ -264,7 +264,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
           // It could have been anything else.
           .comps{{-1, 0, passthroughTmpl},
                  {-1, 1, JsonLoc::ErrorValue{}}},
-          .flattenOnDemand{false},
+          .flattenOnDemand = false,
         }, "ErrorRuleHelloWorld")),
     .regexOpts{regexOpts},
   };

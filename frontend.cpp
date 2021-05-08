@@ -914,7 +914,7 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
     return;
   }
   const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
-  OrRule orRule{.comps{}, .flattenOnDemand{false}};
+  OrRule orRule{.comps{}, .flattenOnDemand=false};
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
