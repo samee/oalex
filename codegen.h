@@ -77,6 +77,13 @@ struct OutputTmpl {
 // children.comps[breakBefore]. If lookidx == -1, it will just try to parse
 // this child, and break out of the loop if it fails. If lookidx != -1, it
 // will use that rule as the lookahead decider.
+//
+// Dev-note: We might add an optional skipper to be executed between fields,
+//   so we _tentatively_ skip before knowing if the next iteration
+//   will happen. We intentionally don't allow any other such tentative
+//   concatenantion inline. Even this feature might be removed back once we can
+//   share parsing results between lookaheads and parsers.
+//
 // TODO simplify this struct. It tries to do too much.
 //   This will enable us to significantly reduce the complexity in eval(),
 //   codegen(), and unit tests. it duplicates too much logic from
