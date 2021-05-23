@@ -352,7 +352,6 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
             {0, "operand"}, {2, ""}, {1, ""}, {2, ""}
           }}},
           .breakBefore = 2,
-          .lookType = LoopRule::lookIterate,
           .lookidx = -1,
         }, "LoopSum"),
         regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
@@ -364,7 +363,6 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
             {{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}
           },
           .breakBefore = 4,
-          .lookType = LoopRule::lookIterate,
           .lookidx = -1,
         }, "ListPrefix"),
 
@@ -375,7 +373,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(LoopRule{
           .children{{ {8, ""}, {2, ""}, {5, ""}, {2, ""} }},
           .breakBefore = 4,
-          .lookType = LoopRule::lookIterate, .lookidx = -1,
+          .lookidx = -1,
         }, "SignedListPrefix")
     ),
     .regexOpts{regexOpts},

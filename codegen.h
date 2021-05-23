@@ -94,9 +94,7 @@ struct OutputTmpl {
 //   glue-rule to be the break condition.
 struct LoopRule{
   ConcatFlatRule children;
-  enum LookaheadType { lookBreak, lookIterate };
   ssize_t breakBefore;
-  LookaheadType lookType;  // ignored if no lookahead. Unimplemented.
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
 };
 

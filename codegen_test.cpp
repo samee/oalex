@@ -390,7 +390,6 @@ void testLoopRule() {
             {0, "operand"}, {2, ""}, {1, ""}, {2, ""}
           }}},
           .breakBefore = 2,
-          .lookType = LoopRule::lookIterate,
           .lookidx = -1,
         }, "sum"),
         Rule{parseRegex("/[a-z]+/")}
@@ -429,7 +428,6 @@ void testLoopRule() {
   rs.rules.push_back(nmRule(LoopRule{
       .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}},
       .breakBefore = 4,
-      .lookType = LoopRule::lookIterate,
       .lookidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
@@ -463,7 +461,6 @@ void testLoopFlattening() {
             {3, ""}, {4, ""}, {5, ""}, {4, ""}
           }}},
           .breakBefore = 2,
-          .lookType = LoopRule::lookIterate,
           .lookidx = -1,
         }, "sum")
     ),
