@@ -33,6 +33,7 @@ using std::string_view;
 using std::tuple;
 using std::unique_ptr;
 using std::vector;
+using namespace std::string_literals;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::ConcatFlatRule;
@@ -387,12 +388,13 @@ void testLoopRule() {
         Rule{SkipPoint{false, &cskip}},
         nmRule(LoopRule{
           .children{ConcatFlatRule{{
-            {0, "operand"}, {2, ""}, {1, ""}, {2, ""}
+            {0, "operand"}, {5, ""}
           }}},
-          .breakBefore = 2,
+          .breakBefore = 1,
           .lookidx = -1,
         }, "sum"),
-        Rule{parseRegex("/[a-z]+/")}
+        Rule{parseRegex("/[a-z]+/")},
+        Rule{ConcatFlatRule{{ {2, ""}, {1, ""}, {2, ""} }}}
     ),
     .regexOpts{regexOpts},
   };
@@ -400,7 +402,7 @@ void testLoopRule() {
     {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
     {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
     {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
-    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 6},
+    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
     auto ctx = testInputDiags(msg);
@@ -408,7 +410,7 @@ void testLoopRule() {
     JsonLoc observed = eval(ctx, pos, rs, 3);
     assertEqual(__func__, expectedJsloc, observed);
     if(expectedEnd == -1) expectedEnd = msg.size();
-    assertEqual(__func__, expectedEnd, pos);
+    assertEqual(format("{}: test case '{}'", __func__, msg), expectedEnd, pos);
   }
   pair<string, string> badcases[] = {
     {"(boo!)", "Expected an identifier"},
@@ -426,20 +428,21 @@ void testLoopRule() {
   // breakBefore == n is special-cased. Check that it works.
   rs.rules.push_back(Rule{","});
   rs.rules.push_back(nmRule(LoopRule{
-      .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}},
+      .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
       .breakBefore = 4,
       .lookidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 6);
+  JsonLoc observed = eval(ctx, pos, rs, 7);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
-  assertEqual(__func__, pos, ssize_t(5));
-  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"), observed);
+  assertEqual(__func__ + ": end position on glueless case"s, pos, ssize_t(5));
+  assertEqual(__func__ + ": glueless case jsonloc output"s,
+              *parseJsonLoc("{elements: ['a', 'b']}"), observed);
 
   ctx = testInputDiags("!");
   pos = 0;
-  observed = eval(ctx, pos, rs, 6);
+  observed = eval(ctx, pos, rs, 7);
   if(!observed.holdsError())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
@@ -456,11 +459,10 @@ void testLoopFlattening() {
         Rule{ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }}},
         Rule{SkipPoint{false, &cskip}},
         Rule{","},
+        Rule{ConcatFlatRule{{ {4, ""}, {5, ""}, {4, ""} }}},
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{
-            {3, ""}, {4, ""}, {5, ""}, {4, ""}
-          }}},
-          .breakBefore = 2,
+          .children{ConcatFlatRule{{ {3, ""}, {6, ""} }}},
+          .breakBefore = 1,
           .lookidx = -1,
         }, "sum")
     ),
@@ -468,7 +470,7 @@ void testLoopFlattening() {
   };
   auto ctx = testInputDiags("+a, -b");
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 6);
+  JsonLoc observed = eval(ctx, pos, rs, 7);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__, pos, ssize_t(6));
   assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"

@@ -282,7 +282,7 @@ void runLoopRuleTest() {
     {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
     {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
     {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
-    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 6},
+    {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
     auto ctx = testInputDiags(msg);
