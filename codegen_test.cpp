@@ -427,14 +427,17 @@ void testLoopRule() {
 
   // Test glueidx == -1
   rs.rules.push_back(Rule{","});
+  rs.rules.push_back(Rule{
+      ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}}
+  });
   rs.rules.push_back(nmRule(LoopRule{
-      .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
+      .children = ConcatFlatRule{{{7, ""}}},
       .glueidx = -1,
       .lookidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 7);
+  JsonLoc observed = eval(ctx, pos, rs, 8);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__ + ": end position on glueless case"s, pos, ssize_t(5));
   assertEqual(__func__ + ": glueless case jsonloc output"s,
@@ -442,7 +445,7 @@ void testLoopRule() {
 
   ctx = testInputDiags("!");
   pos = 0;
-  observed = eval(ctx, pos, rs, 7);
+  observed = eval(ctx, pos, rs, 8);
   if(!observed.holdsError())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");

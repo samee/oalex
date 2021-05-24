@@ -357,20 +357,21 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
 
         // Test glueidx == -1
         Rule{","},
+        nmRule(
+          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""}, {2, ""} }},
+          "ListPrefixPart"),
         nmRule(LoopRule{
-          .children = ConcatFlatRule{
-            {{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}
-          },
+          .children = ConcatFlatRule{ {{7, ""}} },
           .glueidx = -1,
           .lookidx = -1,
         }, "ListPrefix"),
 
         // Flattenable child.
         regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
-        nmRule(ConcatFlatRule{{ {8, "sign"}, {0, "elements"} }},
-               "LoopFlatElt"),
+        nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"}, {2, ""},
+                                {6, ""}, {2, ""} }}, "LoopFlatElt"),
         nmRule(LoopRule{
-          .children{{ {9, ""}, {2, ""}, {6, ""}, {2, ""} }},
+          .children{{ {10, ""} }},
           .glueidx = -1,
           .lookidx = -1,
         }, "SignedListPrefix")
