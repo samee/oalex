@@ -158,21 +158,20 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   while(true) {
     JsonLoc out = eval(ctx, j, rs, loop.partidx);
     if(out.holdsError()) {
-      if(loop.glueidx == -1 && !first) goto success;
+      if(loop.glueidx == -1 && !first) break;
       else return out;
     }else if(makesFlattenableMap(rs.rules[loop.partidx]))
       addMap("LoopRule child " + ruleDebugId(rs, loop.partidx), std::move(out));
     else if(!loop.partname.empty()) addChild(loop.partname, std::move(out));
     if(loop.glueidx != -1) {
       JsonLoc out = eval(ctx, j, rs, loop.glueidx);
-      if(out.holdsError()) goto success;
+      if(out.holdsError()) break;
       else if(makesFlattenableMap(rs.rules[loop.glueidx]))
         addMap("LoopRule glue " + ruleDebugId(rs, loop.glueidx),
                std::move(out));
     }
     first = false;
   }
-success:
   i = j;
   return rv;
 }
