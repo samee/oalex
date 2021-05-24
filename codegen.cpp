@@ -155,22 +155,20 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
 
   ssize_t j = i;
   bool first = true;
-  for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
-    auto& [ruleidx, outname] = loop.children.comps[childi];
-    if(makesFlattenableMap(rs.rules[ruleidx]) && !outname.empty())
-      Bug("Flattenable loop children are not supposed to have names");
-  }
+  if(loop.children.comps.size() != 1)
+    Bug("Loops must have exactly one non-glue child part");
+  auto& [ruleidx, outname] = loop.children.comps[0];
+  if(makesFlattenableMap(rs.rules[ruleidx]) && !outname.empty())
+    Bug("Flattenable loop children are not supposed to have names");
   while(true) {
-    for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
-      auto& [ruleidx, outname] = loop.children.comps[childi];
-      JsonLoc out = eval(ctx, j, rs, ruleidx);
-      if(out.holdsError()) {
-        if(childi == 0 && loop.glueidx == -1 && !first) goto success;
-        else return out;
-      }else if(makesFlattenableMap(rs.rules[ruleidx]))
-        addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
-      else if(!outname.empty()) addChild(outname, std::move(out));
-    }
+    auto& [ruleidx, outname] = loop.children.comps[0];
+    JsonLoc out = eval(ctx, j, rs, ruleidx);
+    if(out.holdsError()) {
+      if(loop.glueidx == -1 && !first) goto success;
+      else return out;
+    }else if(makesFlattenableMap(rs.rules[ruleidx]))
+      addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
+    else if(!outname.empty()) addChild(outname, std::move(out));
     if(loop.glueidx != -1) {
       JsonLoc out = eval(ctx, j, rs, loop.glueidx);
       if(out.holdsError()) goto success;
@@ -620,6 +618,8 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  if(loop.children.comps.size() != 1)
+    Bug("Loops must have exactly one non-glue child part");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
@@ -628,27 +628,25 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  bool first = true;\n");
   cppos("  while(true) {\n");
   cppos("    JsonLoc res = JsonLoc::ErrorValue{};\n\n");
-  for(ssize_t childidx = 0; childidx < ssize(loop.children.comps); ++childidx) {
-    auto& [childid,key] = loop.children.comps[childidx];
-    cppos("    res = ");
-      codegenParserCall(ruleset.rules[childid], "j", cppos);
-      cppos(";\n");
-    if(childidx == 0 && loop.glueidx == -1) {
-      cppos("    if(res.holdsError()) {\n");
-      cppos("      if(first) return res;\n");
-      cppos("      else break;\n");
-      cppos("    }\n");
-    }else cppos("    if(res.holdsError()) return res;\n");
-    if(makesFlattenableMap(ruleset.rules[childid])) {
-      // TODO test this branch for eval.
-      cppos("    mapCreateOrAppendAllElts(m,\n");
-      cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
-    }
-    else if(!key.empty())
-      cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
-                   dquoted(key)));
-    cppos("\n");
+  auto& [childid,key] = loop.children.comps[0];
+  cppos("    res = ");
+    codegenParserCall(ruleset.rules[childid], "j", cppos);
+    cppos(";\n");
+  if(loop.glueidx == -1) {
+    cppos("    if(res.holdsError()) {\n");
+    cppos("      if(first) return res;\n");
+    cppos("      else break;\n");
+    cppos("    }\n");
+  }else cppos("    if(res.holdsError()) return res;\n");
+  if(makesFlattenableMap(ruleset.rules[childid])) {
+    // TODO test this branch for eval.
+    cppos("    mapCreateOrAppendAllElts(m,\n");
+    cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
   }
+  else if(!key.empty())
+    cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
+                 dquoted(key)));
+  cppos("\n");
   if(loop.glueidx != -1) {
     cppos("    res = ");
       codegenParserCall(ruleset.rules[loop.glueidx], "j", cppos);
