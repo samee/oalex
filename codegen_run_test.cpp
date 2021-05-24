@@ -277,6 +277,7 @@ void runQuietTest() {
   }
 }
 
+// TODO make these tests quiet.
 void runLoopRuleTest() {
   tuple<string, JsonLoc, ssize_t> goodcases[] = {
     {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},

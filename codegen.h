@@ -84,17 +84,9 @@ struct OutputTmpl {
 //   will happen. We intentionally don't allow any other such tentative
 //   concatenantion inline. Even this feature might be removed back once we can
 //   share parsing results between lookaheads and parsers.
-//
-// TODO simplify this struct. It tries to do too much.
-//   This will enable us to significantly reduce the complexity in eval(),
-//   codegen(), and unit tests. it duplicates too much logic from
-//   ConcatFlatRule and in future, OrRule.  It should be able to do all the
-//   same things with two parts: a part component and an optional glue.
-//   Concatenation can be handled by ConcatFlatRule, while lookahead can be
-//   handled by OrRule. We can interpret a null-matching success from a
-//   glue-rule to be the break condition.
 struct LoopRule{
-  ConcatFlatRule children;
+  ssize_t partidx;
+  std::string partname;
   ssize_t glueidx;  // -1 means no glue
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
 };

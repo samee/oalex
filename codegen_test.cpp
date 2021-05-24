@@ -387,9 +387,8 @@ void testLoopRule() {
         Rule{MatchOrError{4, "Expected an identifier"}}, Rule{"+"},
         Rule{SkipPoint{false, &cskip}},
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{
-            {0, "operand"},
-          }}},
+          .partidx = 0,
+          .partname = "operand",
           .glueidx = 5,
           .lookidx = -1,
         }, "sum"),
@@ -431,7 +430,8 @@ void testLoopRule() {
       ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}}
   });
   rs.rules.push_back(nmRule(LoopRule{
-      .children = ConcatFlatRule{{{7, ""}}},
+      .partidx = 7,
+      .partname = "",
       .glueidx = -1,
       .lookidx = -1,
   }, "list_prefix"));
@@ -464,7 +464,8 @@ void testLoopFlattening() {
         Rule{","},
         Rule{ConcatFlatRule{{ {4, ""}, {5, ""}, {4, ""} }}},
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{ {3, ""} }}},
+          .partidx = 3,
+          .partname = "",
           .glueidx = 6,
           .lookidx = -1,
         }, "sum")

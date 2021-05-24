@@ -348,7 +348,8 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         Rule{"+"},
         nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{ {0, "operand"}, }}},
+          .partidx = 0,
+          .partname = "operand",
           .glueidx = 5,
           .lookidx = -1,
         }, "LoopSum"),
@@ -361,7 +362,8 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""}, {2, ""} }},
           "ListPrefixPart"),
         nmRule(LoopRule{
-          .children = ConcatFlatRule{ {{7, ""}} },
+          .partidx = 7,
+          .partname = "",
           .glueidx = -1,
           .lookidx = -1,
         }, "ListPrefix"),
@@ -371,7 +373,8 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"}, {2, ""},
                                 {6, ""}, {2, ""} }}, "LoopFlatElt"),
         nmRule(LoopRule{
-          .children{{ {10, ""} }},
+          .partidx = 10,
+          .partname = "",
           .glueidx = -1,
           .lookidx = -1,
         }, "SignedListPrefix")
