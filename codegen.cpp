@@ -148,6 +148,11 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   };
   ssize_t j = i;
   bool first = true;
+  for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
+    auto& [ruleidx, outname] = loop.children.comps[childi];
+    if(makesFlattenableMap(rs.rules[ruleidx]) && !outname.empty())
+      Bug("Flattenable loop children are not supposed to have names");
+  }
   for(ssize_t childi = 0; ; ++childi) {
     if(childi == ssize(loop.children.comps)) childi = 0;
     auto& [ruleidx, outname] = loop.children.comps[childi];
@@ -162,8 +167,6 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       auto* m = get_if<JsonLoc::Map>(&out);
       if(!m) Bug("LoopRule child {} was expected to return a map, got {}",
                  ruleDebugId(rs, ruleidx), out);
-      if(!outname.empty())
-        Bug("Flattenable loop children are not supposed to have names");
       for(auto& [k,v] : *m) addChild(k, std::move(v));
 
     }else if(!outname.empty()) addChild(outname, std::move(out));
