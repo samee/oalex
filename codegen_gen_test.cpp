@@ -348,10 +348,8 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         Rule{"+"},
         nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{
-            {0, "operand"}, {5, ""},
-          }}},
-          .glueidx = -1,
+          .children{ConcatFlatRule{{ {0, "operand"}, }}},
+          .glueidx = 5,
           .breakBefore = 1,
           .lookidx = -1,
         }, "LoopSum"),

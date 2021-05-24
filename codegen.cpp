@@ -624,6 +624,8 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  if(loop.glueidx != -1 && loop.breakBefore != ssize(loop.children.comps))
+    Bug("Unsupported breakBefore value");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
@@ -637,7 +639,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    res = ");
       codegenParserCall(ruleset.rules[childid], "j", cppos);
       cppos(";\n");
-    if(childidx == 0 && loop.breakBefore == ssize(loop.children.comps)) {
+    if(childidx == 0 && loop.glueidx == -1) {
       cppos("    if(res.holdsError()) {\n");
       cppos("      if(first) return res;\n");
       cppos("      else break;\n");
@@ -654,6 +656,16 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
                    dquoted(key)));
     cppos("\n");
+  }
+  if(loop.glueidx != -1) {
+    cppos("    res = ");
+      codegenParserCall(ruleset.rules[loop.glueidx], "j", cppos);
+      cppos(";\n");
+    cppos("    if(res.holdsError()) break;\n");
+    if(makesFlattenableMap(ruleset.rules[loop.glueidx])) {
+      cppos("    mapCreateOrAppendAllElts(m,\n");
+      cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
+    }
   }
   cppos("    first = false;\n");
   cppos("  }\n");
