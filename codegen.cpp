@@ -159,20 +159,22 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     if(makesFlattenableMap(rs.rules[ruleidx]) && !outname.empty())
       Bug("Flattenable loop children are not supposed to have names");
   }
-  for(ssize_t childi = 0; ; ++childi) {
-    if(childi == ssize(loop.children.comps)) childi = 0;
-    auto& [ruleidx, outname] = loop.children.comps[childi];
-    JsonLoc out = eval(ctx, j, rs, ruleidx);
-    if(out.holdsError()) {
-      if(childi == loop.breakBefore) break;
-      else if(childi == 0 && ssize(loop.children.comps) == loop.breakBefore &&
-              !first) break;
-      else return out;
-    }else if(makesFlattenableMap(rs.rules[ruleidx]))
-      addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
-    else if(!outname.empty()) addChild(outname, std::move(out));
-    first = false;
+  while(true) {
+    for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
+      auto& [ruleidx, outname] = loop.children.comps[childi];
+      JsonLoc out = eval(ctx, j, rs, ruleidx);
+      if(out.holdsError()) {
+        if(childi == loop.breakBefore) goto success;
+        else if(childi == 0 && ssize(loop.children.comps) == loop.breakBefore &&
+                !first) goto success;
+        else return out;
+      }else if(makesFlattenableMap(rs.rules[ruleidx]))
+        addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
+      else if(!outname.empty()) addChild(outname, std::move(out));
+      first = false;
+    }
   }
+success:
   i = j;
   return rv;
 }
