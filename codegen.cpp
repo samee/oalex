@@ -152,6 +152,11 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     if(!m) Bug("{} was expected to return a map, got {}", desc, children);
     for(auto& [k,v] : *m) addChild(k, std::move(v));
   };
+
+  // TODO: delete this.
+  if(loop.breakBefore != ssize(loop.children.comps))
+    Bug("Unsupported value of breakBefore");
+
   ssize_t j = i;
   bool first = true;
   for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
@@ -164,15 +169,20 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       auto& [ruleidx, outname] = loop.children.comps[childi];
       JsonLoc out = eval(ctx, j, rs, ruleidx);
       if(out.holdsError()) {
-        if(childi == loop.breakBefore) goto success;
-        else if(childi == 0 && ssize(loop.children.comps) == loop.breakBefore &&
-                !first) goto success;
+        if(childi == 0 && loop.glueidx == -1 && !first) goto success;
         else return out;
       }else if(makesFlattenableMap(rs.rules[ruleidx]))
         addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
       else if(!outname.empty()) addChild(outname, std::move(out));
-      first = false;
     }
+    if(loop.glueidx != -1) {
+      JsonLoc out = eval(ctx, j, rs, loop.glueidx);
+      if(out.holdsError()) goto success;
+      else if(makesFlattenableMap(rs.rules[loop.glueidx]))
+        addMap("LoopRule glue " + ruleDebugId(rs, loop.glueidx),
+               std::move(out));
+    }
+    first = false;
   }
 success:
   i = j;

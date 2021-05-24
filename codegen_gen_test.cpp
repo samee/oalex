@@ -351,6 +351,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .children{ConcatFlatRule{{
             {0, "operand"}, {5, ""},
           }}},
+          .glueidx = -1,
           .breakBefore = 1,
           .lookidx = -1,
         }, "LoopSum"),
@@ -363,6 +364,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .children = ConcatFlatRule{
             {{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}
           },
+          .glueidx = -1,
           .breakBefore = 4,
           .lookidx = -1,
         }, "ListPrefix"),
@@ -373,6 +375,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
                "LoopFlatElt"),
         nmRule(LoopRule{
           .children{{ {9, ""}, {2, ""}, {6, ""}, {2, ""} }},
+          .glueidx = -1,
           .breakBefore = 4,
           .lookidx = -1,
         }, "SignedListPrefix")

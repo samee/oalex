@@ -388,8 +388,9 @@ void testLoopRule() {
         Rule{SkipPoint{false, &cskip}},
         nmRule(LoopRule{
           .children{ConcatFlatRule{{
-            {0, "operand"}, {5, ""}
+            {0, "operand"},
           }}},
+          .glueidx = 5,
           .breakBefore = 1,
           .lookidx = -1,
         }, "sum"),
@@ -429,6 +430,7 @@ void testLoopRule() {
   rs.rules.push_back(Rule{","});
   rs.rules.push_back(nmRule(LoopRule{
       .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
+      .glueidx = -1,
       .breakBefore = 4,
       .lookidx = -1,
   }, "list_prefix"));
@@ -461,7 +463,8 @@ void testLoopFlattening() {
         Rule{","},
         Rule{ConcatFlatRule{{ {4, ""}, {5, ""}, {4, ""} }}},
         nmRule(LoopRule{
-          .children{ConcatFlatRule{{ {3, ""}, {6, ""} }}},
+          .children{ConcatFlatRule{{ {3, ""} }}},
+          .glueidx = 6,
           .breakBefore = 1,
           .lookidx = -1,
         }, "sum")

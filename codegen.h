@@ -94,6 +94,7 @@ struct OutputTmpl {
 //   glue-rule to be the break condition.
 struct LoopRule{
   ConcatFlatRule children;
+  ssize_t glueidx;  // -1 means no glue
   ssize_t breakBefore;
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
 };
