@@ -146,6 +146,12 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     v->push_back(std::move(val));
     maxsize = std::max(maxsize, ssize(*v));
   };
+  auto addMap = [&addChild](string_view desc, JsonLoc children) {
+    // TODO refactor out this validation between here and ConcatFlatRule.
+    auto* m = get_if<JsonLoc::Map>(&children);
+    if(!m) Bug("{} was expected to return a map, got {}", desc, children);
+    for(auto& [k,v] : *m) addChild(k, std::move(v));
+  };
   ssize_t j = i;
   bool first = true;
   for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
@@ -162,14 +168,9 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       else if(childi == 0 && ssize(loop.children.comps) == loop.breakBefore &&
               !first) break;
       else return out;
-    }else if(makesFlattenableMap(rs.rules[ruleidx])) {
-      // TODO refactor out this validation between here and ConcatFlatRule.
-      auto* m = get_if<JsonLoc::Map>(&out);
-      if(!m) Bug("LoopRule child {} was expected to return a map, got {}",
-                 ruleDebugId(rs, ruleidx), out);
-      for(auto& [k,v] : *m) addChild(k, std::move(v));
-
-    }else if(!outname.empty()) addChild(outname, std::move(out));
+    }else if(makesFlattenableMap(rs.rules[ruleidx]))
+      addMap("LoopRule child " + ruleDebugId(rs, ruleidx), std::move(out));
+    else if(!outname.empty()) addChild(outname, std::move(out));
     first = false;
   }
   i = j;
