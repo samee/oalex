@@ -350,20 +350,18 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(LoopRule{
           .children{ConcatFlatRule{{ {0, "operand"}, }}},
           .glueidx = 5,
-          .breakBefore = 1,
           .lookidx = -1,
         }, "LoopSum"),
         regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
         nmRule(ConcatFlatRule{{ {2, ""}, {1, ""}, {2, ""} }}, "PlusGlue"),
 
-        // Parsers for breakBefore == n, since that's special-cased.
+        // Test glueidx == -1
         Rule{","},
         nmRule(LoopRule{
           .children = ConcatFlatRule{
             {{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}
           },
           .glueidx = -1,
-          .breakBefore = 4,
           .lookidx = -1,
         }, "ListPrefix"),
 
@@ -374,7 +372,6 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(LoopRule{
           .children{{ {9, ""}, {2, ""}, {6, ""}, {2, ""} }},
           .glueidx = -1,
-          .breakBefore = 4,
           .lookidx = -1,
         }, "SignedListPrefix")
     ),

@@ -73,8 +73,9 @@ struct OutputTmpl {
   JsonLoc outputTmpl;
 };
 
-// Produces a loop that keeps parsing children. It stops right before
-// children.comps[breakBefore]. If lookidx == -1, it will just try to parse
+// Produces a loop that keeps parsing children, optionally interspersed with
+// some "glue" component (if glueidx != -1). It stops right after parsing
+// children components. If lookidx == -1, it will just try to parse
 // this child, and break out of the loop if it fails. If lookidx != -1, it
 // will use that rule as the lookahead decider.
 //
@@ -95,7 +96,6 @@ struct OutputTmpl {
 struct LoopRule{
   ConcatFlatRule children;
   ssize_t glueidx;  // -1 means no glue
-  ssize_t breakBefore;
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
 };
 

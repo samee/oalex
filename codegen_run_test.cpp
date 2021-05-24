@@ -305,7 +305,7 @@ void runLoopRuleTest() {
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
 
-  // Parsers for breakBefore == n, since that's special-cased.
+  // Parsers for glueidx == -1
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
   JsonLoc observed = parseListPrefix(ctx, pos);

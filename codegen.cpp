@@ -153,10 +153,6 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     for(auto& [k,v] : *m) addChild(k, std::move(v));
   };
 
-  // TODO: delete this.
-  if(loop.breakBefore != ssize(loop.children.comps))
-    Bug("Unsupported value of breakBefore");
-
   ssize_t j = i;
   bool first = true;
   for(ssize_t childi = 0; childi < ssize(loop.children.comps); ++childi) {
@@ -624,8 +620,6 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  if(loop.glueidx != -1 && loop.breakBefore != ssize(loop.children.comps))
-    Bug("Unsupported breakBefore value");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
@@ -644,9 +638,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos("      if(first) return res;\n");
       cppos("      else break;\n");
       cppos("    }\n");
-    }else if(childidx == loop.breakBefore)
-      cppos("    if(res.holdsError()) break;\n");
-    else cppos("    if(res.holdsError()) return res;\n");
+    }else cppos("    if(res.holdsError()) return res;\n");
     if(makesFlattenableMap(ruleset.rules[childid])) {
       // TODO test this branch for eval.
       cppos("    mapCreateOrAppendAllElts(m,\n");

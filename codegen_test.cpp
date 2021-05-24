@@ -391,7 +391,6 @@ void testLoopRule() {
             {0, "operand"},
           }}},
           .glueidx = 5,
-          .breakBefore = 1,
           .lookidx = -1,
         }, "sum"),
         Rule{parseRegex("/[a-z]+/")},
@@ -426,12 +425,11 @@ void testLoopRule() {
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
 
-  // breakBefore == n is special-cased. Check that it works.
+  // Test glueidx == -1
   rs.rules.push_back(Rule{","});
   rs.rules.push_back(nmRule(LoopRule{
       .children = ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
       .glueidx = -1,
-      .breakBefore = 4,
       .lookidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
@@ -465,7 +463,6 @@ void testLoopFlattening() {
         nmRule(LoopRule{
           .children{ConcatFlatRule{{ {3, ""} }}},
           .glueidx = 6,
-          .breakBefore = 1,
           .lookidx = -1,
         }, "sum")
     ),
