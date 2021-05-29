@@ -392,6 +392,7 @@ void testLoopRule() {
           .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
+          .skipidx = -1,
         }, "sum"),
         Rule{parseRegex("/[a-z]+/")},
         Rule{ConcatFlatRule{{ {2, ""}, {1, ""}, {2, ""} }}}
@@ -436,6 +437,7 @@ void testLoopRule() {
       .glueidx = -1,
       .gluename = "",
       .lookidx = -1,
+      .skipidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
@@ -471,6 +473,7 @@ void testLoopFlattening() {
           .glueidx = 6,
           .gluename = "",
           .lookidx = -1,
+          .skipidx = -1,
         }, "sum")
     ),
     .regexOpts{regexOpts},
@@ -494,10 +497,10 @@ void testGluePartSwapped() {
         Rule{ConcatFlatRule{{ { 1, "words" } }}},
         Rule{LoopRule{.partidx = 0, .partname = "",
                       .glueidx = 2, .gluename = "",
-                      .lookidx = -1 }},
+                      .lookidx = -1, .skipidx = -1 }},
         Rule{LoopRule{.partidx = 0, .partname = "",
                       .glueidx = 1, .gluename = "words",
-                      .lookidx = -1 }}
+                      .lookidx = -1, .skipidx = -1 }}
     ),
     .regexOpts{regexOpts},
   };

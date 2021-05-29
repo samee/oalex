@@ -90,6 +90,7 @@ struct LoopRule{
   ssize_t glueidx;  // -1 means no glue
   std::string gluename;
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
+  ssize_t skipidx;  // -1 means no skip.
 };
 
 

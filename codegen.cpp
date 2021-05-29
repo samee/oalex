@@ -132,6 +132,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  if(loop.skipidx != -1) Unimplemented("LoopRule skipper");
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
@@ -613,6 +614,7 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  if(loop.skipidx != -1) Unimplemented("LoopRule skipper");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
