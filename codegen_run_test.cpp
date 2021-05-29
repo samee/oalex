@@ -331,6 +331,19 @@ void runLoopRuleTest() {
                                       " sign: ['+', '-']}"), observed);
 }
 
+void runGluePartSwappedTest() {
+  auto ctx = testInputDiags("-greetings-earth-");
+  ssize_t pos = 0;
+  JsonLoc observed = parseGpSwappedString(ctx, pos);
+  if(!ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    BugMe("Expected empty diags");
+  }
+  assertEqual(__func__, pos, ssize_t(17));
+  assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
+                        observed);
+}
+
 }  // namespace
 
 int main() {
@@ -356,4 +369,5 @@ int main() {
   runLookaheads();
   runQuietTest();
   runLoopRuleTest();
+  runGluePartSwappedTest();
 }

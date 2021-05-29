@@ -481,6 +481,31 @@ void testLoopFlattening() {
                                       " sign: ['+', '-']}"), observed);
 }
 
+// Where the "glue" has the more interesting content.
+// Test that we still record their names.
+void testGluePartSwapped() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"-"},
+        Rule{parseRegex("/[a-z]+/")},
+        Rule{ConcatFlatRule{{ { 1, "words" } }}},
+        Rule{LoopRule{.partidx = 0, .partname = "", .glueidx = 2,
+                      .lookidx = -1 }}
+    ),
+    .regexOpts{regexOpts},
+  };
+  auto ctx = testInputDiags("-greetings-earth-");
+  ssize_t pos = 0;
+  JsonLoc observed = eval(ctx, pos, rs, 3);
+  if(!ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    BugMe("Expected empty diags");
+  }
+  assertEqual(__func__, pos, ssize_t(17));
+  assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
+                        observed);
+}
+
 }  // namespace
 
 int main() {
@@ -501,5 +526,6 @@ int main() {
   testQuietMatch();
   testLoopRule();
   testLoopFlattening();
+  testGluePartSwapped();
 }
 

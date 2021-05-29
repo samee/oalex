@@ -386,6 +386,23 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateGluePartSwappedTest(const OutputStream& cppos,
+                                 const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"-"},
+        regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
+        nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
+        nmRule(LoopRule{.partidx = 0, .partname = "", .glueidx = 2,
+                        .lookidx = -1 }, "GpSwappedString")
+    ),
+    .regexOpts{regexOpts},
+  };
+
+  for(ssize_t i=0; i<ssize(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 }  // namespace
 
 int main(int argc, char* argv[]) {
@@ -444,5 +461,7 @@ int main(int argc, char* argv[]) {
   generateQuietTest(cppos, hos);
   linebreaks();
   generateLoopRuleTest(cppos, hos);
+  linebreaks();
+  generateGluePartSwappedTest(cppos, hos);
   return 0;
 }
