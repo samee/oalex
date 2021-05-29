@@ -283,7 +283,7 @@ void runLoopRuleTest() {
   // backtracking from the final SkipPoint.
   tuple<string, JsonLoc, ssize_t> goodcases[] = {
     {"a + b ", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
-    {"a ", *parseJsonLoc("{operand: ['a'] }"), -1},
+    {"a /*", *parseJsonLoc("{operand: ['a'] }"), 1},
     {"a + b + c ", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
     {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
@@ -298,6 +298,7 @@ void runLoopRuleTest() {
   pair<string, string> badcases[] = {
     {"(boo!)", "Expected an identifier"},
     {"a ++", "Expected an identifier"},
+    {"a + /*", "Unfinished comment"},
   };
   for(auto& [msg, expectedDiag] : badcases) {
     auto ctx = testInputDiags(msg);

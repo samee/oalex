@@ -69,6 +69,9 @@ ruleDebugId(const RuleSet& rs, ssize_t i) {
   else return format("rule {}", i);
 }
 
+static JsonLoc evalQuiet(const Input& input, ssize_t& i,
+                         const RuleSet& rs, ssize_t ruleIndex);
+
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i,
      const ConcatFlatRule& seq, const RuleSet& rs) {
@@ -180,12 +183,15 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       recordComponent("child", std::move(out), loop.partidx, loop.partname);
       fallback_point = j;
     }
-    if(sp) skip(ctx, j, *sp);
+    if(sp && evalQuiet(ctx.input, j, rs, loop.skipidx).holdsError()) break;
     if(loop.glueidx != -1) {
       JsonLoc out = eval(ctx, j, rs, loop.glueidx);
       if(out.holdsError()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
-      if(sp) skip(ctx, j, *sp);
+      if(sp) {
+        out = skip(ctx, j, *sp);
+        if(out.holdsError()) return out;
+      }
     }
     first = false;
   }
@@ -630,10 +636,17 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  if(loop.skipidx != -1 &&
-     !holds_alternative<SkipPoint>(ruleset.rules[loop.skipidx]))
-    Bug("LoopRule skipidx {} is not a SkipPoint rule",
-        ruleDebugId(ruleset, loop.skipidx));
+
+  Ident skipname;
+  if(loop.skipidx != -1) {
+    if(!holds_alternative<SkipPoint>(ruleset.rules[loop.skipidx]))
+      Bug("LoopRule skipidx {} is not a SkipPoint rule",
+          ruleDebugId(ruleset, loop.skipidx));
+    if(auto name = ruleset.rules[loop.skipidx].name()) skipname = *name;
+    else Bug("LoopRule skipidx {} rule needs a name",
+             ruleDebugId(ruleset, loop.skipidx));
+  }
+
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
@@ -662,9 +675,10 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
-    cppos("    ");
-      codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
+    cppos(format("    res = oalex::quietMatch(ctx.input, j, {});\n",
+                 parserName(skipname)));
       cppos(";\n");
+    cppos("    if(res.holdsError()) break;\n");
   }
   if(loop.glueidx != -1) {
     cppos("    res = ");
@@ -678,9 +692,12 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
                    dquoted(loop.gluename)));
     if(loop.skipidx != -1) {
-      cppos("    ");
+      cppos("    res = ");
         codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
         cppos(";\n");
+      cppos("    if(res.holdsError())\n");
+      cppos("      return oalex::errorValue(ctx, j, "
+                                            "\"Unfinished comment\");\n");
     }
   }
   cppos("    first = false;\n");
