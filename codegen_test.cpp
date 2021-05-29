@@ -390,6 +390,7 @@ void testLoopRule() {
           .partidx = 0,
           .partname = "operand",
           .glueidx = 5,
+          .gluename = "",
           .lookidx = -1,
         }, "sum"),
         Rule{parseRegex("/[a-z]+/")},
@@ -433,6 +434,7 @@ void testLoopRule() {
       .partidx = 7,
       .partname = "",
       .glueidx = -1,
+      .gluename = "",
       .lookidx = -1,
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
@@ -467,6 +469,7 @@ void testLoopFlattening() {
           .partidx = 3,
           .partname = "",
           .glueidx = 6,
+          .gluename = "",
           .lookidx = -1,
         }, "sum")
     ),
@@ -489,7 +492,11 @@ void testGluePartSwapped() {
         Rule{"-"},
         Rule{parseRegex("/[a-z]+/")},
         Rule{ConcatFlatRule{{ { 1, "words" } }}},
-        Rule{LoopRule{.partidx = 0, .partname = "", .glueidx = 2,
+        Rule{LoopRule{.partidx = 0, .partname = "",
+                      .glueidx = 2, .gluename = "",
+                      .lookidx = -1 }},
+        Rule{LoopRule{.partidx = 0, .partname = "",
+                      .glueidx = 1, .gluename = "words",
                       .lookidx = -1 }}
     ),
     .regexOpts{regexOpts},
@@ -497,6 +504,16 @@ void testGluePartSwapped() {
   auto ctx = testInputDiags("-greetings-earth-");
   ssize_t pos = 0;
   JsonLoc observed = eval(ctx, pos, rs, 3);
+  if(!ctx.diags.empty()) {
+    showDiags(ctx.diags);
+    BugMe("Expected empty diags");
+  }
+  assertEqual(__func__, pos, ssize_t(17));
+  assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
+                        observed);
+
+  pos = 0;
+  observed = eval(ctx, pos, rs, 4);
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Expected empty diags");

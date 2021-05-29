@@ -351,6 +351,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .partidx = 0,
           .partname = "operand",
           .glueidx = 5,
+          .gluename = "",
           .lookidx = -1,
         }, "LoopSum"),
         regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
@@ -365,6 +366,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .partidx = 7,
           .partname = "",
           .glueidx = -1,
+          .gluename = "",
           .lookidx = -1,
         }, "ListPrefix"),
 
@@ -376,6 +378,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .partidx = 10,
           .partname = "",
           .glueidx = -1,
+          .gluename = "",
           .lookidx = -1,
         }, "SignedListPrefix")
     ),
@@ -393,8 +396,12 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         Rule{"-"},
         regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule{.partidx = 0, .partname = "", .glueidx = 2,
-                        .lookidx = -1 }, "GpSwappedString")
+        nmRule(LoopRule{.partidx = 0, .partname = "",
+                        .glueidx = 2, .gluename = "",
+                        .lookidx = -1 }, "GpSwappedString"),
+        nmRule(LoopRule{.partidx = 0, .partname = "",
+                        .glueidx = 1, .gluename = "words",
+                        .lookidx = -1 }, "GpSwappedInlineString")
     ),
     .regexOpts{regexOpts},
   };

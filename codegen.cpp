@@ -169,6 +169,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       else if(makesFlattenableMap(rs.rules[loop.glueidx]))
         addMap("LoopRule glue " + ruleDebugId(rs, loop.glueidx),
                std::move(out));
+      else if(!loop.gluename.empty()) addChild(loop.gluename, std::move(out));
     }
     first = false;
   }
@@ -645,7 +646,9 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     if(makesFlattenableMap(ruleset.rules[loop.glueidx])) {
       cppos("    mapCreateOrAppendAllElts(m,\n");
       cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
-    }
+    }else if(!loop.gluename.empty())
+      cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
+                   dquoted(loop.gluename)));
   }
   cppos("    first = false;\n");
   cppos("  }\n");
