@@ -389,20 +389,21 @@ void testLoopRule() {
         nmRule(LoopRule{
           .partidx = 0,
           .partname = "operand",
-          .glueidx = 5,
+          .glueidx = 1,
           .gluename = "",
           .lookidx = -1,
-          .skipidx = -1,
+          .skipidx = 2,
         }, "sum"),
-        Rule{parseRegex("/[a-z]+/")},
-        Rule{ConcatFlatRule{{ {2, ""}, {1, ""}, {2, ""} }}}
+        Rule{parseRegex("/[a-z]+/")}
     ),
     .regexOpts{regexOpts},
   };
+  // Some tests have extra trailing space to see if we are properly
+  // backtracking from the final SkipPoint
   tuple<string, JsonLoc, ssize_t> goodcases[] = {
-    {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
-    {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
-    {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
+    {"a + b ", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
+    {"a ", *parseJsonLoc("{operand: ['a'] }"), -1},
+    {"a + b + c ", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
     {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
@@ -410,7 +411,7 @@ void testLoopRule() {
     ssize_t pos = 0;
     JsonLoc observed = eval(ctx, pos, rs, 3);
     assertEqual(__func__, expectedJsloc, observed);
-    if(expectedEnd == -1) expectedEnd = msg.size();
+    if(expectedEnd == -1) expectedEnd = msg.size()-1;
     assertEqual(format("{}: test case '{}'", __func__, msg), expectedEnd, pos);
   }
   pair<string, string> badcases[] = {
@@ -429,10 +430,10 @@ void testLoopRule() {
   // Test glueidx == -1
   rs.rules.push_back(Rule{","});
   rs.rules.push_back(Rule{
-      ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}}
+      ConcatFlatRule{{{0, "elements"}, {2, ""}, {5, ""}, {2, ""}}}
   });
   rs.rules.push_back(nmRule(LoopRule{
-      .partidx = 7,
+      .partidx = 6,
       .partname = "",
       .glueidx = -1,
       .gluename = "",
@@ -441,7 +442,7 @@ void testLoopRule() {
   }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 8);
+  JsonLoc observed = eval(ctx, pos, rs, 7);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__ + ": end position on glueless case"s, pos, ssize_t(5));
   assertEqual(__func__ + ": glueless case jsonloc output"s,
@@ -449,7 +450,7 @@ void testLoopRule() {
 
   ctx = testInputDiags("!");
   pos = 0;
-  observed = eval(ctx, pos, rs, 8);
+  observed = eval(ctx, pos, rs, 7);
   if(!observed.holdsError())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");

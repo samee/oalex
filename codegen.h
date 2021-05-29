@@ -79,13 +79,14 @@ struct OutputTmpl {
 // this child, and break out of the loop if it fails. If lookidx != -1, it
 // will use that rule as the lookahead decider.
 //
-// Dev-note: We might add an optional skipper to be executed between fields,
-//   so we _tentatively_ skip before knowing if the next iteration
-//   will happen. We intentionally don't allow any other such tentative
-//   concatenantion inline. Even this feature might be removed back once we can
-//   share parsing results between lookaheads and parsers.
+// The skipidx is available here separately instead of having it be folded into
+// the glueidx or partidx rule. This is so that we can properly backtrack from
+// it if the next component fails. We have no plans to allow such inline
+// concatenation for anything other than a SkipRule target. Even this feature
+// might be removed once we can share parsing results between lookaheads and
+// parsers.
 struct LoopRule{
-  ssize_t partidx;
+  ssize_t partidx;  // mandatory, must not be -1
   std::string partname;
   ssize_t glueidx;  // -1 means no glue
   std::string gluename;

@@ -132,7 +132,14 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  if(loop.skipidx != -1) Unimplemented("LoopRule skipper");
+
+  const SkipPoint* sp = nullptr;
+  if(loop.skipidx != -1) {
+    sp = get_if<SkipPoint>(&rs.rules[loop.skipidx]);
+    if(!sp) Bug("LoopRule skipidx {} is not a SkipPoint rule",
+                ruleDebugId(rs, loop.skipidx));
+  }
+
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
@@ -160,22 +167,29 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     // else ignore component.
   };
 
-  ssize_t j = i;
+  // Unlike other rules, our fallback_point is different j because we need may
+  // need to discard even successful SkipPoints if the next component fails.
+  ssize_t j = i, fallback_point = i;
   bool first = true;
   while(true) {
     JsonLoc out = eval(ctx, j, rs, loop.partidx);
     if(out.holdsError()) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
-    }else recordComponent("child", std::move(out), loop.partidx, loop.partname);
+    }else {
+      recordComponent("child", std::move(out), loop.partidx, loop.partname);
+      fallback_point = j;
+    }
+    if(sp) skip(ctx, j, *sp);
     if(loop.glueidx != -1) {
       JsonLoc out = eval(ctx, j, rs, loop.glueidx);
       if(out.holdsError()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
+      if(sp) skip(ctx, j, *sp);
     }
     first = false;
   }
-  i = j;
+  i = fallback_point;  // discard any failures and SkipPoints.
   return rv;
 }
 
