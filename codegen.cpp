@@ -146,11 +146,17 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     v->push_back(std::move(val));
     maxsize = std::max(maxsize, ssize(*v));
   };
-  auto addMap = [&addChild](string_view desc, JsonLoc children) {
-    // TODO refactor out this validation between here and ConcatFlatRule.
-    auto* m = get_if<JsonLoc::Map>(&children);
-    if(!m) Bug("{} was expected to return a map, got {}", desc, children);
-    for(auto& [k,v] : *m) addChild(k, std::move(v));
+  auto recordComponent =
+    [&addChild, &rs](string_view desc, JsonLoc comp,
+                     ssize_t idx, const string& defname) {
+    if(makesFlattenableMap(rs.rules[idx])) {
+      // TODO refactor out this validation between here and ConcatFlatRule.
+      auto* m = get_if<JsonLoc::Map>(&comp);
+      if(!m) Bug("LoopRule {} {} was expected to return a map, got {}",
+                 desc, ruleDebugId(rs, idx), comp);
+      for(auto& [k,v] : *m) addChild(k, std::move(v));
+    }else if(!defname.empty()) addChild(defname, std::move(comp));
+    // else ignore component.
   };
 
   ssize_t j = i;
@@ -160,16 +166,11 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     if(out.holdsError()) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
-    }else if(makesFlattenableMap(rs.rules[loop.partidx]))
-      addMap("LoopRule child " + ruleDebugId(rs, loop.partidx), std::move(out));
-    else if(!loop.partname.empty()) addChild(loop.partname, std::move(out));
+    }else recordComponent("child", std::move(out), loop.partidx, loop.partname);
     if(loop.glueidx != -1) {
       JsonLoc out = eval(ctx, j, rs, loop.glueidx);
       if(out.holdsError()) break;
-      else if(makesFlattenableMap(rs.rules[loop.glueidx]))
-        addMap("LoopRule glue " + ruleDebugId(rs, loop.glueidx),
-               std::move(out));
-      else if(!loop.gluename.empty()) addChild(loop.gluename, std::move(out));
+      else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
     }
     first = false;
   }
