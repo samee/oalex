@@ -279,10 +279,12 @@ void runQuietTest() {
 
 // TODO make these tests quiet.
 void runLoopRuleTest() {
+  // Some tests have an extra trailing space to see if we are properly
+  // backtracking from the final SkipPoint.
   tuple<string, JsonLoc, ssize_t> goodcases[] = {
-    {"a + b", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
-    {"a", *parseJsonLoc("{operand: ['a'] }"), -1},
-    {"a + b + c", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
+    {"a + b ", *parseJsonLoc("{operand: ['a', 'b'] }"), -1},
+    {"a ", *parseJsonLoc("{operand: ['a'] }"), -1},
+    {"a + b + c ", *parseJsonLoc("{operand: ['a', 'b', 'c'] }"), -1},
     {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
@@ -290,7 +292,7 @@ void runLoopRuleTest() {
     ssize_t pos = 0;
     JsonLoc observed = parseLoopSum(ctx, pos);
     assertEqual(__func__, expectedJsloc, observed);
-    if(expectedEnd == -1) expectedEnd = msg.size();
+    if(expectedEnd == -1) expectedEnd = msg.size()-1;
     assertEqual(__func__, expectedEnd, pos);
   }
   pair<string, string> badcases[] = {

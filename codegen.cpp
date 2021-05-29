@@ -278,6 +278,8 @@ Rule::specifics_typename() const {
                     this->specifics_);
 }
 
+// TODO recheck if we are properly initializing
+// rv.stPos and rv.enPos in all cases.
 JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleset.rules[ruleIndex];
@@ -628,11 +630,14 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  if(loop.skipidx != -1) Unimplemented("LoopRule skipper");
+  if(loop.skipidx != -1 &&
+     !holds_alternative<SkipPoint>(ruleset.rules[loop.skipidx]))
+    Bug("LoopRule skipidx {} is not a SkipPoint rule",
+        ruleDebugId(ruleset, loop.skipidx));
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
-  cppos("  ssize_t j = i;\n\n");
+  cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos("  JsonLoc::Map m;\n");
   cppos("  bool first = true;\n");
   cppos("  while(true) {\n");
@@ -654,7 +659,13 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   else if(!loop.partname.empty())
     cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
                  dquoted(loop.partname)));
+  cppos("    fallback_point = j;\n");
   cppos("\n");
+  if(loop.skipidx != -1) {
+    cppos("    ");
+      codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
+      cppos(";\n");
+  }
   if(loop.glueidx != -1) {
     cppos("    res = ");
       codegenParserCall(ruleset.rules[loop.glueidx], "j", cppos);
@@ -666,12 +677,17 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     }else if(!loop.gluename.empty())
       cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
                    dquoted(loop.gluename)));
+    if(loop.skipidx != -1) {
+      cppos("    ");
+        codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
+        cppos(";\n");
+    }
   }
   cppos("    first = false;\n");
   cppos("  }\n");
   cppos("  JsonLoc rv{std::move(m)};\n");
-  cppos("  rv.stPos = i; rv.enPos = j;\n");
-  cppos("  i = j;\n");
+  cppos("  rv.stPos = i; rv.enPos = fallback_point;\n");
+  cppos("  i = fallback_point;\n");
   cppos("  return rv;\n");
 }
 
