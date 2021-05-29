@@ -134,7 +134,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
-  auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) mutable {
+  auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
     if(name.empty()) return;
     JsonLoc::Map::iterator it = rv.find(name);
     if(it == rv.end()) {
