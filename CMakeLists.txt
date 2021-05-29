@@ -24,6 +24,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
+add_subdirectory(submodules/fmt)
 include_directories(submodules/fmt/include)
 
 add_library(oalex-bin-lib STATIC codegen.cpp ident.cpp jsonloc_io.cpp lexer.cpp
