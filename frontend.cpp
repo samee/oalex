@@ -75,8 +75,9 @@ MappedPos::operator string() const {
   return "line " + itos(this->line);
 }
 
-bool Expectation::matches(const JsonLoc& jsloc,
-                          const std::vector<Diag>& diags) const {
+bool
+Expectation::matches(const JsonLoc& jsloc,
+                     const std::vector<Diag>& diags) const {
   if(Example::runSucceeded(jsloc, diags) != success_) return false;
   if(success_)
     return jsloc_.supportsEquality() ? jsloc == jsloc_ : true;
@@ -84,14 +85,18 @@ bool Expectation::matches(const JsonLoc& jsloc,
   return false;
 }
 
-static string debug(const ExprToken& x) {
+namespace {
+
+string
+debug(const ExprToken& x) {
   if(auto* tok = get_if<WholeSegment>(&x)) return **tok;
   else if(auto* s = get_if<GluedString>(&x)) return "\"" + string(*s) + "\"";
   else return "(bracket group)";
 }
 
 // TODO move to ident.cpp and provide validity guarnatees.
-static bool resemblesIdent(const ExprToken& x) {
+bool
+resemblesIdent(const ExprToken& x) {
   auto* seg = get_if<WholeSegment>(&x);
   if(!seg) return false;
   const string& s = **seg;
@@ -102,8 +107,6 @@ static bool resemblesIdent(const ExprToken& x) {
 
 using LocPair = pair<ssize_t,ssize_t>;
 constexpr LocPair nrange{-1,-1};
-
-namespace {
 
 // This class keeps location information around while we are still building
 // up the vector<Rule>. This allows us to provide error messages such as
@@ -160,7 +163,8 @@ class RulesWithLocs {
   vector<LocPair> firstUseLocs_;
 };
 
-ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
+ssize_t
+RulesWithLocs::findOrAppendIdent(const Ident& id) {
   LocPair thisPos{id.stPos(), id.enPos()};
   for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i].name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
@@ -171,7 +175,8 @@ ssize_t RulesWithLocs::findOrAppendIdent(const Ident& id) {
   return this->ssize()-1;
 }
 
-ssize_t RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
+ssize_t
+RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
     if(!holds_alternative<monostate>(rules_[i])) {
       Error(ctx, ident.stPos(), ident.enPos(),
@@ -205,7 +210,8 @@ RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   return false;
 }
 
-void RulesWithLocs::resize_down(ssize_t n) noexcept {
+void
+RulesWithLocs::resize_down(ssize_t n) noexcept {
   if(n >= this->ssize()) return;
   // Don't use erase() because it needs an assignment operator.
   // Don't use resize() because it needs default constructor.
@@ -220,10 +226,8 @@ RulesWithLocs::releaseRules() {
   return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
-}  // namespace
-
-static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
-                       DiagsDest ctx) {
+bool
+requireEol(const vector<ExprToken>& linetoks, size_t eolPos, DiagsDest ctx) {
   if(linetoks.size() < eolPos)
     Bug("requireEol({}) assumes earlier tokens are already processed", eolPos);
   if(linetoks.size() > eolPos) {
@@ -233,7 +237,8 @@ static bool requireEol(const vector<ExprToken>& linetoks, size_t eolPos,
   return true;
 }
 
-static char bracketStart(BracketType bt) {
+char
+bracketStart(BracketType bt) {
   switch(bt) {
     case BracketType::square: return '[';
     case BracketType::brace: return '{';
@@ -242,8 +247,8 @@ static char bracketStart(BracketType bt) {
   }
 }
 
-static bool requireBracketType(const BracketGroup& bg, BracketType bt,
-                               DiagsDest ctx) {
+bool
+requireBracketType(const BracketGroup& bg, BracketType bt, DiagsDest ctx) {
   if(bg.type != bt) {
     Error(ctx, bg.stPos, format("Was expecting '{}'", bracketStart(bt)));
     return false;
@@ -251,8 +256,7 @@ static bool requireBracketType(const BracketGroup& bg, BracketType bt,
 }
 
 template <class T> T*
-get_if_in_bound(vector<ExprToken>& toks, size_t i,
-                DiagsDest ctx) {
+get_if_in_bound(vector<ExprToken>& toks, size_t i, DiagsDest ctx) {
   if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
   if(i >= toks.size()) {
     Error(ctx, enPos(toks.back()), "Unexpected end of expression");
@@ -262,8 +266,7 @@ get_if_in_bound(vector<ExprToken>& toks, size_t i,
 }
 
 template <class T> const T*
-get_if_in_bound(const vector<ExprToken>& toks, size_t i,
-                DiagsDest ctx) {
+get_if_in_bound(const vector<ExprToken>& toks, size_t i, DiagsDest ctx) {
   if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
   if(i >= toks.size()) {
     Error(ctx, enPos(toks.back()), "Unexpected end of expression");
@@ -282,37 +285,42 @@ resemblesX() vs parseX().
     the face of an error just so subsequent parsing has a better chance
     of making forward progress.
 */
-static bool resemblesBnfRule(const vector<ExprToken>& linetoks) {
+bool
+resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
-static void assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
-                                 string_view literal) {
+void
+assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   rl[ruleIndex].deferred_assign(MatchOrError{
       rl.ssize(), format("Expected '{}'", literal)
   });
   rl.emplaceBackAnonRule(string(literal));
 }
-static ssize_t appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
+ssize_t
+appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(monostate{});
   assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }
 
-static void assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                               string errmsg, RegexPattern regex) {
+void
+assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
+                   string errmsg, RegexPattern regex) {
   rl[ruleIndex].deferred_assign(MatchOrError{rl.ssize(), std::move(errmsg)});
   rl.emplaceBackAnonRule(std::move(regex.patt));
 }
 
-ssize_t appendWordOrError(RulesWithLocs& rl, string_view word) {
+ssize_t
+appendWordOrError(RulesWithLocs& rl, string_view word) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(WordPreserving{word});
   rl.emplaceBackAnonRule(MatchOrError{newIndex, format("Expected '{}'",
                                       word)});
   return newIndex + 1;
 }
-ssize_t appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
+ssize_t
+appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.ssize();
   rl.emplaceBackAnonRule(std::move(regex));
   rl.emplaceBackAnonRule(MatchOrError{newIndex,
@@ -326,10 +334,8 @@ ssize_t appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
    should be inserted into findOrAppendIdent(someVar). On failure, it returns
    nullopt.
 */
-static auto parseConcatRule(vector<ExprToken> linetoks,
-                            DiagsDest ctx, RulesWithLocs& rl)
-  -> optional<ConcatRule> {
-
+optional<ConcatRule>
+parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
   auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
   if(!bg) return nullopt;
   if(!requireBracketType(*bg, BracketType::square, ctx)) return nullopt;
@@ -399,8 +405,8 @@ static auto parseConcatRule(vector<ExprToken> linetoks,
   return concat;
 }
 
-static auto parseSkipPoint(const vector<ExprToken>& linetoks,
-                           DiagsDest ctx) -> optional<SkipPoint> {
+optional<SkipPoint>
+parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
   auto* seg = get_if_in_bound<WholeSegment>(linetoks, 3, ctx);
   if(!seg) return nullopt;
   bool withinLine;
@@ -410,8 +416,6 @@ static auto parseSkipPoint(const vector<ExprToken>& linetoks,
   if(!requireEol(linetoks, 4, ctx)) return nullopt;
   return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
 }
-
-namespace {
 
 // Resets RulesWithLoc back to initial size unless disarm() is called.
 class RuleRewinder {
@@ -425,10 +429,8 @@ class RuleRewinder {
   ssize_t orig_size;
 };
 
-}  // namespace
-
-static void parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx,
-                         RulesWithLocs& rl) {
+void
+parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
   const Ident ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[0]));
   if(!ident) {
     Error(ctx, linetoks[0], "Identifier expected");
@@ -468,8 +470,9 @@ static void parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx,
 // and they will match anything, even other ExprToken types.
 // But thsoe wildcards do need *some* token to match against, so we return false
 // if tokens.size() is too small.
-static bool matchesTokens(const vector<ExprToken>& tokens, ssize_t start,
-                          const vector<string_view>& expectations) {
+bool
+matchesTokens(const vector<ExprToken>& tokens, ssize_t start,
+              const vector<string_view>& expectations) {
   if(start + tokens.size() < expectations.size()) return false;
   for(size_t i=0; i<expectations.size(); ++i)
     if(!expectations[i].empty() && !isToken(tokens[start+i], expectations[i]))
@@ -477,19 +480,22 @@ static bool matchesTokens(const vector<ExprToken>& tokens, ssize_t start,
   return true;
 }
 
-static bool matchesTokens(const vector<ExprToken>& tokens,
-                          const vector<string_view>& expectations) {
+bool
+matchesTokens(const vector<ExprToken>& tokens,
+              const vector<string_view>& expectations) {
   return matchesTokens(tokens, 0, expectations);
 }
 
-static WholeSegment indent_of(const Input& input, const ExprToken& tok) {
+WholeSegment
+indent_of(const Input& input, const ExprToken& tok) {
   ssize_t bol = input.bol(stPos(tok));
   ssize_t indent_end = oalexWSkip.withinLine(input, bol);
   return WholeSegment(bol, indent_end, input);
 }
 
-static bool goodIndent(DiagsDest ctx, const WholeSegment& indent1,
-                       const WholeSegment& indent2) {
+bool
+goodIndent(DiagsDest ctx, const WholeSegment& indent1,
+           const WholeSegment& indent2) {
   IndentCmp cmpres = indentCmp(*indent1, *indent2);
   if(cmpres == IndentCmp::bad) {
     Error(ctx, indent2,
@@ -532,7 +538,8 @@ static bool goodIndent(DiagsDest ctx, const WholeSegment& indent1,
 //
 // Preference: Maybe don't allow surprise matches that start or end mid-line.
 
-static const LexDirective& defaultLexopts() {
+const LexDirective&
+defaultLexopts() {
   static const auto* var = new LexDirective{
     parseRegexCharSet("[_a-zA-Z]"),
     Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
@@ -542,11 +549,12 @@ static const LexDirective& defaultLexopts() {
 }
 
 // Forward decl.
-static ssize_t appendPatternRule(DiagsDest ctx, const Pattern& patt,
-                                 RulesWithLocs& rl);
+ssize_t
+appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl);
 
-static ssize_t appendPatternConcat(
-    DiagsDest ctx, const PatternConcat& concatPatt, RulesWithLocs& rl) {
+ssize_t
+appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
+                    RulesWithLocs& rl) {
   ConcatFlatRule concatRule{ .comps{} };
   for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
     if(i > 0) {
@@ -564,8 +572,9 @@ static ssize_t appendPatternConcat(
 }
 
 // TODO failed tests should output location. Or tests should have names.
-static ssize_t appendPatternOrList(
-    DiagsDest ctx, const PatternOrList& orPatt, RulesWithLocs& rl) {
+ssize_t
+appendPatternOrList(DiagsDest ctx, const PatternOrList& orPatt,
+                    RulesWithLocs& rl) {
   OrRule orRule{.comps{}, .flattenOnDemand=true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
@@ -577,8 +586,9 @@ static ssize_t appendPatternOrList(
   return rl.ssize()-1;
 }
 
-static ssize_t appendPatternOptional(
-    DiagsDest ctx, const PatternOptional& optPatt, RulesWithLocs& rl) {
+ssize_t
+appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
+                      RulesWithLocs& rl) {
   ssize_t i;
   OrRule orRule{.comps{}, .flattenOnDemand=true};
 
@@ -598,15 +608,16 @@ static ssize_t appendPatternOptional(
   return rl.emplaceBackAnonRule(std::move(orRule));
 }
 
-static ssize_t appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
+ssize_t
+appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
   ssize_t i = rl.findOrAppendIdent(ident);
   return rl.emplaceBackAnonRule(ConcatFlatRule{{
       {i, ident.preserveCase()},
   }});
 }
 
-static ssize_t appendPatternRule(DiagsDest ctx,
-    const Pattern& patt, RulesWithLocs& rl) {
+ssize_t
+appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
     return appendWordOrError(rl, **word);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
@@ -627,8 +638,8 @@ static ssize_t appendPatternRule(DiagsDest ctx,
 }
 
 // We can later add where-stanza arguments for extracting partPatterns
-static auto makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc)
-  -> map<Ident,PartPattern> {
+map<Ident,PartPattern>
+makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc) {
   if(holds_alternative<JsonLoc::Vector>(jsloc))
     Unimplemented("Directly outputting list not encased in a map");
   const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
@@ -644,11 +655,12 @@ static auto makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc)
   return rv;
 }
 
-static void registerLocations(RulesWithLocs& rl, const Ident& id) {
+void
+registerLocations(RulesWithLocs& rl, const Ident& id) {
   rl.findOrAppendIdent(id);
 }
 
-static bool
+bool
 soleIdentImpl(const Pattern& patt, const Ident** result) {
   if(holds_one_of_unique<WordToken,OperToken,NewlineChar>(patt)) return true;
   if(auto* id = get_if_unique<Ident>(&patt)) {
@@ -672,7 +684,7 @@ soleIdentImpl(const Pattern& patt, const Ident** result) {
   }else Bug("Unknown pattern used for soleIdent(), index {}", patt.index());
 }
 
-static const Ident*
+const Ident*
 soleIdent(const Pattern& patt) {
   const Ident* rv = nullptr;
   if(!soleIdentImpl(patt, &rv)) return nullptr;
@@ -682,10 +694,9 @@ soleIdent(const Pattern& patt) {
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
-static void appendPatternRules(
-    DiagsDest ctx,
-    const Ident& ident, GluedString patt_string, JsonLoc jsloc,
-    RulesWithLocs& rl) {
+void
+appendPatternRules(DiagsDest ctx, const Ident& ident,
+                   GluedString patt_string, JsonLoc jsloc, RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
@@ -710,8 +721,9 @@ static void appendPatternRules(
 
 // Assumes colonPos > 0, since the error message
 // is attached to the previous token in linetok.
-static bool requireColonEol(const vector<ExprToken>& linetoks,
-                            size_t colonPos, DiagsDest ctx) {
+bool
+requireColonEol(const vector<ExprToken>& linetoks, size_t colonPos,
+                DiagsDest ctx) {
   if(linetoks.size() <= colonPos || !isToken(linetoks[colonPos], ":")) {
     Error(ctx, enPos(linetoks[colonPos-1]), "Was expecting a ':' after this");
     return false;
@@ -725,10 +737,9 @@ static bool requireColonEol(const vector<ExprToken>& linetoks,
 }
 
 // Requires block to be indented strictly more than the reference indent.
-static auto parseIndentedBlock(InputDiags& ctx, size_t& i,
-                               const WholeSegment& refIndent,
-                               string_view blockName)
-  -> optional<GluedString> {
+optional<GluedString>
+parseIndentedBlock(InputDiags& ctx, size_t& i, const WholeSegment& refIndent,
+                   string_view blockName) {
   optional<GluedString> rv;
   if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
     // Consume input the next block even if it is not indented enough.
@@ -747,8 +758,8 @@ static auto parseIndentedBlock(InputDiags& ctx, size_t& i,
 //          or (b) return a more general type here that can be sanitized by
 //                 the caller.
 template <int pos>
-static auto parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx)
-  -> optional<JsonLoc> {
+optional<JsonLoc>
+parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx) {
   static_assert(pos > 0, "pos must be positive for proper error-reporting");
   BracketGroup* bg;
   if(linetoks.size() <= pos ||
@@ -765,14 +776,16 @@ static auto parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx)
 // Checks second token just so it is not a BNF rule of the form
 // `rule :=`. We want to avoid requiring too many reserved keywords
 // if possible.
-static bool resemblesRule(const vector<ExprToken>& linetoks) {
+bool
+resemblesRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
-static void parseRule(vector<ExprToken> linetoks,
-                      InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
+void
+parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
+          RulesWithLocs& rl) {
   if(!requireColonEol(linetoks, 2, ctx)) return;
   optional<GluedString> patt =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
@@ -802,8 +815,8 @@ static void parseRule(vector<ExprToken> linetoks,
 }
 
 // For error-locating, it assumes !v.empty().
-static Ident parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v,
-                                   size_t idx) {
+Ident
+parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v, size_t idx) {
   if(v.size() <= idx) {
     Error(ctx, enPos(v.back()), "Expected identifier after this");
     return {};
@@ -816,14 +829,15 @@ static Ident parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v,
 }
 
 // Dev-note: maybe move to pattern.h
-static bool isUserWord(string_view s) {
+bool
+isUserWord(string_view s) {
   for(char ch : s) if(!matchesRegexCharSet(ch, defaultLexopts().wordChars))
     return false;
   return true;
 }
 
 // Assumes linetoks.size() > idx
-static ssize_t
+ssize_t
 lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
                    RulesWithLocs& rl) {
   if(auto* s = get_if<GluedString>(&linetoks[idx])) {
@@ -837,19 +851,21 @@ lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
   return rl.findOrAppendIdent(lookId);
 }
 
-static Ident parseSingleIdentBranch(
-    DiagsDest ctx, const vector<ExprToken>& branch, ssize_t rhsidx) {
+Ident
+parseSingleIdentBranch(DiagsDest ctx, const vector<ExprToken>& branch,
+                       ssize_t rhsidx) {
   const Ident parseId = parseIdentFromExprVec(ctx, branch, rhsidx);
   if(!parseId || !requireEol(branch, rhsidx+1, ctx)) return Ident{};
   else return parseId;
 }
 
-static bool resemblesErrorBranch(
-    const vector<ExprToken>& branch, ssize_t rhsidx) {
+bool
+resemblesErrorBranch(const vector<ExprToken>& branch, ssize_t rhsidx) {
   return ssize(branch) > rhsidx+1 && isToken(branch[rhsidx], "error");
 }
 
-static string_view parseErrorBranch(
+string_view
+parseErrorBranch(
     DiagsDest ctx, const vector<ExprToken>& branch, ssize_t rhsidx) {
   if(!requireEol(branch, rhsidx+2, ctx)) return "";
   const auto* s = get_if<GluedString>(&branch[rhsidx+1]);
@@ -863,19 +879,19 @@ static string_view parseErrorBranch(
   return rv;
 }
 
-static void
+void
 orRuleAppendPassthrough(OrRule& orRule, ssize_t lookIdx, ssize_t parseIdx) {
   orRule.comps.push_back({
       .lookidx = lookIdx, .parseidx = parseIdx, .tmpl{passthroughTmpl}
       });
 }
 
-static bool
+bool
 resemblesLookaheadBranch(const vector<ExprToken>& branch) {
   return branch.size() >= 3 && isToken(branch[2], "->");
 }
 
-static bool
+bool
 parseLookaheadBranchAction(const vector<ExprToken>& branch,
                            ssize_t pos, ssize_t lookidx,
                            DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
@@ -899,13 +915,15 @@ parseLookaheadBranchAction(const vector<ExprToken>& branch,
   return true;
 }
 
-static bool resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
+bool
+resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
          && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
 }
 
-static void parseLookaheadRule(vector<ExprToken> linetoks,
-                               InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
+void
+parseLookaheadRule(vector<ExprToken> linetoks,
+                        InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   if(!requireColonEol(linetoks, 3, ctx)) return;
   vector<vector<ExprToken>> branches = lexListEntries(ctx, i, '|');
   if(branches.empty()) {
@@ -935,14 +953,15 @@ static void parseLookaheadRule(vector<ExprToken> linetoks,
 // Checks second token just so it is not a BNF rule of the form
 // `example :=`. We want to avoid requiring too many reserved keywords
 // if possible.
-static bool resemblesExample(const vector<ExprToken>& linetoks) {
+bool
+resemblesExample(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[0], "example")
          && resemblesIdent(linetoks[1]);
 }
 
 // Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
-static auto parseExample(vector<ExprToken> linetoks,
-                         InputDiags& ctx, size_t& i) -> optional<Example> {
+optional<Example>
+parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   if(!requireColonEol(linetoks, 2, ctx)) return nullopt;
   Example rv;
   // Guaranteed to succeed by resemblesExample().
@@ -988,14 +1007,15 @@ static auto parseExample(vector<ExprToken> linetoks,
   return rv;
 }
 
-static const JsonLoc* getTemplate(const Rule& rule) {
+const JsonLoc*
+getTemplate(const Rule& rule) {
   if(auto* concat = get_if<ConcatRule>(&rule)) return &concat->outputTmpl;
   if(auto* tmpl   = get_if<OutputTmpl>(&rule)) return &tmpl->outputTmpl;
   return nullptr;
 }
 
-static auto hasDuplicatePlaceholders(const JsonLoc& tmpl)
-  -> optional<tuple<const JsonLoc*, const JsonLoc*, string>> {
+optional<tuple<const JsonLoc*, const JsonLoc*, string>>
+hasDuplicatePlaceholders(const JsonLoc& tmpl) {
   auto pmap = tmpl.allPlaceholders();
   for(auto& [k, v] : pmap) if(pmap.count(k) > 1) {
     auto it = pmap.lower_bound(k);
@@ -1008,8 +1028,8 @@ static auto hasDuplicatePlaceholders(const JsonLoc& tmpl)
 // We enforce this constraint because it allows us to std::move() components
 // in codegen, instead of copying them. Doing it at the end allows us to not
 // miss it in any of the places we create an outputTmpl.
-static bool hasDuplicatePlaceholders(
-    const vector<Rule>& rules, DiagsDest ctx) {
+bool
+hasDuplicatePlaceholders(const vector<Rule>& rules, DiagsDest ctx) {
   for(const Rule& rule : rules) if(const JsonLoc* tmpl = getTemplate(rule)) {
     if(auto opt = hasDuplicatePlaceholders(*tmpl)) {
       auto [p1, p2, key] = *opt;
@@ -1022,7 +1042,8 @@ static bool hasDuplicatePlaceholders(
 }
 
 // TODO improve autogenerated names. E.g. 'Hello' --> Hello.
-static void fillInNames(vector<Rule>& rules) {
+void
+fillInNames(vector<Rule>& rules) {
   vector<bool> istentative(rules.size(), false);
   for(auto& rule : rules) {
     if(auto* orrule = get_if<OrRule>(&rule)) {
@@ -1038,7 +1059,10 @@ static void fillInNames(vector<Rule>& rules) {
       rules[i].deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
 }
 
-auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
+}  // namespace
+
+optional<ParsedSource>
+parseOalexSource(InputDiags& ctx) {
   static const auto* userRegexOpts = new RegexOptions{
     // Do not use user-supplied input. See regex_io.h for details.
     .word = parseRegexCharSet("[0-9A-Za-z_]")
@@ -1081,7 +1105,8 @@ auto parseOalexSource(InputDiags& ctx) -> optional<ParsedSource> {
 
 // TODO make this nicer. Escape with dquoted() on single-line outputs,
 // indent on multi-line.
-string describeTestFailure(const Example& ex, bool succeeded) {
+string
+describeTestFailure(const Example& ex, bool succeeded) {
   string_view input = ex.sampleInput;
   if(!input.empty() && input.back() == '\n') input.remove_suffix(1);
 
