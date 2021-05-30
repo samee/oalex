@@ -548,6 +548,19 @@ defaultLexopts() {
   return *var;
 }
 
+/*
+Pattern to Rule compilation
+---------------------------
+
+This block of code is almost all helpers of appendPatternRules (plural).
+Most functions here follow this convention:
+
+  * They append newly compiled rules into RulesWithLocs.
+  * Each function may append one or more Rules.
+  * They return the location of the entry point index for the newly created
+    block of Rules.
+*/
+
 // Forward decl.
 ssize_t
 appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl);
@@ -718,6 +731,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
       .outputTmpl = std::move(jsloc)
   });
 }
+
+// ---------- End of Pattern to Rule compilation ----------
 
 // Assumes colonPos > 0, since the error message
 // is attached to the previous token in linetok.
