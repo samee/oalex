@@ -112,6 +112,9 @@ struct OrRule {
   //
   // Setting lookidx to -1 makes this rule not do a separate lookahead.
   // parseidx must always be a valid index.
+  //
+  // Dev-note: When we need more complicated templates, the plan is to use
+  // passthroughTmpl with an OutputTmpl target.
   struct Component { ssize_t lookidx, parseidx; JsonLoc tmpl; };
   std::vector<Component> comps;
   bool flattenOnDemand;
@@ -193,6 +196,23 @@ struct Rule {
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
  private:
+  /*
+  Return types are either an ErrorValue or:
+
+    * monostate: Doesn't return, not to be used in eval or codegen.
+    * string, WordPreserving, Regex: Returns string.
+    * SkipPoint: Something dummy (to be checked).
+    * ConcatRule: Depends on outputtmpl, not used by frontend.
+    * ConcatFlatRule: Returns Map, flattenable.
+    * OutputTmpl: Returns Map, not flattenable.
+    * LoopRule: Returns Map, flattenable.
+    * OrRule: Depends on flattenOnDemand. If set, we require all children
+      to be makesFlattenableMap() too.
+    * ErrorRule: ErrorValue only. Satisfies makesFlattenableMap().
+      Maybe rename to makesFlattenableMapOrError().
+    * QuietMatch: Same as its child.
+    * MatchOrError: Same as child.
+  */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
                ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
