@@ -57,10 +57,11 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
 }
 
 static bool
-makesFlattenableMap(const Rule& rule) {
+resultFlattenableOrError(const Rule& rule) {
   if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
   else return holds_alternative<ConcatFlatRule>(rule) ||
               holds_alternative<LoopRule>(rule) ||
+              holds_alternative<ErrorRule>(rule) ||
               holds_alternative<SkipPoint>(rule);
   // FIXME fix OrList and MatchOrError
 }
@@ -83,7 +84,7 @@ eval(InputDiags& ctx, ssize_t& i,
   for(auto& [idx, outname] : seq.comps) {
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsError()) return out;
-    else if(makesFlattenableMap(rs.rules[idx])) {
+    else if(resultFlattenableOrError(rs.rules[idx])) {
       auto* m = get_if<JsonLoc::Map>(&out);
       if(!m) Bug("Child {} was expected to return a map, got: {}",
                  ruleDebugId(rs, idx), out);
@@ -163,7 +164,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   auto recordComponent =
     [&addChild, &rs](string_view desc, JsonLoc comp,
                      ssize_t idx, const string& defname) {
-    if(makesFlattenableMap(rs.rules[idx])) {
+    if(resultFlattenableOrError(rs.rules[idx])) {
       // TODO refactor out this validation between here and ConcatFlatRule.
       auto* m = get_if<JsonLoc::Map>(&comp);
       if(!m) Bug("LoopRule {} {} was expected to return a map, got {}",
@@ -557,7 +558,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
       cppos(";\n");
     cppos("  if(res.holdsError()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
-    if(makesFlattenableMap(ruleset.rules[childid]))
+    if(resultFlattenableOrError(ruleset.rules[childid]))
       cppos("  oalex::mapUnion(m, *oalex::get_if<JsonLoc::Map>(&res));\n");
     else if(!key.empty())
       cppos(format("  m.insert({{{}, std::move(res)}});\n", dquoted(key)));
@@ -643,7 +644,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
   auto recordComponent =
     [&ruleset, &cppos](ssize_t idx, const string& name) {
-      if(makesFlattenableMap(ruleset.rules[idx])) {
+      if(resultFlattenableOrError(ruleset.rules[idx])) {
         cppos("    mapCreateOrAppendAllElts(m,\n");
         cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
       }else if(!name.empty()) {
