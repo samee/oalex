@@ -175,7 +175,9 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   ssize_t j = i, fallback_point = i;
   bool first = true;
   while(true) {
-    JsonLoc out = eval(ctx, j, rs, loop.partidx);
+    JsonLoc out = (first || loop.glueidx != -1)
+                    ? eval(ctx, j, rs, loop.partidx)
+                    : evalQuiet(ctx.input, j, rs, loop.partidx);
     if(out.holdsError()) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
@@ -185,7 +187,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     }
     if(sp && evalQuiet(ctx.input, j, rs, loop.skipidx).holdsError()) break;
     if(loop.glueidx != -1) {
-      JsonLoc out = eval(ctx, j, rs, loop.glueidx);
+      JsonLoc out = evalQuiet(ctx.input, j, rs, loop.glueidx);
       if(out.holdsError()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
       if(sp) {
