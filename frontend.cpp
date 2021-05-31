@@ -648,6 +648,29 @@ appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
 }
 
 ssize_t
+appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
+                    RulesWithLocs& rl) {
+  ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
+  ssize_t ski = rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
+                                                 .skip = &oalexSkip});
+  return rl.emplaceBackAnonRule(LoopRule{
+      .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
+      .lookidx = -1, .skipidx = ski});
+}
+
+ssize_t
+appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
+                  RulesWithLocs& rl) {
+  ssize_t pi = appendPatternRule(ctx, foldPatt.part, rl);
+  ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
+  ssize_t ski = rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
+                                                 .skip = &oalexSkip});
+  return rl.emplaceBackAnonRule(LoopRule{
+      .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
+      .lookidx = -1, .skipidx = ski});
+}
+
+ssize_t
 appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
     return appendWordOrError(rl, **word);
@@ -663,6 +686,10 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
     return appendPatternOrList(ctx, *orPatt, rl);
   }else if(auto* optPatt = get_if_unique<PatternOptional>(&patt)) {
     return appendPatternOptional(ctx, *optPatt, rl);
+  }else if(auto* repPatt = get_if_unique<PatternRepeat>(&patt)) {
+    return appendPatternRepeat(ctx, *repPatt, rl);
+  }else if(auto* foldPatt = get_if_unique<PatternFold>(&patt)) {
+    return appendPatternFold(ctx, *foldPatt, rl);
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
@@ -1049,6 +1076,14 @@ fillInNames(vector<Rule>& rules) {
         istentative[comp.lookidx] = true;
     }else if(auto* qmrule = get_if<QuietMatch>(&rule))
       istentative[qmrule->compidx] = true;
+    else if(auto* loop = get_if<LoopRule>(&rule)) {
+      if(loop->lookidx != -1) istentative[loop->lookidx] = true;
+      else if(loop->glueidx != -1) istentative[loop->glueidx] = true;
+      // TODO put this next statement under an else clause after we have
+      // resolved `first` todo in codegen.cpp:codegen(LoopRule).
+      istentative[loop->partidx] = true;
+      if(loop->skipidx != -1) istentative[loop->skipidx] = true;
+    }
   }
 
   size_t nc = 1;

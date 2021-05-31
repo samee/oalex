@@ -1,0 +1,30 @@
+num := /[0-9]+/
+plus := "+"
+minus := "-"
+
+rule oper lookaheads:
+| plus
+| minus
+
+rule sum_expr:
+  num + ... + num
+outputs: { sum_operands: num }
+
+example sum_expr:
+  3 + 9 + 22
+outputs: { sum_operands: [ "3", "9", "22" ] }
+
+example sum_expr:
+  3 + 9 + x
+outputs error with 'Expected num'
+
+rule sum_level_expr:
+  num oper ... oper num
+outputs: { operands: num, signs: oper }
+
+example sum_level_expr:
+  3 - 9 + 22
+outputs: {
+  operands: [ "3", "9", "22" ],
+  signs: ["-", "+"],
+}

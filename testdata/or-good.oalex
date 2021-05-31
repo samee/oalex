@@ -95,3 +95,19 @@ outputs: { stmt: "decl", varname: "x", init_value: "5" }
 example simple_stmt_flipped:
   x = 5
 outputs: { stmt: "asgn", lhs: "x", rhs: "5" }
+
+# TODO ellipsis shouldn't have to be surrounded by spaces.
+# TODO ellipsis in output template. E.g. [simple_stmt, ...].
+rule compound_stmt:
+  simple_stmt; ... ; simple_stmt;
+outputs: { stmt: simple_stmt }
+
+example compound_stmt:
+  x = 3;
+  var y = 9;
+outputs: {
+  stmt: [
+    { stmt: "asgn", lhs: "x", rhs: "3" },
+    { stmt: "decl", varname: "y", init_value: "9" },
+  ]
+}
