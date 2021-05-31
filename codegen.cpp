@@ -695,7 +695,6 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.skipidx != -1) {
     cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                  parserName(skipname)));
-      cppos(";\n");
     cppos("    if(res.holdsError()) break;\n");
   }
   if(loop.glueidx != -1) {
