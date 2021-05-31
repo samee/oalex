@@ -60,11 +60,15 @@ static bool
 resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
   const Rule& rule = rs.rules[ruleidx];
   if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
+  if(auto* mor = get_if<MatchOrError>(&rule))
+    return resultFlattenableOrError(rs, mor->compidx);
+  if(auto* qm = get_if<QuietMatch>(&rule))
+    return resultFlattenableOrError(rs, qm->compidx);
   else return holds_alternative<ConcatFlatRule>(rule) ||
               holds_alternative<LoopRule>(rule) ||
               holds_alternative<ErrorRule>(rule) ||
               holds_alternative<SkipPoint>(rule);
-  // FIXME fix OrList and MatchOrError
+  // FIXME fix OrList
 }
 
 static string

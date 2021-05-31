@@ -341,6 +341,28 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
     if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
 }
 
+void generateMiscFlatteningTest(const OutputStream& cppos,
+                                const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        nmRule("hello", "flat_hello_comp"),
+        nmRule(ConcatFlatRule{{ {0, "hello_for_qm"} }}, "flat_hello_flat1"),
+        nmRule(QuietMatch{1}, "flat_hello_quiet_passing_thru_concat_flat"),
+        nmRule(ConcatFlatRule{{ {0, "hello_for_mor"} }}, "flat_hello_flat2"),
+        nmRule(MatchOrError{3, "Expected keyword 'hello'"},
+          "flat_match_or_error_passing_thru_concat_flat"),
+        nmRule(ConcatFlatRule{{ {2, ""}, {4, ""} }}, "flat_hello_flat3"),
+        nmRule(QuietMatch{0}, "flat_hello_quiet_dropped_by_concat_flat"),
+        nmRule(MatchOrError{0, "Expected keyword 'hello'"},
+          "flat_match_or_error_dropped_by_concat_flat"),
+        nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "flat_hello_flat4")
+     ),
+    .regexOpts{regexOpts},
+  };
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVector<Rule>(
@@ -470,6 +492,8 @@ int main(int argc, char* argv[]) {
   generateLookaheads(cppos, hos);
   linebreaks();
   generateQuietTest(cppos, hos);
+  linebreaks();
+  generateMiscFlatteningTest(cppos, hos);
   linebreaks();
   generateLoopRuleTest(cppos, hos);
   linebreaks();

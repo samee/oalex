@@ -381,6 +381,50 @@ void testQuietMatch() {
   }
 }
 
+void testMiscFlattening() {
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"hello"},
+        nmRule(ConcatFlatRule{{ {0, "hello_for_qm"} }}, "hello_flat1"),
+        nmRule(QuietMatch{1}, "hello_quiet_passing_thru_concat_flat"),
+        nmRule(ConcatFlatRule{{ {0, "hello_for_mor"} }}, "hello_flat1"),
+        nmRule(MatchOrError{3, "Expected keyword 'hello'"},
+          "match_or_error_passing_thru_concat_flat"),
+        nmRule(ConcatFlatRule{{ {2, ""}, {4, ""} }}, "hello_flat2"),
+        nmRule(QuietMatch{0}, "hello_quiet_dropped_by_concat_flat"),
+        nmRule(MatchOrError{0, "Expected keyword 'hello'"},
+          "match_or_error_dropped_by_concat_flat"),
+        nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "hello_flat3")
+     ),
+    .regexOpts{regexOpts},
+  };
+  string msg = "hellohello";
+
+  // Passthrough test.
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc observed = eval(ctx, pos, rs, 5);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+  assertEqual(__func__, pos, ssize_t(msg.size()));
+  assertEqual(__func__, observed, *parseJsonLoc(
+        R"({hello_for_qm: 'hello',
+            hello_for_mor: 'hello'})"));
+
+  // Drop test.
+  ctx.diags.clear();
+  pos = 0;
+  observed = eval(ctx, pos, rs, 8);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+  assertEqual(__func__, pos, ssize_t(msg.size()));
+  assertEqual(__func__, observed, JsonLoc{JsonLoc::Map{}});
+}
+
 void testLoopRule() {
   RuleSet rs{
     .rules = makeVector<Rule>(
@@ -551,6 +595,7 @@ int main() {
   testFlattenOnDemand();
   testLookaheads();
   testQuietMatch();
+  testMiscFlattening();
   testLoopRule();
   testLoopFlattening();
   testGluePartSwapped();

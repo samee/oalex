@@ -279,6 +279,33 @@ void runQuietTest() {
   }
 }
 
+void runMiscFlatteningTest() {
+  // Passthrough test.
+  string msg = "hellohello";
+  auto ctx = testInputDiags(msg);
+  ssize_t pos = 0;
+  JsonLoc observed = parseFlatHelloFlat3(ctx, pos);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+  assertEqual(__func__, pos, ssize_t(msg.size()));
+  assertEqual(__func__, observed, *parseJsonLoc(
+        R"({hello_for_qm: 'hello',
+            hello_for_mor: 'hello'})"));
+
+  // Drop test.
+  ctx.diags.clear();
+  pos = 0;
+  observed = parseFlatHelloFlat4(ctx, pos);
+  if(observed.holdsError() || !ctx.diags.empty()) {
+    if(!ctx.diags.empty()) showDiags(ctx.diags);
+    BugMe("Expected to succeed without diags");
+  }
+  assertEqual(__func__, pos, ssize_t(msg.size()));
+  assertEqual(__func__, observed, JsonLoc{JsonLoc::Map{}});
+}
+
 // TODO make these tests quiet.
 void runLoopRuleTest() {
   // Some tests have an extra trailing space to see if we are properly
@@ -386,6 +413,7 @@ int main() {
   runFlattenOnDemand();
   runLookaheads();
   runQuietTest();
+  runMiscFlatteningTest();
   runLoopRuleTest();
   runGluePartSwappedTest();
 }
