@@ -559,6 +559,29 @@ Most functions here follow this convention:
   * Each function may append one or more Rules.
   * They return the location of the entry point index for the newly created
     block of Rules.
+
+The result of pattern compilation is some rule that produces one of two things:
+
+  * The entire Pattern is just one Ident and nothing else.
+  * All the identifiers in the pattern is to be gathered up into a single
+    flat JsonLoc::Map object (e.g. by using ConcatFlatRule).
+
+These identifiers are then assembled by an OutputTmpl object specified outside
+the Pattern object. The syntax for that varies. The impliciation is that if
+we want a particular rule output to be available to the outermost OutputTmpl,
+we need to keep propagating it up.
+
+Every pattern produces a map, except for the literal string ones (e.g.
+appendWordOrError, appendLiteralOrError). They produce a string but that result
+is ignored when part of a Pattern object. They could produce maps too, or
+nothing at all, but right now they produce strings just so the functions can
+be used elsewhere in the frontend.
+
+How to follow this convention for new rules types with subcomponents:
+If you want something to be preserved until an OutputTmpl catches it, make it a
+named field in a map. You can safely use passthroughTmpl: map fields will be
+propagated, while strings will be dropped either by OutputTmpl or
+ConcatFlatRule.
 */
 
 // Forward decl.
@@ -611,11 +634,6 @@ appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
 
   // This branch always produces a Map on success.
   i = rl.emplaceBackAnonRule(string{});
-  i = rl.emplaceBackAnonRule(OutputTmpl{
-      .childidx = i,
-      .childName = "child",
-      .outputTmpl = passthroughTmpl,
-  });
   orRule.comps.push_back({-1, i, JsonLoc::Map{}});
 
   return rl.emplaceBackAnonRule(std::move(orRule));
@@ -673,37 +691,6 @@ registerLocations(RulesWithLocs& rl, const Ident& id) {
   rl.findOrAppendIdent(id);
 }
 
-bool
-soleIdentImpl(const Pattern& patt, const Ident** result) {
-  if(holds_one_of_unique<WordToken,OperToken,NewlineChar>(patt)) return true;
-  if(auto* id = get_if_unique<Ident>(&patt)) {
-    if(*result != nullptr) return false;
-    else { *result = id; return true; }
-  }
-
-  if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
-    for(auto& p : seq->parts) if(!soleIdentImpl(p, result)) return false;
-    return false;
-  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
-    for(auto& p : ors->parts) if(!soleIdentImpl(p, result)) return false;
-    return false;
-  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return soleIdentImpl(opt->part, result);
-  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return soleIdentImpl(rep->part, result);
-  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return soleIdentImpl(fold->part, result) &&
-           soleIdentImpl(fold->glue, result);
-  }else Bug("Unknown pattern used for soleIdent(), index {}", patt.index());
-}
-
-const Ident*
-soleIdent(const Pattern& patt) {
-  const Ident* rv = nullptr;
-  if(!soleIdentImpl(patt, &rv)) return nullptr;
-  return rv;
-}
-
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -718,16 +705,12 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                                       defaultLexopts()));
   if(!patt.has_value()) return;
 
-  // TODO consider changing OutputTmpl::childName to type Ident.
-  string childName;
-  if(const Ident* id = soleIdent(*patt)) childName = id->preserveCase();
-
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
   rl[newIndex2].deferred_assign(OutputTmpl{
       .childidx = newIndex,
-      .childName = std::move(childName),
+      .childName = "",
       .outputTmpl = std::move(jsloc)
   });
 }
