@@ -345,25 +345,26 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVector<Rule>(
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
-        Rule{"+"},
+        nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
         nmRule(LoopRule{
           .partidx = 0,
           .partname = "operand",
-          .glueidx = 1,
+          .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
         }, "LoopSum"),
         regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
+        nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
 
         // Test glueidx == -1
         Rule{","},
         nmRule(
-          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {5, ""} }},
+          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""} }},
           "ListPrefixPart"),
         nmRule(LoopRule{
-          .partidx = 6,
+          .partidx = 7,
           .partname = "",
           .glueidx = -1,
           .gluename = "",
@@ -373,10 +374,10 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
 
         // Flattenable child.
         regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
-        nmRule(ConcatFlatRule{{ {8, "sign"}, {0, "elements"}, {2, ""},
-                                {5, ""} }}, "LoopFlatElt"),
+        nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"}, {2, ""},
+                                {6, ""} }}, "LoopFlatElt"),
         nmRule(LoopRule{
-          .partidx = 9,
+          .partidx = 10,
           .partname = "",
           .glueidx = -1,
           .gluename = "",

@@ -22,10 +22,12 @@
 
 #include <string>
 #include <utility>
+#include "fmt/core.h"
 #include "lexer.h"
 #include "jsonloc_io_test.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
+using fmt::format;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Input;
@@ -294,6 +296,7 @@ void runLoopRuleTest() {
     assertEqual(__func__, expectedJsloc, observed);
     if(expectedEnd == -1) expectedEnd = msg.size()-1;
     assertEqual(__func__, expectedEnd, pos);
+    assertEmptyDiags(format("{}-with-glue", __func__), ctx.diags);
   }
   pair<string, string> badcases[] = {
     {"(boo!)", "Expected an identifier"},
@@ -316,6 +319,7 @@ void runLoopRuleTest() {
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__, pos, ssize_t(5));
   assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"), observed);
+  assertEmptyDiags(format("{}-no-glue", __func__), ctx.diags);
 
   // Flattenable child.
   ctx = testInputDiags("!");

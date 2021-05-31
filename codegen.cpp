@@ -652,20 +652,29 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
+  cppos("  using oalex::quietMatch;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos("  JsonLoc::Map m;\n");
   cppos("  bool first = true;\n");
   cppos("  while(true) {\n");
   cppos("    JsonLoc res = JsonLoc::ErrorValue{};\n\n");
-  cppos("    res = ");
-    codegenParserCall(ruleset.rules[loop.partidx], "j", cppos);
-    cppos(";\n");
   if(loop.glueidx == -1) {
+    // TODO resolve this `first` case at compile-time.
+    cppos("    if(first) res = ");
+      codegenParserCall(ruleset.rules[loop.partidx], "j", cppos);
+      cppos(";\n");
+    cppos(format("    else res = quietMatch(ctx.input, j, {});\n",
+                 parserName(*ruleset.rules[loop.partidx].name())));
     cppos("    if(res.holdsError()) {\n");
     cppos("      if(first) return res;\n");
     cppos("      else break;\n");
     cppos("    }\n");
-  }else cppos("    if(res.holdsError()) return res;\n");
+  }else {
+    cppos("    res = ");
+      codegenParserCall(ruleset.rules[loop.partidx], "j", cppos);
+      cppos(";\n");
+    cppos("    if(res.holdsError()) return res;\n");
+  }
   if(makesFlattenableMap(ruleset.rules[loop.partidx])) {
     // TODO test this branch for eval.
     cppos("    mapCreateOrAppendAllElts(m,\n");
@@ -677,15 +686,16 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
-    cppos(format("    res = oalex::quietMatch(ctx.input, j, {});\n",
+    cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                  parserName(skipname)));
       cppos(";\n");
     cppos("    if(res.holdsError()) break;\n");
   }
   if(loop.glueidx != -1) {
-    cppos("    res = ");
-      codegenParserCall(ruleset.rules[loop.glueidx], "j", cppos);
-      cppos(";\n");
+    if(auto gluename = ruleset.rules[loop.glueidx].name())
+      cppos(format("    res = quietMatch(ctx.input, j, {});\n",
+                   parserName(*gluename)));
+    else Bug("Glue rules need a name for codegen(LoopRule)");
     cppos("    if(res.holdsError()) break;\n");
     if(makesFlattenableMap(ruleset.rules[loop.glueidx])) {
       cppos("    mapCreateOrAppendAllElts(m,\n");
