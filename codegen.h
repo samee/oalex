@@ -202,7 +202,7 @@ struct Rule {
     * monostate: Doesn't return, not to be used in eval or codegen.
     * string, WordPreserving, Regex: Returns string.
     * SkipPoint: Something dummy (to be checked).
-    * ConcatRule: Depends on outputtmpl, not used by frontend.
+    * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
     * ConcatFlatRule: Returns Map, flattenable.
     * OutputTmpl: Returns Map, not flattenable.
     * LoopRule: Returns Map, flattenable.

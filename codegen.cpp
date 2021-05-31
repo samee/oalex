@@ -53,14 +53,15 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
     return JsonLoc::ErrorValue{};
-  } else return JsonLoc::String();  // Just something non-error.
+  } else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
 
 static bool
 makesFlattenableMap(const Rule& rule) {
   if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
   else return holds_alternative<ConcatFlatRule>(rule) ||
-              holds_alternative<LoopRule>(rule);
+              holds_alternative<LoopRule>(rule) ||
+              holds_alternative<SkipPoint>(rule);
   // FIXME fix OrList and MatchOrError
 }
 
@@ -830,7 +831,7 @@ codegen(const SkipPoint& sp, const OutputStream& cppos) {
   else cppos("  ssize_t j = skip->acrossLines(ctx.input, i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
-  cppos("    return oalex::JsonLoc::String();  // dummy non-error value\n");
+  cppos("    return oalex::JsonLoc::Map();  // dummy non-error value\n");
   cppos("  }else return oalex::JsonLoc::ErrorValue();\n");
 }
 
