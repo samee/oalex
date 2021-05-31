@@ -638,6 +638,16 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
+  auto recordComponent =
+    [&ruleset, &cppos](ssize_t idx, const string& name) {
+      if(makesFlattenableMap(ruleset.rules[idx])) {
+        cppos("    mapCreateOrAppendAllElts(m,\n");
+        cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
+      }else if(!name.empty()) {
+        cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
+                     dquoted(name)));
+      }// else drop this component.
+    };
 
   Ident skipname;
   if(loop.skipidx != -1) {
@@ -658,6 +668,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  bool first = true;\n");
   cppos("  while(true) {\n");
   cppos("    JsonLoc res = JsonLoc::ErrorValue{};\n\n");
+
   if(loop.glueidx == -1) {
     // TODO resolve this `first` case at compile-time.
     cppos("    if(first) res = ");
@@ -675,14 +686,8 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(";\n");
     cppos("    if(res.holdsError()) return res;\n");
   }
-  if(makesFlattenableMap(ruleset.rules[loop.partidx])) {
-    // TODO test this branch for eval.
-    cppos("    mapCreateOrAppendAllElts(m,\n");
-    cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
-  }
-  else if(!loop.partname.empty())
-    cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
-                 dquoted(loop.partname)));
+  recordComponent(loop.partidx, loop.partname);
+
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
@@ -697,12 +702,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
     cppos("    if(res.holdsError()) break;\n");
-    if(makesFlattenableMap(ruleset.rules[loop.glueidx])) {
-      cppos("    mapCreateOrAppendAllElts(m,\n");
-      cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
-    }else if(!loop.gluename.empty())
-      cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
-                   dquoted(loop.gluename)));
+    recordComponent(loop.glueidx, loop.gluename);
     if(loop.skipidx != -1) {
       cppos("    res = ");
         codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
