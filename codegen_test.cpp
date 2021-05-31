@@ -471,23 +471,25 @@ void testLoopFlattening() {
         Rule{ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }}},
         Rule{SkipPoint{false, &cskip}},
         Rule{","},
-        Rule{ConcatFlatRule{{ {4, ""}, {5, ""}, {4, ""} }}},
         nmRule(LoopRule{
           .partidx = 3,
           .partname = "",
-          .glueidx = 6,
+          .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
-          .skipidx = -1,
-        }, "sum")
+          .skipidx = 4,
+        }, "sum"),
+        Rule{"["}, Rule{"]"},
+        Rule{ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}}
     ),
     .regexOpts{regexOpts},
   };
-  auto ctx = testInputDiags("+a, -b");
+  const string msg = "[+a, -b]";
+  auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 7);
+  JsonLoc observed = eval(ctx, pos, rs, 9);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
-  assertEqual(__func__, pos, ssize_t(6));
+  assertEqual(__func__, pos, ssize_t(msg.size()));
   assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"
                                       " sign: ['+', '-']}"), observed);
 }

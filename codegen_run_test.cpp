@@ -329,11 +329,13 @@ void runLoopRuleTest() {
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
 
-  ctx = testInputDiags("+a, -b,");
+  // TODO codegen should have a verbose mode for debugging these.
+  const string msg = "[+a, -b]";
+  ctx = testInputDiags(msg);
   pos = 0;
-  observed = parseSignedListPrefix(ctx, pos);
+  observed = parseSignedList(ctx, pos);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
-  assertEqual(__func__, pos, ssize_t(7));
+  assertEqual(__func__, pos, ssize_t(msg.size()));
   assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"
                                       " sign: ['+', '-']}"), observed);
 }

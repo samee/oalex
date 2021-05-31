@@ -59,7 +59,9 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
 static bool
 makesFlattenableMap(const Rule& rule) {
   if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
-  else return holds_alternative<ConcatFlatRule>(rule);
+  else return holds_alternative<ConcatFlatRule>(rule) ||
+              holds_alternative<LoopRule>(rule);
+  // FIXME fix OrList and MatchOrError
 }
 
 static string

@@ -359,7 +359,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
 
         // Test glueidx == -1
-        Rule{","},
+        nmRule(",", "LoopComma"),
         nmRule(
           ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""} }},
           "ListPrefixPart"),
@@ -374,16 +374,17 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
 
         // Flattenable child.
         regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
-        nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"}, {2, ""},
-                                {6, ""} }}, "LoopFlatElt"),
+        nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"} }}, "LoopFlatElt"),
         nmRule(LoopRule{
           .partidx = 10,
           .partname = "",
-          .glueidx = -1,
+          .glueidx = 6,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
-        }, "SignedListPrefix")
+        }, "SignedListContents"),
+        Rule{"["}, Rule{"]"},
+        nmRule(ConcatFlatRule{{ {12, ""}, {11, ""}, {13, ""} }}, "SignedList")
     ),
     .regexOpts{regexOpts},
   };
