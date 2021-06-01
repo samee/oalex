@@ -235,12 +235,22 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
   return !evalQuiet(input, i, rs, ruleIndex).holdsError();
 }
 
+static bool
+orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
+                           const JsonLoc& tmpl) {
+  if(holds_alternative<JsonLoc::Map>(tmpl)) return true;
+  if(holds_alternative<JsonLoc::ErrorValue>(tmpl)) return true;
+  return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
+}
+
 // TODO we need an `eval test -v` that produces verbose debug logs.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   if(ors.comps.empty()) Bug("Found an empty OrList RuleSet");
   JsonLoc out{JsonLoc::ErrorValue{}};
   for(auto& [lidx, pidx, tmpl]: ors.comps) {
+    if(ors.flattenOnDemand && !orBranchFlattenableOrError(rs,pidx,tmpl))
+      Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
     if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
     if(!out.holdsError()) return substituteOnePlaceholder(tmpl, "child", out);
@@ -781,6 +791,11 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
   for(auto& [lidx, pidx, tmpl] : orRule.comps) {
+    // Frontend should make sure even string-producing rules are
+    // wrapped in empty maps.
+    if(orRule.flattenOnDemand && !orBranchFlattenableOrError(ruleset,pidx,tmpl))
+      Bug("OrRule branch {} does not produce a map",
+          ruleDebugId(ruleset, pidx));
     if(lidx == -1) {
       cppos("  res = ");
         codegenParserCall(ruleset.rules[pidx], "i", cppos);
