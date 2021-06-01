@@ -301,11 +301,13 @@ void testFlattenOnDemand() {
   RuleSet rs{
     .rules = makeVector<Rule>(
         Rule{"let"}, Rule{parseRegex("/[0-9]+/")},
+        Rule{ConcatFlatRule{{ {0, "keyword"} }}},
+        Rule{MatchOrError{2, "Expected keyword 'let'"}},
         Rule{OrRule{.comps{
-          {-1, 0, *parseJsonLoc("{keyword: child}")},
+          {-1, 3, passthroughTmpl},
           {-1, 1, *parseJsonLoc("{number: child}")},
         }, .flattenOnDemand = false}},
-        Rule{ConcatFlatRule{{{2, "next_token"}}}}
+        Rule{ConcatFlatRule{{{4, "next_token"}}}}
       ), .regexOpts{regexOpts},
   };
   const ssize_t ruleidx = rs.rules.size()-1;
@@ -317,8 +319,8 @@ void testFlattenOnDemand() {
     {"42", true, *parseJsonLoc("{number: '42'}")},
   };
   for(auto& [msg, fod, expected] : inputOutputPairs) {
-    get_if<OrRule>(&rs.rules[2])->flattenOnDemand = fod;
-    get_if<ConcatFlatRule>(&rs.rules[3])->comps[0].outputPlaceholder =
+    get_if<OrRule>(&rs.rules[4])->flattenOnDemand = fod;
+    get_if<ConcatFlatRule>(&rs.rules[5])->comps[0].outputPlaceholder =
       (fod ? "" : "next_token");
     ssize_t pos = 0;
     auto ctx = testInputDiags(msg);

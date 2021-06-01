@@ -275,19 +275,21 @@ void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVector<Rule>(
-        Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber")
+        Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
+        nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
+        nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword")
       ), .regexOpts{regexOpts},
   };
   OrRule orrule{.comps{
-    {-1, 0, *parseJsonLoc("{keyword: child}")},
+    {-1, 3, passthroughTmpl},
     {-1, 1, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false};
   rs.rules.push_back(nmRule(orrule, "UnflattenKeywordOrNumber"));
-  rs.rules.push_back(nmRule(ConcatFlatRule{{{2, "next_token"}}},
+  rs.rules.push_back(nmRule(ConcatFlatRule{{{4, "next_token"}}},
                             "UnflattenSingleConcat"));
   orrule.flattenOnDemand = true;
   rs.rules.push_back(nmRule(orrule, "FlattenKeywordOrNumber"));
-  rs.rules.push_back(nmRule(ConcatFlatRule{{{4, ""}}},
+  rs.rules.push_back(nmRule(ConcatFlatRule{{{6, ""}}},
                             "FlattenSingleConcat"));
 
   for(size_t i=0; i<size(rs.rules); ++i)
