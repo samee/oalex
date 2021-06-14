@@ -330,7 +330,7 @@ optional<WholeSegment> lexOperator(const Input& input, size_t& i) {
   // Now we know it is a valid input character, see if it is multichar.
   static const char multichars[][4] = {":=","...", "->"};
   size_t oldi = i;
-  for(const string& op : multichars) if(input.substr(i,op.size()) == op) {
+  for(string_view op : multichars) if(input.substr(i,op.size()) == op) {
     i += op.size();
     return WholeSegment(oldi,i,input);
   }
