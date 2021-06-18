@@ -1,4 +1,4 @@
-/*  Copyright 2019-2020 The oalex authors.
+/*  Copyright 2019-2021 The oalex authors.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -84,30 +84,8 @@ template <class ... T> using variant_unique =
 template <class ... T> using variant_unique_const =
   std::variant<std::unique_ptr<const T>...>;
 
-template <class T>
-struct is_variant { static constexpr bool value = false; };
-template <class ... Ts>
-struct is_variant<std::variant<Ts...>> { static constexpr bool value = true; };
-template <class T> inline constexpr
-bool is_variant_v = is_variant<T>::value;
-
-template <class ... Ts> struct holds_one_of_helper;  // undefined
-
-template <>
-struct holds_one_of_helper<> {
-  template <class V> static bool check(const V&) { return false; }
-};
-
-template <class T, class ... Ts>
-struct holds_one_of_helper<T, Ts...> {
-  template <class V> static bool check(const V& v) {
-    static_assert(is_variant_v<V>);
-    return std::holds_alternative<T>(v) || holds_one_of_helper<Ts...>::check(v);
-  }
-};
-
 template <class ... Ts, class V> bool holds_one_of(const V& v) {
-  return holds_one_of_helper<Ts...>::check(v);
+  return (std::holds_alternative<Ts>(v) || ...);
 }
 template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
   return holds_one_of<std::unique_ptr<Ts>...>(v);
@@ -164,19 +142,10 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
 
 // makeVector<V>(...). Allows construction of a vector with move-only elements.
 
-template <class V, class FirstArg, class ... RestArgs>
-void makeVectorImpl(std::vector<V>& v, FirstArg&& fa, RestArgs&& ... ra) {
-  v.push_back(std::move(fa));
-  makeVectorImpl(v, std::move(ra)...);
-}
-
-template <class V>
-void makeVectorImpl(std::vector<V>&) {}
-
 template <class V, class ... Args> std::vector<V>
 makeVector(Args ... args) {
   std::vector<V> rv;
-  makeVectorImpl(rv, std::move(args)...);
+  (rv.push_back(std::move(args)), ...);
   return rv;
 }
 
