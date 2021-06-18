@@ -150,6 +150,12 @@ void generateSingleRegexTest(const OutputStream& cppos,
   }
 }
 
+void codegenNamedRules(const RuleSet& rs,
+                       const OutputStream& cppos, const OutputStream& hos) {
+  for(size_t i=0; i<size(rs.rules); ++i)
+    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+}
+
 void generateConcatFlatTest(const OutputStream& cppos,
                             const OutputStream& hos) {
   RuleSet rs{
@@ -173,8 +179,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
   rs.rules.push_back(nmRule(OutputTmpl{
       declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
   }, "FlatThenAssembled"));
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateSingleWordTemplate(const OutputStream& cppos,
@@ -206,8 +211,7 @@ void generateConcatTest(const OutputStream& cppos,
                        {4,""}}, *parseJsonLoc("{rhs, lhs}")}, "Assignment")
     ), regexOpts
   };
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateExternParserDeclaration(const OutputStream& cppos,
@@ -223,8 +227,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
                          {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl")
     ), regexOpts
   };
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
@@ -237,8 +240,7 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
       {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
       {-1, 2, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false}, "OneWordOrList"));
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateMatchOrErrorTest(const OutputStream& cppos,
@@ -292,8 +294,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
   rs.rules.push_back(nmRule(ConcatFlatRule{{{6, ""}}},
                             "FlattenSingleConcat"));
 
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
@@ -324,8 +325,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
     .regexOpts{regexOpts},
   };
 
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
@@ -339,8 +339,7 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
                       .flattenOnDemand = false}, "quiet_match_test")),
     .regexOpts{regexOpts},
   };
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateMiscFlatteningTest(const OutputStream& cppos,
@@ -361,8 +360,7 @@ void generateMiscFlatteningTest(const OutputStream& cppos,
      ),
     .regexOpts{regexOpts},
   };
-  for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
@@ -413,8 +411,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
     .regexOpts{regexOpts},
   };
 
-  for(ssize_t i=0; i<ssize(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateGluePartSwappedTest(const OutputStream& cppos,
@@ -434,8 +431,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
     .regexOpts{regexOpts},
   };
 
-  for(ssize_t i=0; i<ssize(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+  codegenNamedRules(rs, cppos, hos);
 }
 
 }  // namespace
