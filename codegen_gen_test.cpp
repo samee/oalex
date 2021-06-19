@@ -158,27 +158,27 @@ void codegenNamedRules(const RuleSet& rs,
 
 void generateConcatFlatTest(const OutputStream& cppos,
                             const OutputStream& hos) {
+  const ssize_t varTypeIndex = 7;
+  const ssize_t declIndex = 8;
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{WordPreserving{"var"}},
-                              regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
-                              Rule{":"}, Rule{"="},
-                              regexRule(__func__, "/[0-9]+/", "FlatNumber"),
-                              Rule{";"},
-                              nmRule(SkipPoint{false, &cskip}, "FlatSpace")),
+    .rules = makeVector<Rule>(
+               Rule{WordPreserving{"var"}},
+               regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
+               Rule{":"}, Rule{"="},
+               regexRule(__func__, "/[0-9]+/", "FlatNumber"),
+               Rule{";"},
+               nmRule(SkipPoint{false, &cskip}, "FlatSpace"),
+               nmRule(ConcatFlatRule{{
+                   {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
+               }}, "FlatVarAndType"),
+               nmRule(ConcatFlatRule{{
+                 {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
+                 {6, ""}, {4, "rhs"}, {6, ""}, {5, ""} }}, "FlatDefn"),
+               nmRule(OutputTmpl{declIndex, {},
+                 *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+               }, "FlatThenAssembled")),
     .regexOpts = regexOpts,
   };
-  rs.rules.push_back(nmRule(ConcatFlatRule{{
-      {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
-  }}, "FlatVarAndType"));
-  ssize_t varTypeIndex = rs.rules.size() - 1;
-  rs.rules.push_back(nmRule(ConcatFlatRule{{
-      {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
-      {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
-  }}, "FlatDefn"));
-  ssize_t declIndex = rs.rules.size() - 1;
-  rs.rules.push_back(nmRule(OutputTmpl{
-      declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
-  }, "FlatThenAssembled"));
   codegenNamedRules(rs, cppos, hos);
 }
 
@@ -232,14 +232,15 @@ void generateExternParserDeclaration(const OutputStream& cppos,
 
 void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
-                              regexRule(__func__, "/[0-9]+/", "OrCompNumber")),
+    .rules = makeVector<Rule>(
+        Rule{"if"}, Rule{"while"},
+        regexRule(__func__, "/[0-9]+/", "OrCompNumber"),
+        nmRule(OrRule{.comps{
+          {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
+          {-1, 2, *parseJsonLoc("{number: child}")},
+        }, .flattenOnDemand = false}, "OneWordOrList")),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(nmRule(OrRule{.comps{
-      {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
-      {-1, 2, *parseJsonLoc("{number: child}")},
-  }, .flattenOnDemand = false}, "OneWordOrList"));
   codegenNamedRules(rs, cppos, hos);
 }
 
@@ -275,24 +276,23 @@ void generateErrorRuleTest(const OutputStream& cppos,
 
 void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
-  RuleSet rs{
-    .rules = makeVector<Rule>(
-        Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
-        nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
-        nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword")
-      ), .regexOpts{regexOpts},
-  };
   OrRule orrule{.comps{
     {-1, 3, passthroughTmpl},
     {-1, 1, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false};
-  rs.rules.push_back(nmRule(orrule, "UnflattenKeywordOrNumber"));
-  rs.rules.push_back(nmRule(ConcatFlatRule{{{4, "next_token"}}},
-                            "UnflattenSingleConcat"));
-  orrule.flattenOnDemand = true;
-  rs.rules.push_back(nmRule(orrule, "FlattenKeywordOrNumber"));
-  rs.rules.push_back(nmRule(ConcatFlatRule{{{6, ""}}},
-                            "FlattenSingleConcat"));
+  RuleSet rs{
+    .rules = makeVector<Rule>(
+        Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
+        nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
+        nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
+        nmRule(OrRule{.comps = orrule.comps,
+                      .flattenOnDemand = false}, "UnflattenKeywordOrNumber"),
+        nmRule(ConcatFlatRule{{{4, "next_token"}}}, "UnflattenSingleConcat"),
+        nmRule(OrRule{.comps = orrule.comps,
+                      .flattenOnDemand = true}, "FlattenKeywordOrNumber"),
+        nmRule(ConcatFlatRule{{{6, ""}}}, "FlattenSingleConcat")
+      ), .regexOpts{regexOpts},
+  };
 
   codegenNamedRules(rs, cppos, hos);
 }

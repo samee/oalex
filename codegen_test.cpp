@@ -193,15 +193,16 @@ unique_ptr<const Regex> parseRegex(string_view s) {
 
 void testConcatMatch() {
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{parseRegex("/[a-zA-Z]+/")}, Rule{"="},
-                              Rule{parseRegex("/[0-9]+/")}, Rule{";"}),
+    .rules = makeVector<Rule>(
+               Rule{parseRegex("/[a-zA-Z]+/")}, Rule{"="},
+               Rule{parseRegex("/[0-9]+/")}, Rule{";"},
+               Rule{SkipPoint{false, &cskip}},
+               nmRule(ConcatRule{
+                 { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
+                   {3, ""}
+                 }, *parseJsonLoc(R"({ stmt: 'asgn', lhs, rhs })")}, "asgn")),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(Rule{SkipPoint{false, &cskip}});
-  rs.rules.push_back(nmRule(ConcatRule{{
-      {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""}, {3, ""}
-    }, *parseJsonLoc(R"({ stmt: 'asgn', lhs, rhs })")
-  }, "asgn"));
   ssize_t concatIndex = rs.rules.size()-1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("orangeCount = 5; ignored_bits;");
@@ -441,7 +442,15 @@ void testLoopRule() {
           .skipidx = 2,
         }, "sum"),
         Rule{parseRegex("/[a-z]+/")},
-        Rule{MatchOrError{1, "Expected operator '+'"}}
+        Rule{MatchOrError{1, "Expected operator '+'"}},
+
+        // Cases for glueidx == -1
+        Rule{","}, Rule{
+          ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}}
+        },
+        nmRule(LoopRule{ .partidx = 7, .partname = "",
+                         .glueidx = -1, .gluename = "",
+                         .lookidx = -1, .skipidx = -1 }, "list_prefix")
     ),
     .regexOpts{regexOpts},
   };
@@ -476,19 +485,6 @@ void testLoopRule() {
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
 
-  // Test glueidx == -1
-  rs.rules.push_back(Rule{","});
-  rs.rules.push_back(Rule{
-      ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}}
-  });
-  rs.rules.push_back(nmRule(LoopRule{
-      .partidx = 7,
-      .partname = "",
-      .glueidx = -1,
-      .gluename = "",
-      .lookidx = -1,
-      .skipidx = -1,
-  }, "list_prefix"));
   auto ctx = testInputDiags("a, b,");
   ssize_t pos = 0;
   JsonLoc observed = eval(ctx, pos, rs, 8);
