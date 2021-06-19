@@ -42,7 +42,7 @@ using oalex::ErrorRule;
 using oalex::get_if;
 using oalex::JsonLoc;
 using oalex::LoopRule;
-using oalex::makeVector;
+using oalex::makeVectorUnique;
 using oalex::MatchOrError;
 using oalex::OrRule;
 using oalex::OutputTmpl;
@@ -83,7 +83,7 @@ void testSingleStringMismatch() {
 
 void testMatchOrError() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"hello-world"},
         Rule{MatchOrError{0, "Was expecting a greeting"}}),
     .regexOpts{regexOpts},
@@ -106,7 +106,7 @@ void testMatchOrError() {
 
 void testErrorRule() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"hello-world"},
         Rule{ErrorRule{"Was expecting a greeting"}},
         Rule{OrRule{
@@ -193,7 +193,7 @@ unique_ptr<const Regex> parseRegex(string_view s) {
 
 void testConcatMatch() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
                Rule{parseRegex("/[a-zA-Z]+/")}, Rule{"="},
                Rule{parseRegex("/[0-9]+/")}, Rule{";"},
                Rule{SkipPoint{false, &cskip}},
@@ -221,24 +221,26 @@ void testConcatMatch() {
 
 void testConcatFlatMatch() {
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"var"}, Rule{parseRegex("/[a-zA-Z]+/")},
-                              Rule{":"}, Rule{"="},
-                              Rule{parseRegex("/[0-9]+/")},
-                              Rule{";"}, Rule{SkipPoint{false, &cskip}}),
+    .rules = makeVectorUnique<Rule>(
+               Rule{"var"},
+               Rule{parseRegex("/[a-zA-Z]+/")},
+               Rule{":"}, Rule{"="},
+               Rule{parseRegex("/[0-9]+/")},
+               Rule{";"}, Rule{SkipPoint{false, &cskip}}),
     .regexOpts = regexOpts,
   };
-  rs.rules.push_back(Rule{ConcatFlatRule{{
+  rs.rules.push_back(move_to_unique(Rule{ConcatFlatRule{{
       {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
-  }}});
+  }}}));
   ssize_t varTypeIndex = rs.rules.size() - 1;
-  rs.rules.push_back(Rule{ConcatFlatRule{{
+  rs.rules.push_back(move_to_unique(Rule{ConcatFlatRule{{
       {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
-  }}});
+  }}}));
   ssize_t declIndex = rs.rules.size() - 1;
-  rs.rules.push_back(Rule{OutputTmpl{
+  rs.rules.push_back(move_to_unique(Rule{OutputTmpl{
       declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
-  }});
+  }}));
   ssize_t outIndex = rs.rules.size() - 1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
@@ -256,7 +258,8 @@ void testConcatFlatMatch() {
 void testSingleWordTemplate() {
   JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"word"}, Rule{OutputTmpl{0, {}, jsloc}}),
+    .rules = makeVectorUnique<Rule>(
+               Rule{"word"}, Rule{OutputTmpl{0, {}, jsloc}}),
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;
@@ -267,14 +270,14 @@ void testSingleWordTemplate() {
 
 void testKeywordsOrNumber() {
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"if"}, Rule{"while"},
-                              Rule{parseRegex("/[0-9]+/")}),
+    .rules = makeVectorUnique<Rule>(Rule{"if"}, Rule{"while"},
+                                    Rule{parseRegex("/[0-9]+/")}),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(Rule{OrRule{.comps{
+  rs.rules.push_back(move_to_unique(Rule{OrRule{.comps{
       {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
       {-1, 2, *parseJsonLoc("{number: child}")},
-  }, .flattenOnDemand = false}});
+  }, .flattenOnDemand = false}}));
   const ssize_t orListIndex = rs.rules.size()-1;
 
   const pair<string, JsonLoc> goodInputOutputPairs[] = {
@@ -300,7 +303,7 @@ void testFlattenOnDemand() {
   // ConcatFlatRule of a single child is a bit weird, but let's say the
   // frontend is dumb (ahem!)
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"let"}, Rule{parseRegex("/[0-9]+/")},
         Rule{ConcatFlatRule{{ {0, "keyword"} }}},
         Rule{MatchOrError{2, "Expected keyword 'let'"}},
@@ -320,8 +323,8 @@ void testFlattenOnDemand() {
     {"42", true, *parseJsonLoc("{number: '42'}")},
   };
   for(auto& [msg, fod, expected] : inputOutputPairs) {
-    get_if<OrRule>(&rs.rules[4])->flattenOnDemand = fod;
-    get_if<ConcatFlatRule>(&rs.rules[5])->comps[0].outputPlaceholder =
+    get_if<OrRule>(rs.rules[4].get())->flattenOnDemand = fod;
+    get_if<ConcatFlatRule>(rs.rules[5].get())->comps[0].outputPlaceholder =
       (fod ? "" : "next_token");
     ssize_t pos = 0;
     auto ctx = testInputDiags(msg);
@@ -332,7 +335,7 @@ void testFlattenOnDemand() {
 
 void testLookaheads() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{SkipPoint{false, &cskip}},
         Rule{WordPreserving{"var"}}, Rule{parseRegex("/[a-z]+/")},
         Rule{"="}, Rule{";"},
@@ -366,7 +369,7 @@ void testLookaheads() {
 
 void testQuietMatch() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"string1"}, Rule{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
@@ -386,7 +389,7 @@ void testQuietMatch() {
 
 void testMiscFlattening() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"hello"},
         nmRule(ConcatFlatRule{{ {0, "hello_for_qm"} }}, "hello_flat1"),
         nmRule(QuietMatch{1}, "hello_quiet_passing_thru_concat_flat"),
@@ -430,7 +433,7 @@ void testMiscFlattening() {
 
 void testLoopRule() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{MatchOrError{4, "Expected an identifier"}}, Rule{"+"},
         Rule{SkipPoint{false, &cskip}},
         nmRule(LoopRule{
@@ -506,7 +509,7 @@ void testLoopRule() {
 // Flattenable child is processed on a different branch. Test that too.
 void testLoopFlattening() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{parseRegex("/[-+]/")},
         Rule{parseRegex("/[a-z]+/")},
         Rule{MatchOrError{1, "Expected an identifier"}},
@@ -540,7 +543,7 @@ void testLoopFlattening() {
 // Test that we still record their names.
 void testGluePartSwapped() {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"-"},
         Rule{parseRegex("/[a-z]+/")},
         Rule{ConcatFlatRule{{ { 1, "words" } }}},

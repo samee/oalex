@@ -148,6 +148,12 @@ makeVector(Args ... args) {
   (rv.push_back(std::move(args)), ...);
   return rv;
 }
+template <class V, class ... Args> auto
+makeVectorUnique(Args ... args) {
+  std::vector<std::unique_ptr<V>> rv;
+  (rv.push_back(move_to_unique<V>(args)), ...);
+  return rv;
+}
 
 // Used for code-generation and debugging.
 // Avoid std::to_strings to avoid locales.

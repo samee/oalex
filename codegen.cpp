@@ -56,9 +56,18 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
   } else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
 
+// TODO use std::source_locatio when moving to C++20.
+static const Rule&
+ruleAtImpl(const RuleSet& rs, ssize_t ruleidx, const char* context) {
+  const unique_ptr<Rule>& r = rs.rules.at(ruleidx);
+  if(r) return *r;
+  else Bug("{}: Dereferencing null rule {}", context, ruleidx);
+}
+#define ruleAt(rs, idx) ruleAtImpl(rs, idx, __func__)
+
 static bool
 resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
-  const Rule& rule = rs.rules[ruleidx];
+  const Rule& rule = ruleAt(rs, ruleidx);
   if(auto* orRule = get_if<OrRule>(&rule)) return orRule->flattenOnDemand;
   if(auto* mor = get_if<MatchOrError>(&rule))
     return resultFlattenableOrError(rs, mor->compidx);
@@ -73,7 +82,7 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
 
 static string
 ruleDebugId(const RuleSet& rs, ssize_t i) {
-  if(optional<Ident> opt = rs.rules[i].name())
+  if(optional<Ident> opt = ruleAt(rs, i).name())
     return format("rule '{}'", opt->preserveCase());
   else return format("rule {}", i);
 }
@@ -147,7 +156,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
 
   const SkipPoint* sp = nullptr;
   if(loop.skipidx != -1) {
-    sp = get_if<SkipPoint>(&rs.rules[loop.skipidx]);
+    sp = get_if<SkipPoint>(&ruleAt(rs, loop.skipidx));
     if(!sp) Bug("LoopRule skipidx {} is not a SkipPoint rule",
                 ruleDebugId(rs, loop.skipidx));
   }
@@ -309,7 +318,7 @@ Rule::specifics_typename() const {
 // rv.stPos and rv.enPos in all cases.
 JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
-  const Rule& r = ruleset.rules[ruleIndex];
+  const Rule& r = ruleAt(ruleset, ruleIndex);
   if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
   else if(const auto* wp = get_if<WordPreserving>(&r))
     return match(ctx, i, ruleset.regexOpts.word, **wp);
@@ -569,7 +578,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  JsonLoc res = JsonLoc::ErrorValue{};\n");
   for(auto& [childid, key] : cfrule.comps) {
     cppos("\n  res = ");
-      codegenParserCall(ruleset.rules[childid], "j", cppos);
+      codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
     cppos("  if(res.holdsError()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
@@ -603,7 +612,7 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
       Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
 
     cppos(format("\n  {}{} = ", decl, resvar));
-      codegenParserCall(ruleset.rules[comp.idx], "j", cppos);
+      codegenParserCall(ruleAt(ruleset, comp.idx), "j", cppos);
       cppos(";\n");
     cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
   }
@@ -626,7 +635,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  JsonLoc outfields = ");
-    codegenParserCall(ruleset.rules[out.childidx], "i", cppos);
+    codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
   cppos("  if(outfields.holdsError()) return outfields;\n");
   map<string,string> placeholders;
@@ -670,10 +679,10 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
 
   Ident skipname;
   if(loop.skipidx != -1) {
-    if(!holds_alternative<SkipPoint>(ruleset.rules[loop.skipidx]))
+    if(!holds_alternative<SkipPoint>(ruleAt(ruleset, loop.skipidx)))
       Bug("LoopRule skipidx {} is not a SkipPoint rule",
           ruleDebugId(ruleset, loop.skipidx));
-    if(auto name = ruleset.rules[loop.skipidx].name()) skipname = *name;
+    if(auto name = ruleAt(ruleset, loop.skipidx).name()) skipname = *name;
     else Bug("LoopRule skipidx {} rule needs a name",
              ruleDebugId(ruleset, loop.skipidx));
   }
@@ -691,17 +700,17 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.glueidx == -1) {
     // TODO resolve this `first` case at compile-time.
     cppos("    if(first) res = ");
-      codegenParserCall(ruleset.rules[loop.partidx], "j", cppos);
+      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos(format("    else res = quietMatch(ctx.input, j, {});\n",
-                 parserName(*ruleset.rules[loop.partidx].name())));
+                 parserName(*ruleAt(ruleset, loop.partidx).name())));
     cppos("    if(res.holdsError()) {\n");
     cppos("      if(first) return res;\n");
     cppos("      else break;\n");
     cppos("    }\n");
   }else {
     cppos("    res = ");
-      codegenParserCall(ruleset.rules[loop.partidx], "j", cppos);
+      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos("    if(res.holdsError()) return res;\n");
   }
@@ -715,7 +724,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    if(res.holdsError()) break;\n");
   }
   if(loop.glueidx != -1) {
-    if(auto gluename = ruleset.rules[loop.glueidx].name())
+    if(auto gluename = ruleAt(ruleset, loop.glueidx).name())
       cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
@@ -723,7 +732,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     recordComponent(loop.glueidx, loop.gluename);
     if(loop.skipidx != -1) {
       cppos("    res = ");
-        codegenParserCall(ruleset.rules[loop.skipidx], "j", cppos);
+        codegenParserCall(ruleAt(ruleset, loop.skipidx), "j", cppos);
         cppos(";\n");
       cppos("    if(res.holdsError())\n");
       cppos("      return oalex::errorValue(ctx, j, "
@@ -748,7 +757,7 @@ codegen(const ErrorRule& errRule, const OutputStream& cppos) {
 static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
-  if(optional<Ident> name = ruleset.rules[qm.compidx].name())
+  if(optional<Ident> name = ruleAt(ruleset, qm.compidx).name())
     cppos(format("  return oalex::quietMatch(ctx.input, i, {});\n",
                  parserName(*name)));
   else Bug("QuietMatch::compidx targets need to have names");
@@ -757,7 +766,7 @@ codegen(const RuleSet& ruleset, const QuietMatch& qm,
 static void
 codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  const OutputStream& cppos) {
-  const Rule& rule = ruleset.rules[lidx];
+  const Rule& rule = ruleAt(ruleset, lidx);
   if(const auto* s = get_if<string>(&rule))
     cppos(format("ctx.input.hasPrefix(i, {})", dquoted(*s)));
   else if(const auto* wp = get_if<WordPreserving>(&rule))
@@ -798,7 +807,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
           ruleDebugId(ruleset, pidx));
     if(lidx == -1) {
       cppos("  res = ");
-        codegenParserCall(ruleset.rules[pidx], "i", cppos);
+        codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
       cppos("  if(!res.holdsError()) return ");
         codegen(tmpl, cppos, {{"child", "res"}}, 2);
@@ -808,7 +817,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         codegenLookahead(ruleset, lidx, cppos);
         cppos(") {\n");
       cppos("    res = ");
-        codegenParserCall(ruleset.rules[pidx], "i", cppos);
+        codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
       codegenReturnErrorOrTmpl("res", tmpl, cppos);
       cppos("  }\n");
@@ -822,7 +831,7 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
         const OutputStream& cppos) {
   cppos("  using oalex::Error;\n");
   cppos("  JsonLoc  res = ");
-    codegenParserCall(ruleset.rules[me.compidx], "i", cppos);
+    codegenParserCall(ruleAt(ruleset, me.compidx), "i", cppos);
     cppos(";\n");
   cppos("  if(res.holdsError())\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
@@ -916,7 +925,7 @@ genExternDeclaration(const OutputStream& hos, const Ident& rname) {
 void
 codegen(const RuleSet& ruleset, ssize_t ruleIndex,
         const OutputStream& cppos, const OutputStream& hos) {
-  const Rule& r = ruleset.rules[ruleIndex];
+  const Rule& r = ruleAt(ruleset, ruleIndex);
   if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
   Ident rname = *r.name();
 

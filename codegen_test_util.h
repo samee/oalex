@@ -31,7 +31,7 @@ Rule nmRule(X x, std::string s) {
 
 inline RuleSet singletonRuleSet(Rule r) {
   RuleSet rs{{}, regexOpts};
-  rs.rules.push_back(std::move(r));
+  rs.rules.push_back(move_to_unique(r));
   return rs;
 }
 

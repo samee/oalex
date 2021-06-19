@@ -283,7 +283,7 @@ JsonLoc processStdin(const RuleSet& rs) {
 
 ssize_t findRule(const RuleSet& ruleSet, const Ident& ruleName) {
   for(ssize_t i=0; i*1ul<ruleSet.rules.size(); ++i)
-    if(auto nm = ruleSet.rules[i].name())
+    if(auto nm = ruleSet.rules[i]->name())
       if(nm == ruleName) return i;
   return -1;
 }
@@ -388,7 +388,7 @@ void produceSourceFiles(const ParsedSource& src,
   cppos("\n");
 
   for(size_t i=0; i<src.ruleSet.rules.size(); ++i)
-    if (src.ruleSet.rules[i].name().has_value()) {
+    if (src.ruleSet.rules[i]->name().has_value()) {
       codegen(src.ruleSet, i, std::ref(cppos), std::ref(hos));
       cppos("\n");
       hos("\n");

@@ -37,7 +37,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::LoopRule;
-using oalex::makeVector;
+using oalex::makeVectorUnique;
 using oalex::MatchOrError;
 using oalex::OutputStream;
 using oalex::OutputTmpl;
@@ -153,7 +153,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
 void codegenNamedRules(const RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
   for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i].name().has_value()) codegen(rs, i, cppos, hos);
+    if(rs.rules[i]->name().has_value()) codegen(rs, i, cppos, hos);
 }
 
 void generateConcatFlatTest(const OutputStream& cppos,
@@ -161,7 +161,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
   const ssize_t varTypeIndex = 7;
   const ssize_t declIndex = 8;
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
                Rule{WordPreserving{"var"}},
                regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
                Rule{":"}, Rule{"="},
@@ -187,9 +187,8 @@ void generateSingleWordTemplate(const OutputStream& cppos,
   JsonLoc jsloc = JsonLoc::Map{{"keyword",
     JsonLoc{JsonLoc::Placeholder{"the_word"}, 0, 0}}};
   RuleSet rs{
-    .rules = makeVector<Rule>(Rule{"word"},
-                              nmRule(OutputTmpl{0, "the_word", jsloc},
-                                   "WordTmpl")),
+    .rules = makeVectorUnique<Rule>(
+        Rule{"word"}, nmRule(OutputTmpl{0, "the_word", jsloc}, "WordTmpl")),
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);
@@ -197,7 +196,7 @@ void generateSingleWordTemplate(const OutputStream& cppos,
 
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
-  RuleSet rs { oalex::makeVector<Rule>(
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
     nmRule(WordPreserving{"int"}, "Type"),
     regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
     Rule{"="},
@@ -217,7 +216,7 @@ void generateConcatTest(const OutputStream& cppos,
 void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {} };
-  RuleSet rs { oalex::makeVector<Rule>(
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
       Rule{WordPreserving{"let"}},
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
       Rule{":"},
@@ -232,7 +231,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
 
 void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"if"}, Rule{"while"},
         regexRule(__func__, "/[0-9]+/", "OrCompNumber"),
         nmRule(OrRule{.comps{
@@ -247,7 +246,7 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
 void generateMatchOrErrorTest(const OutputStream& cppos,
                               const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"hello-world"},
         nmRule(MatchOrError{0, "Was expecting a greeting"},
                "HelloWorldOrError")),
@@ -259,7 +258,7 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
 void generateErrorRuleTest(const OutputStream& cppos,
                            const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"hello-world"},
         Rule{ErrorRule{"Was expecting a greeting"}},
         nmRule(OrRule{
@@ -281,7 +280,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
     {-1, 1, *parseJsonLoc("{number: child}")},
   }, .flattenOnDemand = false};
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
@@ -299,7 +298,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
 
 void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
         Rule{WordPreserving{"var"}},
         regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
@@ -330,7 +329,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
 
 void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"string1"}, Rule{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
@@ -345,7 +344,7 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
 void generateMiscFlatteningTest(const OutputStream& cppos,
                                 const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         nmRule("hello", "flat_hello_comp"),
         nmRule(ConcatFlatRule{{ {0, "hello_for_qm"} }}, "flat_hello_flat1"),
         nmRule(QuietMatch{1}, "flat_hello_quiet_passing_thru_concat_flat"),
@@ -365,7 +364,7 @@ void generateMiscFlatteningTest(const OutputStream& cppos,
 
 void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
@@ -417,7 +416,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
 void generateGluePartSwappedTest(const OutputStream& cppos,
                                  const OutputStream& hos) {
   RuleSet rs{
-    .rules = makeVector<Rule>(
+    .rules = makeVectorUnique<Rule>(
         Rule{"-"},
         regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
