@@ -28,6 +28,26 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
+// Dev-note: Keep this class abstract, just so we can easily switch out
+// of RTTI and dynamic_cast if they become unbearably slow. We can use
+// a separate RuleUnassigned to represent an empty rule.
+struct RuleBase {
+  explicit RuleBase(Ident name) : name_(std::move(name)) {}
+  virtual ~RuleBase() {}
+
+  // Returns optional to make it harder to forget the empty case.
+  std::optional<Ident> name() const {
+    if(!name_) return std::nullopt; else return name_;
+  }
+  void deferred_name(Ident name);
+
+  // Used for debugging/logging.
+  virtual std::string specifics_typename() const = 0;
+
+ private:
+  Ident name_;
+};
+
 struct ConcatFlatRule {
   // outputPlaceholder can be empty if you never need to refer to the result.
   // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
@@ -165,11 +185,12 @@ struct MatchOrError {
 // Note: we currently don't support ExternParser in tentative contexts.
 struct ExternParser { };
 
-struct Rule {
+struct Rule final : public RuleBase {
   // TODO other component types like RawString.
-  template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
-  template <class X> Rule(X x, Ident name) :
-    specifics_(std::move(x)), name_(std::move(name)) {}
+  template <class X> explicit Rule(X x)
+    : RuleBase{{}}, specifics_(std::move(x)) {}
+  template <class X> Rule(X x, Ident name)
+    : RuleBase(std::move(name)), specifics_(std::move(x)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
@@ -177,12 +198,8 @@ struct Rule {
   Rule(Rule&&) = default;
   Rule& operator=(const Rule&) = delete;
 
-  std::string specifics_typename() const;  // Used for debugging/logging.
-  // Returns optional to make it harder to forget the empty case.
-  std::optional<Ident> name() const {
-    if(!name_) return std::nullopt; else return name_;
-  }
-  void deferred_name(Ident name);
+  std::string specifics_typename() const override;
+
   // isTentativeTarget should be true if this rule is a target of either some:
   // * OrRule::comps[].lookidx in the containing RuleSet, or some
   // * QuietMatch::compidx in the containing RuleSet
@@ -217,7 +234,6 @@ struct Rule {
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
                ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
-  Ident name_;
 };
 
 template <class X> inline void

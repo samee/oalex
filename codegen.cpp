@@ -872,7 +872,7 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
 }
 
 void
-Rule::deferred_name(Ident name) {
+RuleBase::deferred_name(Ident name) {
   if(name_) Bug("Cannot rename rule {} to {}",
                 name_.preserveCase(), name.preserveCase());
   name_ = name;
