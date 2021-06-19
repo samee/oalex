@@ -58,6 +58,7 @@ using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
+using std::make_unique;
 using std::map;
 using std::monostate;
 using std::nullopt;
@@ -115,7 +116,10 @@ constexpr LocPair nrange{-1,-1};
 class RulesWithLocs {
  public:
   ssize_t ssize() const { return rules_.size(); }
-  Rule& operator[](ssize_t i) { return rules_[i]; }
+  Rule& operator[](ssize_t i) {
+    if(rules_[i]) return *rules_[i];
+    else Bug("Dereferencing null Rule at index {}", i);
+  }
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
@@ -159,39 +163,39 @@ class RulesWithLocs {
 
  private:
   // Invariant: these two must have equal sizes at all times.
-  vector<Rule> rules_;
+  vector<unique_ptr<Rule>> rules_;
   vector<LocPair> firstUseLocs_;
 };
 
 ssize_t
 RulesWithLocs::findOrAppendIdent(const Ident& id) {
   LocPair thisPos{id.stPos(), id.enPos()};
-  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i]->name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.emplace_back(monostate{}, id);
+  rules_.push_back(make_unique<Rule>(monostate{}, id));
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
 
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
-  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
-    if(!holds_alternative<monostate>(rules_[i])) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i]->name()) {
+    if(!holds_alternative<monostate>(*rules_[i])) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
     }else return i;
   }
-  rules_.emplace_back(monostate{}, ident);
+  rules_.push_back(make_unique<Rule>(monostate{}, ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
 
 template <class X> ssize_t
 RulesWithLocs::appendAnonRule(X x) {
-  rules_.push_back(Rule{std::move(x)});
+  rules_.push_back(make_unique<Rule>(std::move(x)));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -199,8 +203,8 @@ RulesWithLocs::appendAnonRule(X x) {
 bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
-    if(holds_alternative<monostate>(rules_[i])) {
-      optional<Ident> name = rules_[i].name();
+    if(holds_alternative<monostate>(*rules_[i])) {
+      optional<Ident> name = *rules_[i]->name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
       Error(ctx, st, en, format("Rule '{}' was used but never defined",
@@ -223,10 +227,7 @@ RulesWithLocs::resize_down(ssize_t n) noexcept {
 vector<unique_ptr<Rule>>
 RulesWithLocs::releaseRules() {
   firstUseLocs_.clear();
-  vector<unique_ptr<Rule>> rv;
-  for(auto& r:rules_) rv.push_back(move_to_unique(r));
-  rules_.clear();
-  return rv;
+  return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
 bool
