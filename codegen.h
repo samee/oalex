@@ -97,7 +97,12 @@ struct ConcatRule {
 //
 //   * If the child component produces a JsonLoc::Map, its keys will represent
 //     placeholders. childName will be ignored in this case.
-struct OutputTmpl {
+class OutputTmpl final : public Rule {
+ public:
+  OutputTmpl(ssize_t childidx, std::string_view childName, JsonLoc outputTmpl)
+    : childidx(childidx), childName(childName),
+      outputTmpl(std::move(outputTmpl)) {}
+  std::string specifics_typename() const override { return "OutputTmpl"; }
   ssize_t childidx;
   std::string childName;  // used only if child is not producing JsonLoc::Map.
   JsonLoc outputTmpl;
@@ -233,7 +238,7 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               OutputTmpl, LoopRule, OrRule, ErrorRule,
+               LoopRule, OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 

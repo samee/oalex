@@ -294,8 +294,6 @@ specifics_typename(const SkipPoint&) { return "SkipPoint"; }
 static string
 specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string
-specifics_typename(const OutputTmpl&) { return "OutputTmpl"; }
-static string
 specifics_typename(const LoopRule&) { return "LoopRule"; }
 static string
 specifics_typename(const ErrorRule&) { return "ErrorRule"; }

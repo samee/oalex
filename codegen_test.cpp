@@ -239,9 +239,9 @@ void testConcatFlatMatch() {
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
   }}));
   ssize_t declIndex = rs.rules.size() - 1;
-  rs.rules.push_back(move_to_unique(RuleVariant{OutputTmpl{
+  rs.rules.push_back(move_to_unique(OutputTmpl{
       declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
-  }}));
+  }));
   ssize_t outIndex = rs.rules.size() - 1;
   ssize_t pos = 0;
   auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
@@ -260,7 +260,7 @@ void testSingleWordTemplate() {
   JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{"word"}, RuleVariant{OutputTmpl{0, {}, jsloc}}),
+               RuleVariant{"word"}, OutputTmpl{0, {}, jsloc}),
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;

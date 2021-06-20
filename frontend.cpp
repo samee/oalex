@@ -765,9 +765,9 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
   rl.deferred_assign(newIndex2, OutputTmpl{
-      .childidx = newIndex,
-      .childName = "",
-      .outputTmpl = std::move(jsloc)
+      /* childidx */ newIndex,
+      /* childName */ "",
+      /* outputTmpl */ std::move(jsloc)
   });
 }
 
