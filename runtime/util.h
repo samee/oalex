@@ -151,7 +151,7 @@ makeVector(Args ... args) {
 template <class V, class ... Args> auto
 makeVectorUnique(Args ... args) {
   std::vector<std::unique_ptr<V>> rv;
-  (rv.push_back(move_to_unique<V>(args)), ...);
+  (rv.push_back(move_to_unique(args)), ...);
   return rv;
 }
 

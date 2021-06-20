@@ -156,7 +156,7 @@ class RulesWithLocs {
 
   /* For assigning to a rule after they have already been named */
   template <class X>
-    std::enable_if_t<std::is_constructible_v<Rule, X>>
+    std::enable_if_t<std::is_constructible_v<RuleVariant, X>>
     deferred_assign(ssize_t idx, X x);
 
   /* This is checked just before producing rules as output */
@@ -180,7 +180,7 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.push_back(make_unique<Rule>(monostate{}, id));
+  rules_.push_back(make_unique<RuleVariant>(monostate{}, id));
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
@@ -194,14 +194,14 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
       return -1;
     }else return i;
   }
-  rules_.push_back(make_unique<Rule>(monostate{}, ident));
+  rules_.push_back(make_unique<RuleVariant>(monostate{}, ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
 
 template <class X> ssize_t
 RulesWithLocs::appendAnonRule(X x) {
-  rules_.push_back(make_unique<Rule>(std::move(x)));
+  rules_.push_back(make_unique<RuleVariant>(std::move(x)));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -237,7 +237,7 @@ RulesWithLocs::releaseRules() {
 }
 
 template <class X>
-std::enable_if_t<std::is_constructible_v<Rule, X>>
+std::enable_if_t<std::is_constructible_v<RuleVariant, X>>
 RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
      !holds_alternative<std::monostate>(*rules_[idx]))
@@ -246,7 +246,7 @@ RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr) {
     if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
   }
-  rules_[idx] = make_unique<Rule>(std::move(x), std::move(name));
+  rules_[idx] = make_unique<RuleVariant>(std::move(x), std::move(name));
 }
 
 bool
@@ -312,6 +312,7 @@ bool
 resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
+
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   rl.deferred_assign(ruleIndex, MatchOrError{

@@ -309,7 +309,7 @@ static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }
 
 string
-Rule::specifics_typename() const {
+RuleVariant::specifics_typename() const {
   return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
                     this->specifics_);
 }
@@ -772,7 +772,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
-  // When adding a new branch here, remember to change Rule::needsName().
+  // When adding a new branch here, remember to change RuleVariant::needsName().
   else {
     if(optional<Ident> name = rule.name())
       cppos(format("oalex::peekMatch(ctx.input, i, {})", parserName(*name)));
@@ -872,14 +872,14 @@ codegen(const WordPreserving& wp, const OutputStream& cppos) {
 }
 
 void
-RuleBase::deferred_name(Ident name) {
+Rule::deferred_name(Ident name) {
   if(name_) Bug("Cannot rename rule {} to {}",
                 name_.preserveCase(), name.preserveCase());
   name_ = name;
 }
 
-bool needsName(const RuleBase& rule, bool isTentativeTarget) {
-  if(auto* rvar = dynamic_cast<const Rule*>(&rule)) {
+bool needsName(const Rule& rule, bool isTentativeTarget) {
+  if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule)) {
     if(holds_alternative<std::string>(*rvar) ||
        holds_alternative<WordPreserving>(*rvar) ||
        false) return false;
@@ -908,7 +908,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
-  // When adding a new branch here, remember to change Rule::needsName().
+  // When adding a new branch here, remember to change RuleVariant::needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
 }

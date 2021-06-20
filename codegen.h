@@ -31,9 +31,9 @@ namespace oalex {
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
 // a separate RuleUnassigned to represent an empty rule.
-struct RuleBase {
-  explicit RuleBase(Ident name) : name_(std::move(name)) {}
-  virtual ~RuleBase() {}
+struct Rule {
+  explicit Rule(Ident name) : name_(std::move(name)) {}
+  virtual ~Rule() {}
 
   // Returns optional to make it harder to forget the empty case.
   std::optional<Ident> name() const {
@@ -51,7 +51,7 @@ struct RuleBase {
 // isTentativeTarget should be true if this rule is a target of either some:
 // * OrRule::comps[].lookidx in the containing RuleSet, or some
 // * QuietMatch::compidx in the containing RuleSet
-bool needsName(const RuleBase& rule, bool isTentativeTarget);
+bool needsName(const Rule& rule, bool isTentativeTarget);
 
 struct ConcatFlatRule {
   // outputPlaceholder can be empty if you never need to refer to the result.
@@ -190,24 +190,24 @@ struct MatchOrError {
 // Note: we currently don't support ExternParser in tentative contexts.
 struct ExternParser { };
 
-struct Rule final : public RuleBase {
+struct RuleVariant final : public Rule {
   // TODO other component types like RawString.
-  template <class X> explicit Rule(X x)
-    : RuleBase{{}}, specifics_(std::move(x)) {}
-  template <class X> Rule(X x, Ident name)
-    : RuleBase(std::move(name)), specifics_(std::move(x)) {}
+  template <class X> explicit RuleVariant(X x)
+    : Rule{{}}, specifics_(std::move(x)) {}
+  template <class X> RuleVariant(X x, Ident name)
+    : Rule(std::move(name)), specifics_(std::move(x)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
   // See deferred_name() below.
-  Rule(Rule&&) = default;
-  Rule& operator=(const Rule&) = delete;
+  RuleVariant(RuleVariant&&) = default;
+  RuleVariant& operator=(const RuleVariant&) = delete;
 
   std::string specifics_typename() const override;
 
-  template <class X> friend bool holds_alternative(const RuleBase& rule);
-  template <class X> friend X* get_if(RuleBase* rule);
-  template <class X> friend const X* get_if(const RuleBase* rule);
+  template <class X> friend bool holds_alternative(const Rule& rule);
+  template <class X> friend X* get_if(Rule* rule);
+  template <class X> friend const X* get_if(const Rule* rule);
  private:
   /*
   Return types are either an ErrorValue or:
@@ -232,20 +232,20 @@ struct Rule final : public RuleBase {
                QuietMatch, MatchOrError> specifics_;
 };
 
-template <class X> bool holds_alternative(const RuleBase& rule) {
-  if(auto* rvar = dynamic_cast<const Rule*>(&rule))
+template <class X> bool holds_alternative(const Rule& rule) {
+  if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule))
     return std::holds_alternative<X>(rvar->specifics_);
   else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
 
-template <class X> X* get_if(RuleBase* rule) {
-  if(auto* rvar = dynamic_cast<Rule*>(rule))
+template <class X> X* get_if(Rule* rule) {
+  if(auto* rvar = dynamic_cast<RuleVariant*>(rule))
     return std::get_if<X>(&rvar->specifics_);
   else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
 
-template <class X> const X* get_if(const RuleBase* rule) {
-  if(auto* rvar = dynamic_cast<const Rule*>(rule))
+template <class X> const X* get_if(const Rule* rule) {
+  if(auto* rvar = dynamic_cast<const RuleVariant*>(rule))
     return std::get_if<X>(&rvar->specifics_);
   else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
