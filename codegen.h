@@ -209,9 +209,9 @@ struct Rule final : public RuleBase {
   // We disallow later assignments to discourage mutation.
   template <class X> void deferred_assign(X x);
 
-  template <class X> friend bool holds_alternative(const Rule& rule);
-  template <class X> friend X* get_if(Rule* rule);
-  template <class X> friend const X* get_if(const Rule* rule);
+  template <class X> friend bool holds_alternative(const RuleBase& rule);
+  template <class X> friend X* get_if(RuleBase* rule);
+  template <class X> friend const X* get_if(const RuleBase* rule);
  private:
   /*
   Return types are either an ErrorValue or:
@@ -243,16 +243,22 @@ Rule::deferred_assign(X x) {
   specifics_ = std::move(x);
 }
 
-template <class X> bool holds_alternative(const Rule& rule) {
-  return std::holds_alternative<X>(rule.specifics_);
+template <class X> bool holds_alternative(const RuleBase& rule) {
+  if(auto* rvar = dynamic_cast<const Rule*>(&rule))
+    return std::holds_alternative<X>(rvar->specifics_);
+  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
 
-template <class X> X* get_if(Rule* rule) {
-  return std::get_if<X>(&rule->specifics_);
+template <class X> X* get_if(RuleBase* rule) {
+  if(auto* rvar = dynamic_cast<Rule*>(rule))
+    return std::get_if<X>(&rvar->specifics_);
+  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
 
-template <class X> const X* get_if(const Rule* rule) {
-  return std::get_if<X>(&rule->specifics_);
+template <class X> const X* get_if(const RuleBase* rule) {
+  if(auto* rvar = dynamic_cast<const Rule*>(rule))
+    return std::get_if<X>(&rvar->specifics_);
+  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
 }
 
 // TODO this needs a debug() printer.
