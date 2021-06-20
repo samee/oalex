@@ -194,7 +194,7 @@ struct Rule final : public RuleBase {
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
-  // See deferred_name() and deferred_assign() below.
+  // See deferred_name() below.
   Rule(Rule&&) = default;
   Rule& operator=(const Rule&) = delete;
 
@@ -204,10 +204,6 @@ struct Rule final : public RuleBase {
   // * OrRule::comps[].lookidx in the containing RuleSet, or some
   // * QuietMatch::compidx in the containing RuleSet
   bool needsName(bool isTentativeTarget) const;
-
-  // Assign to specifics if it is in std::monostate.
-  // We disallow later assignments to discourage mutation.
-  template <class X> void deferred_assign(X x);
 
   template <class X> friend bool holds_alternative(const RuleBase& rule);
   template <class X> friend X* get_if(RuleBase* rule);
@@ -235,13 +231,6 @@ struct Rule final : public RuleBase {
                ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
 };
-
-template <class X> inline void
-Rule::deferred_assign(X x) {
-  if(!std::holds_alternative<std::monostate>(specifics_))
-    oalex::Bug("deferred_assign() cannot be used on non-monostate Rules");
-  specifics_ = std::move(x);
-}
 
 template <class X> bool holds_alternative(const RuleBase& rule) {
   if(auto* rvar = dynamic_cast<const Rule*>(&rule))

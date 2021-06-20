@@ -20,6 +20,7 @@
 #include <optional>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include "fmt/core.h"
@@ -153,6 +154,11 @@ class RulesWithLocs {
   */
   template <class X> ssize_t appendAnonRule(X x);
 
+  /* For assigning to a rule after they have already been named */
+  template <class X>
+    std::enable_if_t<std::is_constructible_v<Rule, X>>
+    deferred_assign(ssize_t idx, X x);
+
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
 
@@ -230,6 +236,19 @@ RulesWithLocs::releaseRules() {
   return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
+template <class X>
+std::enable_if_t<std::is_constructible_v<Rule, X>>
+RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+  if(rules_[idx] != nullptr &&
+     !holds_alternative<std::monostate>(*rules_[idx]))
+    oalex::Bug("deferred_assign() cannot be used on non-monostate Rules");
+  Ident name;
+  if(rules_[idx] != nullptr) {
+    if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
+  }
+  rules_[idx] = make_unique<Rule>(std::move(x), std::move(name));
+}
+
 bool
 requireEol(const vector<ExprToken>& linetoks, size_t eolPos, DiagsDest ctx) {
   if(linetoks.size() < eolPos)
@@ -295,7 +314,7 @@ resemblesBnfRule(const vector<ExprToken>& linetoks) {
 }
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
-  rl[ruleIndex].deferred_assign(MatchOrError{
+  rl.deferred_assign(ruleIndex, MatchOrError{
       rl.ssize(), format("Expected '{}'", literal)
   });
   rl.appendAnonRule(string(literal));
@@ -311,7 +330,7 @@ appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
 void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    string errmsg, RegexPattern regex) {
-  rl[ruleIndex].deferred_assign(MatchOrError{rl.ssize(), std::move(errmsg)});
+  rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
   rl.appendAnonRule(std::move(regex.patt));
 }
 
@@ -454,12 +473,12 @@ parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
-      rl[ruleIndex].deferred_assign(std::move(*c));
+      rl.deferred_assign(ruleIndex, std::move(*c));
       rewinder.disarm();
     }
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
-      rl[ruleIndex].deferred_assign(std::move(*sp));
+      rl.deferred_assign(ruleIndex, std::move(*sp));
       rewinder.disarm();
     }
   }else {
@@ -737,7 +756,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
-  rl[newIndex2].deferred_assign(OutputTmpl{
+  rl.deferred_assign(newIndex2, OutputTmpl{
       .childidx = newIndex,
       .childName = "",
       .outputTmpl = std::move(jsloc)
@@ -974,7 +993,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
       continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
-  rl[orIndex].deferred_assign(std::move(orRule));
+  rl.deferred_assign(orIndex, std::move(orRule));
 }
 
 // Checks second token just so it is not a BNF rule of the form
