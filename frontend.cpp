@@ -147,7 +147,7 @@ class RulesWithLocs {
 
      Named rules should use defineIdent followed by direct assignment.
   */
-  template <class...Args> ssize_t emplaceBackAnonRule(Args&&...args);
+  template <class X> ssize_t appendAnonRule(X x);
 
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
@@ -189,9 +189,9 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   return this->ssize()-1;
 }
 
-template <class...Args> ssize_t
-RulesWithLocs::emplaceBackAnonRule(Args&&...args) {
-  rules_.emplace_back(std::forward<Args>(args)...);
+template <class X> ssize_t
+RulesWithLocs::appendAnonRule(X x) {
+  rules_.push_back(Rule{std::move(x)});
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -294,12 +294,12 @@ assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   rl[ruleIndex].deferred_assign(MatchOrError{
       rl.ssize(), format("Expected '{}'", literal)
   });
-  rl.emplaceBackAnonRule(string(literal));
+  rl.appendAnonRule(string(literal));
 }
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
-  rl.emplaceBackAnonRule(monostate{});
+  rl.appendAnonRule(monostate{});
   assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }
@@ -308,23 +308,21 @@ void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    string errmsg, RegexPattern regex) {
   rl[ruleIndex].deferred_assign(MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.emplaceBackAnonRule(std::move(regex.patt));
+  rl.appendAnonRule(std::move(regex.patt));
 }
 
 ssize_t
 appendWordOrError(RulesWithLocs& rl, string_view word) {
   ssize_t newIndex = rl.ssize();
-  rl.emplaceBackAnonRule(WordPreserving{word});
-  rl.emplaceBackAnonRule(MatchOrError{newIndex, format("Expected '{}'",
-                                      word)});
+  rl.appendAnonRule(WordPreserving{word});
+  rl.appendAnonRule(MatchOrError{newIndex, format("Expected '{}'", word)});
   return newIndex + 1;
 }
 ssize_t
 appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.ssize();
-  rl.emplaceBackAnonRule(std::move(regex));
-  rl.emplaceBackAnonRule(MatchOrError{newIndex,
-                                      "Does not match expected pattern"});
+  rl.appendAnonRule(std::move(regex));
+  rl.appendAnonRule(MatchOrError{newIndex, "Does not match expected pattern"});
   return newIndex + 1;
 }
 
@@ -596,14 +594,14 @@ appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl.ssize(), {}});
-      rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
-                                       .skip = &oalexSkip});
+      rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
+                                  .skip = &oalexSkip});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
     concatRule.comps.push_back({j, {}});
   }
-  rl.emplaceBackAnonRule(std::move(concatRule));
+  rl.appendAnonRule(std::move(concatRule));
   return rl.ssize()-1;
 }
 
@@ -615,10 +613,10 @@ appendPatternOrList(DiagsDest ctx, const PatternOrList& orPatt,
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
-    if(i+1 != ssize(orPatt.parts)) j = rl.emplaceBackAnonRule(QuietMatch{j});
+    if(i+1 != ssize(orPatt.parts)) j = rl.appendAnonRule(QuietMatch{j});
     orRule.comps.push_back({-1, j, passthroughTmpl});
   }
-  rl.emplaceBackAnonRule(std::move(orRule));
+  rl.appendAnonRule(std::move(orRule));
   return rl.ssize()-1;
 }
 
@@ -629,20 +627,20 @@ appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
   OrRule orRule{.comps{}, .flattenOnDemand=true};
 
   i = appendPatternRule(ctx, optPatt.part, rl);
-  i = rl.emplaceBackAnonRule(QuietMatch{i});
+  i = rl.appendAnonRule(QuietMatch{i});
   orRule.comps.push_back({-1, i, passthroughTmpl});
 
   // This branch always produces a Map on success.
-  i = rl.emplaceBackAnonRule(string{});
+  i = rl.appendAnonRule(string{});
   orRule.comps.push_back({-1, i, JsonLoc::Map{}});
 
-  return rl.emplaceBackAnonRule(std::move(orRule));
+  return rl.appendAnonRule(std::move(orRule));
 }
 
 ssize_t
 appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
   ssize_t i = rl.findOrAppendIdent(ident);
-  return rl.emplaceBackAnonRule(ConcatFlatRule{{
+  return rl.appendAnonRule(ConcatFlatRule{{
       {i, ident.preserveCase()},
   }});
 }
@@ -651,9 +649,9 @@ ssize_t
 appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
                     RulesWithLocs& rl) {
   ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
-  ssize_t ski = rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
-                                                 .skip = &oalexSkip});
-  return rl.emplaceBackAnonRule(LoopRule{
+  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
+                                            .skip = &oalexSkip});
+  return rl.appendAnonRule(LoopRule{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski});
 }
@@ -663,9 +661,9 @@ appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
                   RulesWithLocs& rl) {
   ssize_t pi = appendPatternRule(ctx, foldPatt.part, rl);
   ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
-  ssize_t ski = rl.emplaceBackAnonRule(SkipPoint{.stayWithinLine = false,
-                                                 .skip = &oalexSkip});
-  return rl.emplaceBackAnonRule(LoopRule{
+  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
+                                            .skip = &oalexSkip});
+  return rl.appendAnonRule(LoopRule{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski});
 }
@@ -869,7 +867,7 @@ lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
     if(!isUserWord(*s)) {
       Error(ctx, *s, "Non-word inline lookahead");
       return -1;
-    }else return rl.emplaceBackAnonRule(WordPreserving{*s});
+    }else return rl.appendAnonRule(WordPreserving{*s});
   }
   const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
   if(!lookId) return -1;
@@ -924,14 +922,14 @@ parseLookaheadBranchAction(const vector<ExprToken>& branch,
     string_view err = parseErrorBranch(ctx, branch, pos);
     // TODO deduplicate SkipRules in codegen
     if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
-                       rl.emplaceBackAnonRule(ErrorRule{string(err)}));
+                       rl.appendAnonRule(ErrorRule{string(err)}));
   }else if(matchesTokens(branch, pos, {"quiet"})) {
     if(ssize(branch) <= pos+1 || !isToken(branch[pos+1], "error")) {
       Error(ctx, enPos(branch[pos]), "Expected keyword 'error' after 'quiet'");
       return false;
     }
     orRuleAppendPassthrough(orRule, lookidx,
-                            rl.emplaceBackAnonRule(ErrorRule{string{}}));
+                            rl.appendAnonRule(ErrorRule{string{}}));
   }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos))
     orRule.comps.push_back({
         .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
