@@ -55,12 +55,6 @@ class Rule {
 // * QuietMatch::compidx in the containing RuleSet
 bool needsName(const Rule& rule, bool isTentativeTarget);
 
-// TODO: remove this rule when we have real subtypes of Rule.
-struct TestRule : public Rule {
-  TestRule() : Rule{{}} {}
-  std::string specifics_typename() const override { return "TestRule"; }
-};
-
 class ConcatFlatRule final : public Rule {
  public:
   // outputPlaceholder can be empty if you never need to refer to the result.

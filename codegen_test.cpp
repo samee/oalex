@@ -591,12 +591,11 @@ static_assert(RuleVariant::validType<std::string>);
 static_assert(!RuleVariant::validType<void>);
 // We only care that the following compiles
 template bool holds_alternative<std::string>(const Rule&);
-template bool holds_alternative<TestRule>(const Rule&);
+template bool holds_alternative<ConcatFlatRule>(const Rule&);
 template const std::string* get_if<std::string>(const Rule*);
-template const TestRule* get_if<TestRule>(const Rule*);
+template const ConcatFlatRule* get_if<ConcatFlatRule>(const Rule*);
 
-template auto nmRule<TestRule>(TestRule, std::string);
-template RuleSet singletonRuleSet<TestRule>(TestRule);
+template RuleSet singletonRuleSet<ConcatFlatRule>(ConcatFlatRule);
 }  // namespace oalex
 
 int main() {
