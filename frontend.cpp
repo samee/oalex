@@ -1109,7 +1109,7 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
   size_t nc = 1;
   for(size_t i=0; i<rules.size(); ++i)
-    if(rules[i]->needsName(istentative[i]) && !rules[i]->name().has_value())
+    if(needsName(*rules[i], istentative[i]) && !rules[i]->name().has_value())
       rules[i]->deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
 }
 

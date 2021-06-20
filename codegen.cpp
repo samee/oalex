@@ -878,13 +878,14 @@ RuleBase::deferred_name(Ident name) {
   name_ = name;
 }
 
-bool
-Rule::needsName(bool isTentativeTarget) const {
-  if(holds_alternative<std::string>(specifics_) ||
-     holds_alternative<WordPreserving>(specifics_) ||
-     false) return false;
-  if(holds_alternative<ErrorRule>(specifics_)) return isTentativeTarget;
-  else return true;
+bool needsName(const RuleBase& rule, bool isTentativeTarget) {
+  if(auto* rvar = dynamic_cast<const Rule*>(&rule)) {
+    if(holds_alternative<std::string>(*rvar) ||
+       holds_alternative<WordPreserving>(*rvar) ||
+       false) return false;
+    if(holds_alternative<ErrorRule>(*rvar)) return isTentativeTarget;
+  }
+  return true;
 }
 
 // Generate an inlined call to oalex::match() when possible, but falls back to

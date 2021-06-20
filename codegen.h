@@ -48,6 +48,11 @@ struct RuleBase {
   Ident name_;
 };
 
+// isTentativeTarget should be true if this rule is a target of either some:
+// * OrRule::comps[].lookidx in the containing RuleSet, or some
+// * QuietMatch::compidx in the containing RuleSet
+bool needsName(const RuleBase& rule, bool isTentativeTarget);
+
 struct ConcatFlatRule {
   // outputPlaceholder can be empty if you never need to refer to the result.
   // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
@@ -199,11 +204,6 @@ struct Rule final : public RuleBase {
   Rule& operator=(const Rule&) = delete;
 
   std::string specifics_typename() const override;
-
-  // isTentativeTarget should be true if this rule is a target of either some:
-  // * OrRule::comps[].lookidx in the containing RuleSet, or some
-  // * QuietMatch::compidx in the containing RuleSet
-  bool needsName(bool isTentativeTarget) const;
 
   template <class X> friend bool holds_alternative(const RuleBase& rule);
   template <class X> friend X* get_if(RuleBase* rule);
