@@ -25,19 +25,21 @@ inline const RegexOptions regexOpts{
 };
 
 template <class X>
-RuleVariant nmRule(X x, std::string s) {
-  return RuleVariant{std::move(x), Ident::parseGenerated(s)};
+auto nmRule(X x, std::string s) {
+  if constexpr(std::is_same_v<X, const char*> || RuleVariant::validType<X>)
+    return RuleVariant{std::move(x), Ident::parseGenerated(s)};
+  else {
+    x.deferred_name(Ident::parseGenerated(s));
+    return x;
+  }
 }
 
-inline RuleSet singletonRuleSet(RuleVariant r) {
-  RuleSet rs{{}, regexOpts};
-  rs.rules.push_back(move_to_unique(r));
-  return rs;
-}
-
-// X is expected to be one of the variants of Rule::specifics.
 template <class X> RuleSet singletonRuleSet(X x) {
-  return singletonRuleSet(RuleVariant{std::move(x)});
+  RuleSet rs{{}, regexOpts};
+  if constexpr(std::is_same_v<X, const char*> || RuleVariant::validType<X>)
+    rs.rules.push_back(move_to_unique(RuleVariant{std::move(x)}));
+  else rs.rules.push_back(move_to_unique(x));
+  return rs;
 }
 
 void assertJsonLocIsString(std::string_view testName, const JsonLoc& jsloc,

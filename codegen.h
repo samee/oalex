@@ -53,6 +53,12 @@ struct Rule {
 // * QuietMatch::compidx in the containing RuleSet
 bool needsName(const Rule& rule, bool isTentativeTarget);
 
+// TODO: remove this rule when we have real subtypes of Rule.
+struct TestRule : public Rule {
+  TestRule() : Rule{{}} {}
+  std::string specifics_typename() const override { return "TestRule"; }
+};
+
 struct ConcatFlatRule {
   // outputPlaceholder can be empty if you never need to refer to the result.
   // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
@@ -230,24 +236,35 @@ struct RuleVariant final : public Rule {
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
                ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
+  using VariantType = decltype(std::declval<RuleVariant>().specifics_);
+
+ public:
+  template <class X> static constexpr bool validType =
+    isMemberOfVariantV<X, VariantType>;
 };
 
 template <class X> bool holds_alternative(const Rule& rule) {
-  if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule))
-    return std::holds_alternative<X>(rvar->specifics_);
-  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
+  if constexpr(RuleVariant::validType<X>) {
+    if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule))
+      return std::holds_alternative<X>(rvar->specifics_);
+    else return false;
+  }else return dynamic_cast<const X*>(&rule) != nullptr;
 }
 
 template <class X> X* get_if(Rule* rule) {
-  if(auto* rvar = dynamic_cast<RuleVariant*>(rule))
-    return std::get_if<X>(&rvar->specifics_);
-  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
+  if constexpr(RuleVariant::validType<X>) {
+    if(auto* rvar = dynamic_cast<RuleVariant*>(rule))
+      return std::get_if<X>(&rvar->specifics_);
+    else return nullptr;
+  }else return dynamic_cast<X*>(rule);
 }
 
 template <class X> const X* get_if(const Rule* rule) {
-  if(auto* rvar = dynamic_cast<const RuleVariant*>(rule))
-    return std::get_if<X>(&rvar->specifics_);
-  else oalex::Unimplemented("{} for other RuleBase subclasses", __func__);
+  if constexpr(isMemberOfVariantV<X, RuleVariant::VariantType>) {
+    if(auto* rvar = dynamic_cast<const RuleVariant*>(rule))
+      return std::get_if<X>(&rvar->specifics_);
+    else return nullptr;
+  }else return dynamic_cast<const X*>(rule);
 }
 
 // TODO this needs a debug() printer.

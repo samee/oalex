@@ -583,6 +583,23 @@ void testGluePartSwapped() {
 
 }  // namespace
 
+// Compile-time tests. Namespaced because
+// we want to test explicit instantiation.
+namespace oalex {
+static_assert(isMemberOfVariantV<int, std::variant<int, void*>>);
+static_assert(!isMemberOfVariantV<char, std::variant<int, void*>>);
+static_assert(RuleVariant::validType<std::string>);
+static_assert(!RuleVariant::validType<void>);
+// We only care that the following compiles
+template bool holds_alternative<std::string>(const Rule&);
+template bool holds_alternative<TestRule>(const Rule&);
+template const std::string* get_if<std::string>(const Rule*);
+template const TestRule* get_if<TestRule>(const Rule*);
+
+template auto nmRule<TestRule>(TestRule, std::string);
+template RuleSet singletonRuleSet<TestRule>(TestRule);
+}  // namespace oalex
+
 int main() {
   testSingleStringMatch();
   testSingleStringMismatch();

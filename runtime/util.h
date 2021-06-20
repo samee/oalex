@@ -122,6 +122,16 @@ inline bool isSubstr(std::string_view s, std::string_view t) {
   return t.find(s) != std::string_view::npos;
 }
 
+template <class X, class ... Args>
+inline constexpr bool isOneOfV = (std::is_same_v<X,Args> || ...);
+
+template <class X, class Y>
+struct IsMemberOfVariant : std::false_type {};
+template <class X, class ... Args>
+struct IsMemberOfVariant<X,std::variant<Args...>>
+  : std::integral_constant<bool, isOneOfV<X,Args...>> {};
+template <class X, class Y>
+inline constexpr bool isMemberOfVariantV = IsMemberOfVariant<X,Y>::value;
 
 // sign_cast<int>(). Eqiuvalent to reinterpret_cast, but constrained.
 

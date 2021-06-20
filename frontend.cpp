@@ -201,7 +201,9 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
 
 template <class X> ssize_t
 RulesWithLocs::appendAnonRule(X x) {
-  rules_.push_back(make_unique<RuleVariant>(std::move(x)));
+  if constexpr(RuleVariant::validType<X>)
+    rules_.push_back(make_unique<RuleVariant>(std::move(x)));
+  else rules_.push_back(move_to_unique(x));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -246,7 +248,12 @@ RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr) {
     if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
   }
-  rules_[idx] = make_unique<RuleVariant>(std::move(x), std::move(name));
+  if constexpr(RuleVariant::validType<X>)
+    rules_[idx] = make_unique<RuleVariant>(std::move(x), std::move(name));
+  else {
+    x.deferred_name(std::move(name));
+    rules_[idx] = move_to_unique(x);
+  }
 }
 
 bool
