@@ -31,7 +31,9 @@ namespace oalex {
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
 // a separate RuleUnassigned to represent an empty rule.
-struct Rule {
+class Rule {
+ public:
+  Rule() {}
   explicit Rule(Ident name) : name_(std::move(name)) {}
   virtual ~Rule() {}
 
@@ -59,11 +61,14 @@ struct TestRule : public Rule {
   std::string specifics_typename() const override { return "TestRule"; }
 };
 
-struct ConcatFlatRule {
+class ConcatFlatRule final : public Rule {
+ public:
   // outputPlaceholder can be empty if you never need to refer to the result.
   // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
   // rules returning a JsonLoc::Map.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
+  explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
+  std::string specifics_typename() const override { return "ConcatFlatRule"; }
   std::vector<Component> comps;
 };
 
@@ -234,7 +239,7 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
+               OutputTmpl, LoopRule, OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 

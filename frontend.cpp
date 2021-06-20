@@ -620,7 +620,7 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl);
 ssize_t
 appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
                     RulesWithLocs& rl) {
-  ConcatFlatRule concatRule{ .comps{} };
+  ConcatFlatRule concatRule{ {} };
   for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
