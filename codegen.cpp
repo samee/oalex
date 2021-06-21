@@ -285,8 +285,6 @@ static string
 specifics_typename(const string&) { return "string"; }
 static string
 specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }
-static string
-specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 
 string
 RuleVariant::specifics_typename() const {

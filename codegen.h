@@ -69,9 +69,13 @@ class ConcatFlatRule final : public Rule {
 // Mostly deprecated. It is still kept around in case I need concatenation
 // without flattening. For the most part, use ConcatFlatRule with OutputTmpl.
 // E.g. This doesn't tolerate missing optional fields.
-struct ConcatRule {
+class ConcatRule final : public Rule {
+ public:
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
+  explicit ConcatRule(std::vector<Component> c, JsonLoc outputTmpl)
+    : comps{std::move(c)}, outputTmpl{std::move(outputTmpl)} {}
+  std::string specifics_typename() const override { return "ConcatRule"; }
   std::vector<Component> comps;
   JsonLoc outputTmpl;
 };
@@ -271,7 +275,7 @@ struct RuleVariant final : public Rule {
     * MatchOrError: Same as child.
   */
   std::variant<std::monostate, std::string,
-               std::unique_ptr<const Regex>, ConcatRule> specifics_;
+               std::unique_ptr<const Regex>> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
  public:
