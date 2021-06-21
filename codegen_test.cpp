@@ -109,7 +109,7 @@ void testErrorRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"hello-world"},
-        RuleVariant{ErrorRule{"Was expecting a greeting"}},
+        ErrorRule{"Was expecting a greeting"},
         OrRule{
           // This ErrorValue is actually ignored.
           // It could have been anything else.

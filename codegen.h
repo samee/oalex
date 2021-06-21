@@ -171,7 +171,10 @@ class OrRule final : public Rule {
 // This Rule is used as an OrRule target when something else fails, or in
 // response to an obviously bad lookahead. Empty message indicates quiet
 // failure that produces no diagnostics (as opposed to an empty error diag).
-struct ErrorRule {
+class ErrorRule final : public Rule {
+ public:
+  explicit ErrorRule(std::string msg) : msg(std::move(msg)) {}
+  std::string specifics_typename() const override { return "ErrorRule"; }
   std::string msg;
 };
 
@@ -251,7 +254,6 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ErrorRule,
                QuietMatch, MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
