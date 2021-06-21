@@ -120,7 +120,11 @@ class OutputTmpl final : public Rule {
 // concatenation for anything other than a SkipRule target. Even this feature
 // might be removed once we can share parsing results between lookaheads and
 // parsers.
-struct LoopRule{
+//
+// The fields are kept in a separate struct to allow designated initializers.
+// They are inherited into LoopRule, so you can still access them through the
+// familiar dot or arrow notations.
+struct LoopRuleFields {
   ssize_t partidx;  // mandatory, must not be -1
   std::string partname;
   ssize_t glueidx;  // -1 means no glue
@@ -129,6 +133,11 @@ struct LoopRule{
   ssize_t skipidx;  // -1 means no skip.
 };
 
+class LoopRule final : public LoopRuleFields, public Rule {
+ public:
+  explicit LoopRule(LoopRuleFields f) : LoopRuleFields{f} {}
+  std::string specifics_typename() const override { return "LoopRule"; }
+};
 
 inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
 inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
@@ -238,7 +247,7 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               LoopRule, OrRule, ErrorRule,
+               OrRule, ErrorRule,
                QuietMatch, MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 

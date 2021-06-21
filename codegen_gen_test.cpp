@@ -370,14 +370,14 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
-        nmRule(LoopRule{
+        nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
           .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
-        }, "LoopSum"),
+        }}, "LoopSum"),
         regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
 
@@ -386,26 +386,26 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(
           ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""} }},
           "ListPrefixPart"),
-        nmRule(LoopRule{
+        nmRule(LoopRule{{
           .partidx = 7,
           .partname = "",
           .glueidx = -1,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
-        }, "ListPrefix"),
+        }}, "ListPrefix"),
 
         // Flattenable child.
         regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
         nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"} }}, "LoopFlatElt"),
-        nmRule(LoopRule{
+        nmRule(LoopRule{{
           .partidx = 10,
           .partname = "",
           .glueidx = 6,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
-        }, "SignedListContents"),
+        }}, "SignedListContents"),
         RuleVariant{"["}, RuleVariant{"]"},
         nmRule(ConcatFlatRule{{ {12, ""}, {11, ""}, {13, ""} }}, "SignedList")
     ),
@@ -422,12 +422,13 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         RuleVariant{"-"},
         regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule{.partidx = 0, .partname = "",
-                        .glueidx = 2, .gluename = "",
-                        .lookidx = -1, .skipidx = -1 }, "GpSwappedString"),
-        nmRule(LoopRule{.partidx = 0, .partname = "",
-                        .glueidx = 1, .gluename = "words",
-                        .lookidx = -1, .skipidx = -1 }, "GpSwappedInlineString")
+        nmRule(LoopRule{{ .partidx = 0, .partname = "",
+                          .glueidx = 2, .gluename = "",
+                          .lookidx = -1, .skipidx = -1 }}, "GpSwappedString"),
+        nmRule(LoopRule{{ .partidx = 0, .partname = "",
+                          .glueidx = 1, .gluename = "words",
+                          .lookidx = -1, .skipidx = -1 }},
+               "GpSwappedInlineString")
     ),
     .regexOpts{regexOpts},
   };

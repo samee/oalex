@@ -682,9 +682,9 @@ appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
   ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
   ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
                                             .skip = &oalexSkip});
-  return rl.appendAnonRule(LoopRule{
+  return rl.appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
-      .lookidx = -1, .skipidx = ski});
+      .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t
@@ -694,9 +694,9 @@ appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
   ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
   ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
                                             .skip = &oalexSkip});
-  return rl.appendAnonRule(LoopRule{
+  return rl.appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
-      .lookidx = -1, .skipidx = ski});
+      .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t

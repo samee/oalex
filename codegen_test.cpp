@@ -439,23 +439,23 @@ void testLoopRule() {
     .rules = makeVectorUnique<Rule>(
         RuleVariant{MatchOrError{4, "Expected an identifier"}},
         RuleVariant{"+"}, RuleVariant{SkipPoint{false, &cskip}},
-        nmRule(LoopRule{
+        nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
           .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
-        }, "sum"),
+        }}, "sum"),
         RuleVariant{parseRegex("/[a-z]+/")},
         RuleVariant{MatchOrError{1, "Expected operator '+'"}},
 
         // Cases for glueidx == -1
         RuleVariant{","},
         ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
-        nmRule(LoopRule{ .partidx = 7, .partname = "",
-                         .glueidx = -1, .gluename = "",
-                         .lookidx = -1, .skipidx = -1 }, "list_prefix")
+        nmRule(LoopRule{{ .partidx = 7, .partname = "",
+                          .glueidx = -1, .gluename = "",
+                          .lookidx = -1, .skipidx = -1}}, "list_prefix")
     ),
     .regexOpts{regexOpts},
   };
@@ -518,14 +518,14 @@ void testLoopFlattening() {
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         RuleVariant{SkipPoint{false, &cskip}},
         RuleVariant{","},
-        nmRule(LoopRule{
+        nmRule(LoopRule{{
           .partidx = 3,
           .partname = "",
           .glueidx = 5,
           .gluename = "",
           .lookidx = -1,
           .skipidx = 4,
-        }, "sum"),
+        }}, "sum"),
         RuleVariant{"["}, RuleVariant{"]"},
         ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}
     ),
@@ -549,12 +549,12 @@ void testGluePartSwapped() {
         RuleVariant{"-"},
         RuleVariant{parseRegex("/[a-z]+/")},
         ConcatFlatRule{{ { 1, "words" } }},
-        RuleVariant{LoopRule{.partidx = 0, .partname = "",
-                             .glueidx = 2, .gluename = "",
-                             .lookidx = -1, .skipidx = -1 }},
-        RuleVariant{LoopRule{.partidx = 0, .partname = "",
-                             .glueidx = 1, .gluename = "words",
-                             .lookidx = -1, .skipidx = -1 }}
+        LoopRule{{.partidx = 0, .partname = "",
+                  .glueidx = 2, .gluename = "",
+                  .lookidx = -1, .skipidx = -1 }},
+        LoopRule{{.partidx = 0, .partname = "",
+                  .glueidx = 1, .gluename = "words",
+                  .lookidx = -1, .skipidx = -1 }}
     ),
     .regexOpts{regexOpts},
   };
