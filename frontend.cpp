@@ -640,7 +640,7 @@ appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
 ssize_t
 appendPatternOrList(DiagsDest ctx, const PatternOrList& orPatt,
                     RulesWithLocs& rl) {
-  OrRule orRule{.comps{}, .flattenOnDemand=true};
+  OrRule orRule{{}, /* flattenOnDemand */ true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
@@ -655,7 +655,7 @@ ssize_t
 appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
                       RulesWithLocs& rl) {
   ssize_t i;
-  OrRule orRule{.comps{}, .flattenOnDemand=true};
+  OrRule orRule{{}, /* flattenOnDemand */ true};
 
   i = appendPatternRule(ctx, optPatt.part, rl);
   i = rl.appendAnonRule(QuietMatch{i});
@@ -986,7 +986,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
     return;
   }
   const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
-  OrRule orRule{.comps{}, .flattenOnDemand=false};
+  OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");

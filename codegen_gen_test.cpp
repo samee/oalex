@@ -236,10 +236,10 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"if"}, RuleVariant{"while"},
         regexRule(__func__, "/[0-9]+/", "OrCompNumber"),
-        nmRule(OrRule{.comps{
+        nmRule(OrRule{{
           {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
           {-1, 2, *parseJsonLoc("{number: child}")},
-        }, .flattenOnDemand = false}, "OneWordOrList")),
+        }, /* flattenOnDemand */ false}, "OneWordOrList")),
     .regexOpts{regexOpts},
   };
   codegenNamedRules(rs, cppos, hos);
@@ -266,9 +266,8 @@ void generateErrorRuleTest(const OutputStream& cppos,
         nmRule(OrRule{
           // This ErrorValue is actually ignored.
           // It could have been anything else.
-          .comps{{-1, 0, passthroughTmpl},
-                 {-1, 1, JsonLoc::ErrorValue{}}},
-          .flattenOnDemand = false,
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonLoc::ErrorValue{}}},
+          /* flattenOnDemand */ false,
         }, "ErrorRuleHelloWorld")),
     .regexOpts{regexOpts},
   };
@@ -277,20 +276,20 @@ void generateErrorRuleTest(const OutputStream& cppos,
 
 void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
-  OrRule orrule{.comps{
+  OrRule orrule{{
     {-1, 3, passthroughTmpl},
     {-1, 1, *parseJsonLoc("{number: child}")},
-  }, .flattenOnDemand = false};
+  }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
-        nmRule(OrRule{.comps = orrule.comps,
-                      .flattenOnDemand = false}, "UnflattenKeywordOrNumber"),
+        nmRule(OrRule{orrule.comps, /* flattenOnDemand */ false},
+               "UnflattenKeywordOrNumber"),
         nmRule(ConcatFlatRule{{{4, "next_token"}}}, "UnflattenSingleConcat"),
-        nmRule(OrRule{.comps = orrule.comps,
-                      .flattenOnDemand = true}, "FlattenKeywordOrNumber"),
+        nmRule(OrRule{orrule.comps, /* flattenOnDemand */ true},
+               "FlattenKeywordOrNumber"),
         nmRule(ConcatFlatRule{{{6, ""}}}, "FlattenSingleConcat")
       ), .regexOpts{regexOpts},
   };
@@ -318,11 +317,11 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         RuleVariant{":"},
         nmRule(ConcatFlatRule{{ {9, "line_number"}, {10, ""} }},
                "lookahead_line_num"),
-        nmRule(OrRule{.comps{ {1, 5, passthroughTmpl},
-                              {7, 8, passthroughTmpl},
-                              {9, 11, passthroughTmpl},
-                              {-1, 6, passthroughTmpl} },
-                      .flattenOnDemand = true}, "lookahead_simple_stmt")),
+        nmRule(OrRule{{ {1, 5, passthroughTmpl},
+                        {7, 8, passthroughTmpl},
+                        {9, 11, passthroughTmpl},
+                        {-1, 6, passthroughTmpl} },
+                      /* flattenOnDemand */ true}, "lookahead_simple_stmt")),
     .regexOpts{regexOpts},
   };
 
@@ -335,9 +334,8 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
         RuleVariant{"string1"}, RuleVariant{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
-        nmRule(OrRule{.comps{{-1, 3, passthroughTmpl},
-                             {-1, 1, passthroughTmpl}},
-                      .flattenOnDemand = false}, "quiet_match_test")),
+        nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
+                      /* flattenOnDemand */ false}, "quiet_match_test")),
     .regexOpts{regexOpts},
   };
   codegenNamedRules(rs, cppos, hos);

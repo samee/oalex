@@ -298,8 +298,6 @@ specifics_typename(const ErrorRule&) { return "ErrorRule"; }
 static string
 specifics_typename(const QuietMatch&) { return "QuietMatch"; }
 static string
-specifics_typename(const OrRule&) { return "OrRule"; }
-static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }
 
 string

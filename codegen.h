@@ -144,7 +144,7 @@ inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
   return isPlaceholder(jsloc, "child");
 }
 
-struct OrRule {
+class OrRule final : public Rule {
   // The tmpl must have at most a single placeholder, called 'child'.
   // This is what takes the successful child's value. It is possible to
   // pass the child's result unchanged by using passthroughTmpl.
@@ -159,7 +159,11 @@ struct OrRule {
   //
   // Dev-note: When we need more complicated templates, the plan is to use
   // passthroughTmpl with an OutputTmpl target.
+ public:
   struct Component { ssize_t lookidx, parseidx; JsonLoc tmpl; };
+  explicit OrRule(std::vector<Component> comps, bool fod)
+    : comps{std::move(comps)}, flattenOnDemand{fod} {}
+  std::string specifics_typename() const override { return "LoopRule"; }
   std::vector<Component> comps;
   bool flattenOnDemand;
 };
@@ -247,7 +251,7 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               OrRule, ErrorRule,
+               ErrorRule,
                QuietMatch, MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 

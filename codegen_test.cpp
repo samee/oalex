@@ -110,13 +110,12 @@ void testErrorRule() {
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"hello-world"},
         RuleVariant{ErrorRule{"Was expecting a greeting"}},
-        RuleVariant{OrRule{
+        OrRule{
           // This ErrorValue is actually ignored.
           // It could have been anything else.
-          .comps{{-1, 0, passthroughTmpl},
-                 {-1, 1, JsonLoc::ErrorValue{}}},
-          .flattenOnDemand = false,
-        }}),
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonLoc::ErrorValue{}}},
+          /* flattenOnDemand */ false,
+        }),
     .regexOpts{regexOpts},
   };
 
@@ -276,10 +275,10 @@ void testKeywordsOrNumber() {
                RuleVariant{parseRegex("/[0-9]+/")}),
     .regexOpts{regexOpts},
   };
-  rs.rules.push_back(move_to_unique(RuleVariant{OrRule{.comps{
+  rs.rules.push_back(move_to_unique(OrRule{{
       {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
       {-1, 2, *parseJsonLoc("{number: child}")},
-  }, .flattenOnDemand = false}}));
+  }, /* flattenOnDemand */ false}));
   const ssize_t orListIndex = rs.rules.size()-1;
 
   const pair<string, JsonLoc> goodInputOutputPairs[] = {
@@ -309,10 +308,10 @@ void testFlattenOnDemand() {
         RuleVariant{"let"}, RuleVariant{parseRegex("/[0-9]+/")},
         ConcatFlatRule{{ {0, "keyword"} }},
         RuleVariant{MatchOrError{2, "Expected keyword 'let'"}},
-        RuleVariant{OrRule{.comps{
+        OrRule{{
           {-1, 3, passthroughTmpl},
           {-1, 1, *parseJsonLoc("{number: child}")},
-        }, .flattenOnDemand = false}},
+        }, /* flattenOnDemand */ false},
         ConcatFlatRule{{{4, "next_token"}}}
       ), .regexOpts{regexOpts},
   };
@@ -349,9 +348,8 @@ void testLookaheads() {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
-        nmRule(OrRule{.comps{{1, 5, passthroughTmpl},
-                             {-1, 6, passthroughTmpl}},
-                      .flattenOnDemand = true}, "simple_stmt")),
+        nmRule(OrRule{{{1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl}},
+                      /* flattenOnDemand */ true}, "simple_stmt")),
     .regexOpts{regexOpts},
   };
   const pair<string, JsonLoc> testdata[] = {
@@ -376,9 +374,8 @@ void testQuietMatch() {
         RuleVariant{"string1"}, RuleVariant{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
-        nmRule(OrRule{.comps{{-1, 3, passthroughTmpl},
-                             {-1, 1, passthroughTmpl}},
-                      .flattenOnDemand = false}, "quiet_match_test")),
+        nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
+                      /* flattenOnDemand */ false}, "quiet_match_test")),
     .regexOpts{regexOpts},
   };
   auto ctx = testInputDiags("string2");
