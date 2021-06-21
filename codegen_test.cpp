@@ -53,7 +53,7 @@ using oalex::Regex;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
-using oalex::RuleVariant;
+using oalex::StringRule;
 using oalex::SkipPoint;
 using oalex::testInputDiags;
 using oalex::WordPreserving;
@@ -69,7 +69,7 @@ void testSingleStringMatch() {
   const string msg = " hello-world";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 1;
-  RuleSet rs = singletonRuleSet(msg.substr(1));
+  RuleSet rs = singletonRuleSet(StringRule{msg.substr(1)});
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   assertJsonLocIsString(__func__, jsloc, msg.substr(1), 1, msg.size());
 }
@@ -78,7 +78,7 @@ void testSingleStringMismatch() {
   const string msg = "hello-world";
   auto ctx = testInputDiags(msg);
   ssize_t pos = 0;
-  RuleSet rs = singletonRuleSet(msg + "!");
+  RuleSet rs = singletonRuleSet(StringRule{msg + "!"});
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
 }
@@ -86,7 +86,7 @@ void testSingleStringMismatch() {
 void testMatchOrError() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"hello-world"},
+        StringRule{"hello-world"},
         MatchOrError{0, "Was expecting a greeting"}),
     .regexOpts{regexOpts},
   };
@@ -109,7 +109,7 @@ void testMatchOrError() {
 void testErrorRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"hello-world"},
+        StringRule{"hello-world"},
         ErrorRule{"Was expecting a greeting"},
         OrRule{
           // This ErrorValue is actually ignored.
@@ -195,8 +195,8 @@ RegexRule parseRegex(string_view s) {
 void testConcatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               parseRegex("/[a-zA-Z]+/"), RuleVariant{"="},
-               parseRegex("/[0-9]+/"), RuleVariant{";"},
+               parseRegex("/[a-zA-Z]+/"), StringRule{"="},
+               parseRegex("/[0-9]+/"), StringRule{";"},
                SkipPoint{false, &cskip},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
@@ -223,11 +223,11 @@ void testConcatMatch() {
 void testConcatFlatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{"var"},
+               StringRule{"var"},
                parseRegex("/[a-zA-Z]+/"),
-               RuleVariant{":"}, RuleVariant{"="},
+               StringRule{":"}, StringRule{"="},
                parseRegex("/[0-9]+/"),
-               RuleVariant{";"}, SkipPoint{false, &cskip}),
+               StringRule{";"}, SkipPoint{false, &cskip}),
     .regexOpts = regexOpts,
   };
   rs.rules.push_back(move_to_unique(ConcatFlatRule{{
@@ -260,7 +260,7 @@ void testSingleWordTemplate() {
   JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{"word"}, OutputTmpl{0, {}, jsloc}),
+               StringRule{"word"}, OutputTmpl{0, {}, jsloc}),
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;
@@ -272,7 +272,7 @@ void testSingleWordTemplate() {
 void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{"if"}, RuleVariant{"while"},
+               StringRule{"if"}, StringRule{"while"},
                parseRegex("/[0-9]+/")),
     .regexOpts{regexOpts},
   };
@@ -306,7 +306,7 @@ void testFlattenOnDemand() {
   // frontend is dumb (ahem!)
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"let"}, parseRegex("/[0-9]+/"),
+        StringRule{"let"}, parseRegex("/[0-9]+/"),
         ConcatFlatRule{{ {0, "keyword"} }},
         MatchOrError{2, "Expected keyword 'let'"},
         OrRule{{
@@ -341,7 +341,7 @@ void testLookaheads() {
         SkipPoint{false, &cskip},
         WordPreserving{"var"},
         parseRegex("/[a-z]+/"),
-        RuleVariant{"="}, RuleVariant{";"},
+        StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
           {2, "init_value"}, {0, ""}, {4, ""},
@@ -372,7 +372,7 @@ void testLookaheads() {
 void testQuietMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"string1"}, RuleVariant{"string2"},
+        StringRule{"string1"}, StringRule{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
         nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
@@ -391,7 +391,7 @@ void testQuietMatch() {
 void testMiscFlattening() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"hello"},
+        StringRule{"hello"},
         nmRule(ConcatFlatRule{{ {0, "hello_for_qm"} }}, "hello_flat1"),
         nmRule(QuietMatch{1}, "hello_quiet_passing_thru_concat_flat"),
         nmRule(ConcatFlatRule{{ {0, "hello_for_mor"} }}, "hello_flat1"),
@@ -436,7 +436,7 @@ void testLoopRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         MatchOrError{4, "Expected an identifier"},
-        RuleVariant{"+"}, SkipPoint{false, &cskip},
+        StringRule{"+"}, SkipPoint{false, &cskip},
         nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
@@ -449,7 +449,7 @@ void testLoopRule() {
         MatchOrError{1, "Expected operator '+'"},
 
         // Cases for glueidx == -1
-        RuleVariant{","},
+        StringRule{","},
         ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
         nmRule(LoopRule{{ .partidx = 7, .partname = "",
                           .glueidx = -1, .gluename = "",
@@ -515,7 +515,7 @@ void testLoopFlattening() {
         MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         SkipPoint{false, &cskip},
-        RuleVariant{","},
+        StringRule{","},
         nmRule(LoopRule{{
           .partidx = 3,
           .partname = "",
@@ -524,7 +524,7 @@ void testLoopFlattening() {
           .lookidx = -1,
           .skipidx = 4,
         }}, "sum"),
-        RuleVariant{"["}, RuleVariant{"]"},
+        StringRule{"["}, StringRule{"]"},
         ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}
     ),
     .regexOpts{regexOpts},
@@ -544,7 +544,7 @@ void testLoopFlattening() {
 void testGluePartSwapped() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"-"},
+        StringRule{"-"},
         parseRegex("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
         LoopRule{{.partidx = 0, .partname = "",
@@ -579,22 +579,6 @@ void testGluePartSwapped() {
 }
 
 }  // namespace
-
-// Compile-time tests. Namespaced because
-// we want to test explicit instantiation.
-namespace oalex {
-static_assert(isMemberOfVariantV<int, std::variant<int, void*>>);
-static_assert(!isMemberOfVariantV<char, std::variant<int, void*>>);
-static_assert(RuleVariant::validType<std::string>);
-static_assert(!RuleVariant::validType<void>);
-// We only care that the following compiles
-template bool holds_alternative<std::string>(const Rule&);
-template bool holds_alternative<ConcatFlatRule>(const Rule&);
-template const std::string* get_if<std::string>(const Rule*);
-template const ConcatFlatRule* get_if<ConcatFlatRule>(const Rule*);
-
-template RuleSet singletonRuleSet<ConcatFlatRule>(ConcatFlatRule);
-}  // namespace oalex
 
 int main() {
   testSingleStringMatch();

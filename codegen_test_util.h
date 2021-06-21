@@ -24,21 +24,24 @@ inline const RegexOptions regexOpts{
   .word = oalex::parseRegexCharSet("[0-9A-Za-z_]")
 };
 
-template <class X>
-auto nmRule(X x, std::string s) {
-  if constexpr(std::is_same_v<X, const char*> || RuleVariant::validType<X>)
-    return RuleVariant{std::move(x), Ident::parseGenerated(s)};
-  else {
-    x.deferred_name(Ident::parseGenerated(s));
-    return x;
-  }
+inline StringRule nmRule(const char* s, std::string name) {
+  return {s, Ident::parseGenerated(name)};
+}
+
+template <class X> X nmRule(X x, std::string s) {
+  x.deferred_name(Ident::parseGenerated(s));
+  return x;
+}
+
+inline RuleSet singletonRuleSet(const char* s) {
+  RuleSet rs{{}, regexOpts};
+  rs.rules.push_back(move_to_unique(StringRule{s}));
+  return rs;
 }
 
 template <class X> RuleSet singletonRuleSet(X x) {
   RuleSet rs{{}, regexOpts};
-  if constexpr(std::is_same_v<X, const char*> || RuleVariant::validType<X>)
-    rs.rules.push_back(move_to_unique(RuleVariant{std::move(x)}));
-  else rs.rules.push_back(move_to_unique(x));
+  rs.rules.push_back(move_to_unique(x));
   return rs;
 }
 

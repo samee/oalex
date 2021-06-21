@@ -278,22 +278,13 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   return out;
 }
 
-// Using std::visit(), since we want to catch missing types at compile-time.
-static string
-specifics_typename(const string&) { return "string"; }
-
-string
-RuleVariant::specifics_typename() const {
-  return std::visit([](auto& spec) { return oalex::specifics_typename(spec); },
-                    this->specifics_);
-}
-
 // TODO recheck if we are properly initializing
 // rv.stPos and rv.enPos in all cases.
 JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
-  if(const string* s = get_if<string>(&r)) return match(ctx, i, *s);
+  if(const StringRule* s = get_if<StringRule>(&r))
+    return match(ctx, i, s->val);
   else if(const auto* wp = get_if<WordPreserving>(&r))
     return match(ctx, i, ruleset.regexOpts.word, **wp);
   else if(holds_alternative<ExternParser>(r))  // use dlopen() someday
@@ -741,12 +732,12 @@ static void
 codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  const OutputStream& cppos) {
   const Rule& rule = ruleAt(ruleset, lidx);
-  if(const auto* s = get_if<string>(&rule))
-    cppos(format("ctx.input.hasPrefix(i, {})", dquoted(*s)));
+  if(const auto* s = get_if<StringRule>(&rule))
+    cppos(format("ctx.input.hasPrefix(i, {})", dquoted(s->val)));
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
-  // When adding a new branch here, remember to change RuleVariant::needsName().
+  // When adding a new branch here, remember to change StringRule::needsName().
   else {
     if(optional<Ident> name = rule.name())
       cppos(format("oalex::peekMatch(ctx.input, i, {})", parserName(*name)));
@@ -853,8 +844,8 @@ Rule::deferred_name(Ident name) {
 }
 
 bool needsName(const Rule& rule, bool isTentativeTarget) {
-  if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule)) {
-    if(holds_alternative<std::string>(*rvar) ||
+  if(auto* rvar = dynamic_cast<const StringRule*>(&rule)) {
+    if(holds_alternative<StringRule>(*rvar) ||
        holds_alternative<WordPreserving>(*rvar) ||
        false) return false;
     if(holds_alternative<ErrorRule>(*rvar)) return isTentativeTarget;
@@ -867,8 +858,8 @@ bool needsName(const Rule& rule, bool isTentativeTarget) {
 static void
 codegenParserCall(const Rule& rule, string_view posVar,
                   const OutputStream& cppos) {
-  if(const auto* s = get_if<string>(&rule))
-    cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(*s)));
+  if(const auto* s = get_if<StringRule>(&rule))
+    cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
   else if(const auto* wp = get_if<WordPreserving>(&rule))
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
@@ -882,7 +873,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
-  // When adding a new branch here, remember to change RuleVariant::needsName().
+  // When adding a new branch here, remember to change StringRule::needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
 }
@@ -909,8 +900,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     return;
   }
   parserHeaders(rname, cppos, hos); cppos("{\n");
-  if(const auto* s = get_if<string>(&r)) {
-    cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
+  if(const auto* s = get_if<StringRule>(&r)) {
+    cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
   }else if(const auto* wp = get_if<WordPreserving>(&r)) {
     codegen(*wp, cppos);
   }else if(const auto* regex = get_if<RegexRule>(&r)) {

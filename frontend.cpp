@@ -154,9 +154,7 @@ class RulesWithLocs {
   template <class X> ssize_t appendAnonRule(X x);
 
   /* For assigning to a rule after they have already been named */
-  template <class X>
-    std::enable_if_t<std::is_constructible_v<RuleVariant, X>>
-    deferred_assign(ssize_t idx, X x);
+  template <class X> auto deferred_assign(ssize_t idx, X x);
 
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
@@ -200,9 +198,7 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
 
 template <class X> ssize_t
 RulesWithLocs::appendAnonRule(X x) {
-  if constexpr(RuleVariant::validType<X>)
-    rules_.push_back(make_unique<RuleVariant>(std::move(x)));
-  else rules_.push_back(move_to_unique(x));
+  rules_.push_back(move_to_unique(x));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -238,8 +234,7 @@ RulesWithLocs::releaseRules() {
 }
 
 template <class X>
-std::enable_if_t<std::is_constructible_v<RuleVariant, X>>
-RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+auto RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
      !holds_alternative<UnassignedRule>(*rules_[idx]))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
@@ -247,12 +242,8 @@ RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr) {
     if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
   }
-  if constexpr(RuleVariant::validType<X>)
-    rules_[idx] = make_unique<RuleVariant>(std::move(x), std::move(name));
-  else {
-    x.deferred_name(std::move(name));
-    rules_[idx] = move_to_unique(x);
-  }
+  x.deferred_name(std::move(name));
+  rules_[idx] = move_to_unique(x);
 }
 
 bool
@@ -324,7 +315,7 @@ assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   rl.deferred_assign(ruleIndex, MatchOrError{
       rl.ssize(), format("Expected '{}'", literal)
   });
-  rl.appendAnonRule(string(literal));
+  rl.appendAnonRule(StringRule(string(literal)));
 }
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
@@ -660,7 +651,7 @@ appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
   orRule.comps.push_back({-1, i, passthroughTmpl});
 
   // This branch always produces a Map on success.
-  i = rl.appendAnonRule(string{});
+  i = rl.appendAnonRule(StringRule{{}});
   orRule.comps.push_back({-1, i, JsonLoc::Map{}});
 
   return rl.appendAnonRule(std::move(orRule));

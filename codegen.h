@@ -253,25 +253,24 @@ class RegexRule final : public Rule {
   std::unique_ptr<const Regex> patt;
 };
 
-struct RuleVariant final : public Rule {
-  // TODO other component types like RawString.
-  template <class X> explicit RuleVariant(X x)
-    : Rule{{}}, specifics_(std::move(x)) {}
-  template <class X> RuleVariant(X x, Ident name)
-    : Rule(std::move(name)), specifics_(std::move(x)) {}
+class StringRule final : public Rule {
+ public:
+  explicit StringRule(std::string s) : val(std::move(s)) {}
+  StringRule(std::string s, Ident name)
+    : Rule(std::move(name)), val(std::move(s)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
   // See deferred_name() below.
-  RuleVariant(RuleVariant&&) = default;
-  RuleVariant& operator=(const RuleVariant&) = delete;
+  StringRule(StringRule&&) = default;
+  StringRule& operator=(const StringRule&) = delete;
 
-  std::string specifics_typename() const override;
+  std::string specifics_typename() const override { return "StringRule"; }
+  std::string val;
 
   template <class X> friend bool holds_alternative(const Rule& rule);
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
- private:
   /*
   Return types are either an ErrorValue or:
 
@@ -289,36 +288,21 @@ struct RuleVariant final : public Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::string> specifics_;
-  using VariantType = decltype(std::declval<RuleVariant>().specifics_);
-
- public:
-  template <class X> static constexpr bool validType =
-    isMemberOfVariantV<X, VariantType>;
 };
 
 template <class X> bool holds_alternative(const Rule& rule) {
-  if constexpr(RuleVariant::validType<X>) {
-    if(auto* rvar = dynamic_cast<const RuleVariant*>(&rule))
-      return std::holds_alternative<X>(rvar->specifics_);
-    else return false;
-  }else return dynamic_cast<const X*>(&rule) != nullptr;
+  static_assert(std::is_base_of_v<Rule, X>);
+  return dynamic_cast<const X*>(&rule) != nullptr;
 }
 
 template <class X> X* get_if(Rule* rule) {
-  if constexpr(RuleVariant::validType<X>) {
-    if(auto* rvar = dynamic_cast<RuleVariant*>(rule))
-      return std::get_if<X>(&rvar->specifics_);
-    else return nullptr;
-  }else return dynamic_cast<X*>(rule);
+  static_assert(std::is_base_of_v<Rule, X>);
+  return dynamic_cast<X*>(rule);
 }
 
 template <class X> const X* get_if(const Rule* rule) {
-  if constexpr(isMemberOfVariantV<X, RuleVariant::VariantType>) {
-    if(auto* rvar = dynamic_cast<const RuleVariant*>(rule))
-      return std::get_if<X>(&rvar->specifics_);
-    else return nullptr;
-  }else return dynamic_cast<const X*>(rule);
+  static_assert(std::is_base_of_v<Rule, X>);
+  return dynamic_cast<const X*>(rule);
 }
 
 // TODO this needs a debug() printer.

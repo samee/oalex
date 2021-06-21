@@ -49,7 +49,7 @@ using oalex::QuietMatch;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
-using oalex::RuleVariant;
+using oalex::StringRule;
 using oalex::Skipper;
 using oalex::SkipPoint;
 using oalex::UserError;
@@ -166,9 +166,9 @@ void generateConcatFlatTest(const OutputStream& cppos,
     .rules = makeVectorUnique<Rule>(
                WordPreserving{"var"},
                regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
-               RuleVariant{":"}, RuleVariant{"="},
+               StringRule{":"}, StringRule{"="},
                regexRule(__func__, "/[0-9]+/", "FlatNumber"),
-               RuleVariant{";"},
+               StringRule{";"},
                nmRule(SkipPoint{false, &cskip}, "FlatSpace"),
                nmRule(ConcatFlatRule{{
                    {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
@@ -190,7 +190,7 @@ void generateSingleWordTemplate(const OutputStream& cppos,
     JsonLoc{JsonLoc::Placeholder{"the_word"}, 0, 0}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"word"},
+        StringRule{"word"},
         nmRule(OutputTmpl{0, "the_word", jsloc}, "WordTmpl")),
     .regexOpts = regexOpts,
   };
@@ -202,9 +202,9 @@ void generateConcatTest(const OutputStream& cppos,
   RuleSet rs { oalex::makeVectorUnique<Rule>(
     nmRule(WordPreserving{"int"}, "Type"),
     regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
-    RuleVariant{"="},
+    StringRule{"="},
     regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
-    RuleVariant{";"},
+    StringRule{";"},
     nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
     nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
                        {3,"value"}, {5,""}, {4,""}},
@@ -222,7 +222,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
   RuleSet rs { oalex::makeVectorUnique<Rule>(
       WordPreserving{"let"},
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
-      RuleVariant{":"},
+      StringRule{":"},
       nmRule(ExternParser{}, "parseIndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
@@ -235,7 +235,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
 void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"if"}, RuleVariant{"while"},
+        StringRule{"if"}, StringRule{"while"},
         regexRule(__func__, "/[0-9]+/", "OrCompNumber"),
         nmRule(OrRule{{
           {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
@@ -250,7 +250,7 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
                               const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"hello-world"},
+        StringRule{"hello-world"},
         nmRule(MatchOrError{0, "Was expecting a greeting"},
                "HelloWorldOrError")),
     .regexOpts{regexOpts},
@@ -262,7 +262,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
                            const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"hello-world"},
+        StringRule{"hello-world"},
         ErrorRule{"Was expecting a greeting"},
         nmRule(OrRule{
           // This ErrorValue is actually ignored.
@@ -283,7 +283,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
   }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
+        StringRule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ false},
@@ -304,7 +304,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
         WordPreserving{"var"},
         regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
-        RuleVariant{"="}, RuleVariant{";"},
+        StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
           {2, "init_value"}, {0, ""}, {4, ""},
@@ -312,10 +312,10 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{
           {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
         }}, "asgn"),
-        RuleVariant{"."},
+        StringRule{"."},
         nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
         regexRule(__func__, "/[0-9]+/", "lookahead_line_number_regex"),
-        RuleVariant{":"},
+        StringRule{":"},
         nmRule(ConcatFlatRule{{ {9, "line_number"}, {10, ""} }},
                "lookahead_line_num"),
         nmRule(OrRule{{ {1, 5, passthroughTmpl},
@@ -332,7 +332,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
 void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"string1"}, RuleVariant{"string2"},
+        StringRule{"string1"}, StringRule{"string2"},
         nmRule(MatchOrError{0, "Expecting 'string1'"}, "string1_or_error"),
         nmRule(QuietMatch{2}, "string1_quiet"),
         nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
@@ -405,7 +405,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .lookidx = -1,
           .skipidx = 2,
         }}, "SignedListContents"),
-        RuleVariant{"["}, RuleVariant{"]"},
+        StringRule{"["}, StringRule{"]"},
         nmRule(ConcatFlatRule{{ {12, ""}, {11, ""}, {13, ""} }}, "SignedList")
     ),
     .regexOpts{regexOpts},
@@ -418,7 +418,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
                                  const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"-"},
+        StringRule{"-"},
         regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
         nmRule(LoopRule{{ .partidx = 0, .partname = "",
