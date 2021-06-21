@@ -443,7 +443,7 @@ parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
   else if(**seg == "acrossLines") withinLine = false;
   else return Error(ctx, *seg, "Expected either 'withinLine' or 'acrossLines'");
   if(!requireEol(linetoks, 4, ctx)) return nullopt;
-  return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
+  return SkipPoint{ /* stayWithinLine */ withinLine, &oalexSkip};
 }
 
 // Resets RulesWithLoc back to initial size unless disarm() is called.
@@ -625,8 +625,7 @@ appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl.ssize(), {}});
-      rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                  .skip = &oalexSkip});
+      rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false, &oalexSkip});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
@@ -680,8 +679,8 @@ ssize_t
 appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
                     RulesWithLocs& rl) {
   ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                            .skip = &oalexSkip});
+  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                            &oalexSkip});
   return rl.appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
@@ -692,8 +691,8 @@ appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
                   RulesWithLocs& rl) {
   ssize_t pi = appendPatternRule(ctx, foldPatt.part, rl);
   ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                            .skip = &oalexSkip});
+  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                            &oalexSkip});
   return rl.appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski}});

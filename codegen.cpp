@@ -290,8 +290,6 @@ specifics_typename(const ExternParser&) { return "ExternParser"; }
 static string
 specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }
 static string
-specifics_typename(const SkipPoint&) { return "SkipPoint"; }
-static string
 specifics_typename(const ConcatRule&) { return "ConcatRule"; }
 static string
 specifics_typename(const MatchOrError&) { return "MatchOrError"; }

@@ -223,7 +223,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
       RuleVariant{":"},
       nmRule(ExternParser{}, "parseIndentedTmpl"),
-      nmRule(SkipPoint{.stayWithinLine=true, .skip=&shskip}, "ExtSpace"),
+      nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl")
     ), regexOpts

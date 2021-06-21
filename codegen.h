@@ -187,8 +187,12 @@ class QuietMatch final : public Rule {
   ssize_t compidx;
 };
 
-struct SkipPoint {
-  bool stayWithinLine = false;  // If true, skip comments should end in '\n'
+class SkipPoint final : public Rule {
+ public:
+  SkipPoint(bool swl, const Skipper* skip)
+    : stayWithinLine{swl}, skip{skip} {}
+  std::string specifics_typename() const override { return "SkipPoint"; }
+  bool stayWithinLine;  // If true, skip comments should end in '\n'
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
@@ -258,7 +262,7 @@ struct RuleVariant final : public Rule {
     * MatchOrError: Same as child.
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
-               std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
+               std::unique_ptr<const Regex>, ConcatRule,
                MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 

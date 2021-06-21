@@ -196,7 +196,7 @@ void testConcatMatch() {
     .rules = makeVectorUnique<Rule>(
                RuleVariant{parseRegex("/[a-zA-Z]+/")}, RuleVariant{"="},
                RuleVariant{parseRegex("/[0-9]+/")}, RuleVariant{";"},
-               RuleVariant{SkipPoint{false, &cskip}},
+               SkipPoint{false, &cskip},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
@@ -226,7 +226,7 @@ void testConcatFlatMatch() {
                RuleVariant{parseRegex("/[a-zA-Z]+/")},
                RuleVariant{":"}, RuleVariant{"="},
                RuleVariant{parseRegex("/[0-9]+/")},
-               RuleVariant{";"}, RuleVariant{SkipPoint{false, &cskip}}),
+               RuleVariant{";"}, SkipPoint{false, &cskip}),
     .regexOpts = regexOpts,
   };
   rs.rules.push_back(move_to_unique(ConcatFlatRule{{
@@ -337,7 +337,7 @@ void testFlattenOnDemand() {
 void testLookaheads() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{SkipPoint{false, &cskip}},
+        SkipPoint{false, &cskip},
         RuleVariant{WordPreserving{"var"}},
         RuleVariant{parseRegex("/[a-z]+/")},
         RuleVariant{"="}, RuleVariant{";"},
@@ -435,7 +435,7 @@ void testLoopRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         RuleVariant{MatchOrError{4, "Expected an identifier"}},
-        RuleVariant{"+"}, RuleVariant{SkipPoint{false, &cskip}},
+        RuleVariant{"+"}, SkipPoint{false, &cskip},
         nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
@@ -513,7 +513,7 @@ void testLoopFlattening() {
         RuleVariant{parseRegex("/[a-z]+/")},
         RuleVariant{MatchOrError{1, "Expected an identifier"}},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
-        RuleVariant{SkipPoint{false, &cskip}},
+        SkipPoint{false, &cskip},
         RuleVariant{","},
         nmRule(LoopRule{{
           .partidx = 3,
