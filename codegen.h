@@ -219,7 +219,11 @@ class WordPreserving final : public Rule {
 // that is implemented.
 // Deprecated in favor of a composition of OrRule and ErrorRule.
 // TODO remove completely when ErrorRule is functional.
-struct MatchOrError {
+class MatchOrError final : public Rule {
+ public:
+  MatchOrError(ssize_t compidx, std::string errmsg)
+    : compidx{compidx}, errmsg{std::move(errmsg)} {}
+  std::string specifics_typename() const override { return "MatchOrError"; }
   ssize_t compidx;
   std::string errmsg;
 };
@@ -267,8 +271,7 @@ struct RuleVariant final : public Rule {
     * MatchOrError: Same as child.
   */
   std::variant<std::monostate, std::string,
-               std::unique_ptr<const Regex>, ConcatRule,
-               MatchOrError> specifics_;
+               std::unique_ptr<const Regex>, ConcatRule> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
  public:

@@ -86,7 +86,7 @@ void testMatchOrError() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"hello-world"},
-        RuleVariant{MatchOrError{0, "Was expecting a greeting"}}),
+        MatchOrError{0, "Was expecting a greeting"}),
     .regexOpts{regexOpts},
   };
 
@@ -307,7 +307,7 @@ void testFlattenOnDemand() {
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"let"}, RuleVariant{parseRegex("/[0-9]+/")},
         ConcatFlatRule{{ {0, "keyword"} }},
-        RuleVariant{MatchOrError{2, "Expected keyword 'let'"}},
+        MatchOrError{2, "Expected keyword 'let'"},
         OrRule{{
           {-1, 3, passthroughTmpl},
           {-1, 1, *parseJsonLoc("{number: child}")},
@@ -434,7 +434,7 @@ void testMiscFlattening() {
 void testLoopRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{MatchOrError{4, "Expected an identifier"}},
+        MatchOrError{4, "Expected an identifier"},
         RuleVariant{"+"}, SkipPoint{false, &cskip},
         nmRule(LoopRule{{
           .partidx = 0,
@@ -445,7 +445,7 @@ void testLoopRule() {
           .skipidx = 2,
         }}, "sum"),
         RuleVariant{parseRegex("/[a-z]+/")},
-        RuleVariant{MatchOrError{1, "Expected operator '+'"}},
+        MatchOrError{1, "Expected operator '+'"},
 
         // Cases for glueidx == -1
         RuleVariant{","},
@@ -511,7 +511,7 @@ void testLoopFlattening() {
     .rules = makeVectorUnique<Rule>(
         RuleVariant{parseRegex("/[-+]/")},
         RuleVariant{parseRegex("/[a-z]+/")},
-        RuleVariant{MatchOrError{1, "Expected an identifier"}},
+        MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         SkipPoint{false, &cskip},
         RuleVariant{","},
