@@ -201,7 +201,8 @@ class SkipPoint final : public Rule {
 // word into two.
 // Someday, it might become a more complex struct with customizable
 // RegexWordChar*. For now, it just uses the default one in RuleSet.
-struct WordPreserving {
+class WordPreserving final : public Rule {
+ public:
   std::string s;
   WordPreserving() {}
   explicit WordPreserving(std::string_view init) : s(init) {}
@@ -210,6 +211,7 @@ struct WordPreserving {
   explicit operator std::string_view () const { return s; }
   const std::string& operator*() const { return s; }
   const std::string* operator->() const { return &s; }
+  std::string specifics_typename() const override { return "WordPreserving"; }
 };
 
 // This is used for initial testing only. Real-life grammars should instead
@@ -261,7 +263,7 @@ struct RuleVariant final : public Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::monostate, std::string, WordPreserving, ExternParser,
+  std::variant<std::monostate, std::string, ExternParser,
                std::unique_ptr<const Regex>, ConcatRule,
                MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);

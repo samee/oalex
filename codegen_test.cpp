@@ -338,7 +338,7 @@ void testLookaheads() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         SkipPoint{false, &cskip},
-        RuleVariant{WordPreserving{"var"}},
+        WordPreserving{"var"},
         RuleVariant{parseRegex("/[a-z]+/")},
         RuleVariant{"="}, RuleVariant{";"},
         nmRule(ConcatFlatRule{{

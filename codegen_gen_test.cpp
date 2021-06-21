@@ -163,7 +163,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
   const ssize_t declIndex = 8;
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{WordPreserving{"var"}},
+               WordPreserving{"var"},
                regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
                RuleVariant{":"}, RuleVariant{"="},
                regexRule(__func__, "/[0-9]+/", "FlatNumber"),
@@ -219,7 +219,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {} };
   RuleSet rs { oalex::makeVectorUnique<Rule>(
-      RuleVariant{WordPreserving{"let"}},
+      WordPreserving{"let"},
       regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
       RuleVariant{":"},
       nmRule(ExternParser{}, "parseIndentedTmpl"),
@@ -301,7 +301,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
-        RuleVariant{WordPreserving{"var"}},
+        WordPreserving{"var"},
         regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
         RuleVariant{"="}, RuleVariant{";"},
         nmRule(ConcatFlatRule{{
