@@ -61,7 +61,6 @@ using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
 using std::make_unique;
 using std::map;
-using std::monostate;
 using std::nullopt;
 using std::optional;
 using std::pair;
@@ -124,18 +123,18 @@ class RulesWithLocs {
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
-     If not found, appends a new monostate rule with the ident, and returns the
+     If not found, appends a new UnassignedRule with the ident, and returns the
        index of the new element. In this case, it also records thisPos in
        firstUseLocs_.
      Assumes ident.empty() == false
   */
   ssize_t findOrAppendIdent(const Ident& id);
 
-  /* Returns the index of a monostate rule named ident.
+  /* Returns the index of UnassignedRule named ident.
        If one already exists, its index is returned with no change.
        If one doesn't already exist,
          one is appended and the new index is returned.
-     If a non-monostate rule named ident already exists, it produces a
+     If an assigned rule named ident already exists, it produces a
      "multiple definition" error and returns -1.
 
      In case we are actually appending a new entry, the firstUseLocs_ remains
@@ -180,7 +179,7 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.push_back(make_unique<RuleVariant>(monostate{}, id));
+  rules_.push_back(make_unique<UnassignedRule>(id));
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
@@ -188,13 +187,13 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i]->name()) {
-    if(!holds_alternative<monostate>(*rules_[i])) {
+    if(!holds_alternative<UnassignedRule>(*rules_[i])) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
     }else return i;
   }
-  rules_.push_back(make_unique<RuleVariant>(monostate{}, ident));
+  rules_.push_back(make_unique<UnassignedRule>(ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
@@ -211,7 +210,7 @@ RulesWithLocs::appendAnonRule(X x) {
 bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
-    if(holds_alternative<monostate>(*rules_[i])) {
+    if(holds_alternative<UnassignedRule>(*rules_[i])) {
       optional<Ident> name = *rules_[i]->name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
@@ -242,8 +241,8 @@ template <class X>
 std::enable_if_t<std::is_constructible_v<RuleVariant, X>>
 RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
-     !holds_alternative<std::monostate>(*rules_[idx]))
-    oalex::Bug("deferred_assign() cannot be used on non-monostate Rules");
+     !holds_alternative<UnassignedRule>(*rules_[idx]))
+    oalex::Bug("deferred_assign() cannot be used a rule already assigned");
   Ident name;
   if(rules_[idx] != nullptr) {
     if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
@@ -330,7 +329,7 @@ assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(monostate{});
+  rl.appendAnonRule(UnassignedRule{});
   assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }

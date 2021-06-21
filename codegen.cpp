@@ -280,8 +280,6 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
 
 // Using std::visit(), since we want to catch missing types at compile-time.
 static string
-specifics_typename(const std::monostate&) { return "(uninitialized)"; }
-static string
 specifics_typename(const string&) { return "string"; }
 static string
 specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }

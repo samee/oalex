@@ -30,7 +30,7 @@ namespace oalex {
 
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
-// a separate RuleUnassigned to represent an empty rule.
+// a separate UnassignedRule to represent an empty rule.
 class Rule {
  public:
   Rule() {}
@@ -48,6 +48,13 @@ class Rule {
 
  private:
   Ident name_;
+};
+
+class UnassignedRule final : public Rule {
+ public:
+  UnassignedRule() = default;
+  explicit UnassignedRule(Ident name) : Rule(std::move(name)) {}
+  std::string specifics_typename() const override { return "(unassigned)"; }
 };
 
 // isTentativeTarget should be true if this rule is a target of either some:
@@ -260,7 +267,7 @@ struct RuleVariant final : public Rule {
   /*
   Return types are either an ErrorValue or:
 
-    * monostate: Doesn't return, not to be used in eval or codegen.
+    * UnassignedRule: Doesn't return, not to be used in eval or codegen.
     * string, WordPreserving, Regex: Returns string.
     * SkipPoint: Something dummy (to be checked).
     * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
@@ -274,8 +281,7 @@ struct RuleVariant final : public Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::monostate, std::string,
-               std::unique_ptr<const Regex>> specifics_;
+  std::variant<std::string, std::unique_ptr<const Regex>> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
  public:
