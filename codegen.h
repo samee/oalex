@@ -180,7 +180,12 @@ class ErrorRule final : public Rule {
 
 // Literally wraps a rule in quietMatch(). Currently not used in frontend.cpp,
 // but it will be used as part of PatternOrList compilation.
-struct QuietMatch { ssize_t compidx; };
+class QuietMatch final : public Rule {
+ public:
+  explicit QuietMatch(ssize_t idx) : compidx{idx} {}
+  std::string specifics_typename() const override { return "QuietMatch"; }
+  ssize_t compidx;
+};
 
 struct SkipPoint {
   bool stayWithinLine = false;  // If true, skip comments should end in '\n'
@@ -254,7 +259,7 @@ struct RuleVariant final : public Rule {
   */
   std::variant<std::monostate, std::string, WordPreserving, ExternParser,
                std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               QuietMatch, MatchOrError> specifics_;
+               MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
  public:
