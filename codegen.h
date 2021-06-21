@@ -225,7 +225,10 @@ struct MatchOrError {
 };
 
 // Note: we currently don't support ExternParser in tentative contexts.
-struct ExternParser { };
+class ExternParser final : public Rule {
+ public:
+  std::string specifics_typename() const override { return "ExternParser"; }
+};
 
 struct RuleVariant final : public Rule {
   // TODO other component types like RawString.
@@ -263,7 +266,7 @@ struct RuleVariant final : public Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::monostate, std::string, ExternParser,
+  std::variant<std::monostate, std::string,
                std::unique_ptr<const Regex>, ConcatRule,
                MatchOrError> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);

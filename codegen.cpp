@@ -284,8 +284,6 @@ specifics_typename(const std::monostate&) { return "(uninitialized)"; }
 static string
 specifics_typename(const string&) { return "string"; }
 static string
-specifics_typename(const ExternParser&) { return "ExternParser"; }
-static string
 specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }
 static string
 specifics_typename(const ConcatRule&) { return "ConcatRule"; }
