@@ -281,8 +281,6 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
 // Using std::visit(), since we want to catch missing types at compile-time.
 static string
 specifics_typename(const string&) { return "string"; }
-static string
-specifics_typename(const unique_ptr<const Regex>&) { return "Regex"; }
 
 string
 RuleVariant::specifics_typename() const {
@@ -301,8 +299,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(holds_alternative<ExternParser>(r))  // use dlopen() someday
     UserError("eval() doesn't support 'extern' parsers");
   else if(const auto* sp = get_if<SkipPoint>(&r)) return skip(ctx, i, *sp);
-  else if(const auto* regex = get_if<unique_ptr<const Regex>>(&r))
-    return match(ctx, i, **regex, ruleset.regexOpts);
+  else if(const auto* regex = get_if<RegexRule>(&r))
+    return match(ctx, i, *regex->patt, ruleset.regexOpts);
   else if(const auto* seq = get_if<ConcatRule>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(const auto* seq = get_if<ConcatFlatRule>(&r))
@@ -490,7 +488,7 @@ parserHeaders(const Ident& rname,
 }
 
 static void
-codegen(const unique_ptr<const Regex>& regex, const OutputStream& cppos) {
+codegen(const RegexRule& regex, const OutputStream& cppos) {
   // TODO trim this down whenever possible.
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
@@ -506,7 +504,7 @@ codegen(const unique_ptr<const Regex>& regex, const OutputStream& cppos) {
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   cppos("  using std::unique_ptr;\n");
   cppos("  static const Regex *r = new ");
-  genRegexComponents(*regex, cppos, 4);
+  genRegexComponents(*regex.patt, cppos, 4);
   cppos(";\n");
   cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
 }
@@ -915,7 +913,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(*s)));
   }else if(const auto* wp = get_if<WordPreserving>(&r)) {
     codegen(*wp, cppos);
-  }else if(const auto* regex = get_if<unique_ptr<const Regex>>(&r)) {
+  }else if(const auto* regex = get_if<RegexRule>(&r)) {
     codegen(*regex, cppos);
   }else if(const auto* sp = get_if<SkipPoint>(&r)) {
     codegen(*sp, cppos);

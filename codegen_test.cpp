@@ -50,6 +50,7 @@ using oalex::parseJsonLoc;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
 using oalex::Regex;
+using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::RuleVariant;
@@ -170,7 +171,7 @@ void testSingleWordPreserving() {
 void testRegexMatch() {
   auto regex_input = testInputDiags("/[a-z]+/");
   size_t pos = 0;
-  RuleSet rs = singletonRuleSet(oalex::parseRegex(regex_input, pos));
+  RuleSet rs = singletonRuleSet(RegexRule{oalex::parseRegex(regex_input, pos)});
   ssize_t spos = 0;
   auto ctx = testInputDiags("hello world");
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
@@ -183,19 +184,19 @@ void testRegexMatch() {
 }
 
 // TODO move to some test_util.h
-unique_ptr<const Regex> parseRegex(string_view s) {
+RegexRule parseRegex(string_view s) {
   size_t i = 0;
   auto ctx = testInputDiags(s);
   unique_ptr<const Regex> rv = parseRegex(ctx, i);
   if(!rv) Bug("{} is not a valid regex", s);
-  else return rv;
+  else return RegexRule{std::move(rv)};
 }
 
 void testConcatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               RuleVariant{parseRegex("/[a-zA-Z]+/")}, RuleVariant{"="},
-               RuleVariant{parseRegex("/[0-9]+/")}, RuleVariant{";"},
+               parseRegex("/[a-zA-Z]+/"), RuleVariant{"="},
+               parseRegex("/[0-9]+/"), RuleVariant{";"},
                SkipPoint{false, &cskip},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
@@ -223,9 +224,9 @@ void testConcatFlatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                RuleVariant{"var"},
-               RuleVariant{parseRegex("/[a-zA-Z]+/")},
+               parseRegex("/[a-zA-Z]+/"),
                RuleVariant{":"}, RuleVariant{"="},
-               RuleVariant{parseRegex("/[0-9]+/")},
+               parseRegex("/[0-9]+/"),
                RuleVariant{";"}, SkipPoint{false, &cskip}),
     .regexOpts = regexOpts,
   };
@@ -272,7 +273,7 @@ void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                RuleVariant{"if"}, RuleVariant{"while"},
-               RuleVariant{parseRegex("/[0-9]+/")}),
+               parseRegex("/[0-9]+/")),
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(move_to_unique(OrRule{{
@@ -305,7 +306,7 @@ void testFlattenOnDemand() {
   // frontend is dumb (ahem!)
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{"let"}, RuleVariant{parseRegex("/[0-9]+/")},
+        RuleVariant{"let"}, parseRegex("/[0-9]+/"),
         ConcatFlatRule{{ {0, "keyword"} }},
         MatchOrError{2, "Expected keyword 'let'"},
         OrRule{{
@@ -339,7 +340,7 @@ void testLookaheads() {
     .rules = makeVectorUnique<Rule>(
         SkipPoint{false, &cskip},
         WordPreserving{"var"},
-        RuleVariant{parseRegex("/[a-z]+/")},
+        parseRegex("/[a-z]+/"),
         RuleVariant{"="}, RuleVariant{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
@@ -444,7 +445,7 @@ void testLoopRule() {
           .lookidx = -1,
           .skipidx = 2,
         }}, "sum"),
-        RuleVariant{parseRegex("/[a-z]+/")},
+        parseRegex("/[a-z]+/"),
         MatchOrError{1, "Expected operator '+'"},
 
         // Cases for glueidx == -1
@@ -509,8 +510,8 @@ void testLoopRule() {
 void testLoopFlattening() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        RuleVariant{parseRegex("/[-+]/")},
-        RuleVariant{parseRegex("/[a-z]+/")},
+        parseRegex("/[-+]/"),
+        parseRegex("/[a-z]+/"),
         MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         SkipPoint{false, &cskip},
@@ -544,7 +545,7 @@ void testGluePartSwapped() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         RuleVariant{"-"},
-        RuleVariant{parseRegex("/[a-z]+/")},
+        parseRegex("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
         LoopRule{{.partidx = 0, .partname = "",
                   .glueidx = 2, .gluename = "",

@@ -46,6 +46,7 @@ using oalex::parseJsonLoc;
 using oalex::parseRegex;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
+using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::RuleVariant;
@@ -126,13 +127,13 @@ void generateSingleStringTest(const OutputStream& cppos,
   codegen(rs, 0, cppos, hos);
 }
 
-RuleVariant regexRule(const string& testName,
-                      const string& regex_pattern, const string& fname) {
+RegexRule regexRule(const string& testName,
+                    const string& regex_pattern, const string& fname) {
   InputDiags regex_input{Input{regex_pattern}};
   size_t i = 0;
   auto regex = parseRegex(regex_input, i);
   assertEmptyDiags(testName, regex_input.diags);
-  return nmRule(std::move(regex), fname);
+  return nmRule(RegexRule{std::move(regex)}, fname);
 }
 
 void generateSingleRegexTest(const OutputStream& cppos,

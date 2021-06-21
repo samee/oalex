@@ -245,6 +245,14 @@ class ExternParser final : public Rule {
   std::string specifics_typename() const override { return "ExternParser"; }
 };
 
+class RegexRule final : public Rule {
+ public:
+  explicit RegexRule(std::unique_ptr<const Regex> patt)
+    : patt(std::move(patt)) {}
+  std::string specifics_typename() const override { return "RegexRule"; }
+  std::unique_ptr<const Regex> patt;
+};
+
 struct RuleVariant final : public Rule {
   // TODO other component types like RawString.
   template <class X> explicit RuleVariant(X x)
@@ -268,7 +276,7 @@ struct RuleVariant final : public Rule {
   Return types are either an ErrorValue or:
 
     * UnassignedRule: Doesn't return, not to be used in eval or codegen.
-    * string, WordPreserving, Regex: Returns string.
+    * string, WordPreserving, RegexRule: Returns string.
     * SkipPoint: Something dummy (to be checked).
     * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
     * ConcatFlatRule: Returns Map, flattenable.
@@ -281,7 +289,7 @@ struct RuleVariant final : public Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::string, std::unique_ptr<const Regex>> specifics_;
+  std::variant<std::string> specifics_;
   using VariantType = decltype(std::declval<RuleVariant>().specifics_);
 
  public:

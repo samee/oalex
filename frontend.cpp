@@ -338,7 +338,7 @@ void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    string errmsg, RegexPattern regex) {
   rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.appendAnonRule(std::move(regex.patt));
+  rl.appendAnonRule(RegexRule{std::move(regex.patt)});
 }
 
 ssize_t
@@ -351,7 +351,7 @@ appendWordOrError(RulesWithLocs& rl, string_view word) {
 ssize_t
 appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(std::move(regex));
+  rl.appendAnonRule(RegexRule{std::move(regex)});
   rl.appendAnonRule(MatchOrError{newIndex, "Does not match expected pattern"});
   return newIndex + 1;
 }
