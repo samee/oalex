@@ -28,20 +28,61 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
-struct ConcatFlatRule {
+// Dev-note: Keep this class abstract, just so we can easily switch out
+// of RTTI and dynamic_cast if they become unbearably slow. We can use
+// a separate UnassignedRule to represent an empty rule.
+class Rule {
+ public:
+  Rule() {}
+  explicit Rule(Ident name) : name_(std::move(name)) {}
+  virtual ~Rule() {}
+
+  // Returns optional to make it harder to forget the empty case.
+  std::optional<Ident> name() const {
+    if(!name_) return std::nullopt; else return name_;
+  }
+  void deferred_name(Ident name);
+
+  // Used for debugging/logging.
+  virtual std::string specifics_typename() const = 0;
+
+ private:
+  Ident name_;
+};
+
+class UnassignedRule final : public Rule {
+ public:
+  UnassignedRule() = default;
+  explicit UnassignedRule(Ident name) : Rule(std::move(name)) {}
+  std::string specifics_typename() const override { return "(unassigned)"; }
+};
+
+// isTentativeTarget should be true if this rule is a target of either some:
+// * OrRule::comps[].lookidx in the containing RuleSet, or some
+// * QuietMatch::compidx in the containing RuleSet
+bool needsName(const Rule& rule, bool isTentativeTarget);
+
+class ConcatFlatRule final : public Rule {
+ public:
   // outputPlaceholder can be empty if you never need to refer to the result.
   // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
   // rules returning a JsonLoc::Map.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
+  explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
+  std::string specifics_typename() const override { return "ConcatFlatRule"; }
   std::vector<Component> comps;
 };
 
 // Mostly deprecated. It is still kept around in case I need concatenation
 // without flattening. For the most part, use ConcatFlatRule with OutputTmpl.
 // E.g. This doesn't tolerate missing optional fields.
-struct ConcatRule {
+class ConcatRule final : public Rule {
+ public:
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
+  explicit ConcatRule(std::vector<Component> c, JsonLoc outputTmpl)
+    : comps{std::move(c)}, outputTmpl{std::move(outputTmpl)} {}
+  std::string specifics_typename() const override { return "ConcatRule"; }
   std::vector<Component> comps;
   JsonLoc outputTmpl;
 };
@@ -67,7 +108,12 @@ struct ConcatRule {
 //
 //   * If the child component produces a JsonLoc::Map, its keys will represent
 //     placeholders. childName will be ignored in this case.
-struct OutputTmpl {
+class OutputTmpl final : public Rule {
+ public:
+  OutputTmpl(ssize_t childidx, std::string_view childName, JsonLoc outputTmpl)
+    : childidx(childidx), childName(childName),
+      outputTmpl(std::move(outputTmpl)) {}
+  std::string specifics_typename() const override { return "OutputTmpl"; }
   ssize_t childidx;
   std::string childName;  // used only if child is not producing JsonLoc::Map.
   JsonLoc outputTmpl;
@@ -85,7 +131,11 @@ struct OutputTmpl {
 // concatenation for anything other than a SkipRule target. Even this feature
 // might be removed once we can share parsing results between lookaheads and
 // parsers.
-struct LoopRule{
+//
+// The fields are kept in a separate struct to allow designated initializers.
+// They are inherited into LoopRule, so you can still access them through the
+// familiar dot or arrow notations.
+struct LoopRuleFields {
   ssize_t partidx;  // mandatory, must not be -1
   std::string partname;
   ssize_t glueidx;  // -1 means no glue
@@ -94,13 +144,18 @@ struct LoopRule{
   ssize_t skipidx;  // -1 means no skip.
 };
 
+class LoopRule final : public LoopRuleFields, public Rule {
+ public:
+  explicit LoopRule(LoopRuleFields f) : LoopRuleFields{f} {}
+  std::string specifics_typename() const override { return "LoopRule"; }
+};
 
 inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
 inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
   return isPlaceholder(jsloc, "child");
 }
 
-struct OrRule {
+class OrRule final : public Rule {
   // The tmpl must have at most a single placeholder, called 'child'.
   // This is what takes the successful child's value. It is possible to
   // pass the child's result unchanged by using passthroughTmpl.
@@ -115,7 +170,11 @@ struct OrRule {
   //
   // Dev-note: When we need more complicated templates, the plan is to use
   // passthroughTmpl with an OutputTmpl target.
+ public:
   struct Component { ssize_t lookidx, parseidx; JsonLoc tmpl; };
+  explicit OrRule(std::vector<Component> comps, bool fod)
+    : comps{std::move(comps)}, flattenOnDemand{fod} {}
+  std::string specifics_typename() const override { return "LoopRule"; }
   std::vector<Component> comps;
   bool flattenOnDemand;
 };
@@ -123,25 +182,37 @@ struct OrRule {
 // This Rule is used as an OrRule target when something else fails, or in
 // response to an obviously bad lookahead. Empty message indicates quiet
 // failure that produces no diagnostics (as opposed to an empty error diag).
-struct ErrorRule {
+class ErrorRule final : public Rule {
+ public:
+  explicit ErrorRule(std::string msg) : msg(std::move(msg)) {}
+  std::string specifics_typename() const override { return "ErrorRule"; }
   std::string msg;
 };
 
 // Literally wraps a rule in quietMatch(). Currently not used in frontend.cpp,
 // but it will be used as part of PatternOrList compilation.
-struct QuietMatch { ssize_t compidx; };
+class QuietMatch final : public Rule {
+ public:
+  explicit QuietMatch(ssize_t idx) : compidx{idx} {}
+  std::string specifics_typename() const override { return "QuietMatch"; }
+  ssize_t compidx;
+};
 
-struct SkipPoint {
-  bool stayWithinLine = false;  // If true, skip comments should end in '\n'
+class SkipPoint final : public Rule {
+ public:
+  SkipPoint(bool swl, const Skipper* skip)
+    : stayWithinLine{swl}, skip{skip} {}
+  std::string specifics_typename() const override { return "SkipPoint"; }
+  bool stayWithinLine;  // If true, skip comments should end in '\n'
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
-// Just a strong typedef of std::string. It is used as a Rule variant, in case
-// we want a word-preserving match. That is a match that doesn't break an input
-// word into two.
+// Wraps an std::string, for when we want a word-preserving match. That is a
+// match that doesn't break an input word into two.
 // Someday, it might become a more complex struct with customizable
 // RegexWordChar*. For now, it just uses the default one in RuleSet.
-struct WordPreserving {
+class WordPreserving final : public Rule {
+ public:
   std::string s;
   WordPreserving() {}
   explicit WordPreserving(std::string_view init) : s(init) {}
@@ -150,6 +221,7 @@ struct WordPreserving {
   explicit operator std::string_view () const { return s; }
   const std::string& operator*() const { return s; }
   const std::string* operator->() const { return &s; }
+  std::string specifics_typename() const override { return "WordPreserving"; }
 };
 
 // This is used for initial testing only. Real-life grammars should instead
@@ -157,50 +229,52 @@ struct WordPreserving {
 // that is implemented.
 // Deprecated in favor of a composition of OrRule and ErrorRule.
 // TODO remove completely when ErrorRule is functional.
-struct MatchOrError {
+class MatchOrError final : public Rule {
+ public:
+  MatchOrError(ssize_t compidx, std::string errmsg)
+    : compidx{compidx}, errmsg{std::move(errmsg)} {}
+  std::string specifics_typename() const override { return "MatchOrError"; }
   ssize_t compidx;
   std::string errmsg;
 };
 
 // Note: we currently don't support ExternParser in tentative contexts.
-struct ExternParser { };
+class ExternParser final : public Rule {
+ public:
+  std::string specifics_typename() const override { return "ExternParser"; }
+};
 
-struct Rule {
-  // TODO other component types like RawString.
-  template <class X> explicit Rule(X x) : specifics_(std::move(x)), name_() {}
-  template <class X> Rule(X x, Ident name) :
-    specifics_(std::move(x)), name_(std::move(name)) {}
+class RegexRule final : public Rule {
+ public:
+  explicit RegexRule(std::unique_ptr<const Regex> patt)
+    : patt(std::move(patt)) {}
+  std::string specifics_typename() const override { return "RegexRule"; }
+  std::unique_ptr<const Regex> patt;
+};
+
+class StringRule final : public Rule {
+ public:
+  explicit StringRule(std::string s) : val(std::move(s)) {}
+  StringRule(std::string s, Ident name)
+    : Rule(std::move(name)), val(std::move(s)) {}
 
   // This is just to discourage mutation in the frontend, which led to
   // suboptimal coding style (e.g. having to specify the name twice).
-  // See deferred_name() and deferred_assign() below.
-  Rule(Rule&&) = default;
-  Rule& operator=(const Rule&) = delete;
+  // See deferred_name() below.
+  StringRule(StringRule&&) = default;
+  StringRule& operator=(const StringRule&) = delete;
 
-  std::string specifics_typename() const;  // Used for debugging/logging.
-  // Returns optional to make it harder to forget the empty case.
-  std::optional<Ident> name() const {
-    if(!name_) return std::nullopt; else return name_;
-  }
-  void deferred_name(Ident name);
-  // isTentativeTarget should be true if this rule is a target of either some:
-  // * OrRule::comps[].lookidx in the containing RuleSet, or some
-  // * QuietMatch::compidx in the containing RuleSet
-  bool needsName(bool isTentativeTarget) const;
-
-  // Assign to specifics if it is in std::monostate.
-  // We disallow later assignments to discourage mutation.
-  template <class X> void deferred_assign(X x);
+  std::string specifics_typename() const override { return "StringRule"; }
+  std::string val;
 
   template <class X> friend bool holds_alternative(const Rule& rule);
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
- private:
   /*
   Return types are either an ErrorValue or:
 
-    * monostate: Doesn't return, not to be used in eval or codegen.
-    * string, WordPreserving, Regex: Returns string.
+    * UnassignedRule: Doesn't return, not to be used in eval or codegen.
+    * string, WordPreserving, RegexRule: Returns string.
     * SkipPoint: Something dummy (to be checked).
     * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
     * ConcatFlatRule: Returns Map, flattenable.
@@ -213,35 +287,11 @@ struct Rule {
     * QuietMatch: Same as its child.
     * MatchOrError: Same as child.
   */
-  std::variant<std::monostate, std::string, WordPreserving, ExternParser,
-               std::unique_ptr<const Regex>, SkipPoint, ConcatRule,
-               ConcatFlatRule, OutputTmpl, LoopRule, OrRule, ErrorRule,
-               QuietMatch, MatchOrError> specifics_;
-  Ident name_;
 };
-
-template <class X> inline void
-Rule::deferred_assign(X x) {
-  if(!std::holds_alternative<std::monostate>(specifics_))
-    oalex::Bug("deferred_assign() cannot be used on non-monostate Rules");
-  specifics_ = std::move(x);
-}
-
-template <class X> bool holds_alternative(const Rule& rule) {
-  return std::holds_alternative<X>(rule.specifics_);
-}
-
-template <class X> X* get_if(Rule* rule) {
-  return std::get_if<X>(&rule->specifics_);
-}
-
-template <class X> const X* get_if(const Rule* rule) {
-  return std::get_if<X>(&rule->specifics_);
-}
 
 // TODO this needs a debug() printer.
 struct RuleSet {
-  std::vector<Rule> rules;
+  std::vector<std::unique_ptr<Rule>> rules;
   RegexOptions regexOpts;
 };
 

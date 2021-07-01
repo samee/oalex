@@ -20,6 +20,7 @@
 #include <optional>
 #include <string_view>
 #include <tuple>
+#include <type_traits>
 #include <utility>
 #include <vector>
 #include "fmt/core.h"
@@ -58,8 +59,8 @@ using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using oalex::lex::WholeSegment;
+using std::make_unique;
 using std::map;
-using std::monostate;
 using std::nullopt;
 using std::optional;
 using std::pair;
@@ -115,22 +116,25 @@ constexpr LocPair nrange{-1,-1};
 class RulesWithLocs {
  public:
   ssize_t ssize() const { return rules_.size(); }
-  Rule& operator[](ssize_t i) { return rules_[i]; }
+  Rule& operator[](ssize_t i) {
+    if(rules_[i]) return *rules_[i];
+    else Bug("Dereferencing null Rule at index {}", i);
+  }
 
   /* Searches for ident in rules[].name().
      If found, returns the index.
-     If not found, appends a new monostate rule with the ident, and returns the
+     If not found, appends a new UnassignedRule with the ident, and returns the
        index of the new element. In this case, it also records thisPos in
        firstUseLocs_.
      Assumes ident.empty() == false
   */
   ssize_t findOrAppendIdent(const Ident& id);
 
-  /* Returns the index of a monostate rule named ident.
+  /* Returns the index of UnassignedRule named ident.
        If one already exists, its index is returned with no change.
        If one doesn't already exist,
          one is appended and the new index is returned.
-     If a non-monostate rule named ident already exists, it produces a
+     If an assigned rule named ident already exists, it produces a
      "multiple definition" error and returns -1.
 
      In case we are actually appending a new entry, the firstUseLocs_ remains
@@ -149,49 +153,52 @@ class RulesWithLocs {
   */
   template <class X> ssize_t appendAnonRule(X x);
 
+  /* For assigning to a rule after they have already been named */
+  template <class X> auto deferred_assign(ssize_t idx, X x);
+
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
 
   /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
   void resize_down(ssize_t n) noexcept;
 
-  vector<Rule> releaseRules();
+  vector<unique_ptr<Rule>> releaseRules();
 
  private:
   // Invariant: these two must have equal sizes at all times.
-  vector<Rule> rules_;
+  vector<unique_ptr<Rule>> rules_;
   vector<LocPair> firstUseLocs_;
 };
 
 ssize_t
 RulesWithLocs::findOrAppendIdent(const Ident& id) {
   LocPair thisPos{id.stPos(), id.enPos()};
-  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i].name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i]->name()) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
-  rules_.emplace_back(monostate{}, id);
+  rules_.push_back(make_unique<UnassignedRule>(id));
   firstUseLocs_.push_back(thisPos);
   return this->ssize()-1;
 }
 
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
-  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i].name()) {
-    if(!holds_alternative<monostate>(rules_[i])) {
+  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i]->name()) {
+    if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
     }else return i;
   }
-  rules_.emplace_back(monostate{}, ident);
+  rules_.push_back(make_unique<UnassignedRule>(ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
 
 template <class X> ssize_t
 RulesWithLocs::appendAnonRule(X x) {
-  rules_.push_back(Rule{std::move(x)});
+  rules_.push_back(move_to_unique(x));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
 }
@@ -199,8 +206,8 @@ RulesWithLocs::appendAnonRule(X x) {
 bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
-    if(holds_alternative<monostate>(rules_[i])) {
-      optional<Ident> name = rules_[i].name();
+    if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+      optional<Ident> name = *rules_[i]->name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
       Error(ctx, st, en, format("Rule '{}' was used but never defined",
@@ -220,10 +227,23 @@ RulesWithLocs::resize_down(ssize_t n) noexcept {
   firstUseLocs_.resize(n);
 }
 
-vector<Rule>
+vector<unique_ptr<Rule>>
 RulesWithLocs::releaseRules() {
   firstUseLocs_.clear();
   return std::move(rules_);  // This is guaranteed to clear rules_.
+}
+
+template <class X>
+auto RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+  if(rules_[idx] != nullptr &&
+     !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
+    oalex::Bug("deferred_assign() cannot be used a rule already assigned");
+  Ident name;
+  if(rules_[idx] != nullptr) {
+    if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
+  }
+  x.deferred_name(std::move(name));
+  rules_[idx] = move_to_unique(x);
 }
 
 bool
@@ -289,17 +309,18 @@ bool
 resemblesBnfRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
 }
+
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
-  rl[ruleIndex].deferred_assign(MatchOrError{
+  rl.deferred_assign(ruleIndex, MatchOrError{
       rl.ssize(), format("Expected '{}'", literal)
   });
-  rl.appendAnonRule(string(literal));
+  rl.appendAnonRule(StringRule(string(literal)));
 }
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(monostate{});
+  rl.appendAnonRule(UnassignedRule{});
   assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }
@@ -307,8 +328,8 @@ appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
 void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    string errmsg, RegexPattern regex) {
-  rl[ruleIndex].deferred_assign(MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.appendAnonRule(std::move(regex.patt));
+  rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
+  rl.appendAnonRule(RegexRule{std::move(regex.patt)});
 }
 
 ssize_t
@@ -321,7 +342,7 @@ appendWordOrError(RulesWithLocs& rl, string_view word) {
 ssize_t
 appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(std::move(regex));
+  rl.appendAnonRule(RegexRule{std::move(regex)});
   rl.appendAnonRule(MatchOrError{newIndex, "Does not match expected pattern"});
   return newIndex + 1;
 }
@@ -412,7 +433,7 @@ parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
   else if(**seg == "acrossLines") withinLine = false;
   else return Error(ctx, *seg, "Expected either 'withinLine' or 'acrossLines'");
   if(!requireEol(linetoks, 4, ctx)) return nullopt;
-  return SkipPoint{.stayWithinLine = withinLine, .skip = &oalexSkip};
+  return SkipPoint{ /* stayWithinLine */ withinLine, &oalexSkip};
 }
 
 // Resets RulesWithLoc back to initial size unless disarm() is called.
@@ -450,12 +471,12 @@ parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
-      rl[ruleIndex].deferred_assign(std::move(*c));
+      rl.deferred_assign(ruleIndex, std::move(*c));
       rewinder.disarm();
     }
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
-      rl[ruleIndex].deferred_assign(std::move(*sp));
+      rl.deferred_assign(ruleIndex, std::move(*sp));
       rewinder.disarm();
     }
   }else {
@@ -589,13 +610,12 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl);
 ssize_t
 appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
                     RulesWithLocs& rl) {
-  ConcatFlatRule concatRule{ .comps{} };
+  ConcatFlatRule concatRule{ {} };
   for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl.ssize(), {}});
-      rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                  .skip = &oalexSkip});
+      rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false, &oalexSkip});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
@@ -609,7 +629,7 @@ appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
 ssize_t
 appendPatternOrList(DiagsDest ctx, const PatternOrList& orPatt,
                     RulesWithLocs& rl) {
-  OrRule orRule{.comps{}, .flattenOnDemand=true};
+  OrRule orRule{{}, /* flattenOnDemand */ true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
     ssize_t j = appendPatternRule(ctx, child, rl);
@@ -624,14 +644,14 @@ ssize_t
 appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
                       RulesWithLocs& rl) {
   ssize_t i;
-  OrRule orRule{.comps{}, .flattenOnDemand=true};
+  OrRule orRule{{}, /* flattenOnDemand */ true};
 
   i = appendPatternRule(ctx, optPatt.part, rl);
   i = rl.appendAnonRule(QuietMatch{i});
   orRule.comps.push_back({-1, i, passthroughTmpl});
 
   // This branch always produces a Map on success.
-  i = rl.appendAnonRule(string{});
+  i = rl.appendAnonRule(StringRule{{}});
   orRule.comps.push_back({-1, i, JsonLoc::Map{}});
 
   return rl.appendAnonRule(std::move(orRule));
@@ -649,11 +669,11 @@ ssize_t
 appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
                     RulesWithLocs& rl) {
   ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                            .skip = &oalexSkip});
-  return rl.appendAnonRule(LoopRule{
+  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                            &oalexSkip});
+  return rl.appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
-      .lookidx = -1, .skipidx = ski});
+      .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t
@@ -661,11 +681,11 @@ appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
                   RulesWithLocs& rl) {
   ssize_t pi = appendPatternRule(ctx, foldPatt.part, rl);
   ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{.stayWithinLine = false,
-                                            .skip = &oalexSkip});
-  return rl.appendAnonRule(LoopRule{
+  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                            &oalexSkip});
+  return rl.appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
-      .lookidx = -1, .skipidx = ski});
+      .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t
@@ -733,10 +753,10 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
-  rl[newIndex2].deferred_assign(OutputTmpl{
-      .childidx = newIndex,
-      .childName = "",
-      .outputTmpl = std::move(jsloc)
+  rl.deferred_assign(newIndex2, OutputTmpl{
+      /* childidx */ newIndex,
+      /* childName */ "",
+      /* outputTmpl */ std::move(jsloc)
   });
 }
 
@@ -955,7 +975,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
     return;
   }
   const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
-  OrRule orRule{.comps{}, .flattenOnDemand=false};
+  OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
@@ -970,7 +990,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
       continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
-  rl[orIndex].deferred_assign(std::move(orRule));
+  rl.deferred_assign(orIndex, std::move(orRule));
 }
 
 // Checks second token just so it is not a BNF rule of the form
@@ -1032,8 +1052,10 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
 
 const JsonLoc*
 getTemplate(const Rule& rule) {
-  if(auto* concat = get_if<ConcatRule>(&rule)) return &concat->outputTmpl;
-  if(auto* tmpl   = get_if<OutputTmpl>(&rule)) return &tmpl->outputTmpl;
+  if(auto* concat = dynamic_cast<const ConcatRule*>(&rule))
+    return &concat->outputTmpl;
+  if(auto* tmpl = dynamic_cast<const OutputTmpl*>(&rule))
+    return &tmpl->outputTmpl;
   return nullptr;
 }
 
@@ -1052,8 +1074,8 @@ hasDuplicatePlaceholders(const JsonLoc& tmpl) {
 // in codegen, instead of copying them. Doing it at the end allows us to not
 // miss it in any of the places we create an outputTmpl.
 bool
-hasDuplicatePlaceholders(const vector<Rule>& rules, DiagsDest ctx) {
-  for(const Rule& rule : rules) if(const JsonLoc* tmpl = getTemplate(rule)) {
+hasDuplicatePlaceholders(const vector<unique_ptr<Rule>>& rules, DiagsDest ctx) {
+  for(const auto& rule : rules) if(const JsonLoc* tmpl = getTemplate(*rule)) {
     if(auto opt = hasDuplicatePlaceholders(*tmpl)) {
       auto [p1, p2, key] = *opt;
       Error(ctx, p2->stPos, p2->enPos, format("Duplicate placeholder {}", key));
@@ -1066,15 +1088,15 @@ hasDuplicatePlaceholders(const vector<Rule>& rules, DiagsDest ctx) {
 
 // TODO improve autogenerated names. E.g. 'Hello' --> Hello.
 void
-fillInNames(vector<Rule>& rules) {
+fillInNames(vector<unique_ptr<Rule>>& rules) {
   vector<bool> istentative(rules.size(), false);
   for(auto& rule : rules) {
-    if(auto* orrule = get_if<OrRule>(&rule)) {
+    if(auto* orrule = dynamic_cast<const OrRule*>(rule.get())) {
       for(auto& comp : orrule->comps) if(comp.lookidx != -1)
         istentative[comp.lookidx] = true;
-    }else if(auto* qmrule = get_if<QuietMatch>(&rule))
+    }else if(auto* qmrule = dynamic_cast<const QuietMatch*>(rule.get()))
       istentative[qmrule->compidx] = true;
-    else if(auto* loop = get_if<LoopRule>(&rule)) {
+    else if(auto* loop = dynamic_cast<const LoopRule*>(rule.get())) {
       if(loop->lookidx != -1) istentative[loop->lookidx] = true;
       else if(loop->glueidx != -1) istentative[loop->glueidx] = true;
       // TODO put this next statement under an else clause after we have
@@ -1086,8 +1108,8 @@ fillInNames(vector<Rule>& rules) {
 
   size_t nc = 1;
   for(size_t i=0; i<rules.size(); ++i)
-    if(rules[i].needsName(istentative[i]) && !rules[i].name().has_value())
-      rules[i].deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
+    if(needsName(*rules[i], istentative[i]) && !rules[i]->name().has_value())
+      rules[i]->deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
 }
 
 }  // namespace

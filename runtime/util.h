@@ -122,7 +122,6 @@ inline bool isSubstr(std::string_view s, std::string_view t) {
   return t.find(s) != std::string_view::npos;
 }
 
-
 // sign_cast<int>(). Eqiuvalent to reinterpret_cast, but constrained.
 
 template <class T>
@@ -146,6 +145,12 @@ template <class V, class ... Args> std::vector<V>
 makeVector(Args ... args) {
   std::vector<V> rv;
   (rv.push_back(std::move(args)), ...);
+  return rv;
+}
+template <class V, class ... Args> auto
+makeVectorUnique(Args ... args) {
+  std::vector<std::unique_ptr<V>> rv;
+  (rv.push_back(move_to_unique(args)), ...);
   return rv;
 }
 
