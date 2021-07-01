@@ -325,8 +325,9 @@ void testFlattenOnDemand() {
     {"42", true, *parseJsonLoc("{number: '42'}")},
   };
   for(auto& [msg, fod, expected] : inputOutputPairs) {
-    get_if<OrRule>(rs.rules[4].get())->flattenOnDemand = fod;
-    get_if<ConcatFlatRule>(rs.rules[5].get())->comps[0].outputPlaceholder =
+    dynamic_cast<OrRule*>(rs.rules[4].get())->flattenOnDemand = fod;
+    dynamic_cast<ConcatFlatRule*>(rs.rules[5].get())
+      ->comps[0].outputPlaceholder =
       (fod ? "" : "next_token");
     ssize_t pos = 0;
     auto ctx = testInputDiags(msg);

@@ -185,7 +185,7 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i]->name()) {
-    if(!holds_alternative<UnassignedRule>(*rules_[i])) {
+    if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
@@ -206,7 +206,7 @@ RulesWithLocs::appendAnonRule(X x) {
 bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
-    if(holds_alternative<UnassignedRule>(*rules_[i])) {
+    if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       optional<Ident> name = *rules_[i]->name();
       if(!name.has_value()) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
@@ -236,7 +236,7 @@ RulesWithLocs::releaseRules() {
 template <class X>
 auto RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
-     !holds_alternative<UnassignedRule>(*rules_[idx]))
+     !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
   Ident name;
   if(rules_[idx] != nullptr) {
@@ -1052,8 +1052,10 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
 
 const JsonLoc*
 getTemplate(const Rule& rule) {
-  if(auto* concat = get_if<ConcatRule>(&rule)) return &concat->outputTmpl;
-  if(auto* tmpl   = get_if<OutputTmpl>(&rule)) return &tmpl->outputTmpl;
+  if(auto* concat = dynamic_cast<const ConcatRule*>(&rule))
+    return &concat->outputTmpl;
+  if(auto* tmpl = dynamic_cast<const OutputTmpl*>(&rule))
+    return &tmpl->outputTmpl;
   return nullptr;
 }
 
@@ -1089,12 +1091,12 @@ void
 fillInNames(vector<unique_ptr<Rule>>& rules) {
   vector<bool> istentative(rules.size(), false);
   for(auto& rule : rules) {
-    if(auto* orrule = get_if<OrRule>(rule.get())) {
+    if(auto* orrule = dynamic_cast<const OrRule*>(rule.get())) {
       for(auto& comp : orrule->comps) if(comp.lookidx != -1)
         istentative[comp.lookidx] = true;
-    }else if(auto* qmrule = get_if<QuietMatch>(rule.get()))
+    }else if(auto* qmrule = dynamic_cast<const QuietMatch*>(rule.get()))
       istentative[qmrule->compidx] = true;
-    else if(auto* loop = get_if<LoopRule>(rule.get())) {
+    else if(auto* loop = dynamic_cast<const LoopRule*>(rule.get())) {
       if(loop->lookidx != -1) istentative[loop->lookidx] = true;
       else if(loop->glueidx != -1) istentative[loop->glueidx] = true;
       // TODO put this next statement under an else clause after we have

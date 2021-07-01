@@ -207,9 +207,8 @@ class SkipPoint final : public Rule {
   const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
 };
 
-// Just a strong typedef of std::string. It is used as a Rule variant, in case
-// we want a word-preserving match. That is a match that doesn't break an input
-// word into two.
+// Wraps an std::string, for when we want a word-preserving match. That is a
+// match that doesn't break an input word into two.
 // Someday, it might become a more complex struct with customizable
 // RegexWordChar*. For now, it just uses the default one in RuleSet.
 class WordPreserving final : public Rule {
@@ -289,21 +288,6 @@ class StringRule final : public Rule {
     * MatchOrError: Same as child.
   */
 };
-
-template <class X> bool holds_alternative(const Rule& rule) {
-  static_assert(std::is_base_of_v<Rule, X>);
-  return dynamic_cast<const X*>(&rule) != nullptr;
-}
-
-template <class X> X* get_if(Rule* rule) {
-  static_assert(std::is_base_of_v<Rule, X>);
-  return dynamic_cast<X*>(rule);
-}
-
-template <class X> const X* get_if(const Rule* rule) {
-  static_assert(std::is_base_of_v<Rule, X>);
-  return dynamic_cast<const X*>(rule);
-}
 
 // TODO this needs a debug() printer.
 struct RuleSet {
