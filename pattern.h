@@ -12,6 +12,7 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
+#pragma once
 #include <map>
 #include <string_view>
 #include <utility>
