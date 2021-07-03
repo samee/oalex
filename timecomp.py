@@ -22,7 +22,7 @@
 #   cd build
 #   cmake -DCMAKE_CXX_COMPILER=$PWD/../timecomp.py ..
 #   make all 2> timecomp.log
-#   sort -rn timecomp.log
+#   sort -rnk3 timecomp.log
 
 import os
 import sys
@@ -43,4 +43,5 @@ os.system(cmd)
 end = time.time()
 
 if outfile is not None:
-  print(f"Wall time: {end-start}s {outfile}", file=sys.stderr, flush=True)
+  print(f"Wall time: {end-start:>6.3f}s {outfile}",
+        file=sys.stderr, flush=True)
