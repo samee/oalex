@@ -24,7 +24,7 @@
 #   make all 2> timecomp.log
 #   sort -rnk3 timecomp.log
 
-import os
+import subprocess
 import sys
 import time
 
@@ -37,9 +37,8 @@ def outfileFromCmdLine(cmdline):
 
 outfile = outfileFromCmdLine(sys.argv)
 
-cmd = ' '.join(['g++'] + sys.argv[1:])
 start = time.time()
-os.system(cmd)
+subprocess.run(['g++'] + sys.argv[1:])
 end = time.time()
 
 if outfile is not None:
