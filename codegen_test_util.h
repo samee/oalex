@@ -15,14 +15,13 @@
 #pragma once
 
 #include "codegen.h"
-#include "regex_io.h"
 
 namespace oalex::test {
 
 inline const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
-inline const RegexOptions regexOpts{
-  .word = oalex::parseRegexCharSet("[0-9A-Za-z_]")
-};
+extern const RegexOptions regexOpts;
+
+RegexRule parseRegex(std::string_view s);
 
 inline StringRule nmRule(const char* s, std::string name) {
   return {s, Ident::parseGenerated(name)};

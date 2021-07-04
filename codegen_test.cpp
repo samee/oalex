@@ -16,7 +16,6 @@
 #include "codegen_test_util.h"
 
 #include "jsonloc_io_test.h"
-#include "regex_io.h"
 #include "fmt/core.h"
 #include "runtime/test_util.h"
 #include <string_view>
@@ -59,6 +58,7 @@ using oalex::test::assertJsonLocIsString;
 using oalex::test::cskip;
 using oalex::test::nmRule;
 using oalex::test::regexOpts;
+using oalex::test::parseRegex;
 using oalex::test::singletonRuleSet;
 
 namespace {
@@ -167,9 +167,7 @@ void testSingleWordPreserving() {
 }
 
 void testRegexMatch() {
-  auto regex_input = testInputDiags("/[a-z]+/");
-  size_t pos = 0;
-  RuleSet rs = singletonRuleSet(RegexRule{oalex::parseRegex(regex_input, pos)});
+  RuleSet rs = singletonRuleSet(parseRegex("/[a-z]+/"));
   ssize_t spos = 0;
   auto ctx = testInputDiags("hello world");
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
@@ -179,15 +177,6 @@ void testRegexMatch() {
   auto ctx2 = testInputDiags("123");
   jsloc = eval(ctx2, spos, rs, 0);
   if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
-}
-
-// TODO move to some test_util.h
-RegexRule parseRegex(string_view s) {
-  size_t i = 0;
-  auto ctx = testInputDiags(s);
-  unique_ptr<const Regex> rv = parseRegex(ctx, i);
-  if(!rv) Bug("{} is not a valid regex", s);
-  else return RegexRule{std::move(rv)};
 }
 
 void testConcatMatch() {
