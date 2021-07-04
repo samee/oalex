@@ -19,12 +19,10 @@
 #include "regex_io.h"
 #include "fmt/core.h"
 #include "runtime/test_util.h"
-#include <iterator>
 #include <string_view>
 #include <tuple>
 #include <vector>
 using fmt::format;
-using std::back_inserter;
 using std::optional;
 using std::pair;
 using std::size;
