@@ -18,8 +18,7 @@
 #include <memory>
 #include <vector>
 
-#include "diags.h"
-#include "util.h"
+#include "input_view.h"
 
 namespace oalex {
 
