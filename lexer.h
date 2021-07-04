@@ -177,9 +177,9 @@ struct BracketGroup : LexSegment {
 // Identity function, used in diags.h helpers below.
 inline const LexSegment& lexSegment(const LexSegment& x) { return x; }
 inline const LexSegment& lexSegment(const ExprToken& x) {
-  // Redefine to avoid name collision.
-  auto f = [](const LexSegment& x) -> const LexSegment& { return x; };
-  return std::visit(f, x);
+  // Use static_cast to disambiguate between overloads.
+  using clseg = const LexSegment;
+  return std::visit(static_cast<clseg&(*)(clseg&)>(&lexSegment), x);
 }
 template <class T> std::string_view typeTagName(const T& t) {
   return typeTagName(LexSegmentTag{lexSegment(t).tag});
