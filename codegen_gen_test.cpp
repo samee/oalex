@@ -16,7 +16,6 @@
 #include "codegen_test_util.h"
 
 #include "jsonloc_io_test.h"
-#include "regex_io.h"
 #include "runtime/oalex.h"
 #include <cstdio>
 #include <cstring>
@@ -44,10 +43,8 @@ using oalex::OutputStream;
 using oalex::OutputTmpl;
 using oalex::OrRule;
 using oalex::parseJsonLoc;
-using oalex::parseRegex;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
-using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::StringRule;
@@ -57,6 +54,7 @@ using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
 using oalex::test::nmRule;
+using oalex::test::parseRegex;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
@@ -128,15 +126,6 @@ void generateSingleStringTest(const OutputStream& cppos,
   codegen(rs, 0, cppos, hos);
 }
 
-RegexRule regexRule(const string& testName,
-                    const string& regex_pattern, const string& fname) {
-  InputDiags regex_input{Input{regex_pattern}};
-  size_t i = 0;
-  auto regex = parseRegex(regex_input, i);
-  assertEmptyDiags(testName, regex_input.diags);
-  return nmRule(RegexRule{std::move(regex)}, fname);
-}
-
 void generateSingleRegexTest(const OutputStream& cppos,
                              const OutputStream& hos) {
   const pair<string,string> inputs[] = {
@@ -148,7 +137,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
   };
   for(auto& [pat, fname] : inputs) {
     cppos("\n");
-    RuleSet rs = singletonRuleSet(regexRule(__func__, pat, fname));
+    RuleSet rs = singletonRuleSet(nmRule(parseRegex(pat), fname));
     codegen(rs, 0, cppos, hos);
   }
 }
@@ -166,9 +155,9 @@ void generateConcatFlatTest(const OutputStream& cppos,
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                WordPreserving{"var"},
-               regexRule(__func__, "/[a-zA-Z]+/", "FlatIdent"),
+               nmRule(parseRegex("/[a-zA-Z]+/"), "FlatIdent"),
                StringRule{":"}, StringRule{"="},
-               regexRule(__func__, "/[0-9]+/", "FlatNumber"),
+               nmRule(parseRegex("/[0-9]+/"), "FlatNumber"),
                StringRule{";"},
                nmRule(SkipPoint{false, &cskip}, "FlatSpace"),
                nmRule(ConcatFlatRule{{
@@ -202,9 +191,9 @@ void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVectorUnique<Rule>(
     nmRule(WordPreserving{"int"}, "Type"),
-    regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "Identifier"),
+    nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "Identifier"),
     StringRule{"="},
-    regexRule(__func__, "/-?[0-9]+\\b/", "IntegerLiteral"),
+    nmRule(parseRegex("/-?[0-9]+\\b/"), "IntegerLiteral"),
     StringRule{";"},
     nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
     nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
@@ -222,7 +211,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
   const Skipper shskip{ {{"#", "\n"}}, {} };
   RuleSet rs { oalex::makeVectorUnique<Rule>(
       WordPreserving{"let"},
-      regexRule(__func__, "/[a-zA-Z_][a-zA-Z_0-9]*\\b/", "ExtTmplId"),
+      nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
       nmRule(ExternParser{}, "parseIndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
@@ -237,7 +226,7 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"if"}, StringRule{"while"},
-        regexRule(__func__, "/[0-9]+/", "OrCompNumber"),
+        nmRule(parseRegex("/[0-9]+/"), "OrCompNumber"),
         nmRule(OrRule{{
           {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
           {-1, 2, *parseJsonLoc("{number: child}")},
@@ -284,7 +273,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
   }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        StringRule{"let"}, regexRule(__func__, "/[0-9]+/", "FlattenNumber"),
+        StringRule{"let"}, nmRule(parseRegex("/[0-9]+/"), "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ false},
@@ -304,7 +293,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
     .rules = makeVectorUnique<Rule>(
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
         WordPreserving{"var"},
-        regexRule(__func__, "/[a-z]+/", "lookahead_ident"),
+        nmRule(parseRegex("/[a-z]+/"), "lookahead_ident"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
@@ -315,7 +304,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         }}, "asgn"),
         StringRule{"."},
         nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
-        regexRule(__func__, "/[0-9]+/", "lookahead_line_number_regex"),
+        nmRule(parseRegex("/[0-9]+/"), "lookahead_line_number_regex"),
         StringRule{":"},
         nmRule(ConcatFlatRule{{ {9, "line_number"}, {10, ""} }},
                "lookahead_line_num"),
@@ -378,7 +367,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .lookidx = -1,
           .skipidx = 2,
         }}, "LoopSum"),
-        regexRule(__func__, "/[a-z]+/", "LoopIdentRegex"),
+        nmRule(parseRegex("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
 
         // Test glueidx == -1
@@ -396,7 +385,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         }}, "ListPrefix"),
 
         // Flattenable child.
-        regexRule(__func__, "/[-+]/", "LoopPlusOrMinus"),
+        nmRule(parseRegex("/[-+]/"), "LoopPlusOrMinus"),
         nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"} }}, "LoopFlatElt"),
         nmRule(LoopRule{{
           .partidx = 10,
@@ -420,7 +409,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"-"},
-        regexRule(__func__, "/[a-z]+/", "GpSwappedIdent"),
+        nmRule(parseRegex("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
         nmRule(LoopRule{{ .partidx = 0, .partname = "",
                           .glueidx = 2, .gluename = "",
