@@ -75,6 +75,11 @@ using std::vector;
 
 namespace oalex::lex {
 
+RegexOptions oalexRegexOpts{
+  // Do not use user-supplied input. See regex_io.h for details.
+  .word = parseRegexCharSet("[0-9A-Za-z_]")
+};
+
 string_view typeTagName(const LexSegmentTag& tag) {
   switch(tag) {
     case LexSegmentTag::wholeSegment: return "wholeSegment";
