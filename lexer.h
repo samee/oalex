@@ -45,13 +45,7 @@ enum class LexSegmentTag {
 };
 std::string_view typeTagName(const LexSegmentTag& tag);
 
-// This class is mostly to document which Segment types belong to the lexer.
-struct LexSegment : Segment {
-  LexSegment(size_t st,size_t en,Segment::tagint_t type_tag)
-    : Segment{st,en,type_tag} {}
-};
-
-struct NewlineChar : LexSegment {
+struct NewlineChar : Segment {
   explicit NewlineChar(const GluedString& s, size_t pos);
 };
 
@@ -59,13 +53,13 @@ struct NewlineChar : LexSegment {
 // by itself. These are meant to be a lightweight string wrapper, and do not
 // use complex rowCol() maps. This also disallows any backslash escape sequence
 // such as '\n' or '\t'.
-struct WholeSegment : LexSegment {
+struct WholeSegment : Segment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::wholeSegment);
   std::string data;
   WholeSegment(size_t st,size_t en,const Input& input)
-    : LexSegment(st,en,type_tag), data(input.substr(st,en-st)) {}
+    : Segment{st,en,type_tag}, data(input.substr(st,en-st)) {}
   WholeSegment(size_t st,size_t en,std::string tok)
-    : LexSegment(st,en,type_tag), data(std::move(tok)) {}
+    : Segment{st,en,type_tag}, data(std::move(tok)) {}
 
   // This should only be used for short and simple tokens without newlines or
   // escape codes embedded in it, since that will mess up location-tracking.
@@ -91,7 +85,7 @@ struct WholeSegment : LexSegment {
 //   A: GluedString often represents processed strings, after escape codes
 //      and other quoted constructs have been decoded. Bytes in the input file
 //      do not always correspond to bytes in a GluedString.
-class GluedString final : public LexSegment, public InputPiece {
+class GluedString final : public Segment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
@@ -133,7 +127,7 @@ class GluedString final : public LexSegment, public InputPiece {
   std::vector<IndexRelation> index_map_;
   GluedString(size_t st, size_t en, std::string_view s, Ctor ctor,
               std::vector<IndexRelation> imap)
-    : LexSegment(st,en,type_tag), s_(s), ctor_(ctor),
+    : Segment{st,en,type_tag}, s_(s), ctor_(ctor),
       index_map_(std::move(imap)) {}
   GluedString() = delete;
 };
@@ -145,11 +139,11 @@ inline bool operator!=(const GluedString& a, const GluedString& b) {
   return std::string_view(a) != std::string_view(b);
 }
 
-struct RegexPattern : LexSegment {
+struct RegexPattern : Segment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::regexPattern);
   std::unique_ptr<const Regex> patt;
   RegexPattern(size_t st, size_t en, std::unique_ptr<const Regex> patt)
-    : LexSegment(st, en, type_tag), patt(std::move(patt)) {}
+    : Segment{st, en, type_tag}, patt(std::move(patt)) {}
 };
 
 struct BracketGroup;
@@ -160,12 +154,12 @@ enum class ExprType { wholeSegment, gluedString, regexPattern, bracketGroup };
 
 enum class BracketType { square, brace, paren, };
 
-struct BracketGroup : LexSegment {
+struct BracketGroup : Segment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::bracketGroup);
   BracketType type;
   std::vector<ExprToken> children;
   BracketGroup(size_t st,size_t en,BracketType t)
-    : LexSegment(st,en,type_tag), type(t), children() {}
+    : Segment{st,en,type_tag}, type(t), children() {}
 
   // This type is move-only, because we want to support unique_ptr components.
   BracketGroup(const BracketGroup&) = delete;
@@ -175,18 +169,18 @@ struct BracketGroup : LexSegment {
 };
 
 // Identity function, used in diags.h helpers below.
-inline const LexSegment& lexSegment(const LexSegment& x) { return x; }
-inline const LexSegment& lexSegment(const ExprToken& x) {
+inline const Segment& segment(const Segment& x) { return x; }
+inline const Segment& segment(const ExprToken& x) {
   // Use static_cast to disambiguate between overloads.
-  using clseg = const LexSegment;
-  return std::visit(static_cast<clseg&(*)(clseg&)>(&lexSegment), x);
+  using cseg = const Segment;
+  return std::visit(static_cast<cseg&(*)(cseg&)>(&segment), x);
 }
 template <class T> std::string_view typeTagName(const T& t) {
-  return typeTagName(LexSegmentTag{lexSegment(t).tag});
+  return typeTagName(LexSegmentTag{segment(t).tag});
 }
 
-inline size_t stPos(const ExprToken& x) { return lexSegment(x).stPos; }
-inline size_t enPos(const ExprToken& x) { return lexSegment(x).enPos; }
+inline size_t stPos(const ExprToken& x) { return segment(x).stPos; }
+inline size_t enPos(const ExprToken& x) { return segment(x).enPos; }
 
 inline ExprType exprType(const ExprToken& expr)
   { return ExprType(expr.index()); }
@@ -247,10 +241,10 @@ std::vector<std::vector<ExprToken>>
 splitCommaNoEmpty(DiagsDest ctx, std::vector<ExprToken> elts);
 
 // Helpers for diags.h that point to a specific token.
-// T can be either an ExprToken or a LexSegment derivative.
+// T can be either an ExprToken or a Segment derivative.
 template <class T> std::nullopt_t
 Error(DiagsDest ctx, const T& t, std::string msg) {
-  const LexSegment& seg = lexSegment(t);
+  const Segment& seg = segment(t);
   return Error(ctx, seg.stPos, seg.enPos, std::move(msg));
 }
 

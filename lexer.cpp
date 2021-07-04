@@ -374,15 +374,15 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
 }
 
 NewlineChar::NewlineChar(const GluedString& s, size_t pos)
-  : LexSegment(s.inputPos(pos), s.inputPos(pos)+1,
-               tagint_t(LexSegmentTag::newlineChar)) {}
+  : Segment{s.inputPos(pos), s.inputPos(pos)+1,
+               tagint_t(LexSegmentTag::newlineChar)} {}
 
 WholeSegment::WholeSegment(const GluedString& s)
-  : LexSegment(s.inputPos(0), s.inputPos(s.size()), type_tag),
+  : Segment{s.inputPos(0), s.inputPos(s.size()), type_tag},
     data(string(s)) { }
 
 GluedString::GluedString(WholeSegment s)
-  : LexSegment(s.stPos, s.enPos, type_tag),
+  : Segment{s.stPos, s.enPos, type_tag},
     s_(std::move(*s)), ctor_(Ctor::wholeSegment),
     index_map_({IndexRelation{.inputPos = s.stPos, .quotePos = 0}}) {}
 
