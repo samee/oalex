@@ -24,8 +24,6 @@
 
 namespace oalex {
 
-class Regex;  // Defined in runtime/regex.h
-
 namespace lex {
 
 class GluedString;
