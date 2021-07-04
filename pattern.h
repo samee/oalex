@@ -65,10 +65,10 @@ auto labelParts(
 
 // Strong typedefs.
 struct WordToken : public lex::WholeSegment {
-  explicit WordToken(const lex::GluedString& s) : WholeSegment(s) {}
+  explicit WordToken(const WholeSegment& s) : WholeSegment(s) {}
 };
 struct OperToken : public lex::WholeSegment {
-  explicit OperToken(const lex::GluedString& s) : WholeSegment(s) {}
+  explicit OperToken(const WholeSegment& s) : WholeSegment(s) {}
 };
 
 using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;

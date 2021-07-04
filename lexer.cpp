@@ -377,10 +377,6 @@ NewlineChar::NewlineChar(const GluedString& s, size_t pos)
   : Segment{s.inputPos(pos), s.inputPos(pos)+1,
                tagint_t(LexSegmentTag::newlineChar)} {}
 
-WholeSegment::WholeSegment(const GluedString& s)
-  : Segment{s.inputPos(0), s.inputPos(s.size()), type_tag},
-    data(string(s)) { }
-
 GluedString::GluedString(WholeSegment s)
   : Segment{s.stPos, s.enPos, type_tag},
     s_(std::move(*s)), ctor_(Ctor::wholeSegment),

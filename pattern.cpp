@@ -224,8 +224,8 @@ static TokenOrPart lexPatternToken(const GluedString& s, size_t& i,
     if(isword != matchesRegexCharSet(s[i], opts.wordChars)) break;
     ++i;
   }
-  return isword ? TokenOrPart(WordToken(s.subqstr(st, i-st)))
-                : TokenOrPart(OperToken(s.subqstr(st, i-st)));
+  return isword ? TokenOrPart(WordToken({st, i, s.subqstr(st, i-st)}))
+                : TokenOrPart(OperToken({st, i, s.subqstr(st, i-st)}));
 }
 
 auto tokenizePatternWithoutLabels(DiagsDest ctx, const GluedString& s,

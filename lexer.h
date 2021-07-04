@@ -59,9 +59,6 @@ struct WholeSegment : Segment {
   WholeSegment(size_t st,size_t en,std::string tok)
     : Segment{st,en,type_tag}, data(std::move(tok)) {}
 
-  // This should only be used for short and simple tokens without newlines or
-  // escape codes embedded in it, since that will mess up location-tracking.
-  explicit WholeSegment(const GluedString& s);
   const std::string& operator*() const { return data; }
   const std::string* operator->() const { return &data; }
 };
