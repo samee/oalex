@@ -80,8 +80,8 @@ RegexOptions oalexRegexOpts{
   .word = parseRegexCharSet("[0-9A-Za-z_]")
 };
 
-string_view typeTagName(const LexSegmentTag& tag) {
-  switch(tag) {
+const char* exprTagName(const ExprToken& t) {
+  switch(auto tag = LexSegmentTag{segment(t).tag}) {
     case LexSegmentTag::wholeSegment: return "wholeSegment";
     case LexSegmentTag::section: return "section";
     case LexSegmentTag::gluedString: return "gluedString";

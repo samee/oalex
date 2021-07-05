@@ -41,7 +41,6 @@ enum class LexSegmentTag {
   newlineChar,
   regexPattern,
 };
-std::string_view typeTagName(const LexSegmentTag& tag);
 
 struct NewlineChar : Segment {
   explicit NewlineChar(const GluedString& s, size_t pos);
@@ -173,9 +172,7 @@ inline const Segment& segment(const ExprToken& x) {
   using cseg = const Segment;
   return std::visit(static_cast<cseg&(*)(cseg&)>(&segment), x);
 }
-template <class T> std::string_view typeTagName(const T& t) {
-  return typeTagName(LexSegmentTag{segment(t).tag});
-}
+const char* exprTagName(const ExprToken& t);
 
 inline size_t stPos(const ExprToken& x) { return segment(x).stPos; }
 inline size_t enPos(const ExprToken& x) { return segment(x).enPos; }

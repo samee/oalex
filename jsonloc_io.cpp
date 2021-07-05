@@ -84,7 +84,7 @@ optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr) {
     }
     Bug("Unknown BracketType: {}", int(bg->type));
   }
-  Bug("Unknown ExprType: {}", typeTagName(expr));
+  Bug("Unknown ExprType: {}", exprTagName(expr));
 }
 
 // TODO diags should throw after 3 or so errors.
@@ -164,7 +164,7 @@ bool allStringsSingleQuoted(DiagsDest ctx, const ExprToken& expr) {
   if(auto* bg = get_if<BracketGroup>(&expr))
     return allStringsSingleQuoted(ctx, *bg);
 
-  Bug("Unknown ExprToken type {}", typeTagName(expr));
+  Bug("Unknown ExprToken type {}", exprTagName(expr));
 }
 
 }  // namespace
