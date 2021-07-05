@@ -63,7 +63,7 @@ class Ident {
 
   /* parseGenerated() dies on invalid input. It is expected to be used only
   for hardcoded inputs and sanitized inputs. It also preserves the invariant
-  that for all valid input s, Ident::parseGenerate(s).preserveCase() == s. */
+  that for all valid input s, Ident::parseGenerated(s).preserveCase() == s. */
   static Ident parseGenerated(std::string s);
 
   std::string toSnakeCase() const;
