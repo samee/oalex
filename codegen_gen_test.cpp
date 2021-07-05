@@ -145,7 +145,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
 void codegenNamedRules(const RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
   for(size_t i=0; i<size(rs.rules); ++i)
-    if(rs.rules[i]->name().has_value()) codegen(rs, i, cppos, hos);
+    if(rs.rules[i]->nameOrNull() != nullptr) codegen(rs, i, cppos, hos);
 }
 
 void generateConcatFlatTest(const OutputStream& cppos,

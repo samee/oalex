@@ -38,8 +38,8 @@ class Rule {
   virtual ~Rule() {}
 
   // Returns optional to make it harder to forget the empty case.
-  std::optional<Ident> name() const {
-    if(!name_) return std::nullopt; else return name_;
+  const Ident* nameOrNull() const {
+    if(!name_) return nullptr; else return &name_;
   }
   void deferred_name(Ident name);
 

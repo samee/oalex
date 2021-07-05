@@ -122,7 +122,7 @@ class RulesWithLocs {
     else Bug("Dereferencing null Rule at index {}", i);
   }
 
-  /* Searches for ident in rules[].name().
+  /* Searches for ident in rules[].nameOrNull().
      If found, returns the index.
      If not found, appends a new UnassignedRule with the ident, and returns the
        index of the new element. In this case, it also records thisPos in
@@ -174,7 +174,9 @@ class RulesWithLocs {
 ssize_t
 RulesWithLocs::findOrAppendIdent(const Ident& id) {
   LocPair thisPos{id.stPos(), id.enPos()};
-  for(ssize_t i=0; i<this->ssize(); ++i) if(id == rules_[i]->name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) {
+    const Ident* name = rules_[i]->nameOrNull();
+    if(name == nullptr || id != *name) continue;
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
@@ -185,7 +187,9 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
 
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
-  for(ssize_t i=0; i<this->ssize(); ++i) if(ident == rules_[i]->name()) {
+  for(ssize_t i=0; i<this->ssize(); ++i) {
+    const Ident* name = rules_[i]->nameOrNull();
+    if(name == nullptr || ident != *name) continue;
     if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
@@ -208,8 +212,8 @@ bool
 RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   for(ssize_t i=0; i<this->ssize(); ++i)
     if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
-      optional<Ident> name = *rules_[i]->name();
-      if(!name.has_value()) Bug("Anonymous rules should always be initialized");
+      const Ident* name = rules_[i]->nameOrNull();
+      if(!name) Bug("Anonymous rules should always be initialized");
       const auto [st, en] = firstUseLocs_[i];
       Error(ctx, st, en, format("Rule '{}' was used but never defined",
                                 name->preserveCase()));
@@ -241,7 +245,7 @@ auto RulesWithLocs::deferred_assign(ssize_t idx, X x) {
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
   Ident name;
   if(rules_[idx] != nullptr) {
-    if(auto name2 = rules_[idx]->name()) name = std::move(*name2);
+    if(auto name2 = rules_[idx]->nameOrNull()) name = std::move(*name2);
   }
   x.deferred_name(std::move(name));
   rules_[idx] = move_to_unique(x);
@@ -1109,7 +1113,7 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
   size_t nc = 1;
   for(size_t i=0; i<rules.size(); ++i)
-    if(needsName(*rules[i], istentative[i]) && !rules[i]->name().has_value())
+    if(needsName(*rules[i], istentative[i]) && !rules[i]->nameOrNull())
       rules[i]->deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
 }
 

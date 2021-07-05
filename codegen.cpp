@@ -31,7 +31,6 @@ using std::function;
 using std::get_if;
 using std::holds_alternative;
 using std::map;
-using std::optional;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
@@ -84,7 +83,7 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
 
 static string
 ruleDebugId(const RuleSet& rs, ssize_t i) {
-  if(optional<Ident> opt = ruleAt(rs, i).name())
+  if(const Ident* opt = ruleAt(rs, i).nameOrNull())
     return format("rule '{}'", opt->preserveCase());
   else return format("rule {}", i);
 }
@@ -650,7 +649,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     if(!dynamic_cast<const SkipPoint*>(&ruleAt(ruleset, loop.skipidx)))
       Bug("LoopRule skipidx {} is not a SkipPoint rule",
           ruleDebugId(ruleset, loop.skipidx));
-    if(auto name = ruleAt(ruleset, loop.skipidx).name()) skipname = *name;
+    if(auto name = ruleAt(ruleset, loop.skipidx).nameOrNull()) skipname = *name;
     else Bug("LoopRule skipidx {} rule needs a name",
              ruleDebugId(ruleset, loop.skipidx));
   }
@@ -671,7 +670,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos(format("    else res = quietMatch(ctx.input, j, {});\n",
-                 parserName(*ruleAt(ruleset, loop.partidx).name())));
+                 parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
     cppos("    if(res.holdsError()) {\n");
     cppos("      if(first) return res;\n");
     cppos("      else break;\n");
@@ -692,7 +691,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    if(res.holdsError()) break;\n");
   }
   if(loop.glueidx != -1) {
-    if(auto gluename = ruleAt(ruleset, loop.glueidx).name())
+    if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
       cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
@@ -725,7 +724,7 @@ codegen(const ErrorRule& errRule, const OutputStream& cppos) {
 static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
-  if(optional<Ident> name = ruleAt(ruleset, qm.compidx).name())
+  if(const Ident* name = ruleAt(ruleset, qm.compidx).nameOrNull())
     cppos(format("  return oalex::quietMatch(ctx.input, i, {});\n",
                  parserName(*name)));
   else Bug("QuietMatch::compidx targets need to have names");
@@ -742,7 +741,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  dquoted(**wp)));
   // When adding a new branch here, remember to change StringRule::needsName().
   else {
-    if(optional<Ident> name = rule.name())
+    if(const Ident* name = rule.nameOrNull())
       cppos(format("oalex::peekMatch(ctx.input, i, {})", parserName(*name)));
     else Bug("The frontend must always name lookidx for {} rules",
              rule.specifics_typename());
@@ -871,7 +870,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
     else cppos(format("oalex::errorValue(ctx, {}, {})",
                       posVar, dquoted(err->msg)));
   }
-  else if(optional<Ident> rname = rule.name()) {
+  else if(const Ident* rname = rule.nameOrNull()) {
     if(dynamic_cast<const ExternParser*>(&rule))
       cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
@@ -895,8 +894,8 @@ void
 codegen(const RuleSet& ruleset, ssize_t ruleIndex,
         const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
-  if(!r.name().has_value()) Bug("Cannot codegen for unnamed rules");
-  Ident rname = *r.name();
+  if(r.nameOrNull() == nullptr) Bug("Cannot codegen for unnamed rules");
+  Ident rname = *r.nameOrNull();
 
   if(dynamic_cast<const ExternParser*>(&r)) {
     genExternDeclaration(hos, rname);
