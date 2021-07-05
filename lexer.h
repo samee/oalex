@@ -34,8 +34,7 @@ struct IndexRelation {
 };
 
 enum class LexSegmentTag {
-  wholeSegment = Segment::lastReservedTag + 1,
-  section,
+  section = Segment::lastReservedTag + 1,
   gluedString,
   bracketGroup,
   newlineChar,
@@ -44,20 +43,6 @@ enum class LexSegmentTag {
 
 struct NewlineChar : Segment {
   explicit NewlineChar(const GluedString& s, size_t pos);
-};
-
-// These tokens never have embedded newlines, unless it's a newline all
-// by itself. These are meant to be a lightweight string wrapper, and do not
-// use complex rowCol() maps. This also disallows any backslash escape sequence
-// such as '\n' or '\t'.
-struct WholeSegment : Segment {
-  static constexpr auto type_tag = tagint_t(LexSegmentTag::wholeSegment);
-  std::string data;
-  WholeSegment(size_t st,size_t en,std::string tok)
-    : Segment{st,en,type_tag}, data(std::move(tok)) {}
-
-  const std::string& operator*() const { return data; }
-  const std::string* operator->() const { return &data; }
 };
 
 inline WholeSegment
@@ -235,14 +220,16 @@ std::optional<WholeSegment> lookahead(InputDiags& lex, size_t i);
 std::vector<std::vector<ExprToken>>
 splitCommaNoEmpty(DiagsDest ctx, std::vector<ExprToken> elts);
 
-// Helpers for diags.h that point to a specific token.
-// T can be either an ExprToken or a Segment derivative.
-template <class T> std::nullopt_t
-Error(DiagsDest ctx, const T& t, std::string msg) {
-  const Segment& seg = segment(t);
+}  // namespace lex
+
+inline std::nullopt_t
+Error(DiagsDest ctx, const Segment& s, std::string msg) {
+  return Error(ctx, s.stPos, s.enPos, std::move(msg));
+}
+inline std::nullopt_t
+Error(DiagsDest ctx, const lex::ExprToken& t, std::string msg) {
+  const Segment& seg = lex::segment(t);
   return Error(ctx, seg.stPos, seg.enPos, std::move(msg));
 }
 
-
-}  // namespace lex
 }  // namespace oalex

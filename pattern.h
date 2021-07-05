@@ -64,10 +64,10 @@ auto labelParts(
     -> std::vector<LabelOrPart>;
 
 // Strong typedefs.
-struct WordToken : public lex::WholeSegment {
+struct WordToken : public WholeSegment {
   explicit WordToken(const WholeSegment& s) : WholeSegment(s) {}
 };
-struct OperToken : public lex::WholeSegment {
+struct OperToken : public WholeSegment {
   explicit OperToken(const WholeSegment& s) : WholeSegment(s) {}
 };
 

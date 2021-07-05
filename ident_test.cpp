@@ -17,7 +17,7 @@
 #include<unordered_set>
 #include<string_view>
 #include"runtime/test_util.h"
-#include"lexer.h"
+#include"segment.h"
 using namespace oalex;
 using namespace std;
 
@@ -52,7 +52,7 @@ void testParseErrors() {
   };
   for(const auto& [s,err] : wholetests) {
     InputDiags ctx{Input{string(s)}};
-    auto rv = Ident::parse(ctx, lex::WholeSegment(0, s.size(), s));
+    auto rv = Ident::parse(ctx, WholeSegment(0, s.size(), s));
     assertHasDiagWithSubstr(__func__, ctx.diags, err);
   }
 }

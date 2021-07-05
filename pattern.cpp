@@ -38,9 +38,9 @@ using std::unique_ptr;
 using std::vector;
 using std::visit;
 using oalex::Error;
+using oalex::WholeSegment;
 using oalex::lex::NewlineChar;
 using oalex::lex::GluedString;
-using oalex::lex::WholeSegment;
 
 namespace oalex {
 

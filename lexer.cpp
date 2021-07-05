@@ -81,8 +81,9 @@ RegexOptions oalexRegexOpts{
 };
 
 const char* exprTagName(const ExprToken& t) {
-  switch(auto tag = LexSegmentTag{segment(t).tag}) {
-    case LexSegmentTag::wholeSegment: return "wholeSegment";
+  auto tag = segment(t).tag;
+  if(SegmentTag{tag} == SegmentTag::wholeSegment) return "wholeSegment";
+  else switch(LexSegmentTag{tag}) {
     case LexSegmentTag::section: return "section";
     case LexSegmentTag::gluedString: return "gluedString";
     case LexSegmentTag::bracketGroup: return "bracketGroup";

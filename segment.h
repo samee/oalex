@@ -15,6 +15,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <string>
 
 // As of now (C++17) sum types are still a bit awkward in C++.
 // dynamic_cast is designed for unbounded type families. Here's my attempt at
@@ -24,6 +25,7 @@
 // fixed size since these types will typically be heap-allocated, and referred
 // through const pointers (often std::shared_ptr).
 
+namespace oalex {
 
 // Example definition of semantic values:
 //
@@ -54,3 +56,21 @@ struct Segment {
   tagint_t tag;
   static constexpr tagint_t lastReservedTag = 31;
 };
+
+enum class SegmentTag : Segment::tagint_t { wholeSegment = 1 };
+
+// These tokens never have embedded newlines, unless it's a newline all
+// by itself. These are meant to be a lightweight string wrapper, and do not
+// use complex rowCol() maps. This also disallows any backslash escape sequence
+// such as '\n' or '\t'.
+struct WholeSegment : Segment {
+  static constexpr auto type_tag = tagint_t(SegmentTag::wholeSegment);
+  std::string data;
+  WholeSegment(size_t st,size_t en,std::string tok)
+    : Segment{st,en,type_tag}, data(std::move(tok)) {}
+
+  const std::string& operator*() const { return data; }
+  const std::string* operator->() const { return &data; }
+};
+
+}  // namespace oalex

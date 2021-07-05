@@ -69,11 +69,11 @@ using oalex::Skipper;
 using oalex::testInputDiags;
 using oalex::TokenOrPart;
 using oalex::Unimplemented;
+using oalex::WholeSegment;
 using oalex::WordToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::NewlineChar;
 using oalex::lex::GluedString;
-using oalex::lex::WholeSegment;
 using oalex::lex::lexQuotedString;
 
 namespace {

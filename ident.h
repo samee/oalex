@@ -47,7 +47,7 @@ namespace oalex {
 // Forward declaration, since we don't want to depend on lexer.h in the header.
 // TODO refactor this class out of lexer.h, so we don't need to link
 // ident_test.cpp with regex_io.cpp.
-namespace lex { struct WholeSegment; }
+struct WholeSegment;
 
 // Dev-note: This really could be a subclass of WholeSegment.
 class Ident {
@@ -59,7 +59,7 @@ class Ident {
  public:
   Ident() = default;
   static Ident parse(InputDiags& ctx, size_t& i);
-  static Ident parse(DiagsDest ctx, const lex::WholeSegment& s);
+  static Ident parse(DiagsDest ctx, const WholeSegment& s);
 
   /* parseGenerated() dies on invalid input. It is expected to be used only
   for hardcoded inputs and sanitized inputs. It also preserves the invariant

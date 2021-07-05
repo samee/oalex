@@ -15,11 +15,12 @@
 #pragma once
 #include <string_view>
 #include <utility>
-#include "lexer.h"
 #include "runtime/diags.h"
 #include "runtime/jsonloc.h"
 
 namespace oalex {
+
+namespace lex { struct BracketGroup; };
 
 // Note: this does not support a bare string or keyword, outside of square
 // brackets or braces. Without those indicators, it is hard to know when to

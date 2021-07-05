@@ -16,8 +16,8 @@
 #include<algorithm>
 #include<cctype>
 #include<vector>
-#include "lexer.h"
-using oalex::lex::WholeSegment;
+#include "segment.h"
+using oalex::WholeSegment;
 using std::all_of;
 using std::string;
 using std::string_view;
