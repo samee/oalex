@@ -116,7 +116,7 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
   if(i == rst.start()) return nullopt;
   else {
     rst.markUsed(i);
-    return WholeSegment(rst.start(),i,input);
+    return inputSegment(rst.start(),i,input);
   }
 }
 
@@ -325,7 +325,7 @@ optional<WholeSegment> lexWord(const Input& input, size_t& i) {
   if(!input.sizeGt(i) || !isWordChar(input[i])) return nullopt;
   size_t oldi = i;
   while(input.sizeGt(i) && isWordChar(input[i])) ++i;
-  return WholeSegment(oldi,i,input);
+  return inputSegment(oldi,i,input);
 }
 
 // TODO throw Fatal on .... or ::=.
@@ -337,9 +337,9 @@ optional<WholeSegment> lexOperator(const Input& input, size_t& i) {
   size_t oldi = i;
   for(string_view op : multichars) if(input.substr(i,op.size()) == op) {
     i += op.size();
-    return WholeSegment(oldi,i,input);
+    return inputSegment(oldi,i,input);
   }
-  return WholeSegment(oldi,++i,input);
+  return inputSegment(oldi,++i,input);
 }
 
 char openBracket(BracketType bt) {
@@ -651,7 +651,7 @@ optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
   if(!lookaheadStart(ctx,i)) return nullopt;
   if(auto tok = lexWord(ctx.input, i)) return tok;
   else if(isbracket(ctx.input[i]) || isquote(ctx.input[i]))
-    return WholeSegment(i,i+1,ctx.input);
+    return inputSegment(i,i+1,ctx.input);
   else if(auto op = lexOperator(ctx.input, i)) return op;
   else Fatal(ctx, i, "Invalid input character");
 }
@@ -770,7 +770,7 @@ lookaheadParIndent(InputDiags& ctx, size_t i) {
     FatalBug(ctx, i, "ParIndent computation cannot start mid-line");
   i = oalexWSkip.acrossLines(input, i);
   if(!input.sizeGt(i)) return nullopt;
-  return WholeSegment(input.bol(i), i, input);
+  return inputSegment(input.bol(i), i, input);
 }
 
 // TODO utility for checking leader indent.

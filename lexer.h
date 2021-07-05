@@ -54,14 +54,17 @@ struct NewlineChar : Segment {
 struct WholeSegment : Segment {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::wholeSegment);
   std::string data;
-  WholeSegment(size_t st,size_t en,const Input& input)
-    : Segment{st,en,type_tag}, data(input.substr(st,en-st)) {}
   WholeSegment(size_t st,size_t en,std::string tok)
     : Segment{st,en,type_tag}, data(std::move(tok)) {}
 
   const std::string& operator*() const { return data; }
   const std::string* operator->() const { return &data; }
 };
+
+inline WholeSegment
+inputSegment(size_t st, size_t en, const Input& input) {
+  return WholeSegment{st, en, input.substr(st, en-st)};
+}
 
 // The factory friend function ensure the following invariants on rcmap:
 //   * rcmap.pos are provided in strictly increasing order.

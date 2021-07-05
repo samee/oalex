@@ -48,6 +48,7 @@ using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
 using oalex::lex::IndentCmp;
 using oalex::lex::indentCmp;
+using oalex::lex::inputSegment;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexListEntries;
@@ -509,7 +510,7 @@ WholeSegment
 indent_of(const Input& input, const ExprToken& tok) {
   ssize_t bol = input.bol(stPos(tok));
   ssize_t indent_end = oalexWSkip.withinLine(input, bol);
-  return WholeSegment(bol, indent_end, input);
+  return inputSegment(bol, indent_end, input);
 }
 
 bool
