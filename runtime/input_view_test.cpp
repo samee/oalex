@@ -27,7 +27,6 @@ using std::uniform_int_distribution;
 
 using oalex::assertEqual;
 using oalex::Bug;
-using oalex::GetFromString;
 using oalex::Input;
 
 namespace {
@@ -80,7 +79,7 @@ size_t forgetLen(default_random_engine& engine, size_t sz) {
 void testDataMatchesString(const string& s, size_t avgWindowLen) {
   default_random_engine engine(42);
   bernoulli_distribution forget_coin(1.0/avgWindowLen);
-  Input input((GetFromString(s)));
+  Input input{s};
   size_t i=0,j=0;
   while(j<s.size()) {
     if(i >= s.size() || forget_coin(engine)) {
@@ -111,14 +110,10 @@ void testLineTooLong() {
                      +[](oalex::InputDiags& ctx, size_t&)
                        { ctx.input[ctx.input.maxLineLength()]; });
   string t(Input::defaultMaxLineLength, '-');
-  Input input2((GetFromString("\n" + t)));
+  Input input2{"\n" + t};
   input2[input2.maxLineLength()];  // No exceptions.
 }
 
-// Newline computation is slightly different for Input::Input(getch) and
-// Input::Input(string). Other tests already check the getch() version, by using
-// GetFromString(). This checks the second version too, since we just
-// encountered this bug.
 void testAllNewlinesRecorded() {
   Input input("hello\n\nworld");
   assertEqual(__func__, input.rowCol(0).first, size_t{1});
@@ -128,7 +123,7 @@ void testAllNewlinesRecorded() {
 
 void testForgottenBol() {
   string s(100,'-');
-  Input input{GetFromString(s)};
+  Input input{s};
   input.forgetBefore(80);
   if(input.bol(90)!=0)
     BugMe("first-line bol() is wrong after amnesia. 0 != {}", input.bol(90));

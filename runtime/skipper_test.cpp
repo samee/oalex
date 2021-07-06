@@ -24,41 +24,16 @@ using std::vector;
 using std::string;
 using std::string_view;
 using oalex::Bug;
-using oalex::GetFromString;
 using oalex::Input;
 using oalex::Skipper;
 
 namespace {
 
-// Takes in an Input::getch_() callback, and produces another that conforms
-// to the needs of Skipper. Does a poor-man's conversion from dos-encoded crlf
-// streams to Unix-style lf streams. Additionally, it adds an extra '\n'
-// character at the end if one doesn't already exist.
-//
-// Normally, the standard file I/O libraries will take care of this, so we
-// shouldn't need this Unixify adaptor. But Skipper really cares about the last
-// character being a '\n' for single-line comments.
-//
-// We try to do this in a way that's idempotent: it won't modify anything if
-// the stream already has everything we need. It won't add an extra '\n' in the
-// end if one is already there. The hope is there won't be a need to ever
-// switch this translation off. If that becomes necessary, we'll probably
-// do the simpler thing of just using <stdio.h> streams and adding an extra
-// '\n' to everything, instead of using this.
-//
-// Usage:
-//   std::function<int16_t()> newGetch = Unixify{oldGetch};
-struct Unixify {
-  function<int16_t()> getch;
-  int16_t last_char = -1;
-  int16_t operator()() {
-    int16_t ch;
-    do { ch = getch(); } while(ch == '\r');  // filter out '\r'.
-
-    if(ch < 0 && last_char >= 0 && last_char != '\n') return last_char='\n';
-    else return last_char=ch;
-  }
-};
+string unixify(string s) {
+  s.erase(std::remove(s.begin(), s.end(), '\r'), s.end());
+  if(!s.empty() && s.back()!='\n') s+='\n';
+  return s;
+}
 
 string escape(string_view s) {
   string rv;
@@ -71,10 +46,8 @@ string escape(string_view s) {
 }
 
 void testUnixify(const char input[], const char expected_output[]) {
-  auto getch = Unixify{GetFromString(input)};
-  string output;
-  while(true) { char ch = getch(); if(ch < 0) break; output += ch; }
-  if(expected_output != output)
+  string output = unixify(input);
+  if(output != expected_output)
     BugMe("{} != {}", escape(expected_output), escape(output));
 }
 
@@ -87,7 +60,7 @@ void unixifyTests() {
 }
 
 Input unixifiedTestInput(string_view s) {
-  return Input(Unixify{GetFromString(s)});
+  return Input(unixify(string{s}));
 }
 
 const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};

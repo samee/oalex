@@ -19,7 +19,6 @@ using oalex::assertHasDiagWithSubstr;
 using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Diag;
-using oalex::GetFromString;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::isSubstr;
@@ -84,7 +83,7 @@ void assertHasDiagWithSubstrAt(string_view testName, const vector<Diag>& diags,
 }
 
 InputDiags testInputDiags(string_view s) {
-  return InputDiags{Input(GetFromString(s))};
+  return InputDiags{Input(string(s))};
 }
 
 void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
@@ -92,6 +91,14 @@ void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   for(const auto& d:diags) print(stderr, "{}\n", string(d));
   Bug("{} had unexpected errors", testName);
 }
+
+class GetFromString {
+  std::string src;
+  size_t i=0;
+ public:
+  explicit GetFromString(std::string_view src):src(src) {}
+  int operator()() { return i<src.size()?src[i++]:-1; }
+};
 
 void assertProducesDiag(std::string_view testName, std::string_view input,
                         std::string_view err,

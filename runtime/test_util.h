@@ -45,18 +45,6 @@ void assertEqual(std::string_view msg, const X& a, const X& b) {
   if(a!=b) Bug("{}: '{}' != '{}'", msg, a, b);
 }
 
-// Useful as getch() callbacks in dfa.h and input_view.h.
-// Dev note: When reading from files, two things to note:
-//   * This is where "\r\n" -> "\n" conversion happens.
-//   * If the last character is not "\n", append an extra "\n".
-class GetFromString {
-  std::string src;
-  size_t i=0;
- public:
-  explicit GetFromString(std::string_view src):src(src) {}
-  int operator()() { return i<src.size()?src[i++]:-1; }
-};
-
 template <class K, class T, class Cmp> std::vector<K>
 uniqueKeys(const std::multimap<K,T,Cmp>& m) {
   std::vector<K> v;
