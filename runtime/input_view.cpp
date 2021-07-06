@@ -27,7 +27,7 @@ namespace oalex {
 void Input::peekTo(size_t last) const {
   while(!endSeen() && last>=start_pos_+buf_.size()) {
     size_t pos = start_pos_+buf_.size();
-    int16_t ch = getch_();
+    int16_t ch = stream_->getch();
     if(ch < 0) {
       size_ = pos;  // endSeen() is now true.
       return;

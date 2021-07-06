@@ -51,15 +51,21 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
   }else return JsonLoc::ErrorValue();
 }
 
+class InputWrapper : public InputStream {
+  const Input* input;
+  ssize_t i;
+ public:
+  InputWrapper(const Input& input, ssize_t i) : input{&input}, i{i} {}
+  int16_t getch() override
+    { return input->sizeGt(i) ? (*input)[i++] : -1; }
+};
 // It's not static because we reuse this in codegen.cpp:eval(), but it's
 // not in the header file since I have no intention of supporting this hack in
 // the long run.
 // This proxy object both discards diags and defends against
 // overly enthusiastic forgetBefore().
 InputDiags substrProxy(const Input& input, ssize_t i) {
-  return InputDiags{Input{[&input, i]() mutable {
-    return input.sizeGt(i) ? input[i++] : -1;
-  } }};
+  return InputDiags{Input{std::make_unique<InputWrapper>(input, i)}};
 }
 
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {

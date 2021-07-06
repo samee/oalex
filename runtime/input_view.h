@@ -13,8 +13,8 @@
     limitations under the License. */
 
 #pragma once
-#include <functional>
 #include <limits>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -36,6 +36,12 @@ class InputPiece {
   virtual size_t bol(size_t i) const = 0;
   virtual std::string substr(size_t st,  size_t len) const = 0;
   virtual ~InputPiece() = default;
+};
+
+class InputStream {
+ public:
+  virtual int16_t getch() = 0;
+  virtual ~InputStream() {}
 };
 
 // input_view_auto_forget.h seemed too complicated for a simple recursive
@@ -60,8 +66,8 @@ class Input final : public InputPiece {
  public:
   static constexpr auto npos = std::numeric_limits<size_t>::max();
 
-  explicit Input(std::function<int16_t()> getch)
-    : getch_(getch), size_(npos) { peekTo(0); }
+  explicit Input(std::unique_ptr<InputStream> is)
+    : stream_(std::move(is)), size_(npos) {}
   explicit Input(std::string s)
     : buf_(std::move(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
   Input(const Input&) = delete;
@@ -112,7 +118,7 @@ class Input final : public InputPiece {
 
  private:
   mutable std::string buf_;
-  std::function<int16_t()> getch_;
+  std::unique_ptr<InputStream> stream_;
   size_t start_pos_=0;
   mutable size_t size_;
   mutable std::vector<size_t> newlines_;

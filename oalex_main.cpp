@@ -270,10 +270,14 @@ auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   return rv;
 }
 
+class StdinStream : public oalex::InputStream {
+ public:
+  int16_t getch() override
+    { int ch = getchar(); return ch == EOF ? -1 : ch; }
+};
+
 JsonLoc processStdin(const RuleSet& rs) {
-  InputDiags ctx(
-    Input{[]() { int ch = getchar(); return ch == EOF ? -1 : ch; }}
-  );
+  InputDiags ctx(Input{std::make_unique<StdinStream>()});
   ssize_t pos = 0;
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(!jsloc.holdsError()) return JsonLoc::Map{{"msg", std::move(jsloc)}};

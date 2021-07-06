@@ -92,18 +92,18 @@ void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   Bug("{} had unexpected errors", testName);
 }
 
-class GetFromString {
+class GetFromString : public InputStream {
   std::string src;
   size_t i=0;
  public:
   explicit GetFromString(std::string_view src):src(src) {}
-  int operator()() { return i<src.size()?src[i++]:-1; }
+  int16_t getch() override { return i<src.size()?src[i++]:-1; }
 };
 
 void assertProducesDiag(std::string_view testName, std::string_view input,
                         std::string_view err,
                         void (*cb)(oalex::InputDiags&, size_t&)) {
-  InputDiags ctx{Input{GetFromString(input)}};
+  InputDiags ctx{Input{std::make_unique<GetFromString>(input)}};
   size_t i = 0;
   try {
     cb(ctx, i);
