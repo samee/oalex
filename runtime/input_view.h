@@ -112,8 +112,7 @@ class Input final : public InputPiece {
   bool hasPrefix(size_t pos, std::string_view s) const override;
   size_t find(char ch, size_t pos) const override;
 
-  static constexpr size_t defaultMaxLineLength = 5000;
-  size_t maxLineLength() const { return maxLineLength_; }
+  static const size_t maxLineLength = 5000;
 
  private:
   mutable std::string buf_;
@@ -121,7 +120,6 @@ class Input final : public InputPiece {
   size_t start_pos_=0;
   mutable size_t size_;
   mutable std::vector<size_t> newlines_;
-  size_t maxLineLength_ = defaultMaxLineLength;
 
   void peekTo(size_t last) const;
   void peekAndBoundCharAt(size_t i) const;

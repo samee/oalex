@@ -105,13 +105,13 @@ void testDataMatchesString(const string& s, size_t avgWindowLen) {
 }
 
 void testLineTooLong() {
-  string s(Input::defaultMaxLineLength+1,'-');
+  string s(Input::maxLineLength+1,'-');
   assertProducesDiag(__func__, s, "Line 1 is too long",
                      +[](oalex::InputDiags& ctx, size_t&)
-                       { ctx.input[ctx.input.maxLineLength()]; });
-  string t(Input::defaultMaxLineLength, '-');
+                       { ctx.input[ctx.input.maxLineLength]; });
+  string t(Input::maxLineLength, '-');
   Input input2{"\n" + t};
-  input2[input2.maxLineLength()];  // No exceptions.
+  input2[input2.maxLineLength];  // No exceptions.
 }
 
 void testAllNewlinesRecorded() {
