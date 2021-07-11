@@ -68,8 +68,7 @@ class Input final : public InputPiece {
 
   explicit Input(std::unique_ptr<InputStream> is)
     : stream_(std::move(is)), size_(npos) {}
-  explicit Input(std::string s)
-    : buf_(std::move(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
+  explicit Input(std::string s);
   Input(const Input&) = delete;
   Input(Input&&) = default;
   Input& operator=(const Input&) = delete;
@@ -127,7 +126,6 @@ class Input final : public InputPiece {
   void peekTo(size_t last) const;
   void peekAndBoundCharAt(size_t i) const;
   bool endSeen() const { return size_ < npos; }
-  static std::vector<size_t> allNewlines(std::string_view s);
 };
 
 // Produces a short prefix of the string for debugging.

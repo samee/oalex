@@ -110,7 +110,8 @@ pair<size_t,size_t> Input::rowCol(size_t i) const {
   return make_pair(prev+2, i-newlines_[prev]);
 }
 
-auto Input::allNewlines(string_view s) -> vector<size_t> {
+static vector<size_t>
+allNewlines(string_view s) {
   vector<size_t> rv;
   for(size_t i=0; i<s.size(); ++i) if(s[i] == '\n') rv.push_back(i);
   return rv;
@@ -121,5 +122,8 @@ string debugPrefix(const InputPiece& input, size_t i) {
   return input.sizeGt(i+maxsz) ? input.substr(i, maxsz-3) + "..."
                                : input.substr(i, maxsz);
 }
+
+Input::Input(string s)
+    : buf_(std::move(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
 
 }  // namespace oalex
