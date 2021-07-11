@@ -14,7 +14,6 @@
 
 #pragma once
 #include <limits>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -66,8 +65,7 @@ class Input final : public InputPiece {
  public:
   static constexpr auto npos = std::numeric_limits<size_t>::max();
 
-  explicit Input(std::unique_ptr<InputStream> is)
-    : stream_(std::move(is)), size_(npos) {}
+  explicit Input(InputStream* is) : stream_(is), size_(npos) {}
   explicit Input(std::string s);
   Input(const Input&) = delete;
   Input(Input&&) = default;
@@ -116,7 +114,7 @@ class Input final : public InputPiece {
 
  private:
   mutable std::string buf_;
-  std::unique_ptr<InputStream> stream_;
+  InputStream* stream_;
   size_t start_pos_=0;
   mutable size_t size_;
   mutable std::vector<size_t> newlines_;

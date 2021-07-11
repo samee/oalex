@@ -1,9 +1,12 @@
 #include "parser_helpers.h"
+#include <memory>
 #include <utility>
 #include "util.h"
 using std::exchange;
+using std::make_unique;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 
 namespace oalex {
 
@@ -64,8 +67,8 @@ class InputWrapper : public InputStream {
 // the long run.
 // This proxy object both discards diags and defends against
 // overly enthusiastic forgetBefore().
-InputDiags substrProxy(const Input& input, ssize_t i) {
-  return InputDiags{Input{std::make_unique<InputWrapper>(input, i)}};
+unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i) {
+  return make_unique<InputWrapper>(input, i);
 }
 
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
@@ -95,7 +98,8 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   We shouldn't have them either.
   </rant>
   */
-  InputDiags proxy = substrProxy(input, i);
+  unique_ptr<InputStream> sp = substrProxy(input, i);
+  InputDiags proxy{Input{sp.get()}};
   ssize_t pos = 0;
   JsonLoc rv = parser(proxy, pos);
   if(!rv.holdsError()) i += pos;

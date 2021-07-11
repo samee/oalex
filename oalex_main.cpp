@@ -277,7 +277,8 @@ class StdinStream : public oalex::InputStream {
 };
 
 JsonLoc processStdin(const RuleSet& rs) {
-  InputDiags ctx(Input{std::make_unique<StdinStream>()});
+  StdinStream ss;
+  InputDiags ctx(Input{&ss});
   ssize_t pos = 0;
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   if(!jsloc.holdsError()) return JsonLoc::Map{{"msg", std::move(jsloc)}};

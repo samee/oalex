@@ -229,12 +229,13 @@ substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
 }
 
 // Defined in parser_helpers.cpp, but intentionally not exposed in header.
-InputDiags substrProxy(const Input& input, ssize_t i);
+unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i);
 
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
 static JsonLoc evalQuiet(const Input& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex) {
-  InputDiags proxy = substrProxy(input, i);
+  unique_ptr<InputStream> sp = substrProxy(input, i);
+  InputDiags proxy{Input{sp.get()}};
   ssize_t pos = 0;
   JsonLoc res = eval(proxy, pos, rs, ruleIndex);
   if(!res.holdsError()) i += pos;

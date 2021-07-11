@@ -103,7 +103,8 @@ class GetFromString : public InputStream {
 void assertProducesDiag(std::string_view testName, std::string_view input,
                         std::string_view err,
                         void (*cb)(oalex::InputDiags&, size_t&)) {
-  InputDiags ctx{Input{std::make_unique<GetFromString>(input)}};
+  GetFromString si{input};
+  InputDiags ctx{Input{&si}};
   size_t i = 0;
   try {
     cb(ctx, i);
