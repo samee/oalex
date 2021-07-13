@@ -30,6 +30,7 @@ fairly directly. Slowly, I'll evolve it into something more featureful.
 #include "codegen.h"
 #include "frontend.h"
 #include "oalex.h"
+#include "runtime/util.h"
 #include "fmt/core.h"
 using fmt::format;
 using oalex::Bug;

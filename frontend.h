@@ -15,7 +15,6 @@
 #pragma once
 #include <vector>
 #include "ident.h"
-#include "runtime/util.h"
 #include "codegen.h"
 
 namespace oalex {

@@ -29,6 +29,7 @@
 #include "pattern.h"
 #include "regex_io.h"
 #include "jsonloc_io.h"
+#include "runtime/util.h"
 
 using fmt::format;
 using oalex::DiagsDest;
