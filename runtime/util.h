@@ -18,6 +18,7 @@
 #include<memory>
 #include<variant>
 #include"fmt/core.h"
+#include"util_exported.h"
 
 namespace oalex {
 
@@ -65,17 +66,6 @@ template <class ... Args>
 template <class ... Args>
 void BugWarn(const char* fmt, const Args& ... args) {
   fmt::print(stderr, fmt::format("Bug: {}\n", fmt), args...);
-}
-
-// Enables brace-initialization for variants without naming the type twice.
-template <class T>
-auto move_to_unique(T& t) -> std::unique_ptr<T> {
-  return std::make_unique<T>(std::move(t));
-}
-
-template <class T>
-auto move_to_unique(T&& t) -> std::unique_ptr<T> {
-  return std::make_unique<T>(std::move(t));
 }
 
 // variant utilities, specially geared towards variant<unique_ptr<...>,...>.
@@ -141,12 +131,6 @@ template <class T> T sign_cast(typename ReverseSigned<T>::type& ref) {
 
 // makeVector<V>(...). Allows construction of a vector with move-only elements.
 
-template <class V, class ... Args> std::vector<V>
-makeVector(Args ... args) {
-  std::vector<V> rv;
-  (rv.push_back(std::move(args)), ...);
-  return rv;
-}
 template <class V, class ... Args> auto
 makeVectorUnique(Args ... args) {
   std::vector<std::unique_ptr<V>> rv;

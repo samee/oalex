@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 #include "oalex.h"
+#include "util.h"
 #include "fmt/core.h"
 using fmt::format;
 using oalex::is_in;
@@ -598,6 +599,7 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
 static void
 codegen(const RuleSet& ruleset, const OutputTmpl& out,
         const OutputStream& cppos) {
+  cppos("  using oalex::assertNotNull;\n");
   cppos("  using oalex::get_if;\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
@@ -611,7 +613,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   if(!out.outputTmpl.substitutionsOk()) {
     cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
     if(out.childName.empty())
-      cppos("  if(m == nullptr) oalex::Bug(\"{} needs a map\", __func__);\n");
+      cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     else {
       cppos("  if(m == nullptr) {\n");
       cppos("    return ");

@@ -20,6 +20,7 @@
 #include "fmt/format.h"
 #include "lexer.h"
 #include "oalex.h"
+#include "util.h"
 using std::array;
 using std::get_if;
 using std::initializer_list;

@@ -1,5 +1,6 @@
 #include "parser_helpers.h"
 #include <utility>
+#include "util.h"
 using std::exchange;
 using std::string;
 using std::string_view;
@@ -95,6 +96,11 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   return rv;
 }
 
+void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
+  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
+    Bug("maps are supposed to be key-disjoint");
+}
+
 void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
                        JsonLoc v, bool doCreate) {
   if(doCreate) {
@@ -108,5 +114,18 @@ void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
   }
 }
 
+void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2,
+                              bool doCreate) {
+  for(auto& [k,v] : m2) mapCreateOrAppend(m1, k, std::move(v), doCreate);
+}
+
+void assertMap(JsonLoc& jsloc, string_view errctx) {
+  auto* m = get_if<JsonLoc::Map>(&jsloc);
+  if(m == nullptr) Bug("{}: needs a map", errctx);
+}
+
+void assertNotNull(void* p, string_view fname, string_view errmsg) {
+  if(!p) Bug("{}: {}", fname, errmsg);
+}
 
 }  // namespace oalex

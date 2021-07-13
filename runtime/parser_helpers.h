@@ -19,7 +19,6 @@
 #include "diags.h"
 #include "jsonloc.h"
 #include "regex.h"
-#include "util.h"
 
 namespace oalex {
 
@@ -43,17 +42,14 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
 
 
-inline void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
-  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
-    Bug("maps are supposed to be key-disjoint");
-}
+void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2);
 
 // TODO Consider splitting this function into two by the doCreate parameter.
 void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
                        JsonLoc v, bool doCreate);
-inline void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2,
-                                     bool doCreate) {
-  for(auto& [k,v] : m2) mapCreateOrAppend(m1, k, std::move(v), doCreate);
-}
+void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2, bool doCreate);
+
+void assertNotNull(void* p, std::string_view fname, std::string_view errmsg);
+
 
 }  // namespace oalex
