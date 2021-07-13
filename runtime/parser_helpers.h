@@ -19,6 +19,7 @@
 #include "diags.h"
 #include "jsonloc.h"
 #include "regex.h"
+#include "util.h"
 
 namespace oalex {
 

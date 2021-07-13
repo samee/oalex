@@ -15,6 +15,8 @@
 #pragma once
 
 #include "codegen.h"
+#include "runtime/util.h"
+// TODO move function bodies out of this header file, and remove util.h.
 
 namespace oalex::test {
 

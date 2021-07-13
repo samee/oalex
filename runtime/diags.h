@@ -13,9 +13,8 @@
     limitations under the License. */
 
 #pragma once
-#include <optional>
+#include <optional>  // for nullopt_t
 #include "input_view.h"
-#include "util.h"
 
 namespace oalex {
 
@@ -24,18 +23,11 @@ struct Diag {
   size_t stLine, stPos, enLine, enPos;  // These ranges are inclusive.
   std::string msg;
   Diag(const Input& input, size_t st, size_t en,
-       Severity sev, std::string msg)
-    : severity(sev), msg(msg) {
-    std::tie(stLine,stPos) = input.rowCol(st);
-    std::tie(enLine,enPos) = input.rowCol(--en);
-  }
+       Severity sev, std::string msg);
   explicit operator std::string() const;
 };
 
-inline bool hasError(const std::vector<Diag>& diags) {
-  for(const auto& d : diags) if(d.severity == Diag::error) return true;
-  return false;
-}
+bool hasError(const std::vector<Diag>& diags);
 
 class DiagsDest {
   const Input* input_;
@@ -46,67 +38,25 @@ class DiagsDest {
   // Typically, we don't expect this to be called directly. This is merely a
   // helper for the more convenient Error(), Warning(), and Note().
   std::nullopt_t pushDiagReturnNullOpt(size_t st, size_t en,
-                                       Diag::Severity sev, std::string msg) {
-    diags_->emplace_back(*input_, st, en, sev, std::move(msg));
-    return std::nullopt;
-  }
+                                       Diag::Severity sev, std::string msg);
   Diag makeDiag(size_t st, size_t en,
-                Diag::Severity sev, std::string msg) const {
-    return Diag(*input_, st, en, sev, std::move(msg));
-  }
+                Diag::Severity sev, std::string msg) const;
   std::string locationString(size_t st, size_t en) const;
 };
 
-[[noreturn]] inline void
-FatalBug(DiagsDest ctx, size_t st, size_t en, std::string msg) {
-  Bug("{}", std::string(ctx.makeDiag(st, en, Diag::error, std::move(msg))));
-}
+[[noreturn]] void
+FatalBug(DiagsDest ctx, size_t st, size_t en, std::string msg);
+[[noreturn]] void
+Fatal(DiagsDest ctx, size_t st, size_t en, std::string msg);
+std::nullopt_t Error(DiagsDest ctx, size_t st, size_t en, std::string msg);
+std::nullopt_t Warning(DiagsDest ctx, size_t st, size_t en, std::string msg);
+std::nullopt_t Note(DiagsDest ctx, size_t st, size_t en, std::string msg);
 
-[[noreturn]] inline void
-Fatal(DiagsDest ctx, size_t st, size_t en, std::string msg) {
-  UserError("{}", std::string(ctx.makeDiag(st, en,
-                                           Diag::error, std::move(msg))));
-}
-
-inline std::nullopt_t
-Error(DiagsDest ctx, size_t st, size_t en, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, en, Diag::error, std::move(msg));
-}
-
-inline std::nullopt_t
-Warning(DiagsDest ctx, size_t st, size_t en, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, en, Diag::warning, std::move(msg));
-}
-
-inline std::nullopt_t
-Note(DiagsDest ctx, size_t st, size_t en, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, en, Diag::note, std::move(msg));
-}
-
-[[noreturn]] inline void
-FatalBug(DiagsDest ctx, size_t st, std::string msg) {
-  FatalBug(ctx, st, st+1, std::move(msg));
-}
-
-[[noreturn]] inline void
-Fatal(DiagsDest ctx, size_t st, std::string msg) {
-  Fatal(ctx, st, st+1, std::move(msg));
-}
-
-inline std::nullopt_t
-Error(DiagsDest ctx, size_t st, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::error, std::move(msg));
-}
-
-inline std::nullopt_t
-Warning(DiagsDest ctx, size_t st, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::warning, std::move(msg));
-}
-
-inline std::nullopt_t
-Note(DiagsDest ctx, size_t st, std::string msg) {
-  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::note, std::move(msg));
-}
+[[noreturn]] void FatalBug(DiagsDest ctx, size_t st, std::string msg);
+[[noreturn]] void Fatal(DiagsDest ctx, size_t st, std::string msg);
+std::nullopt_t Error(DiagsDest ctx, size_t st, std::string msg);
+std::nullopt_t Warning(DiagsDest ctx, size_t st, std::string msg);
+std::nullopt_t Note(DiagsDest ctx, size_t st, std::string msg);
 
 struct InputDiags {
   Input input;

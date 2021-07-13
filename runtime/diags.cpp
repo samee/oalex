@@ -44,9 +44,84 @@ string DiagsDest::locationString(size_t st, size_t en) const {
   return oalex::locationString(Diag{*input_, st, en, Diag::error, string()});
 }
 
+Diag::Diag(const Input& input, size_t st, size_t en,
+           Severity sev, std::string msg)
+  : severity(sev), msg(msg) {
+  std::tie(stLine,stPos) = input.rowCol(st);
+  std::tie(enLine,enPos) = input.rowCol(--en);
+}
+
 Diag::operator string() const {
   return format("{}: {}: {}", locationString(*this),
                 severityString(severity), msg);
+}
+
+bool hasError(const std::vector<Diag>& diags) {
+  for(const auto& d : diags) if(d.severity == Diag::error) return true;
+  return false;
+}
+
+nullopt_t
+DiagsDest::pushDiagReturnNullOpt(size_t st, size_t en,
+                                 Diag::Severity sev, std::string msg) {
+  diags_->emplace_back(*input_, st, en, sev, std::move(msg));
+  return std::nullopt;
+}
+
+Diag
+DiagsDest::makeDiag(size_t st, size_t en,
+                    Diag::Severity sev, std::string msg) const {
+  return Diag(*input_, st, en, sev, std::move(msg));
+}
+
+void
+FatalBug(DiagsDest ctx, size_t st, size_t en, string msg) {
+  Bug("{}", string(ctx.makeDiag(st, en, Diag::error, std::move(msg))));
+}
+
+void
+Fatal(DiagsDest ctx, size_t st, size_t en, string msg) {
+  UserError("{}", string(ctx.makeDiag(st, en, Diag::error, std::move(msg))));
+}
+
+nullopt_t
+Error(DiagsDest ctx, size_t st, size_t en, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, en, Diag::error, std::move(msg));
+}
+
+nullopt_t
+Warning(DiagsDest ctx, size_t st, size_t en, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, en, Diag::warning, std::move(msg));
+}
+
+nullopt_t
+Note(DiagsDest ctx, size_t st, size_t en, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, en, Diag::note, std::move(msg));
+}
+
+void
+FatalBug(DiagsDest ctx, size_t st, string msg) {
+  FatalBug(ctx, st, st+1, std::move(msg));
+}
+
+void
+Fatal(DiagsDest ctx, size_t st, string msg) {
+  Fatal(ctx, st, st+1, std::move(msg));
+}
+
+nullopt_t
+Error(DiagsDest ctx, size_t st, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::error, std::move(msg));
+}
+
+nullopt_t
+Warning(DiagsDest ctx, size_t st, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::warning, std::move(msg));
+}
+
+nullopt_t
+Note(DiagsDest ctx, size_t st, string msg) {
+  return ctx.pushDiagReturnNullOpt(st, st+1, Diag::note, std::move(msg));
 }
 
 }  // namespace oalex
