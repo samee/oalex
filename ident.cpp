@@ -17,7 +17,8 @@
 #include<cctype>
 #include<vector>
 #include "segment.h"
-#include "util.h"
+#include "runtime/diags.h"
+#include "runtime/util.h"
 using oalex::WholeSegment;
 using std::all_of;
 using std::string;

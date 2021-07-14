@@ -20,7 +20,9 @@
 namespace oalex {
 
 // Forward decl
+class Diag;
 struct Example;
+struct InputDiags;
 
 // This should be a fairly direct representation of our oalex source file.
 // Right now, that has a bunch of ruleSets. As our language evolves, it will

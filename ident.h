@@ -39,8 +39,8 @@
    */
 
 #pragma once
+#include <optional>
 #include <string>
-#include "runtime/diags.h"
 
 namespace oalex {
 
@@ -48,6 +48,8 @@ namespace oalex {
 // TODO refactor this class out of lexer.h, so we don't need to link
 // ident_test.cpp with regex_io.cpp.
 struct WholeSegment;
+struct InputDiags;
+class DiagsDest;
 
 // Dev-note: This really could be a subclass of WholeSegment.
 class Ident {
