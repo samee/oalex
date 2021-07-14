@@ -15,6 +15,7 @@
 #pragma once
 #include<charconv>
 #include<cstdio>
+#include<limits>
 #include<memory>
 #include<variant>
 #include"fmt/core.h"

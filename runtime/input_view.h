@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #pragma once
-#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -63,7 +62,7 @@ class InputStream {
 
 class Input final : public InputPiece {
  public:
-  static constexpr auto npos = std::numeric_limits<size_t>::max();
+  static constexpr auto npos = size_t(-1);
 
   explicit Input(InputStream* is) : stream_(is), size_(npos) {}
   explicit Input(std::string s);
