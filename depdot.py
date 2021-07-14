@@ -33,9 +33,13 @@ def list_source_files():
 
 def extract_include(line):
   f = line.removeprefix('#include').strip()
-  if f.startswith('"') and f.endswith('"'):
-    return f[1:-1]
-  else: return f
+  enpos = f.find('"', 1)
+  if f.startswith('"') and enpos != -1:
+    return f[1:enpos]
+  enpos = f.find('>', 1)
+  if f.startswith('<') and enpos != -1:
+    return f[:enpos+1]
+  raise Exception('Could not parse include line: ' + line)
 
 def gather_includes(filenames):
   incmap = {}
