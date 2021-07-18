@@ -18,7 +18,6 @@
 #include <initializer_list>
 #include <vector>
 #include "fmt/format.h"
-#include "lexer.h"
 #include "oalex.h"
 #include "util.h"
 using std::array;
@@ -36,6 +35,12 @@ using oalex::InputDiags;
 using oalex::is_in;
 
 namespace oalex {
+
+// Forward declaration from lexer.h. Can be moved to some parser util later,
+// so we don't have to include all of lexer.h and dependencies.
+namespace lex {
+optional<char> lexHexCode(InputDiags& ctx, size_t& i);
+}
 
 namespace {
 
