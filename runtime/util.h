@@ -40,7 +40,7 @@ template <class ... Args>
 
 template <class ... Args>
 [[noreturn]] void BugDie(const char* fmt, const Args& ... args) {
-  fmt::print(stderr, fmt, args...);
+  fmt::vprint(stderr, fmt, fmt::make_format_args(args...));
   std::abort();
 }
 
@@ -53,7 +53,7 @@ template <class ... Args>
 
 template <class ... Args>
 void Debug(const char* fmt, const Args& ... args) {
-  fmt::print(stderr, fmt, args...);
+  fmt::vprint(stderr, fmt, fmt::make_format_args(args...));
   fmt::print(stderr, "\n");
 }
 
@@ -66,7 +66,8 @@ template <class ... Args>
 
 template <class ... Args>
 void BugWarn(const char* fmt, const Args& ... args) {
-  fmt::print(stderr, fmt::format("Bug: {}\n", fmt), args...);
+  fmt::vprint(stderr, fmt::format("Bug: {}\n", fmt),
+              fmt::make_format_args(args...));
 }
 
 // variant utilities, specially geared towards variant<unique_ptr<...>,...>.
@@ -79,10 +80,10 @@ template <class ... Ts, class V> bool holds_one_of(const V& v) {
   return (std::holds_alternative<Ts>(v) || ...);
 }
 template <class ... Ts, class V> bool holds_one_of_unique(const V& v) {
-  return holds_one_of<std::unique_ptr<Ts>...>(v);
+  return (std::holds_alternative<std::unique_ptr<Ts>>(v) || ...);
 }
 template <class ... Ts, class V> bool holds_one_of_unique_const(const V& v) {
-  return holds_one_of<std::unique_ptr<const Ts>...>(v);
+  return (std::holds_alternative<std::unique_ptr<const Ts>>(v) || ...);
 }
 
 template <class T, class V, class = std::enable_if_t<!std::is_const_v<V>>>
