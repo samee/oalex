@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #include "jsonloc_io.h"
-#include "jsonloc_io_test.h"
 
 #include <cctype>
 #include <optional>

@@ -194,6 +194,12 @@ optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
   }else return nullopt;
 }
 
+optional<JsonLoc> parseJsonLoc(string_view s) {
+  size_t i = 0;
+  InputDiags ctx{Input(string(s))};
+  return parseJsonLoc(ctx,i);
+}
+
 optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);
   optional<BracketGroup> bg = lexBracketGroup(ctx, i);

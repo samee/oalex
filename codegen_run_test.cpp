@@ -24,7 +24,7 @@
 #include <utility>
 #include "fmt/core.h"
 #include "lexer.h"
-#include "jsonloc_io_test.h"
+#include "jsonloc_io.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using fmt::format;

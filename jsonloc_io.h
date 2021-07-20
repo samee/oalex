@@ -26,6 +26,7 @@ namespace lex { struct BracketGroup; };
 // brackets or braces. Without those indicators, it is hard to know when to
 // stop.
 std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
+std::optional<JsonLoc> parseJsonLoc(std::string_view s);
 
 // Same as above, but it is more forgiving about how things are quoted. This
 // is useful in tests. Later, we may extend it to support actual json, e.g.

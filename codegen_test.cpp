@@ -15,7 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
-#include "jsonloc_io_test.h"
+#include "jsonloc_io.h"
 #include "fmt/core.h"
 #include "runtime/test_util.h"
 #include <string_view>
