@@ -82,10 +82,6 @@ void assertHasDiagWithSubstrAt(string_view testName, const vector<Diag>& diags,
       testName, expectedStPos, expectedDiag);
 }
 
-InputDiags testInputDiags(string_view s) {
-  return InputDiags{Input(string(s))};
-}
-
 void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   if(diags.empty()) return;
   for(const auto& d:diags) print(stderr, "{}\n", string(d));

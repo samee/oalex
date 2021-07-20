@@ -38,7 +38,6 @@ using oalex::Bug;
 using oalex::Diag;
 using oalex::Input;
 using oalex::InputDiags;
-using oalex::testInputDiags;
 using oalex::WholeSegment;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -104,7 +103,7 @@ Not a header
 
 void headerSuccessImpl(const char testInput[], const char testName[],
     vector<string> expected) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   vector<WholeSegment> res = lexSectionHeader(ctx, i);
   if(res.empty() || !ctx.diags.empty()) {
@@ -120,7 +119,7 @@ void headerSuccessImpl(const char testInput[], const char testName[],
 
 void headerFailureImpl(const char testInput[], const char testName[],
     const string& expectedDiag) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   vector<WholeSegment> res = lexSectionHeader(ctx, i);
   if(!res.empty() && ctx.diags.empty())
@@ -140,7 +139,7 @@ const char invalidHex[] = R"("\xag")";
 
 void stringSuccessImpl(const char testInput[], const char testName[],
                        string_view expected) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
@@ -160,7 +159,7 @@ void stringSuccessImpl(const char testInput[], const char testName[],
 
 void stringFailureImpl(const char testInput[], const char testName[],
                        string_view expectedDiag) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(res && ctx.diags.empty())
@@ -191,7 +190,7 @@ auto rowCol(const InputDiags& ctx, const GluedString& s, size_t i) {
 
 void stringPosMap() {
   const char testInput[] = R"("foo\nbar")";
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
@@ -212,7 +211,7 @@ void stringPosMap() {
 }
 
 void getSegmentTest(const char testInput[], bool expectedSuccess) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
@@ -244,7 +243,7 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
   size_t dsize = fenceSize(testInput);
   string_view expected = testInput.substr(dsize+1, testInput.size()-2*dsize-1);
 
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexFencedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
@@ -303,7 +302,7 @@ size_t lineCount(string_view s) {
 void indentedSourceBlockSuccessImpl(
     string_view testInput, const char testName[],
     optional<string> expectedResult) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
@@ -371,7 +370,7 @@ const char tabSpaceMix[] = "  foo\n\tbar";
 void indentedSourceBlockFailureImpl(
     const char testInput[], const char testName[],
     string_view expectedDiag) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexIndentedSource(ctx, i, "  ");
   if(res && ctx.diags.empty())
@@ -384,7 +383,7 @@ void lookaheadsSuccess() {
   string expecteds[] = {"foo","foo","[","...",":"};
   static_assert(sizeof(inputs)==sizeof(expecteds));
   for(size_t i=0; i<sizeof(inputs)/sizeof(*inputs); ++i) {
-    InputDiags ctx{testInputDiags(inputs[i])};
+    InputDiags ctx{Input{inputs[i]}};
     if(optional<WholeSegment> tok = lookahead(ctx,1)) {
       if(tok->data!=expecteds[i])
         BugMe("Test case {} failed with \"{}\" != \"{}\"", i,
@@ -395,7 +394,7 @@ void lookaheadsSuccess() {
 
 void lookaheadNulloptOnEof() {
   string input = "foo     # hello \n\t\n";
-  InputDiags ctx{testInputDiags(input)};
+  InputDiags ctx{Input{input}};
   if(optional<WholeSegment> tok = lookahead(ctx,3))
     BugMe("Succeeded unexpectedly, got {}", tok->data);
 }
@@ -414,7 +413,7 @@ void bracketGroupSuccess() {
         parens("B", ".", "C", "word",
                squareBrackets(glued("hello"), glued("world")),
                RegexPatternMatcher{}));
-  InputDiags ctx{testInputDiags(input)};
+  InputDiags ctx{Input{input}};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
 
@@ -471,7 +470,7 @@ string debug(const BracketGroup& bg) {
 
 void bracketGroupFailureImpl(const char testName[], string input,
     optional<string> expectedDiag) {
-  InputDiags ctx{testInputDiags(input)};
+  InputDiags ctx{Input{input}};
   size_t i = 0;
   optional<BracketGroup> bgopt = lexBracketGroup(ctx,i);
   if(!expectedDiag.has_value()) {
@@ -488,7 +487,7 @@ void bracketGroupThrows(string input, string expectedDiag) {
 }
 
 void newlinePositionIsCorrect() {
-  InputDiags ctx{testInputDiags(R"(12345"foo\n")")};
+  InputDiags ctx{Input{R"(12345"foo\n")"}};
   size_t i = string_view("12345").size();
   size_t j = string_view("12345\"foo").size();
   if(ctx.input.substr(j,2) != "\\n")
@@ -535,7 +534,7 @@ const char invalidCharInput[] = "hello \x01 world";
 void nextLineSuccessImpl(
     string_view testInput, string_view testName,
     vector<ExprMatcher> expectedResult) {
-  InputDiags ctx{testInputDiags(testInput)};
+  InputDiags ctx{Input{testInput}};
   size_t pos = 0;
   vector<ExprToken> observedResult = lexNextLine(ctx, pos);
   if(observedResult.empty()) {
@@ -576,7 +575,7 @@ void lexListEntriesSuccess() {
              "|", "indented", "bullets"),
     matchvec("|", "g", "h", "i"),
   };
-  InputDiags ctx{testInputDiags(input)};
+  InputDiags ctx{Input{input}};
   size_t i = ctx.input.find('\n', 0) + 1;
   vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
   if(observed.empty() || !ctx.diags.empty()) {
@@ -596,7 +595,7 @@ void lexListEntriesSuccess() {
 
 void lexListEntriesFailure(string_view testName, string input,
                            string_view expectedDiag) {
-  InputDiags ctx{testInputDiags(input)};
+  InputDiags ctx{Input{input}};
   size_t i = ctx.input.find('\n', 0) + 1;
   vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
   if(expectedDiag.empty()) {

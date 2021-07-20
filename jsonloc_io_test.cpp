@@ -42,14 +42,13 @@ using oalex::parseJsonLoc;
 using oalex::parseJsonLocFlexQuote;
 using oalex::Resetter;
 using oalex::showDiags;
-using oalex::testInputDiags;
 using oalex::uniqueKeys;
 
 namespace {
 
 JsonLoc assertValidJsonLoc(const char testName[],
                            const char input[], size_t& i) {
-  InputDiags ctx = testInputDiags(input);
+  InputDiags ctx{Input{input}};
   optional<JsonLoc> res = parseJsonLocFlexQuote(ctx, i);
   if(!res.has_value() || !ctx.diags.empty()) {
     showDiags(ctx.diags);
@@ -137,7 +136,7 @@ void testParseAndPrintError() {
 }
 
 void testJsonLocFailure(const char input[], const char errmsg[]) {
-  InputDiags ctx = testInputDiags(input);
+  InputDiags ctx{Input{input}};
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(ctx, i);
   if(res.has_value() && ctx.diags.empty())
@@ -147,7 +146,7 @@ void testJsonLocFailure(const char input[], const char errmsg[]) {
 }
 
 void testJsonLocPosition(const char input[], size_t endi) {
-  InputDiags ctx = testInputDiags(input);
+  InputDiags ctx{Input{input}};
   size_t i = 0;
   optional<JsonLoc> res = parseJsonLoc(ctx, i);
   if(!ctx.diags.empty()) {

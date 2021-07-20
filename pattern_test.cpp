@@ -66,7 +66,6 @@ using oalex::rolloutEllipsisForTest;
 using oalex::RolloutEllipsisForTestResult;
 using oalex::showDiags;
 using oalex::Skipper;
-using oalex::testInputDiags;
 using oalex::TokenOrPart;
 using oalex::Unimplemented;
 using oalex::WholeSegment;
@@ -124,7 +123,7 @@ Implementation note:
   * We cannot return InputDiags by value, since fquote keeps a reference to it.
 */
 auto setupMatchTest(string testName, string fileBody) {
-  auto ctx = make_unique<InputDiags>(testInputDiags(" " + fileBody + " "));
+  auto ctx = make_unique<InputDiags>(Input{" " + fileBody + " "});
   auto fquote = [testName, &ctxref = *ctx](string s) {
     return findQuote(testName, ctxref, std::move(s));
   };

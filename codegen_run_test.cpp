@@ -36,7 +36,6 @@ using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::Skipper;
 using oalex::sign_cast;
-using oalex::testInputDiags;
 using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
 using std::optional;
@@ -48,14 +47,14 @@ namespace {
 
 void runSingleStringTest() {
   string msg = "hello";
-  auto ctx = testInputDiags(msg);
+  InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc jsloc = parseHelloKeyword(ctx, pos);
 
   assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
 
   msg = "goodbye";
-  ctx = testInputDiags(msg);
+  ctx = InputDiags{Input{msg}};
   pos = 0;
   jsloc = parseHelloKeyword(ctx, pos);
   if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
@@ -64,14 +63,14 @@ void runSingleStringTest() {
 void runMatchOrErrorTest(JsonLoc (*parse)(InputDiags&, ssize_t&)) {
   // First, try a success case.
   const string msg = "hello-world";
-  auto ctx = testInputDiags(msg);
+  InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc jsloc = parse(ctx, pos);
   assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
 
   // Then, a failure case.
   const string msg2 = "goodbye";
-  ctx = testInputDiags(msg2);
+  ctx = InputDiags{Input{msg2}};
   pos = 0;
   parse(ctx, pos);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
@@ -87,7 +86,7 @@ void runSingleRegexTest() {
     {"abc+", parseAbcWord, 3},
   };
   for(auto& [msg, parseMsg, len] : inputs) {
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc jsloc = parseMsg(ctx, pos);
     assertJsonLocIsString(__func__, jsloc, string(msg, 0, len), 0, len);
@@ -102,7 +101,7 @@ void runSingleRegexTest() {
     {"abc+", parseAbcWholeLine},
   };
   for(auto& [msg, parseMsg] : bad_inputs) {
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc jsloc = parseFooOrFox(ctx, pos);
     if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
@@ -111,7 +110,7 @@ void runSingleRegexTest() {
 
 void runConcatFlatTest() {
   ssize_t pos = 0;
-  auto ctx = testInputDiags("var x:int = 5; ignored_bits;");
+  InputDiags ctx{Input{"var x:int = 5; ignored_bits;"}};
   JsonLoc observed = parseFlatDefn(ctx, pos);
   JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
   assertEqual(__func__, observed, expected);
@@ -124,7 +123,7 @@ void runConcatFlatTest() {
   assertEqual(__func__, observed, expected);
 
   pos = 0;
-  ctx = testInputDiags("var y = 9;");
+  ctx = InputDiags{Input{"var y = 9;"}};
   observed = parseFlatDefn(ctx, pos);
   if(!observed.holdsError())
     BugMe("Was expecting failure on missing type. Got {}", observed);
@@ -132,7 +131,7 @@ void runConcatFlatTest() {
 
 void runSingleWordTemplate() {
   ssize_t pos = 0;
-  auto ctx = testInputDiags("word and ignored");
+  InputDiags ctx{Input{"word and ignored"}};
   JsonLoc observed = parseWordTmpl(ctx, pos);
   JsonLoc expected = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   assertEqual(__func__, observed, expected);
@@ -141,7 +140,7 @@ void runSingleWordTemplate() {
 // Dev-note: do not delete when replacing ConcatRule with ConcatFlatRule.
 // Rewrite to make the test instead to make it use ConcatFlatRule.
 void runConcatTest() {
-  auto ctx = testInputDiags("int x = 5;  // A declaration");
+  InputDiags ctx{Input{"int x = 5;  // A declaration"}};
   ssize_t pos = 0;
   JsonLoc jsloc = parseDefinition(ctx, pos);
   string expected = R"({
@@ -151,12 +150,12 @@ void runConcatTest() {
   if(jsloc.holdsError()) BugMe("parseDefinition() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 
-  ctx = testInputDiags("intx = 5;");
+  ctx = InputDiags{Input{"intx = 5;"}};
   pos = 0;
   jsloc = parseAssignment(ctx, pos);
   if(!jsloc.holdsError()) BugMe("run-on word matched unexpectedly");
 
-  ctx = testInputDiags("y=x;");
+  ctx = InputDiags{Input{"y=x;"}};
   pos = 0;
   jsloc = parseAssignment(ctx, pos);
   expected = R"({
@@ -194,7 +193,7 @@ void runExternParserDeclaration() {
 
   # Tail comment
   )";
-  auto ctx = testInputDiags(msg);
+  InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc jsloc = parseExtTmpl(ctx, pos);
   string expected = R"({
@@ -212,13 +211,13 @@ void runOrTest() {
   };
   for(auto& [msg, expected] : goodInputOutputPairs) {
     ssize_t pos = 0;
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     JsonLoc observed = parseOneWordOrList(ctx, pos);
     assertEqual(__func__, expected, observed);
   }
 
   ssize_t pos = 0;
-  auto ctx = testInputDiags("do");
+  InputDiags ctx{Input{"do"}};
   JsonLoc observed = parseOneWordOrList(ctx, pos);
   if(!observed.holdsError())
     BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
@@ -231,7 +230,7 @@ void runFlattenOnDemand() {
   };
   for(auto& [msg, expected] : unflatData) {
     ssize_t pos = 0;
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     JsonLoc observed = parseUnflattenSingleConcat(ctx, pos);
     assertEqual(__func__, expected, observed);
   }
@@ -241,7 +240,7 @@ void runFlattenOnDemand() {
   };
   for(auto& [msg, expected] : flatData) {
     ssize_t pos = 0;
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     JsonLoc observed = parseFlattenSingleConcat(ctx, pos);
     assertEqual(__func__, expected, observed);
   }
@@ -260,7 +259,7 @@ void runLookaheads() {
   };
   for(auto& [msg, expected] : testdata) {
     ssize_t pos = 1;
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     JsonLoc observed = parseLookaheadSimpleStmt(ctx, pos);
     if(expected.holdsError()) {
       if(!observed.holdsError())
@@ -270,7 +269,7 @@ void runLookaheads() {
 }
 
 void runQuietTest() {
-  auto ctx = testInputDiags("string2");
+  InputDiags ctx{Input{"string2"}};
   ssize_t pos = 0;
   JsonLoc observed = parseQuietMatchTest(ctx, pos);
   if(observed.holdsError() || !ctx.diags.empty()) {
@@ -282,7 +281,7 @@ void runQuietTest() {
 void runMiscFlatteningTest() {
   // Passthrough test.
   string msg = "hellohello";
-  auto ctx = testInputDiags(msg);
+  InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc observed = parseFlatHelloFlat3(ctx, pos);
   if(observed.holdsError() || !ctx.diags.empty()) {
@@ -317,7 +316,7 @@ void runLoopRuleTest() {
     {"a + b c", *parseJsonLoc("{operand: ['a', 'b'] }"), 5},
   };
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc observed = parseLoopSum(ctx, pos);
     assertEqual(__func__, expectedJsloc, observed);
@@ -331,7 +330,7 @@ void runLoopRuleTest() {
     {"a + /*", "Unfinished comment"},
   };
   for(auto& [msg, expectedDiag] : badcases) {
-    auto ctx = testInputDiags(msg);
+    InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc observed = parseLoopSum(ctx, pos);
     if(!observed.holdsError())
@@ -340,7 +339,7 @@ void runLoopRuleTest() {
   }
 
   // Parsers for glueidx == -1
-  auto ctx = testInputDiags("a, b,");
+  InputDiags ctx{Input{"a, b,"}};
   ssize_t pos = 0;
   JsonLoc observed = parseListPrefix(ctx, pos);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
@@ -349,7 +348,7 @@ void runLoopRuleTest() {
   assertEmptyDiags(format("{}-no-glue", __func__), ctx.diags);
 
   // Flattenable child.
-  ctx = testInputDiags("!");
+  ctx = InputDiags{Input{"!"}};
   pos = 0;
   observed = parseListPrefix(ctx, pos);
   if(!observed.holdsError())
@@ -358,7 +357,7 @@ void runLoopRuleTest() {
 
   // TODO codegen should have a verbose mode for debugging these.
   const string msg = "[+a, -b]";
-  ctx = testInputDiags(msg);
+  ctx = InputDiags{Input{msg}};
   pos = 0;
   observed = parseSignedList(ctx, pos);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
@@ -368,7 +367,7 @@ void runLoopRuleTest() {
 }
 
 void runGluePartSwappedTest() {
-  auto ctx = testInputDiags("-greetings-earth-");
+  InputDiags ctx{Input{"-greetings-earth-"}};
   ssize_t pos = 0;
   JsonLoc observed = parseGpSwappedString(ctx, pos);
   if(!ctx.diags.empty()) {
@@ -395,7 +394,7 @@ int main() {
   if(!goodFunc()) Bug("goodFunc() returned false");
   if(badFunc()) Bug("badFunc() returned true");
 
-  auto ctx = testInputDiags("x = 5;");
+  InputDiags ctx{Input{"x = 5;"}};
   size_t pos = 0;
   JsonLoc res = parseAsgnStmt(ctx, pos);
   if(!res.holdsError())

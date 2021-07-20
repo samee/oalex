@@ -42,7 +42,7 @@ void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
 
 RegexRule parseRegex(string_view s) {
   size_t i = 0;
-  auto ctx = testInputDiags(s);
+  InputDiags ctx{Input{s}};
   unique_ptr<const Regex> rv = parseRegex(ctx, i);
   if(!rv) Bug("{} is not a valid regex", s);
   else return RegexRule{std::move(rv)};

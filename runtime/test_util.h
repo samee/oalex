@@ -67,10 +67,6 @@ void assertHasDiagWithSubstrAt(std::string_view testName,
                                std::string_view expectedDiag,
                                size_t expectedStPos);
 
-// TODO remove this function if no longer necessary.
-// Input{} has string ctor now.
-oalex::InputDiags testInputDiags(std::string_view s);
-
 void assertEmptyDiags(std::string_view testName,
                       const std::vector<oalex::Diag>& diags);
 
