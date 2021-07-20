@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <map>
 #include <string>
 #include <string_view>
 #include "fmt/core.h"
@@ -43,13 +42,6 @@ template <class ... Args> [[noreturn]] void
 template <class X>
 void assertEqual(std::string_view msg, const X& a, const X& b) {
   if(a!=b) Bug("{}: '{}' != '{}'", msg, a, b);
-}
-
-template <class K, class T, class Cmp> std::vector<K>
-uniqueKeys(const std::multimap<K,T,Cmp>& m) {
-  std::vector<K> v;
-  for(const auto& [k,e] : m) if(v.empty()||v.back()!=k) v.push_back(k);
-  return v;
 }
 
 void showDiags(const std::vector<oalex::Diag>& diags);

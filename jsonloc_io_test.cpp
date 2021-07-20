@@ -42,7 +42,6 @@ using oalex::parseJsonLoc;
 using oalex::parseJsonLocFlexQuote;
 using oalex::Resetter;
 using oalex::showDiags;
-using oalex::uniqueKeys;
 
 namespace {
 
@@ -60,6 +59,13 @@ JsonLoc assertValidJsonLoc(const char testName[],
 JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
   size_t i = 0;
   return assertValidJsonLoc(testName, input, i);
+}
+
+template <class K, class T, class Cmp> std::vector<K>
+uniqueKeys(const std::multimap<K,T,Cmp>& m) {
+  std::vector<K> v;
+  for(const auto& [k,e] : m) if(v.empty()||v.back()!=k) v.push_back(k);
+  return v;
 }
 
 void testSimpleSuccess() {
