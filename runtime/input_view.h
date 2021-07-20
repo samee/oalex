@@ -65,7 +65,7 @@ class Input final : public InputPiece {
   static constexpr auto npos = size_t(-1);
 
   explicit Input(InputStream* is) : stream_(is), size_(npos) {}
-  explicit Input(std::string s);
+  explicit Input(std::string_view s);
   Input(const Input&) = delete;
   Input(Input&&) = default;
   Input& operator=(const Input&) = delete;

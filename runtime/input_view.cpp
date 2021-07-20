@@ -123,7 +123,7 @@ string debugPrefix(const InputPiece& input, size_t i) {
                                : input.substr(i, maxsz);
 }
 
-Input::Input(string s)
-    : buf_(std::move(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
+Input::Input(string_view s)
+    : buf_(string(s)), size_(buf_.size()), newlines_(allNewlines(buf_)) {}
 
 }  // namespace oalex
