@@ -71,11 +71,6 @@ void BugWarn(const char* fmt, const Args& ... args) {
 }
 
 // variant utilities, specially geared towards variant<unique_ptr<...>,...>.
-template <class ... T> using variant_unique =
-  std::variant<std::unique_ptr<T>...>;
-template <class ... T> using variant_unique_const =
-  std::variant<std::unique_ptr<const T>...>;
-
 template <class ... Ts, class V> bool holds_one_of(const V& v) {
   return (std::holds_alternative<Ts>(v) || ...);
 }
