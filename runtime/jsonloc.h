@@ -70,7 +70,7 @@ struct JsonLoc {
   // non-const JsonLoc pointers to various internal components. Pretty much any
   // direct mutation to this->value will invalidate these pointers: only
   // substitute() is safe.
-  using PlaceholderMap = std::multimap<std::string, JsonLoc*, std::less<>>;
+  using PlaceholderMap = std::vector<std::pair<std::string, JsonLoc*>>;
   PlaceholderMap allPlaceholders();
 
   // The Const version is used for pre-substitution processing, by functions
@@ -79,8 +79,8 @@ struct JsonLoc {
   // not as a map. But this reduces cognitive complexity as users have to
   // remember only one type of methods (the map-returning kind), and we have
   // to implement only one recursive visitor.
-  using ConstPlaceholderMap =
-    std::multimap<std::string, const JsonLoc*, std::less<>>;
+  using ConstPlaceholderMap
+    = std::vector<std::pair<std::string, const JsonLoc*>>;
   ConstPlaceholderMap allPlaceholders() const;
 
   // Returns number of substitutions made. Zero if key doesn't exist.

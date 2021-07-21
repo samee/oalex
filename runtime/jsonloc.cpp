@@ -42,10 +42,8 @@ using Vector = JsonLoc::Vector;
 
 // Template parameters parameterize over const-qualifiers.
 template <class PlaceholderMap, class JsonLocInput>
-static void allPlaceholdersImpl(PlaceholderMap& rv,
-                                JsonLocInput& json) {
-  if(auto* p = get_if<Placeholder>(&json))
-    rv.insert(make_pair(p->key, &json));
+static void allPlaceholdersImpl(PlaceholderMap& rv, JsonLocInput& json) {
+  if(auto* p = get_if<Placeholder>(&json)) rv.emplace_back(p->key, &json);
   else if(holds_alternative<String>(json.value)) return;
   else if(auto* v = get_if<Vector>(&json))
     for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
@@ -55,20 +53,29 @@ static void allPlaceholdersImpl(PlaceholderMap& rv,
 }
 
 auto JsonLoc::allPlaceholders() -> PlaceholderMap {
+  auto byfirst = [](auto a, auto b) { return a.first < b.first; };
   PlaceholderMap rv;
   allPlaceholdersImpl(rv,*this);
-  return rv;
+  std::sort(rv.begin(), rv.end(), byfirst);
+  return {rv.begin(), rv.end()};
 }
 
 auto JsonLoc::allPlaceholders() const -> ConstPlaceholderMap {
+  auto byfirst = [](auto a, auto b) { return a.first < b.first; };
   ConstPlaceholderMap rv;
   allPlaceholdersImpl(rv,*this);
-  return rv;
+  std::sort(rv.begin(), rv.end(), byfirst);
+  return {rv.begin(), rv.end()};
 }
 
 size_t JsonLoc::substitute(const PlaceholderMap& pmap, string_view key,
                            const JsonLoc& json) {
-  auto [lo,hi] = pmap.equal_range(key);
+  auto locmp = +[](const PlaceholderMap::value_type& kv, string_view key)
+    { return kv.first < key; };
+  auto hicmp = +[](string_view key, const  PlaceholderMap::value_type& kv)
+    { return key < kv.first; };
+  auto lo = std::lower_bound(pmap.begin(), pmap.end(), key, locmp);
+  auto hi = std::upper_bound(pmap.begin(), pmap.end(), key, hicmp);
   size_t rv=0;
   for(auto it=lo; it!=hi; ++it) {
     *it->second = json;

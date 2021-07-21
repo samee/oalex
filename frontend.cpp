@@ -1066,11 +1066,9 @@ getTemplate(const Rule& rule) {
 optional<tuple<const JsonLoc*, const JsonLoc*, string>>
 hasDuplicatePlaceholders(const JsonLoc& tmpl) {
   auto pmap = tmpl.allPlaceholders();
-  for(auto& [k, v] : pmap) if(pmap.count(k) > 1) {
-    auto it = pmap.lower_bound(k);
-    auto jt = ++it;  // guaranteed to be valid, because duplicate.
-    return tuple{it->second, jt->second, k};
-  }
+  if(!pmap.empty()) for(auto it=++pmap.begin(); it!=pmap.end(); ++it)
+    if(it->first == (it-1)->first)
+      return tuple{(it-1)->second, it->second, it->first};
   return nullopt;
 }
 

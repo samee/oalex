@@ -61,8 +61,8 @@ JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
   return assertValidJsonLoc(testName, input, i);
 }
 
-template <class K, class T, class Cmp> std::vector<K>
-uniqueKeys(const std::multimap<K,T,Cmp>& m) {
+template <class K, class T> std::vector<K>
+uniqueKeys(const std::vector<std::pair<K,T>>& m) {
   std::vector<K> v;
   for(const auto& [k,e] : m) if(v.empty()||v.back()!=k) v.push_back(k);
   return v;
