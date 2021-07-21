@@ -113,10 +113,15 @@ auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
   return fp;
 }
 
-auto writeOrFail(FILE* fp, string_view s) {
-  if(fwrite(s.data(), s.size(), 1, fp) < 1)
-    UserError("File write error");
-}
+class WriteOrFail final : public OutputStream {
+  FILE* fp_;
+ public:
+  explicit WriteOrFail(FILE* fp) : fp_{fp} {}
+  void operator()(string_view s) const override {
+    if(fwrite(s.data(), s.size(), 1, fp_) < 1)
+      UserError("File write error");
+  }
+};
 
 void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
@@ -451,8 +456,7 @@ int main(int argc, char* argv[]) {
           "bool badFunc()  { return false; }\n\n",
           opts.hPathAsIncluded.c_str());
   using std::placeholders::_1;
-  auto cppos = bind(writeOrFail, cppfp.get(), _1);
-  auto hos = bind(writeOrFail, hfp.get(), _1);
+  WriteOrFail cppos{cppfp.get()}, hos{hfp.get()};
   auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
   // TODO first-class support for multiple RuleSets in a file.

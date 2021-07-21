@@ -14,7 +14,6 @@
 
 #pragma once
 
-#include <functional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -295,7 +294,12 @@ struct RuleSet {
   RegexOptions regexOpts;
 };
 
-using OutputStream = std::function<void(std::string_view)>;
+class OutputStream {
+ public:
+  virtual void operator()(std::string_view) const = 0;
+  virtual ~OutputStream() {}
+};
+
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos);
 void codegenDefaultRegexOptions(const RuleSet& ruleset,

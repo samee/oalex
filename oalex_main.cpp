@@ -342,7 +342,7 @@ bool testAllExamples(const ParsedSource& src) {
 // TODO export this class to codegen tests.
 // TODO define oalex::OutputStream as an abstract class instead of
 //   depending on std::functional, to help compilation speed.
-class FileStream final {
+class FileStream final : public oalex::OutputStream {
  public:
   explicit FileStream(FILE* fp) : fp_(fp) {}
   ~FileStream() { fclose(fp_); }
@@ -359,7 +359,7 @@ class FileStream final {
 
   explicit operator bool() const { return fp_; }
 
-  void operator()(string_view s) const {
+  void operator()(string_view s) const override {
     if(fwrite(s.data(), s.size(), 1, fp_) < 1) UserError("File write error");
   }
  private:
