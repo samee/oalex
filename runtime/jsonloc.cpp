@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "jsonloc.h"
+#include "jsonloc_fmt.h"
 
 #include "fmt/format.h"
 #include "util.h"

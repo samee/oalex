@@ -16,7 +16,7 @@
 #include <string_view>
 #include <utility>
 #include "runtime/diags.h"
-#include "runtime/jsonloc.h"
+#include "runtime/jsonloc_fmt.h"
 
 namespace oalex {
 
