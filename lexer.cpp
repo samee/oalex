@@ -56,7 +56,6 @@
 #include "runtime/util.h"
 
 using fmt::format;
-using std::function;
 using std::get_if;
 using std::make_move_iterator;
 using std::min;

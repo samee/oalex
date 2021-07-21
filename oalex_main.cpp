@@ -340,8 +340,6 @@ bool testAllExamples(const ParsedSource& src) {
 // can write to file, so it can be used directly in codegen.h.
 // fp_ remains private.
 // TODO export this class to codegen tests.
-// TODO define oalex::OutputStream as an abstract class instead of
-//   depending on std::functional, to help compilation speed.
 class FileStream final : public oalex::OutputStream {
  public:
   explicit FileStream(FILE* fp) : fp_(fp) {}

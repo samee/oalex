@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #include "codegen.h"
-#include <functional>
 #include <map>
 #include <memory>
 #include <string_view>
@@ -29,7 +28,6 @@ using oalex::is_in;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
-using std::function;
 using std::get_if;
 using std::holds_alternative;
 using std::map;
@@ -380,10 +378,9 @@ genRegexCharSet(const RegexCharSet& cset,
   cppos(format("}}, {})", alphabool(cset.negated)));
 }
 
-template <class T, class Cb> static void
+template <class T, class Cb, class BrCb> static void
 genMakeVector(const string& eltType, const vector<T>& vec,
-              Cb genElt, function<void()> br,
-              const OutputStream& cppos) {
+              Cb genElt, BrCb br, const OutputStream& cppos) {
   cppos(format("makeVector<{}>(", eltType)); br();
   for(const T& elt : vec) {
     cppos("  "); genElt(elt);

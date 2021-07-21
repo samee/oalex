@@ -13,12 +13,10 @@
     limitations under the License. */
 
 #include "skipper.h"
-#include <functional>
 #include <string_view>
 #include <vector>
 #include "input_view.h"
 #include "test_util.h"
-using std::function;
 using std::optional;
 using std::vector;
 using std::string;
