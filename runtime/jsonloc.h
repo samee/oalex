@@ -75,10 +75,6 @@ struct JsonLoc {
 
   // The Const version is used for pre-substitution processing, by functions
   // that only accept const JsonLoc objects but extract the identifier list.
-  // The type is typically used as a vector<pair<string,const JsonLoc*>>, and
-  // not as a map. But this reduces cognitive complexity as users have to
-  // remember only one type of methods (the map-returning kind), and we have
-  // to implement only one recursive visitor.
   using ConstPlaceholderMap
     = std::vector<std::pair<std::string, const JsonLoc*>>;
   ConstPlaceholderMap allPlaceholders() const;
