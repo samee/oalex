@@ -42,7 +42,7 @@ bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
 
 
-void mapUnion(JsonLoc::Map& m1, JsonLoc::Map m2);
+void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2);
 
 // TODO Consider splitting this function into two by the doCreate parameter.
 void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,

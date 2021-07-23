@@ -122,10 +122,12 @@ optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
       }
     }
 
-    if(rv.insert({key->data, std::move(*parsedElt)}).second == false)
+    if(JsonLoc::mapLinearFind(rv, key->data) != -1)
       Error(ctx, *key, "Duplicate key " + key->data);
+    else rv.push_back({key->data, std::move(*parsedElt)});
   }
-  return JsonLoc(rv);
+  JsonLoc::mapSort(rv);
+  return rv;
 }
 
 optional<JsonLoc>

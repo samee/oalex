@@ -22,7 +22,7 @@ using fmt::memory_buffer;
 using oalex::Bug;
 using std::get;
 using std::make_pair;
-using std::map;
+using std::pair;
 using std::string;
 using std::string_view;
 
@@ -71,7 +71,7 @@ void JsonLoc::destroyValue() {
     case Tag::ErrorValue: return;
     case Tag::String: stringValue_.~string(); return;
     case Tag::Vector: vectorValue_.~vector(); return;
-    case Tag::Map: mapValue_.~map(); return;
+    case Tag::Map: mapValue_.~vector(); return;
     case Tag::Placeholder: placeholderValue_.~Placeholder(); return;
   }
 }
@@ -112,6 +112,20 @@ string_view JsonLoc::tagName() const {
     case Tag::Placeholder: return "Placeholder";
     default: BugUnknownJsonType(tag_);
   }
+}
+
+ssize_t JsonLoc::mapLinearFind(const Map& m, std::string_view k) {
+  for(ssize_t i=0; i<ssize(m); ++i) if(k == m[i].first) return i;
+  return -1;
+}
+
+void JsonLoc::mapSort(Map& m) {
+  auto byfirst = +[](const Map::value_type& a, const Map::value_type& b)
+    { return a.first < b.first; };
+  sort(m.begin(), m.end(), byfirst);
+
+  for(size_t i=1; i<m.size(); ++i) if(m[i-1].first == m[i].first)
+    Bug("maps are supposed to be key-disjoint");
 }
 
 // Template parameters parameterize over const-qualifiers.

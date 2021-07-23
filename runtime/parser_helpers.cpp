@@ -1,6 +1,5 @@
 #include "parser_helpers.h"
 #include <memory>
-#include <utility>
 #include "util.h"
 using std::exchange;
 using std::make_unique;
@@ -106,21 +105,22 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   return rv;
 }
 
-void mapUnion(JsonLoc::Map& m1, JsonLoc::Map m2) {
-  for(auto& p : m2) if(!m1.insert(std::move(p)).second)
-    Bug("maps are supposed to be key-disjoint");
+void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2) {
+  m1.insert(m1.end(), std::make_move_iterator(m2.begin()),
+                      std::make_move_iterator(m2.end()));
 }
 
 void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
                        JsonLoc v, bool doCreate) {
   if(doCreate) {
-    if(!m.insert({k, JsonLoc::Vector{std::move(v)}}).second)
+    for(auto& [oldk,oldv] : m) if(oldk == k)
       Bug("Collision in loop elements with name '{}'", k);
+    m.push_back({k, JsonLoc::Vector{std::move(v)}});
   }else {
-    auto it = m.find(k);
-    if(it == m.end())
-      Bug("Need to create element after the first iteration");
-    it->second.getIfVector()->push_back(std::move(v));
+    ssize_t i=0;
+    for(i=0; i<ssize(m); ++i) if(m[i].first == k) break;
+    if(i==ssize(m)) Bug("Need to create element after the first iteration");
+    m[i].second.getIfVector()->push_back(std::move(v));
   }
 }
 

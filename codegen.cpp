@@ -103,11 +103,13 @@ eval(InputDiags& ctx, ssize_t& i,
                  ruleDebugId(rs, idx), out);
       if(!outname.empty())
         Bug("Flattenable children are not supposed to have names");
-      mapUnion(rv, std::move(*m));
+      mapAppend(rv, std::move(*m));
     }
-    else if(!outname.empty()) rv.insert({std::move(outname), std::move(out)});
+    else if(!outname.empty())
+      rv.push_back({std::move(outname), std::move(out)});
   }
   i = j;
+  JsonLoc::mapSort(rv);
   return rv;
 }
 
@@ -139,7 +141,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   if(!m) {
     if(out.childName.empty())
       Bug("OutputTmpl child must be named, or they need to produce a Map");
-    container.insert({out.childName, std::move(outfields)});
+    container.push_back({out.childName, std::move(outfields)});
     m = &container;
   }
   JsonLoc rv = out.outputTmpl;
@@ -164,12 +166,13 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
     if(name.empty()) return;
-    JsonLoc::Map::iterator it = rv.find(name);
-    if(it == rv.end()) {
+    ssize_t i = JsonLoc::mapLinearFind(rv, name);
+    if(i == -1) {
       if(maxsize > 1) Unimplemented("Late addition needs static key collation");
-      it = rv.insert({name, JsonLoc::Vector{}}).first;
+      i = ssize(rv);
+      rv.push_back({name, JsonLoc::Vector{}});
     }
-    auto v = it->second.getIfVector();
+    auto* v = rv[i].second.getIfVector();
     if(!v) Bug("All elements should be vectors");
     v->push_back(std::move(val));
     maxsize = std::max(maxsize, ssize(*v));
@@ -215,6 +218,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     first = false;
   }
   i = fallback_point;  // discard any failures and SkipPoints.
+  JsonLoc::mapSort(rv);
   return rv;
 }
 
@@ -499,6 +503,7 @@ codegen(const RegexRule& regex, const OutputStream& cppos) {
   cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
 }
 
+// TODO: use sorted vector instead of map here too.
 static void
 codegen(const JsonLoc& jsloc, const OutputStream& cppos,
         const map<string,string>& placeholders, ssize_t indent) {
@@ -547,11 +552,12 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     cppos("  if(res.holdsErrorValue()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
     if(resultFlattenableOrError(ruleset,childid))
-      cppos("  oalex::mapUnion(m, std::move(*res.getIfMap()));\n");
+      cppos("  oalex::mapAppend(m, std::move(*res.getIfMap()));\n");
     else if(!key.empty())
-      cppos(format("  m.insert({{{}, std::move(res)}});\n", dquoted(key)));
+      cppos(format("  m.emplace_back({}, std::move(res));\n", dquoted(key)));
   }
-  cppos("\n  JsonLoc rv{std::move(m)};\n");
+  cppos("\n  JsonLoc::mapSort(m);\n");
+  cppos("  JsonLoc rv{std::move(m)};\n");
   cppos("  rv.stPos = i; rv.enPos = j;\n");
   cppos("  i = j;\n");
   cppos("  return rv;\n");
@@ -705,6 +711,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   }
   cppos("    first = false;\n");
   cppos("  }\n");
+  cppos("  JsonLoc::mapSort(m);\n");
   cppos("  JsonLoc rv{std::move(m)};\n");
   cppos("  rv.stPos = i; rv.enPos = fallback_point;\n");
   cppos("  i = fallback_point;\n");

@@ -15,7 +15,6 @@
 #pragma once
 
 #include <limits>
-#include <map>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -48,10 +47,12 @@ class JsonLoc {
   struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonLoc>;
-  using Map = std::map<std::string,JsonLoc, std::less<>>;
+  using Map = std::vector<std::pair<std::string, JsonLoc>>;  // sorted keys.
   struct Placeholder { std::string key; };
 
   size_t stPos=npos, enPos=npos;
+  static ssize_t mapLinearFind(const Map& m, std::string_view k);
+  static void mapSort(Map& m);
 
   // conversion constructors.
   JsonLoc() = delete;
@@ -153,9 +154,9 @@ inline bool isPlaceholder(const JsonLoc& jsloc, std::string_view pname) {
 }
 
 inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
-  auto it = m.find(key);
-  if(it == m.end()) return JsonLoc::Map{};
-  else return std::move(it->second);
+  for(ssize_t i=0; i<(ssize_t)m.size(); ++i)
+    if(m[i].first == key) return std::move(m[i].second);
+  return JsonLoc::Map{};
 }
 
 }  // namespace oalex
