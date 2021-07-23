@@ -106,7 +106,7 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   return rv;
 }
 
-void mapUnion(JsonLoc::Map& m1, JsonLoc::Map& m2) {
+void mapUnion(JsonLoc::Map& m1, JsonLoc::Map m2) {
   for(auto& p : m2) if(!m1.insert(std::move(p)).second)
     Bug("maps are supposed to be key-disjoint");
 }

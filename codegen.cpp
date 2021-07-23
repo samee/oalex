@@ -103,7 +103,7 @@ eval(InputDiags& ctx, ssize_t& i,
                  ruleDebugId(rs, idx), out);
       if(!outname.empty())
         Bug("Flattenable children are not supposed to have names");
-      mapUnion(rv, *m);
+      mapUnion(rv, std::move(*m));
     }
     else if(!outname.empty()) rv.insert({std::move(outname), std::move(out)});
   }
@@ -547,7 +547,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     cppos("  if(res.holdsErrorValue()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
     if(resultFlattenableOrError(ruleset,childid))
-      cppos("  oalex::mapUnion(m, *res.getIfMap());\n");
+      cppos("  oalex::mapUnion(m, std::move(*res.getIfMap()));\n");
     else if(!key.empty())
       cppos(format("  m.insert({{{}, std::move(res)}});\n", dquoted(key)));
   }
