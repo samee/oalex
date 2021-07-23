@@ -84,7 +84,7 @@ struct Example {
   Expectation expectation;
   static bool runSucceeded(const JsonLoc& jsloc,
                            const std::vector<Diag>& diags)
-    { return !jsloc.holdsError() && diags.empty(); }
+    { return !jsloc.holdsErrorValue() && diags.empty(); }
 };
 
 std::string describeTestFailure(const Example& ex, bool succeeded);

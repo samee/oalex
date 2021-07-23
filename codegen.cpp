@@ -96,7 +96,7 @@ eval(InputDiags& ctx, ssize_t& i,
   ssize_t j = i;
   for(auto& [idx, outname] : seq.comps) {
     JsonLoc out = eval(ctx, j, rs, idx);
-    if(out.holdsError()) return out;
+    if(out.holdsErrorValue()) return out;
     else if(resultFlattenableOrError(rs,idx)) {
       auto* m = out.getIfMap();
       if(!m) Bug("Child {} was expected to return a map, got: {}",
@@ -119,7 +119,7 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   for(auto& [idx, outname] : seq.comps) {
     // TODO move this into substitute in the common case.
     JsonLoc out = eval(ctx, j, rs, idx);
-    if(out.holdsError()) return out;
+    if(out.holdsErrorValue()) return out;
     if(!outname.empty()) rv.substitute(pmap, outname, out);
   }
   for(auto& [id, jsloc] : pmap)
@@ -132,7 +132,7 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
-  if(outfields.holdsError()) return outfields;
+  if(outfields.holdsErrorValue()) return outfields;
   if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
   JsonLoc::Map container;
   auto* m = outfields.getIfMap();
@@ -195,21 +195,21 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     JsonLoc out = (first || loop.glueidx != -1)
                     ? eval(ctx, j, rs, loop.partidx)
                     : evalQuiet(ctx.input, j, rs, loop.partidx);
-    if(out.holdsError()) {
+    if(out.holdsErrorValue()) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
     }else {
       recordComponent("child", std::move(out), loop.partidx, loop.partname);
       fallback_point = j;
     }
-    if(sp && evalQuiet(ctx.input, j, rs, loop.skipidx).holdsError()) break;
+    if(sp && evalQuiet(ctx.input, j, rs, loop.skipidx).holdsErrorValue()) break;
     if(loop.glueidx != -1) {
       JsonLoc out = evalQuiet(ctx.input, j, rs, loop.glueidx);
-      if(out.holdsError()) break;
+      if(out.holdsErrorValue()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
       if(sp) {
         out = skip(ctx, j, *sp);
-        if(out.holdsError()) return out;
+        if(out.holdsErrorValue()) return out;
       }
     }
     first = false;
@@ -235,19 +235,19 @@ static JsonLoc evalQuiet(const Input& input, ssize_t& i,
   InputDiags proxy{Input{sp.get()}};
   ssize_t pos = 0;
   JsonLoc res = eval(proxy, pos, rs, ruleIndex);
-  if(!res.holdsError()) i += pos;
+  if(!res.holdsErrorValue()) i += pos;
   return res;
 }
 
 static bool
 evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
-  return !evalQuiet(input, i, rs, ruleIndex).holdsError();
+  return !evalQuiet(input, i, rs, ruleIndex).holdsErrorValue();
 }
 
 static bool
 orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
                            const JsonLoc& tmpl) {
-  if(tmpl.holdsMap() || tmpl.holdsError()) return true;
+  if(tmpl.holdsMap() || tmpl.holdsErrorValue()) return true;
   return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
 }
 
@@ -261,7 +261,7 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
       Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
     if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
-    if(!out.holdsError()) return substituteOnePlaceholder(tmpl, "child", out);
+    if(!out.holdsErrorValue()) return substituteOnePlaceholder(tmpl, "child", out);
 
     // If we passed evalPeek(), don't try anything else.
     if(lidx != -1) return out;
@@ -273,7 +273,7 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   ssize_t oldi = i;
   JsonLoc out = eval(ctx, i, rs, me.compidx);
-  if(out.holdsError()) Error(ctx, oldi, i, me.errmsg);
+  if(out.holdsErrorValue()) Error(ctx, oldi, i, me.errmsg);
   return out;
 }
 
@@ -544,7 +544,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     cppos("\n  res = ");
       codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
-    cppos("  if(res.holdsError()) return res;\n");
+    cppos("  if(res.holdsErrorValue()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
     if(resultFlattenableOrError(ruleset,childid))
       cppos("  oalex::mapUnion(m, *res.getIfMap());\n");
@@ -578,7 +578,7 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
     cppos(format("\n  {}{} = ", decl, resvar));
       codegenParserCall(ruleAt(ruleset, comp.idx), "j", cppos);
       cppos(";\n");
-    cppos(format("  if({0}.holdsError()) return {0};\n", resvar));
+    cppos(format("  if({0}.holdsErrorValue()) return {0};\n", resvar));
   }
   cppos("\n  i = j;\n");
   // TODO add source location.
@@ -601,7 +601,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  JsonLoc outfields = ");
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
-  cppos("  if(outfields.holdsError()) return outfields;\n");
+  cppos("  if(outfields.holdsErrorValue()) return outfields;\n");
   map<string,string> placeholders;
   // Dev-note: we only produce Bug() if reaching a given control path indicates
   // a bug in the code *generator*.
@@ -668,7 +668,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(";\n");
     cppos(format("    else res = quietMatch(ctx.input, j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
-    cppos("    if(res.holdsError()) {\n");
+    cppos("    if(res.holdsErrorValue()) {\n");
     cppos("      if(first) return res;\n");
     cppos("      else break;\n");
     cppos("    }\n");
@@ -676,7 +676,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    res = ");
       codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos("    if(res.holdsError()) return res;\n");
+    cppos("    if(res.holdsErrorValue()) return res;\n");
   }
   recordComponent(loop.partidx, loop.partname);
 
@@ -685,20 +685,20 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.skipidx != -1) {
     cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                  parserName(skipname)));
-    cppos("    if(res.holdsError()) break;\n");
+    cppos("    if(res.holdsErrorValue()) break;\n");
   }
   if(loop.glueidx != -1) {
     if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
       cppos(format("    res = quietMatch(ctx.input, j, {});\n",
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
-    cppos("    if(res.holdsError()) break;\n");
+    cppos("    if(res.holdsErrorValue()) break;\n");
     recordComponent(loop.glueidx, loop.gluename);
     if(loop.skipidx != -1) {
       cppos("    res = ");
         codegenParserCall(ruleAt(ruleset, loop.skipidx), "j", cppos);
         cppos(";\n");
-      cppos("    if(res.holdsError())\n");
+      cppos("    if(res.holdsErrorValue())\n");
       cppos("      return oalex::errorValue(ctx, j, "
                                             "\"Unfinished comment\");\n");
     }
@@ -751,7 +751,7 @@ codegenReturnErrorOrTmpl(string_view resvar, const JsonLoc& tmpl,
   if(isPassthroughTmpl(tmpl)) {
     cppos(format("    return {};\n", resvar));
   }else {
-    cppos(format("    if(!{}.holdsError()) return ", resvar));
+    cppos(format("    if(!{}.holdsErrorValue()) return ", resvar));
       codegen(tmpl, cppos, {{"child", string(resvar)}}, 4);
       cppos(";\n");
     cppos(format("    else return {};\n", resvar));
@@ -773,7 +773,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
       cppos("  res = ");
         codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
-      cppos("  if(!res.holdsError()) return ");
+      cppos("  if(!res.holdsErrorValue()) return ");
         codegen(tmpl, cppos, {{"child", "res"}}, 2);
         cppos(";\n");
     }else {
@@ -797,7 +797,7 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
   cppos("  JsonLoc  res = ");
     codegenParserCall(ruleAt(ruleset, me.compidx), "i", cppos);
     cppos(";\n");
-  cppos("  if(res.holdsError())\n");
+  cppos("  if(res.holdsErrorValue())\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
   cppos("  return res;\n");
 }

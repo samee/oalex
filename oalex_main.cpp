@@ -282,7 +282,7 @@ JsonLoc processStdin(const RuleSet& rs) {
   InputDiags ctx(Input{&ss});
   ssize_t pos = 0;
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
-  if(!jsloc.holdsError()) return JsonLoc::Map{{"msg", std::move(jsloc)}};
+  if(!jsloc.holdsErrorValue()) return JsonLoc::Map{{"msg", std::move(jsloc)}};
   for(const auto& d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
 }
@@ -320,7 +320,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
 
   bool success = Example::runSucceeded(jsloc, ctx.diags);
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
-  if(!jsloc.holdsError())
+  if(!jsloc.holdsErrorValue())
     fprintf(stderr, "Output: %s\n", jsloc.prettyPrint().c_str());
   if(!ctx.diags.empty()) {
     fprintf(stderr, "Errors received:\n");
@@ -417,7 +417,7 @@ int main(int argc, char *argv[]) {
     if(!src.has_value()) return 1;
     JsonLoc res = processStdin(src->ruleSet);
     printf("%s\n", res.prettyPrintJson().c_str());
-    return res.holdsError() ? 1 : 0;
+    return res.holdsErrorValue() ? 1 : 0;
   }else if(cmdlineOpts->mode == CmdMode::evalTest) {
     optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
     if(!src.has_value()) return 1;

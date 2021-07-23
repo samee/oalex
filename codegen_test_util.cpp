@@ -31,7 +31,7 @@ const RegexOptions regexOpts{
 
 void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
                            string_view s, size_t stPos, size_t enPos) {
-  if(jsloc.holdsError()) Bug("{}: eval() produced error", testName);
+  if(jsloc.holdsErrorValue()) Bug("{}: eval() produced error", testName);
   assertEqual(format("{}: eval().stPos", testName), jsloc.stPos, stPos);
   assertEqual(format("{}: eval().enPos", testName), jsloc.enPos, enPos);
   if(const string* t = jsloc.getIfString())

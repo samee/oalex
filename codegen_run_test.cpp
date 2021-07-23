@@ -57,7 +57,7 @@ void runSingleStringTest() {
   ctx = InputDiags{Input{msg}};
   pos = 0;
   jsloc = parseHelloKeyword(ctx, pos);
-  if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
+  if(!jsloc.holdsErrorValue()) BugMe("Was expecting string match to fail");
 }
 
 void runMatchOrErrorTest(JsonLoc (*parse)(InputDiags&, ssize_t&)) {
@@ -104,7 +104,7 @@ void runSingleRegexTest() {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc jsloc = parseFooOrFox(ctx, pos);
-    if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
+    if(!jsloc.holdsErrorValue()) BugMe("Was expecting regex match to fail");
   }
 }
 
@@ -125,7 +125,7 @@ void runConcatFlatTest() {
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
   observed = parseFlatDefn(ctx, pos);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     BugMe("Was expecting failure on missing type. Got {}", observed);
 }
 
@@ -147,13 +147,13 @@ void runConcatTest() {
     id: "x",
     value: "5"
   })";
-  if(jsloc.holdsError()) BugMe("parseDefinition() failed");
+  if(jsloc.holdsErrorValue()) BugMe("parseDefinition() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 
   ctx = InputDiags{Input{"intx = 5;"}};
   pos = 0;
   jsloc = parseAssignment(ctx, pos);
-  if(!jsloc.holdsError()) BugMe("run-on word matched unexpectedly");
+  if(!jsloc.holdsErrorValue()) BugMe("run-on word matched unexpectedly");
 
   ctx = InputDiags{Input{"y=x;"}};
   pos = 0;
@@ -162,7 +162,7 @@ void runConcatTest() {
     lhs: "y",
     rhs: "x"
   })";
-  if(jsloc.holdsError()) BugMe("parseAssignment() failed");
+  if(jsloc.holdsErrorValue()) BugMe("parseAssignment() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 }
 
@@ -200,7 +200,7 @@ void runExternParserDeclaration() {
     id: "some_text",
     tmpl: "loren\nipsum\n\n"
   })";
-  if(jsloc.holdsError()) BugMe("parseExtTmpl() failed");
+  if(jsloc.holdsErrorValue()) BugMe("parseExtTmpl() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 }
 
@@ -219,7 +219,7 @@ void runOrTest() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"do"}};
   JsonLoc observed = parseOneWordOrList(ctx, pos);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     BugMe("Was expecting failure on keyword 'do'. Got {}", observed);
 }
 
@@ -261,8 +261,8 @@ void runLookaheads() {
     ssize_t pos = 1;
     InputDiags ctx{Input{msg}};
     JsonLoc observed = parseLookaheadSimpleStmt(ctx, pos);
-    if(expected.holdsError()) {
-      if(!observed.holdsError())
+    if(expected.holdsErrorValue()) {
+      if(!observed.holdsErrorValue())
         BugMe("Expected error on '{}', got {}", msg, observed);
     }else assertEqual(__func__, expected, observed);
   }
@@ -272,7 +272,7 @@ void runQuietTest() {
   InputDiags ctx{Input{"string2"}};
   ssize_t pos = 0;
   JsonLoc observed = parseQuietMatchTest(ctx, pos);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -284,7 +284,7 @@ void runMiscFlatteningTest() {
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc observed = parseFlatHelloFlat3(ctx, pos);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -297,7 +297,7 @@ void runMiscFlatteningTest() {
   ctx.diags.clear();
   pos = 0;
   observed = parseFlatHelloFlat4(ctx, pos);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -333,7 +333,7 @@ void runLoopRuleTest() {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc observed = parseLoopSum(ctx, pos);
-    if(!observed.holdsError())
+    if(!observed.holdsErrorValue())
       Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
@@ -351,7 +351,7 @@ void runLoopRuleTest() {
   ctx = InputDiags{Input{"!"}};
   pos = 0;
   observed = parseListPrefix(ctx, pos);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
 
@@ -397,7 +397,7 @@ int main() {
   InputDiags ctx{Input{"x = 5;"}};
   size_t pos = 0;
   JsonLoc res = parseAsgnStmt(ctx, pos);
-  if(!res.holdsError())
+  if(!res.holdsErrorValue())
     Bug("parseAsgn() returning success, but is unimplemented!");
 
   runSingleStringTest();

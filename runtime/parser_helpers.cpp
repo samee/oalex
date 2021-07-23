@@ -74,7 +74,7 @@ unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i) {
 bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
   // The only difference between this and quietMatch() is that
   // peekMatch() accepts `i` by value.
-  return !quietMatch(input, i, parser).holdsError();
+  return !quietMatch(input, i, parser).holdsErrorValue();
 }
 
 JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
@@ -102,7 +102,7 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   InputDiags proxy{Input{sp.get()}};
   ssize_t pos = 0;
   JsonLoc rv = parser(proxy, pos);
-  if(!rv.holdsError()) i += pos;
+  if(!rv.holdsErrorValue()) i += pos;
   return rv;
 }
 

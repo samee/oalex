@@ -78,7 +78,7 @@ void testSingleStringMismatch() {
   ssize_t pos = 0;
   RuleSet rs = singletonRuleSet(StringRule{msg + "!"});
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
-  if(!jsloc.holdsError()) BugMe("Was expecting string match to fail");
+  if(!jsloc.holdsErrorValue()) BugMe("Was expecting string match to fail");
 }
 
 void testMatchOrError() {
@@ -163,7 +163,7 @@ void testSingleWordPreserving() {
   ctx = InputDiags{Input{"hello_word"}};
   pos = 0;
   jsloc = eval(ctx, pos, rs, 0);
-  if(!jsloc.holdsError()) BugMe("Was expecting WordPreserving match to fail");
+  if(!jsloc.holdsErrorValue()) BugMe("Was expecting WordPreserving match to fail");
 }
 
 void testRegexMatch() {
@@ -176,7 +176,7 @@ void testRegexMatch() {
   spos = 0;
   InputDiags ctx2{Input{"123"}};
   jsloc = eval(ctx2, spos, rs, 0);
-  if(!jsloc.holdsError()) BugMe("Was expecting regex match to fail");
+  if(!jsloc.holdsErrorValue()) BugMe("Was expecting regex match to fail");
 }
 
 void testConcatMatch() {
@@ -203,7 +203,7 @@ void testConcatMatch() {
   pos = 0;
   ctx = InputDiags{Input{"orangeCount = 5 missing-semicolon;"}};
   observed = eval(ctx, pos, rs, concatIndex);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     BugMe("Was expecting failure on missing semicolon. Got {:2}", observed);
 }
 
@@ -239,7 +239,7 @@ void testConcatFlatMatch() {
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
   observed = eval(ctx, pos, rs, outIndex);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     BugMe("Was expecting failure on missing type. Got {:2}", observed);
 }
 
@@ -284,7 +284,7 @@ void testKeywordsOrNumber() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"do"}};
   JsonLoc observed = eval(ctx, pos, rs, orListIndex);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     BugMe("Was expecting failure on keyword 'do'. Got {:2}", observed);
 }
 
@@ -350,8 +350,8 @@ void testLookaheads() {
     ssize_t pos = 0;
     InputDiags ctx{Input{msg}};
     JsonLoc observed = eval(ctx, pos, rs, 7);
-    if(expected.holdsError()) {
-      if(!observed.holdsError())
+    if(expected.holdsErrorValue()) {
+      if(!observed.holdsErrorValue())
         BugMe("Expected error on '{}', got {}", msg, observed);
     }else assertEqual(__func__, expected, observed);
   }
@@ -370,7 +370,7 @@ void testQuietMatch() {
   InputDiags ctx{Input{"string2"}};
   ssize_t pos = 0;
   JsonLoc observed = eval(ctx, pos, rs, 4);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -399,7 +399,7 @@ void testMiscFlattening() {
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
   JsonLoc observed = eval(ctx, pos, rs, 5);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -412,7 +412,7 @@ void testMiscFlattening() {
   ctx.diags.clear();
   pos = 0;
   observed = eval(ctx, pos, rs, 8);
-  if(observed.holdsError() || !ctx.diags.empty()) {
+  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
@@ -471,7 +471,7 @@ void testLoopRule() {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
     JsonLoc observed = eval(ctx, pos, rs, 3);
-    if(!observed.holdsError())
+    if(!observed.holdsErrorValue())
       Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
@@ -488,7 +488,7 @@ void testLoopRule() {
   ctx = InputDiags{Input{"!"}};
   pos = 0;
   observed = eval(ctx, pos, rs, 8);
-  if(!observed.holdsError())
+  if(!observed.holdsErrorValue())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
 }

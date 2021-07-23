@@ -236,7 +236,7 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
-  }else if(json.holdsError()) {
+  }else if(json.holdsErrorValue()) {
     format_to(buf, "(error_value)");
   }else BugUnknownJsonType(json.tag());
 }
@@ -254,7 +254,7 @@ string JsonLoc::prettyPrintJson(size_t indent) const {
 }
 
 bool JsonLoc::supportsEquality() const {
-  if(holdsPlaceholder() || holdsError()) return false;
+  if(holdsPlaceholder() || holdsErrorValue()) return false;
   if(holdsString()) return true;
   if(auto* vec = getIfVector()) {
     for(auto& v : *vec) if(!v.supportsEquality()) return false;
@@ -270,7 +270,7 @@ bool JsonLoc::supportsEquality() const {
 bool JsonLoc::operator==(const JsonLoc& that) const {
   if(this->tag_ != that.tag_) return false;
 
-  if(holdsPlaceholder() || holdsError()) Bug("supportsEquality() is false");
+  if(holdsPlaceholder() || holdsErrorValue()) Bug("supportsEquality() is false");
   if(auto* s = getIfString()) return *s == *that.getIfString();
   if(auto* v = getIfVector()) return *v == *that.getIfVector();
   if(auto* m = getIfMap()) return *m == *that.getIfMap();

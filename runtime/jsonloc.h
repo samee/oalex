@@ -53,7 +53,6 @@ class JsonLoc {
 
   size_t stPos=npos, enPos=npos;
 
-  // TODO change these to std::move once value is deleted.
   // conversion constructors.
   JsonLoc() = delete;
   JsonLoc(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
@@ -69,9 +68,8 @@ class JsonLoc {
   JsonLoc& operator=(const JsonLoc& that);
   ~JsonLoc();
 
-  // TODO rename to holdsErrorValue() for consistency.
   // Or rename type to Tag::Error.
-  bool holdsError() const { return tag_ == Tag::ErrorValue; }
+  bool holdsErrorValue() const { return tag_ == Tag::ErrorValue; }
   bool holdsString() const { return tag_ == Tag::String; }
   bool holdsVector() const { return tag_ == Tag::Vector; }
   bool holdsMap() const { return tag_ == Tag::Map; }
