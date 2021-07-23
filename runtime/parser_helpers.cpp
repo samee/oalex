@@ -120,7 +120,7 @@ void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
     auto it = m.find(k);
     if(it == m.end())
       Bug("Need to create element after the first iteration");
-    oalex::get_if<JsonLoc::Vector>(&it->second)->push_back(std::move(v));
+    it->second.getIfVector()->push_back(std::move(v));
   }
 }
 
@@ -130,7 +130,7 @@ void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2,
 }
 
 void assertMap(JsonLoc& jsloc, string_view errctx) {
-  auto* m = get_if<JsonLoc::Map>(&jsloc);
+  auto* m = jsloc.getIfMap();
   if(m == nullptr) Bug("{}: needs a map", errctx);
 }
 

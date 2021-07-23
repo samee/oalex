@@ -21,8 +21,6 @@ using fmt::format_to;
 using fmt::memory_buffer;
 using oalex::Bug;
 using std::get;
-using std::get_if;
-using std::holds_alternative;
 using std::make_pair;
 using std::map;
 using std::string;
@@ -36,20 +34,96 @@ using String = JsonLoc::String;
 using Map = JsonLoc::Map;
 using Vector = JsonLoc::Vector;
 
-[[noreturn]] static void BugUnknownJsonType(const JsonLoc& json) {
-  Bug("Strange JsonLoc type with index = {}", json.value.index());
+[[noreturn]] static void BugUnknownJsonType(const JsonLoc::Tag& tag) {
+  Bug("Strange JsonLoc type with enum = {}", int(tag));
+}
+
+void JsonLoc::copyValue(const JsonLoc& that) {
+  switch(tag_) {
+    case Tag::ErrorValue: return;
+    case Tag::String:
+      new (&stringValue_) String{that.stringValue_}; return;
+    case Tag::Vector:
+      new (&vectorValue_) Vector(that.vectorValue_); return;
+    case Tag::Map:
+      new (&mapValue_) Map(that.mapValue_); return;
+    case Tag::Placeholder:
+      new (&placeholderValue_) Placeholder{that.placeholderValue_};
+  }
+}
+
+void JsonLoc::moveValue(JsonLoc&& that) {
+  switch(tag_) {
+    case Tag::ErrorValue: return;
+    case Tag::String:
+      new (&stringValue_) String{std::move(that.stringValue_)}; return;
+    case Tag::Vector:
+      new (&vectorValue_) Vector(std::move(that.vectorValue_)); return;
+    case Tag::Map:
+      new (&mapValue_) Map(std::move(that.mapValue_)); return;
+    case Tag::Placeholder:
+      new (&placeholderValue_) Placeholder{std::move(that.placeholderValue_)};
+  }
+}
+
+void JsonLoc::destroyValue() {
+  switch(tag_) {
+    case Tag::ErrorValue: return;
+    case Tag::String: stringValue_.~string(); return;
+    case Tag::Vector: vectorValue_.~vector(); return;
+    case Tag::Map: mapValue_.~map(); return;
+    case Tag::Placeholder: placeholderValue_.~Placeholder(); return;
+  }
+}
+
+JsonLoc::JsonLoc(JsonLoc&& that)
+  : stPos{that.stPos}, enPos{that.enPos},
+    tag_{that.tag_} {
+  moveValue(std::move(that));
+}
+JsonLoc::JsonLoc(const JsonLoc& that)
+  : stPos{that.stPos}, enPos{that.enPos}, tag_{that.tag_} {
+  copyValue(that);
+}
+JsonLoc& JsonLoc::operator=(JsonLoc&& that) {
+  destroyValue();
+  this->stPos = that.stPos;
+  this->enPos = that.enPos;
+  this->tag_ = that.tag_;
+  moveValue(std::move(that));
+  return *this;
+}
+JsonLoc& JsonLoc::operator=(const JsonLoc& that) {
+  destroyValue();
+  this->stPos = that.stPos;
+  this->enPos = that.enPos;
+  this->tag_ = that.tag_;
+  copyValue(that);
+  return *this;
+}
+JsonLoc::~JsonLoc() { destroyValue(); }
+
+string_view JsonLoc::tagName() const {
+  switch(tag_) {
+    case Tag::ErrorValue: return "ErrorValue";
+    case Tag::String: return "String";
+    case Tag::Vector: return "Vector";
+    case Tag::Map: return "Map";
+    case Tag::Placeholder: return "Placeholder";
+    default: BugUnknownJsonType(tag_);
+  }
 }
 
 // Template parameters parameterize over const-qualifiers.
 template <class PlaceholderMap, class JsonLocInput>
 static void allPlaceholdersImpl(PlaceholderMap& rv, JsonLocInput& json) {
-  if(auto* p = get_if<Placeholder>(&json)) rv.emplace_back(p->key, &json);
-  else if(holds_alternative<String>(json.value)) return;
-  else if(auto* v = get_if<Vector>(&json))
+  if(auto* p = json.getIfPlaceholder()) rv.emplace_back(p->key, &json);
+  else if(json.holdsString()) return;
+  else if(auto* v = json.getIfVector())
     for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
-  else if(auto* m = get_if<Map>(&json))
+  else if(auto* m = json.getIfMap())
     for(auto& [k,v] : *m) allPlaceholdersImpl(rv,v);
-  else BugUnknownJsonType(json);
+  else BugUnknownJsonType(json.tag());
 }
 
 auto JsonLoc::allPlaceholders() -> PlaceholderMap {
@@ -95,15 +169,15 @@ static bool childIsGood(const JsonLoc& parent, const JsonLoc& child) {
 }
 
 bool JsonLoc::substitutionsOk() const {
-  if(holds_alternative<Placeholder>(this->value)) return false;
+  if(holdsPlaceholder()) return false;
   if((this->stPos==JsonLoc::npos) != (this->enPos==JsonLoc::npos)) return false;
 
-  if(auto* v = get_if<Vector>(&this->value)) {
+  if(auto* v = getIfVector()) {
     for(auto& elt : *v) if(!childIsGood(*this,elt)) return false;
-  } else if(auto* m = get_if<Map>(&this->value)) {
+  } else if(auto* m = getIfMap()) {
     for(auto& [k,v] : *m) if(!childIsGood(*this,v)) return false;
-  } else if(!holds_alternative<String>(this->value)) {
-    BugUnknownJsonType(*this);
+  } else if(!holdsString()) {
+    BugUnknownJsonType(tag_);
   }
   return true;
 }
@@ -135,10 +209,10 @@ static string_view assertIdent(string_view ctx, string_view s) {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonLoc& json,
                         bool quoteMapKeys) {
-  if(auto* p = get_if<Placeholder>(&json))
+  if(auto* p = json.getIfPlaceholder())
     format_to(buf, "{}", assertIdent(__func__, p->key));
-  else if(auto* s = get_if<String>(&json)) printString(buf, *s);
-  else if(auto* v = get_if<Vector>(&json)) {
+  else if(auto* s = json.getIfString()) printString(buf, *s);
+  else if(auto* v = json.getIfVector()) {
     format_to(buf, "[\n");
     bool first = true;
     for(const JsonLoc& elt : *v) {
@@ -148,7 +222,7 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, elt, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}]", "", indent);
-  }else if(auto* m = get_if<Map>(&json)) {
+  }else if(auto* m = json.getIfMap()) {
     format_to(buf, "{{\n");
     bool first = true;
     for(auto& [k,v] : *m) {
@@ -162,9 +236,9 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
-  }else if(holds_alternative<ErrorValue>(json.value)) {
+  }else if(json.holdsError()) {
     format_to(buf, "(error_value)");
-  }else BugUnknownJsonType(json);
+  }else BugUnknownJsonType(json.tag());
 }
 
 string JsonLoc::prettyPrint(size_t indent) const {
@@ -180,29 +254,27 @@ string JsonLoc::prettyPrintJson(size_t indent) const {
 }
 
 bool JsonLoc::supportsEquality() const {
-  if(holds_alternative<Placeholder>(value) ||
-     holds_alternative<ErrorValue>(value)) return false;
-  if(holds_alternative<String>(value)) return true;
-  if(auto* vec = get_if<Vector>(&value)) {
+  if(holdsPlaceholder() || holdsError()) return false;
+  if(holdsString()) return true;
+  if(auto* vec = getIfVector()) {
     for(auto& v : *vec) if(!v.supportsEquality()) return false;
     return true;
   }
-  if(auto* m = get_if<Map>(&value)) {
+  if(auto* m = getIfMap()) {
     for(auto& [k,v] : *m) if(!v.supportsEquality()) return false;
     return true;
   }
-  BugUnknownJsonType(*this);
+  BugUnknownJsonType(tag_);
 }
 
 bool JsonLoc::operator==(const JsonLoc& that) const {
-  if(this->value.index() != that.value.index()) return false;
+  if(this->tag_ != that.tag_) return false;
 
-  if(holds_alternative<Placeholder>(value) ||
-     holds_alternative<ErrorValue>(value)) Bug("supportsEquality() is false");
-  if(auto* s = get_if<String>(&value)) return *s == get<String>(that.value);
-  if(auto* v = get_if<Vector>(&value)) return *v == get<Vector>(that.value);
-  if(auto* m = get_if<Map>(&value)) return *m == get<Map>(that.value);
-  BugUnknownJsonType(*this);
+  if(holdsPlaceholder() || holdsError()) Bug("supportsEquality() is false");
+  if(auto* s = getIfString()) return *s == *that.getIfString();
+  if(auto* v = getIfVector()) return *v == *that.getIfVector();
+  if(auto* m = getIfMap()) return *m == *that.getIfMap();
+  BugUnknownJsonType(tag_);
 }
 
 }  // namespace oalex

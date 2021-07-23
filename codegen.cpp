@@ -28,8 +28,6 @@ using oalex::is_in;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
-using std::get_if;
-using std::holds_alternative;
 using std::map;
 using std::string;
 using std::string_view;
@@ -100,7 +98,7 @@ eval(InputDiags& ctx, ssize_t& i,
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsError()) return out;
     else if(resultFlattenableOrError(rs,idx)) {
-      auto* m = get_if<JsonLoc::Map>(&out);
+      auto* m = out.getIfMap();
       if(!m) Bug("Child {} was expected to return a map, got: {}",
                  ruleDebugId(rs, idx), out);
       if(!outname.empty())
@@ -125,7 +123,7 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
     if(!outname.empty()) rv.substitute(pmap, outname, out);
   }
   for(auto& [id, jsloc] : pmap)
-    if(holds_alternative<JsonLoc::Placeholder>(*jsloc))
+    if(jsloc->holdsPlaceholder())
       Bug("Undefined field '{}', should have been caught by frontend", id);
   i = j;
   return rv;
@@ -137,7 +135,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   if(outfields.holdsError()) return outfields;
   if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
   JsonLoc::Map container;
-  auto* m = get_if<JsonLoc::Map>(&outfields);
+  auto* m = outfields.getIfMap();
   if(!m) {
     if(out.childName.empty())
       Bug("OutputTmpl child must be named, or they need to produce a Map");
@@ -171,7 +169,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       if(maxsize > 1) Unimplemented("Late addition needs static key collation");
       it = rv.insert({name, JsonLoc::Vector{}}).first;
     }
-    auto v = get_if<JsonLoc::Vector>(&it->second);
+    auto v = it->second.getIfVector();
     if(!v) Bug("All elements should be vectors");
     v->push_back(std::move(val));
     maxsize = std::max(maxsize, ssize(*v));
@@ -181,7 +179,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
                      ssize_t idx, const string& defname) {
     if(resultFlattenableOrError(rs, idx)) {
       // TODO refactor out this validation between here and ConcatFlatRule.
-      auto* m = get_if<JsonLoc::Map>(&comp);
+      auto* m = comp.getIfMap();
       if(!m) Bug("LoopRule {} {} was expected to return a map, got {}",
                  desc, ruleDebugId(rs, idx), comp);
       for(auto& [k,v] : *m) addChild(k, std::move(v));
@@ -249,8 +247,7 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
 static bool
 orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
                            const JsonLoc& tmpl) {
-  if(holds_alternative<JsonLoc::Map>(tmpl)) return true;
-  if(holds_alternative<JsonLoc::ErrorValue>(tmpl)) return true;
+  if(tmpl.holdsMap() || tmpl.holdsError()) return true;
   return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
 }
 
@@ -506,20 +503,20 @@ static void
 codegen(const JsonLoc& jsloc, const OutputStream& cppos,
         const map<string,string>& placeholders, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  if(auto* p = get_if<JsonLoc::Placeholder>(&jsloc)) {
+  if(auto* p = jsloc.getIfPlaceholder()) {
     auto v = placeholders.find(p->key);
     if(v == placeholders.end())
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(v->second);
-  }else if(auto* s = get_if<JsonLoc::String>(&jsloc)) {
+  }else if(auto* s = jsloc.getIfString()) {
     cppos(format("{}s", dquoted(*s)));
-  }else if(auto* v = get_if<JsonLoc::Vector>(&jsloc)) {
+  }else if(auto* v = jsloc.getIfVector()) {
     cppos("JsonLoc::Vector{");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
                    codegen(child, cppos, placeholders, indent+2);
                  }, br, cppos);
     cppos("}");
-  }else if(auto* m = get_if<JsonLoc::Map>(&jsloc)) {
+  }else if(auto* m = jsloc.getIfMap()) {
     cppos("JsonLoc::Map{"); br();
     for(const auto& [k, v] : *m) {
       cppos(format("  {{{}, ", dquoted(k)));
@@ -550,7 +547,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     cppos("  if(res.holdsError()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
     if(resultFlattenableOrError(ruleset,childid))
-      cppos("  oalex::mapUnion(m, *oalex::get_if<JsonLoc::Map>(&res));\n");
+      cppos("  oalex::mapUnion(m, *res.getIfMap());\n");
     else if(!key.empty())
       cppos(format("  m.insert({{{}, std::move(res)}});\n", dquoted(key)));
   }
@@ -599,7 +596,6 @@ static void
 codegen(const RuleSet& ruleset, const OutputTmpl& out,
         const OutputStream& cppos) {
   cppos("  using oalex::assertNotNull;\n");
-  cppos("  using oalex::get_if;\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  JsonLoc outfields = ");
@@ -610,7 +606,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   // Dev-note: we only produce Bug() if reaching a given control path indicates
   // a bug in the code *generator*.
   if(!out.outputTmpl.substitutionsOk()) {
-    cppos("  auto* m = get_if<JsonLoc::Map>(&outfields);\n");
+    cppos("  auto* m = outfields.getIfMap();\n");
     if(out.childName.empty())
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     else {
@@ -638,7 +634,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     [&ruleset, &cppos](ssize_t idx, const string& name) {
       if(resultFlattenableOrError(ruleset,idx)) {
         cppos("    mapCreateOrAppendAllElts(m,\n");
-        cppos("      std::move(*oalex::get_if<JsonLoc::Map>(&res)), first);\n");
+        cppos("      std::move(*res.getIfMap()), first);\n");
       }else if(!name.empty()) {
         cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
                      dquoted(name)));

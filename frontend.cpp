@@ -59,6 +59,7 @@ using oalex::lex::oalexSkip;
 using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
+using std::get_if;
 using std::make_unique;
 using std::map;
 using std::nullopt;
@@ -720,9 +721,9 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
 // We can later add where-stanza arguments for extracting partPatterns
 map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc) {
-  if(holds_alternative<JsonLoc::Vector>(jsloc))
+  if(jsloc.holdsVector())
     Unimplemented("Directly outputting list not encased in a map");
-  const JsonLoc::Map* jslocmap = get_if<JsonLoc::Map>(&jsloc);
+  const JsonLoc::Map* jslocmap = jsloc.getIfMap();
   if(jslocmap == nullptr)
     Bug("parseJsonLocFromBracketGroup() returned something strange");
 

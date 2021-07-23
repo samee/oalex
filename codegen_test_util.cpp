@@ -34,10 +34,9 @@ void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
   if(jsloc.holdsError()) Bug("{}: eval() produced error", testName);
   assertEqual(format("{}: eval().stPos", testName), jsloc.stPos, stPos);
   assertEqual(format("{}: eval().enPos", testName), jsloc.enPos, enPos);
-  if(const string* t = get_if<string>(&jsloc))
+  if(const string* t = jsloc.getIfString())
     assertEqual(format("{}: output value", testName), string_view(*t), s);
-  else Bug("{}: eval produced a non-string. Index: {}", testName,
-           jsloc.value.index());
+  else Bug("{}: eval produced a {}", testName, jsloc.tagName());
 }
 
 RegexRule parseRegex(string_view s) {

@@ -18,7 +18,6 @@
 #include <map>
 #include <string>
 #include <string_view>
-#include <variant>
 #include <vector>
 
 namespace oalex {
@@ -42,33 +41,61 @@ namespace oalex {
 //   * The output produced by parsing user input.
 //   * The braced portion of an 'outputs' stanza in a rule or example.
 //     This will include ellipsis as a variant, but not error values.
-struct JsonLoc {
-
+class JsonLoc {
+ public:
+  enum class Tag { ErrorValue, String, Vector, Map, Placeholder };
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
   struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonLoc>;
   using Map = std::map<std::string,JsonLoc, std::less<>>;
   struct Placeholder { std::string key; };
-  using Value = std::variant<ErrorValue,Placeholder,String,Vector,Map>;
 
-  Value value;
   size_t stPos=npos, enPos=npos;
 
+  // TODO change these to std::move once value is deleted.
   // conversion constructors.
   JsonLoc() = delete;
-  JsonLoc(ErrorValue) : value(ErrorValue{}) {}
-  JsonLoc(Placeholder p, size_t st, size_t en)
-    : value(p), stPos(st), enPos(en) {}
-  JsonLoc(String s) : value(s) {}
-  JsonLoc(Vector v) : value(v) {}
-  JsonLoc(Map m) : value(m) {}
+  JsonLoc(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
+  JsonLoc(Placeholder p, size_t st, size_t en) : stPos{st}, enPos{en},
+    tag_{Tag::Placeholder}, placeholderValue_{std::move(p)} {}
+  JsonLoc(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
+  JsonLoc(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
+  JsonLoc(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
 
-  bool holdsError() const { return std::holds_alternative<ErrorValue>(value); }
+  JsonLoc(JsonLoc&& that);
+  JsonLoc(const JsonLoc& that);
+  JsonLoc& operator=(JsonLoc&& that);
+  JsonLoc& operator=(const JsonLoc& that);
+  ~JsonLoc();
+
+  // TODO rename to holdsErrorValue() for consistency.
+  // Or rename type to Tag::Error.
+  bool holdsError() const { return tag_ == Tag::ErrorValue; }
+  bool holdsString() const { return tag_ == Tag::String; }
+  bool holdsVector() const { return tag_ == Tag::Vector; }
+  bool holdsMap() const { return tag_ == Tag::Map; }
+  bool holdsPlaceholder() const { return tag_ == Tag::Placeholder; }
+
+  String* getIfString() { return holdsString() ? &stringValue_ : nullptr; }
+  const String* getIfString() const
+    { return holdsString() ? &stringValue_ : nullptr; }
+  Placeholder* getIfPlaceholder()
+    { return holdsPlaceholder() ? &placeholderValue_ : nullptr; }
+  const Placeholder* getIfPlaceholder() const
+    { return holdsPlaceholder() ? &placeholderValue_ : nullptr; }
+  Vector* getIfVector() { return holdsVector() ? &vectorValue_ : nullptr; }
+  const Vector* getIfVector() const
+    { return holdsVector() ? &vectorValue_ : nullptr; }
+  Map* getIfMap() { return holdsMap() ? &mapValue_ : nullptr; }
+  const Map* getIfMap() const { return holdsMap() ? &mapValue_ : nullptr; }
+
+  Tag tag() const { return tag_; }
+  std::string_view tagName() const;
 
   // Note that allPlaceholders() is a non-const member method, since it returns
   // non-const JsonLoc pointers to various internal components. Pretty much any
-  // direct mutation to this->value will invalidate these pointers: only
+  // direct mutation to *this will invalidate these pointers: only
   // substitute() is safe.
   using PlaceholderMap = std::vector<std::pair<std::string, JsonLoc*>>;
   PlaceholderMap allPlaceholders();
@@ -108,22 +135,22 @@ struct JsonLoc {
   //   we will have to generalize this to some relaxed notion of matching.
   bool operator==(const JsonLoc& that) const;
   bool operator!=(const JsonLoc& that) const { return !(*this == that); }
+ private:
+  Tag tag_;
+  union {
+    ErrorValue errorValue_;
+    String stringValue_;
+    Vector vectorValue_;
+    Map mapValue_;
+    Placeholder placeholderValue_;
+  };
+  void destroyValue();
+  void copyValue(const JsonLoc& that);
+  void moveValue(JsonLoc&& that);
 };
 
-template <class X> X* get_if(JsonLoc* json) {
-  return std::get_if<X>(&json->value);
-}
-
-template <class X> const X* get_if(const JsonLoc* json) {
-  return std::get_if<X>(&json->value);
-}
-
-template <class X> bool holds_alternative(const JsonLoc& json) {
-  return std::holds_alternative<X>(json.value);
-}
-
 inline bool isPlaceholder(const JsonLoc& jsloc, std::string_view pname) {
-  if(auto* p = get_if<JsonLoc::Placeholder>(&jsloc)) return p->key == pname;
+  if(auto* p = jsloc.getIfPlaceholder()) return p->key == pname;
   else return false;
 }
 

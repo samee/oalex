@@ -36,7 +36,6 @@ using oalex::Bug;
 using oalex::ConcatFlatRule;
 using oalex::ConcatRule;
 using oalex::ErrorRule;
-using oalex::get_if;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
