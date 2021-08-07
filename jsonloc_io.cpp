@@ -220,11 +220,11 @@ optional<JsonLoc> parseJsonLoc(string_view s) {
   return wrapOutput(parseJsonTmpl(s));
 }
 
-optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i) {
+optional<JsonTmpl> parseJsonTmplFlexQuote(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);
   optional<BracketGroup> bg = lexBracketGroup(ctx, i);
   if(!bg.has_value()) return nullopt;
-  auto rv = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
+  auto rv = parseJsonTmplFromBracketGroup(ctx, std::move(*bg));
   if(rv.has_value()) rst.markUsed(i);
   return rv;
 }

@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "jsontmpl.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using std::get_if;
@@ -38,17 +39,18 @@ using oalex::BugWarn;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::JsonTmpl;
 using oalex::parseJsonLoc;
-using oalex::parseJsonLocFlexQuote;
+using oalex::parseJsonTmplFlexQuote;
 using oalex::Resetter;
 using oalex::showDiags;
 
 namespace {
 
-JsonLoc assertValidJsonLoc(const char testName[],
-                           const char input[], size_t& i) {
+JsonTmpl assertValidJsonTmpl(const char testName[],
+                             const char input[], size_t& i) {
   InputDiags ctx{Input{input}};
-  optional<JsonLoc> res = parseJsonLocFlexQuote(ctx, i);
+  optional<JsonTmpl> res = parseJsonTmplFlexQuote(ctx, i);
   if(!res.has_value() || !ctx.diags.empty()) {
     showDiags(ctx.diags);
     Bug("{}: Got unexpected diags.", testName);
@@ -56,9 +58,13 @@ JsonLoc assertValidJsonLoc(const char testName[],
   return *res;
 }
 
-JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
+JsonTmpl assertValidJsonTmpl(const char testName[], const char input[]) {
   size_t i = 0;
-  return assertValidJsonLoc(testName, input, i);
+  return assertValidJsonTmpl(testName, input, i);
+}
+
+JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
+  return assertValidJsonTmpl(testName, input).outputIfFilled();
 }
 
 template <class K, class T> std::vector<K>
