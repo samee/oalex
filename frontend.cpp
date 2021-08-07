@@ -27,6 +27,7 @@
 #include "pattern.h"
 #include "regex_io.h"
 #include "jsonloc_io.h"
+#include "jsontmpl.h"
 #include "runtime/util.h"
 
 using fmt::format;
@@ -34,7 +35,7 @@ using oalex::DiagsDest;
 using oalex::LexDirective;
 using oalex::Note;
 using oalex::OutputTmpl;
-using oalex::parseJsonLocFromBracketGroup;
+using oalex::parseJsonTmplFromBracketGroup;
 using oalex::parsePattern;
 using oalex::parseRegexCharSet;
 using oalex::passthroughTmpl;
@@ -82,7 +83,8 @@ Expectation::matches(const JsonLoc& jsloc,
                      const std::vector<Diag>& diags) const {
   if(Example::runSucceeded(jsloc, diags) != success_) return false;
   if(success_)
-    return jsloc_.supportsEquality() ? jsloc == jsloc_ : true;
+    return jstmpl_.supportsEquality()
+      ? jsloc == jstmpl_.outputIfFilled() : true;
   for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
   return false;
 }
@@ -422,8 +424,8 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     }
   }
   if(tmpl != nullptr) {
-    if(auto opt = parseJsonLocFromBracketGroup(ctx, std::move(*tmpl)))
-      concat.outputTmpl = std::move(*opt);
+    if(auto opt = parseJsonTmplFromBracketGroup(ctx, std::move(*tmpl)))
+      concat.outputTmpl = opt->outputIfFilled();
     if(!requireEol(linetoks, 6, ctx)) return nullopt;
   }
   return concat;
@@ -725,7 +727,7 @@ makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc) {
     Unimplemented("Directly outputting list not encased in a map");
   const JsonLoc::Map* jslocmap = jsloc.getIfMap();
   if(jslocmap == nullptr)
-    Bug("parseJsonLocFromBracketGroup() returned something strange");
+    Bug("parseJsonTmplFromBracketGroup() returned something strange");
 
   map<Ident, PartPattern> rv;
   for(const auto& [p, j] : jsloc.allPlaceholders()) {
@@ -746,7 +748,9 @@ registerLocations(RulesWithLocs& rl, const Ident& id) {
 // InputDiags is still used as a destination for error messages.
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
-                   GluedString patt_string, JsonLoc jsloc, RulesWithLocs& rl) {
+                   GluedString patt_string, JsonTmpl jstmpl,
+                   RulesWithLocs& rl) {
+  JsonLoc jsloc = jstmpl.outputIfFilled();
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
@@ -806,19 +810,20 @@ parseIndentedBlock(InputDiags& ctx, size_t& i, const WholeSegment& refIndent,
 //          or (b) return a more general type here that can be sanitized by
 //                 the caller.
 template <int pos>
-optional<JsonLoc>
+optional<JsonTmpl>
 parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx) {
   static_assert(pos > 0, "pos must be positive for proper error-reporting");
   BracketGroup* bg;
   if(linetoks.size() <= pos ||
      (bg = get_if<BracketGroup>(&linetoks[pos])) == nullptr )
     return Error(ctx, enPos(linetoks[pos-1]), "Was expecting '{' on this line");
-  optional<JsonLoc> jsloc = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
-  // If there's an error, parseJsonLocFromBracketGroup() should have already
+  optional<JsonTmpl> jstmpl
+    = parseJsonTmplFromBracketGroup(ctx, std::move(*bg));
+  // If there's an error, parseJsonTmplFromBracketGroup() should have already
   // produced diags.
-  if(!jsloc.has_value()) return nullopt;
+  if(!jstmpl.has_value()) return nullopt;
   if(!requireEol(linetoks, pos+1, ctx)) return nullopt;
-  return jsloc;
+  return jstmpl;
 }
 
 // Checks second token just so it is not a BNF rule of the form
@@ -857,9 +862,9 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     return;
   }
 
-  optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks), ctx);
-  if(!jsloc.has_value()) return;
-  appendPatternRules(ctx, ident, std::move(*patt), std::move(*jsloc), rl);
+  optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks), ctx);
+  if(!jstmpl.has_value()) return;
+  appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
 }
 
 // For error-locating, it assumes !v.empty().
@@ -1041,11 +1046,11 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
     rv.expectation = Expectation::ErrorSubstr{string(*s)};
     if(!requireEol(linetoks2, 4, ctx)) return nullopt;
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
-    optional<JsonLoc> jsloc = parseOutputBraces<2>(std::move(linetoks2), ctx);
-    if(!jsloc.has_value()) return nullopt;
-    if(!jsloc->supportsEquality())
+    optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks2), ctx);
+    if(!jstmpl.has_value()) return nullopt;
+    if(!jstmpl->supportsEquality())
       return Error(ctx, linetoks[2], "Values need to be properly quoted");
-    rv.expectation = Expectation::SuccessWithJson{std::move(*jsloc)};
+    rv.expectation = Expectation::SuccessWithJson{std::move(*jstmpl)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
                  "Was expecting ': {', 'success', or 'error with' after this");
@@ -1178,8 +1183,9 @@ describeTestFailure(const Example& ex, bool succeeded) {
                     string(ex.mappedPos), *msg);
     }
   }else {
-    if(auto jsloc = ex.expectation.jsloc()) {
-      return format("Test failed\nWas expecting output {}.", *jsloc);
+    if(auto jstmpl = ex.expectation.jstmpl()) {
+      return format("Test failed\nWas expecting output {}.",
+                    jstmpl->prettyPrint());
     }else {
       return format("Test failed at {}\n"
                     "Was expecting {} to succeed on input '{}'",

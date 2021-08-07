@@ -188,11 +188,6 @@ optional<JsonTmpl> parseJsonTmplFromBracketGroup(DiagsDest ctx,
   Bug("Unknown BracketType: {}", int(bg.type));
 }
 
-optional<JsonLoc> parseJsonLocFromBracketGroup(DiagsDest ctx,
-                                               BracketGroup bg) {
-  return wrapOutput(parseJsonTmplFromBracketGroup(ctx, std::move(bg)));
-}
-
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonTmpl> parseJsonTmpl(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);

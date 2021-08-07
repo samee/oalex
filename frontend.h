@@ -16,6 +16,7 @@
 #include <vector>
 #include "ident.h"
 #include "codegen.h"
+#include "jsontmpl.h"
 
 namespace oalex {
 
@@ -40,21 +41,21 @@ class Expectation {
  public:
   // Constructor tags
   static struct Success_t {} Success;
-  struct SuccessWithJson { JsonLoc value; };
+  struct SuccessWithJson { JsonTmpl value; };
   struct ErrorSubstr { std::string msg; };
 
   Expectation() = default;
   Expectation(Success_t) : success_{true} {}  // implicit ctor
-  Expectation(SuccessWithJson jsloc)
-    : success_{true}, jsloc_{std::move(jsloc.value)} {}
+  Expectation(SuccessWithJson jstmpl)
+    : success_{true}, jstmpl_{std::move(jstmpl.value)} {}
   Expectation(ErrorSubstr f)  // implicit ctor
     : success_{false}, errorSubstr_{std::move(f.msg)} {}
 
   bool matches(const JsonLoc& jsloc, const std::vector<Diag>& diags) const;
 
   bool isForSuccess() const { return success_; }
-  std::optional<JsonLoc> jsloc() const {
-    if(success_ && jsloc_.supportsEquality()) return jsloc_;
+  std::optional<JsonTmpl> jstmpl() const {
+    if(success_ && jstmpl_.supportsEquality()) return jstmpl_;
     else return std::nullopt;
   }
   std::optional<std::string> isForErrorSubstr() const {
@@ -64,7 +65,8 @@ class Expectation {
  private:
   bool success_ = false;
   std::string errorSubstr_;
-  JsonLoc jsloc_{JsonLoc::ErrorValue{}};  // jsloc_.supportsEquality() == false
+  JsonTmpl jstmpl_{JsonTmpl::ErrorValue{}};  // jstmpl_.supportsEquality()
+                                             //   == false
 };
 
 // Alternative to storing stPos, if we don't want to carry around InputDiags.

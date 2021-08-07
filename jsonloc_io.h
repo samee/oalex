@@ -18,6 +18,7 @@
 #include "runtime/diags.h"
 #include "runtime/jsonloc_fmt.h"
 
+// TODO rename jsonloc_io -> jsontmpl_parsers
 namespace oalex {
 
 namespace lex { struct BracketGroup; };
@@ -34,7 +35,7 @@ std::optional<JsonTmpl> parseJsonTmpl(std::string_view s);
 // been migrated over.
 std::optional<JsonLoc> parseJsonLoc(std::string_view s);
 
-std::optional<JsonLoc> parseJsonLocFromBracketGroup(
+std::optional<JsonTmpl> parseJsonTmplFromBracketGroup(
     DiagsDest ctx, lex::BracketGroup bg);
 
 // Same as above, but it is more forgiving about how things are quoted. This
