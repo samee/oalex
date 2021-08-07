@@ -14,12 +14,14 @@
 
 #include "jsonloc_io.h"
 #include <vector>
+#include "jsontmpl.h"
 #include "lexer.h"
 #include "runtime/util.h"
 using oalex::Bug;
 using oalex::DiagsDest;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::JsonTmpl;
 using oalex::WholeSegment;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
@@ -36,9 +38,9 @@ using std::vector;
 
 namespace {
 
-optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr);
-optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts);
-optional<JsonLoc> parseVector(DiagsDest ctx, vector<ExprToken> elts);
+optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr);
+optional<JsonTmpl> parseMap(DiagsDest ctx, vector<ExprToken> elts);
+optional<JsonTmpl> parseVector(DiagsDest ctx, vector<ExprToken> elts);
 
 bool isIdent(string_view s) {
   if(s.empty()) return false;
@@ -63,21 +65,21 @@ bool isErrorValue(const vector<ExprToken>& v) {
   return seg && seg->data == "error_value";
 }
 
-optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr) {
+optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(auto id = parseIdent(ctx, *seg))
-      return JsonLoc(JsonLoc::Placeholder{id->data}, id->stPos, id->enPos);
+      return JsonTmpl(JsonTmpl::Placeholder{id->data}, id->stPos, id->enPos);
     else return nullopt;
   }
   if(auto* qs = get_if<GluedString>(&expr))
-    return JsonLoc(*qs);
+    return JsonTmpl(*qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
     if(bg->type == BracketType::brace)
       return parseMap(ctx, std::move(bg->children));
     if(bg->type == BracketType::square)
       return parseVector(ctx, std::move(bg->children));
     if(bg->type == BracketType::paren) {
-      if(isErrorValue(bg->children)) return JsonLoc::ErrorValue{};
+      if(isErrorValue(bg->children)) return JsonTmpl::ErrorValue{};
       else return Error(ctx, bg->stPos, "Unexpected parenthesis");
     }
     Bug("Unknown BracketType: {}", int(bg->type));
@@ -87,10 +89,10 @@ optional<JsonLoc> parseJsonLoc(DiagsDest ctx, ExprToken expr) {
 
 // TODO diags should throw after 3 or so errors.
 // This is a reasonable example of what error-handling oalex could facilitate.
-optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
+optional<JsonTmpl> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, std::move(elts));
 
-  JsonLoc::Map rv;
+  JsonTmpl::Map rv;
   for(auto& elt : splitres) {
     if(elt.empty())
       Bug("splitCommaNoEmpty() is returning empty elements.");
@@ -99,9 +101,9 @@ optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
       Error(ctx, elt[0], "Was expecting a key.");
       continue;
     }
-    optional<JsonLoc> parsedElt;
+    optional<JsonTmpl> parsedElt;
     if(elt.size() == 1)
-      parsedElt = JsonLoc{JsonLoc::Placeholder{key->data},
+      parsedElt = JsonTmpl{JsonTmpl::Placeholder{key->data},
                           key->stPos, key->enPos};
     else {
       if(!isToken(elt[1],":")) {
@@ -112,36 +114,36 @@ optional<JsonLoc> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
         Error(ctx, enPos(elt[1]), "Value missing after the colon.");
         continue;
       }
-      parsedElt = parseJsonLoc(ctx, std::move(elt[2]));
-      if(!parsedElt) continue;  // parseJsonLoc() has already logged an error.
+      parsedElt = parseJsonTmpl(ctx, std::move(elt[2]));
+      if(!parsedElt) continue;  // parseJsonTmpl() has already logged an error.
       if(elt.size()>=4) {
         Error(ctx, stPos(elt[3]), "Was expecting a comma here");
         continue;
       }
     }
 
-    if(JsonLoc::mapLinearFind(rv, key->data) != -1)
+    if(JsonTmpl::mapLinearFind(rv, key->data) != -1)
       Error(ctx, *key, "Duplicate key " + key->data);
     else rv.push_back({key->data, std::move(*parsedElt)});
   }
-  JsonLoc::mapSort(rv);
+  JsonTmpl::mapSort(rv);
   return rv;
 }
 
-optional<JsonLoc>
+optional<JsonTmpl>
 parseVector(DiagsDest ctx, vector<ExprToken> elts) {
   vector<vector<ExprToken>> splitres = splitCommaNoEmpty(ctx, std::move(elts));
 
-  vector<JsonLoc> rv;
+  vector<JsonTmpl> rv;
   for(auto& elt : splitres) {
     if(elt.empty()) Bug("splitCommaNoEmpty() is returning empty elements.");
     if(elt.size()!=1) Error(ctx, stPos(elt[1]), "Was expecting a comma here");
     else {
-      optional<JsonLoc> parsedElt = parseJsonLoc(ctx, std::move(elt[0]));
+      optional<JsonTmpl> parsedElt = parseJsonTmpl(ctx, std::move(elt[0]));
       if(parsedElt) rv.push_back(*parsedElt);
     }
   }
-  return JsonLoc(rv);
+  return JsonTmpl(rv);
 }
 
 bool allStringsSingleQuoted(DiagsDest ctx, const ExprToken& expr);
@@ -167,12 +169,17 @@ bool allStringsSingleQuoted(DiagsDest ctx, const ExprToken& expr) {
   Bug("Unknown ExprToken type {}", exprTagName(expr));
 }
 
+optional<JsonLoc> wrapOutput(optional<JsonTmpl> jstmpl) {
+  if(jstmpl.has_value()) return jstmpl->outputIfFilled();
+  else return nullopt;
+}
+
 }  // namespace
 
 namespace oalex {
 
-optional<JsonLoc> parseJsonLocFromBracketGroup(DiagsDest ctx,
-                                               BracketGroup bg) {
+optional<JsonTmpl> parseJsonTmplFromBracketGroup(DiagsDest ctx,
+                                                 BracketGroup bg) {
   if(bg.type == BracketType::paren) return nullopt;
   if(bg.type == BracketType::square)
     return parseVector(ctx, std::move(bg.children));
@@ -181,23 +188,36 @@ optional<JsonLoc> parseJsonLocFromBracketGroup(DiagsDest ctx,
   Bug("Unknown BracketType: {}", int(bg.type));
 }
 
+optional<JsonLoc> parseJsonLocFromBracketGroup(DiagsDest ctx,
+                                               BracketGroup bg) {
+  return wrapOutput(parseJsonTmplFromBracketGroup(ctx, std::move(bg)));
+}
+
 // Assumes the whole thing is surrouded by some kind of a bracket.
-optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
+optional<JsonTmpl> parseJsonTmpl(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx,i);
   optional<BracketGroup> bg = lexBracketGroup(ctx, i);
   if(!bg.has_value()) return nullopt;
   bool allSingleQ = allStringsSingleQuoted(ctx, *bg);
-  auto rv = parseJsonLocFromBracketGroup(ctx, std::move(*bg));
+  auto rv = parseJsonTmplFromBracketGroup(ctx, std::move(*bg));
   if(rv.has_value() && allSingleQ) {
     rst.markUsed(i);
     return rv;
   }else return nullopt;
 }
 
-optional<JsonLoc> parseJsonLoc(string_view s) {
+optional<JsonTmpl> parseJsonTmpl(string_view s) {
   size_t i = 0;
   InputDiags ctx{Input(string(s))};
-  return parseJsonLoc(ctx,i);
+  return parseJsonTmpl(ctx,i);
+}
+
+optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
+  return wrapOutput(parseJsonTmpl(ctx, i));
+}
+
+optional<JsonLoc> parseJsonLoc(string_view s) {
+  return wrapOutput(parseJsonTmpl(s));
 }
 
 optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i) {

@@ -22,17 +22,25 @@ namespace oalex {
 
 namespace lex { struct BracketGroup; };
 
-// Note: this does not support a bare string or keyword, outside of square
-// brackets or braces. Without those indicators, it is hard to know when to
-// stop.
+class JsonTmpl;
+// Note: this does not support a bare string or keyword all by itself, outside
+// of square brackets or braces. Without those indicators, it is hard to know
+// when to stop.
+std::optional<JsonTmpl> parseJsonTmpl(InputDiags& ctx, size_t& i);
+std::optional<JsonTmpl> parseJsonTmpl(std::string_view s);
+
+// These functions are identical to the above for now, except for the
+// return type. Eventually, they will be removed once all the callers have
+// been migrated over.
 std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 std::optional<JsonLoc> parseJsonLoc(std::string_view s);
+
+std::optional<JsonLoc> parseJsonLocFromBracketGroup(
+    DiagsDest ctx, lex::BracketGroup bg);
 
 // Same as above, but it is more forgiving about how things are quoted. This
 // is useful in tests. Later, we may extend it to support actual json, e.g.
 // those produced by JsonLoc::prettyPrintJson().
 std::optional<JsonLoc> parseJsonLocFlexQuote(InputDiags& ctx, size_t& i);
 
-std::optional<JsonLoc> parseJsonLocFromBracketGroup(
-    DiagsDest ctx, lex::BracketGroup bg);
 }  // namespace oalex

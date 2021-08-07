@@ -21,6 +21,8 @@
 
 namespace oalex {
 
+class JsonLoc;
+
 // Even though we call it json, we don't in fact support numbers, booleans,
 // or null. We do support an error type. Together with strings, those two are
 // the only atomic types.
@@ -115,6 +117,10 @@ class JsonTmpl {
   // Check if all (stPos==npos) == (enPos==npos).
   // Typically, this should be checked after all substitutions are made.
   bool substitutionsOk() const;
+
+  // Temporary method to help adoption to JsonTmpl in places that were
+  // previously using JsonLoc. It is likely to be removed later.
+  JsonLoc outputIfFilled() const;
 
   // The first line is never indented. No newline follows the last character.
   // Corollary: String and Placeholders are never indented,

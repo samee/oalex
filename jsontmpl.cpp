@@ -14,6 +14,7 @@
 
 #include "jsontmpl.h"
 #include "fmt/format.h"
+#include "runtime/jsonloc.h"
 #include "runtime/util.h"
 using fmt::format_to;
 using fmt::memory_buffer;
@@ -168,6 +169,23 @@ size_t JsonTmpl::substitute(const PlaceholderMap& pmap, string_view key,
     ++rv;
   }
   return rv;
+}
+
+// TODO stop supporting placeholders.
+JsonLoc JsonTmpl::outputIfFilled() const {
+  if(auto* s = getIfString()) return *s;
+  else if(auto* p = getIfPlaceholder())
+    return {JsonLoc::Placeholder{p->key}, stPos, enPos};
+  else if(auto* v = getIfVector()) {
+    JsonLoc::Vector rv;
+    for(auto& elt : *v) rv.push_back(elt.outputIfFilled());
+    return rv;
+  }else if(auto* m = getIfMap()) {
+    JsonLoc::Map rv;
+    for(auto& [k,v] : *m) rv.emplace_back(k, v.outputIfFilled());
+    return rv;
+  }
+  return JsonLoc::ErrorValue{};
 }
 
 // assumes (stPos == npos) == (enPos == npos)
