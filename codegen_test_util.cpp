@@ -17,6 +17,7 @@
 #include <string_view>
 #include "regex_io.h"
 #include "fmt/core.h"
+#include "runtime/jsonloc.h"
 #include "runtime/test_util.h"
 using fmt::format;
 using std::string;

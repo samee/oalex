@@ -381,7 +381,7 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
       return nullopt;
   }
 
-  ConcatRule concat{ {}, JsonLoc::Map() };
+  ConcatRule concat{ {}, JsonTmpl::Map() };
   size_t argc = 0;
   for(auto&& comp : comps) {
     string argname = "arg" + itos(++argc);
@@ -425,7 +425,7 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
   }
   if(tmpl != nullptr) {
     if(auto opt = parseJsonTmplFromBracketGroup(ctx, std::move(*tmpl)))
-      concat.outputTmpl = opt->outputIfFilled();
+      concat.outputTmpl = std::move(*opt);
     if(!requireEol(linetoks, 6, ctx)) return nullopt;
   }
   return concat;
@@ -659,7 +659,7 @@ appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
 
   // This branch always produces a Map on success.
   i = rl.appendAnonRule(StringRule{{}});
-  orRule.comps.push_back({-1, i, JsonLoc::Map{}});
+  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
 
   return rl.appendAnonRule(std::move(orRule));
 }
@@ -765,7 +765,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   rl.deferred_assign(newIndex2, OutputTmpl{
       /* childidx */ newIndex,
       /* childName */ "",
-      /* outputTmpl */ std::move(jsloc)
+      /* outputTmpl */ std::move(jstmpl)
   });
 }
 
@@ -1060,7 +1060,7 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   return rv;
 }
 
-const JsonLoc*
+const JsonTmpl*
 getTemplate(const Rule& rule) {
   if(auto* concat = dynamic_cast<const ConcatRule*>(&rule))
     return &concat->outputTmpl;
@@ -1069,8 +1069,8 @@ getTemplate(const Rule& rule) {
   return nullptr;
 }
 
-optional<tuple<const JsonLoc*, const JsonLoc*, string>>
-hasDuplicatePlaceholders(const JsonLoc& tmpl) {
+optional<tuple<const JsonTmpl*, const JsonTmpl*, string>>
+hasDuplicatePlaceholders(const JsonTmpl& tmpl) {
   auto pmap = tmpl.allPlaceholders();
   if(!pmap.empty()) for(auto it=++pmap.begin(); it!=pmap.end(); ++it)
     if(it->first == (it-1)->first)
@@ -1083,7 +1083,7 @@ hasDuplicatePlaceholders(const JsonLoc& tmpl) {
 // miss it in any of the places we create an outputTmpl.
 bool
 hasDuplicatePlaceholders(const vector<unique_ptr<Rule>>& rules, DiagsDest ctx) {
-  for(const auto& rule : rules) if(const JsonLoc* tmpl = getTemplate(*rule)) {
+  for(const auto& rule : rules) if(const JsonTmpl* tmpl = getTemplate(*rule)) {
     if(auto opt = hasDuplicatePlaceholders(*tmpl)) {
       auto [p1, p2, key] = *opt;
       Error(ctx, p2->stPos, p2->enPos, format("Duplicate placeholder {}", key));

@@ -19,7 +19,7 @@
 #include <vector>
 #include <utility>
 #include "ident.h"
-#include "runtime/jsonloc.h"
+#include "jsontmpl.h"
 #include "runtime/regex.h"
 #include "runtime/skipper.h"
 
@@ -79,11 +79,11 @@ class ConcatRule final : public Rule {
  public:
   // empty outputPlaceholder means the component is discarded.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
-  explicit ConcatRule(std::vector<Component> c, JsonLoc outputTmpl)
+  explicit ConcatRule(std::vector<Component> c, JsonTmpl outputTmpl)
     : comps{std::move(c)}, outputTmpl{std::move(outputTmpl)} {}
   std::string specifics_typename() const override { return "ConcatRule"; }
   std::vector<Component> comps;
-  JsonLoc outputTmpl;
+  JsonTmpl outputTmpl;
 };
 
 // This is typically used to organize the components of a ConcatFlatRule. The
@@ -109,13 +109,13 @@ class ConcatRule final : public Rule {
 //     placeholders. childName will be ignored in this case.
 class OutputTmpl final : public Rule {
  public:
-  OutputTmpl(ssize_t childidx, std::string_view childName, JsonLoc outputTmpl)
+  OutputTmpl(ssize_t childidx, std::string_view childName, JsonTmpl outputTmpl)
     : childidx(childidx), childName(childName),
       outputTmpl(std::move(outputTmpl)) {}
   std::string specifics_typename() const override { return "OutputTmpl"; }
   ssize_t childidx;
   std::string childName;  // used only if child is not producing JsonLoc::Map.
-  JsonLoc outputTmpl;
+  JsonTmpl outputTmpl;
 };
 
 // Produces a loop that keeps parsing children, optionally interspersed with
@@ -149,9 +149,9 @@ class LoopRule final : public LoopRuleFields, public Rule {
   std::string specifics_typename() const override { return "LoopRule"; }
 };
 
-inline const JsonLoc passthroughTmpl(JsonLoc::Placeholder{"child"}, 0, 0);
-inline bool isPassthroughTmpl(const JsonLoc& jsloc) {
-  return isPlaceholder(jsloc, "child");
+inline const JsonTmpl passthroughTmpl(JsonTmpl::Placeholder{"child"}, 0, 0);
+inline bool isPassthroughTmpl(const JsonTmpl& jstmpl) {
+  return isPlaceholder(jstmpl, "child");
 }
 
 class OrRule final : public Rule {
@@ -170,7 +170,7 @@ class OrRule final : public Rule {
   // Dev-note: When we need more complicated templates, the plan is to use
   // passthroughTmpl with an OutputTmpl target.
  public:
-  struct Component { ssize_t lookidx, parseidx; JsonLoc tmpl; };
+  struct Component { ssize_t lookidx, parseidx; JsonTmpl tmpl; };
   explicit OrRule(std::vector<Component> comps, bool fod)
     : comps{std::move(comps)}, flattenOnDemand{fod} {}
   std::string specifics_typename() const override { return "LoopRule"; }

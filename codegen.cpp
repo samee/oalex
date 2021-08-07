@@ -115,7 +115,7 @@ eval(InputDiags& ctx, ssize_t& i,
 
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
-  JsonLoc rv = seq.outputTmpl;
+  JsonLoc rv = seq.outputTmpl.outputIfFilled();
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   ssize_t j = i;
   for(auto& [idx, outname] : seq.comps) {
@@ -135,7 +135,7 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
   if(outfields.holdsErrorValue()) return outfields;
-  if(out.outputTmpl.substitutionsOk()) return out.outputTmpl;
+  if(out.outputTmpl.substitutionsOk()) return out.outputTmpl.outputIfFilled();
   JsonLoc::Map container;
   auto* m = outfields.getIfMap();
   if(!m) {
@@ -144,7 +144,7 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
     container.push_back({out.childName, std::move(outfields)});
     m = &container;
   }
-  JsonLoc rv = out.outputTmpl;
+  JsonLoc rv = out.outputTmpl.outputIfFilled();
   JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
   for(auto& [id, jsloc] : pmap)
     rv.substitute(pmap, id, moveEltOrEmpty(*m, id));
@@ -223,10 +223,11 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
 }
 
 static JsonLoc
-substituteOnePlaceholder(JsonLoc tmpl, string_view key, const JsonLoc& value) {
-  ssize_t count = tmpl.substitute(tmpl.allPlaceholders(), key, value);
+substituteOnePlaceholder(JsonTmpl tmpl, string_view key, const JsonLoc& value) {
+  JsonLoc rv = tmpl.outputIfFilled();
+  ssize_t count = rv.substitute(rv.allPlaceholders(), key, value);
   if(count > 1) Bug("OrRule wasn't expected to have more than one child");
-  return tmpl;  // Assumes substitutionsOk();
+  return rv;  // Assumes substitutionsOk();
 }
 
 // Defined in parser_helpers.cpp, but intentionally not exposed in header.
@@ -250,7 +251,7 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
 
 static bool
 orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
-                           const JsonLoc& tmpl) {
+                           const JsonTmpl& tmpl) {
   if(tmpl.holdsMap() || tmpl.holdsErrorValue()) return true;
   return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
 }
@@ -265,7 +266,8 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
       Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
     if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
-    if(!out.holdsErrorValue()) return substituteOnePlaceholder(tmpl, "child", out);
+    if(!out.holdsErrorValue())
+      return substituteOnePlaceholder(tmpl, "child", out);
 
     // If we passed evalPeek(), don't try anything else.
     if(lidx != -1) return out;
@@ -505,23 +507,23 @@ codegen(const RegexRule& regex, const OutputStream& cppos) {
 
 // TODO: use sorted vector instead of map here too.
 static void
-codegen(const JsonLoc& jsloc, const OutputStream& cppos,
+codegen(const JsonTmpl& jstmpl, const OutputStream& cppos,
         const map<string,string>& placeholders, ssize_t indent) {
   auto br = [&]() { linebreak(cppos, indent); };
-  if(auto* p = jsloc.getIfPlaceholder()) {
+  if(auto* p = jstmpl.getIfPlaceholder()) {
     auto v = placeholders.find(p->key);
     if(v == placeholders.end())
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(v->second);
-  }else if(auto* s = jsloc.getIfString()) {
+  }else if(auto* s = jstmpl.getIfString()) {
     cppos(format("{}s", dquoted(*s)));
-  }else if(auto* v = jsloc.getIfVector()) {
+  }else if(auto* v = jstmpl.getIfVector()) {
     cppos("JsonLoc::Vector{");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
                    codegen(child, cppos, placeholders, indent+2);
                  }, br, cppos);
     cppos("}");
-  }else if(auto* m = jsloc.getIfMap()) {
+  }else if(auto* m = jstmpl.getIfMap()) {
     cppos("JsonLoc::Map{"); br();
     for(const auto& [k, v] : *m) {
       cppos(format("  {{{}, ", dquoted(k)));
@@ -753,7 +755,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
 }
 
 static void
-codegenReturnErrorOrTmpl(string_view resvar, const JsonLoc& tmpl,
+codegenReturnErrorOrTmpl(string_view resvar, const JsonTmpl& tmpl,
                          const OutputStream& cppos) {
   if(isPassthroughTmpl(tmpl)) {
     cppos(format("    return {};\n", resvar));

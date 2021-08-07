@@ -39,12 +39,15 @@ using oalex::ErrorRule;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::JsonTmpl;
 using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
+using oalex::move_to_unique;
 using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
+using oalex::parseJsonTmpl;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
 using oalex::Regex;
@@ -112,7 +115,7 @@ void testErrorRule() {
         OrRule{
           // This ErrorValue is actually ignored.
           // It could have been anything else.
-          {{-1, 0, passthroughTmpl}, {-1, 1, JsonLoc::ErrorValue{}}},
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::ErrorValue{}}},
           /* flattenOnDemand */ false,
         }),
     .regexOpts{regexOpts},
@@ -188,7 +191,7 @@ void testConcatMatch() {
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
-                 }, *parseJsonLoc(R"({ stmt: 'asgn', lhs, rhs })")}, "asgn")),
+                 }, *parseJsonTmpl(R"({ stmt: 'asgn', lhs, rhs })")}, "asgn")),
     .regexOpts{regexOpts},
   };
   ssize_t concatIndex = rs.rules.size()-1;
@@ -226,8 +229,8 @@ void testConcatFlatMatch() {
       {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
   }}));
   ssize_t declIndex = rs.rules.size() - 1;
-  rs.rules.push_back(move_to_unique(OutputTmpl{
-      declIndex, {}, *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+  rs.rules.push_back(move_to_unique(OutputTmpl{declIndex, {},
+        *parseJsonTmpl("{var_name, init_value: {type, value: rhs}}")
   }));
   ssize_t outIndex = rs.rules.size() - 1;
   ssize_t pos = 0;
@@ -244,16 +247,16 @@ void testConcatFlatMatch() {
 }
 
 void testSingleWordTemplate() {
-  JsonLoc jsloc = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
+  JsonTmpl jstmpl = JsonTmpl::Map{{"keyword", JsonTmpl{"word"}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               StringRule{"word"}, OutputTmpl{0, {}, jsloc}),
+               StringRule{"word"}, OutputTmpl{0, {}, jstmpl}),
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;
   InputDiags ctx{Input{"word and ignored"}};
   JsonLoc observed = eval(ctx, pos, rs, rs.rules.size()-1);
-  assertEqual(__func__, jsloc, observed);
+  assertEqual(__func__, jstmpl.outputIfFilled(), observed);
 }
 
 void testKeywordsOrNumber() {
@@ -264,8 +267,8 @@ void testKeywordsOrNumber() {
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(move_to_unique(OrRule{{
-      {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
-      {-1, 2, *parseJsonLoc("{number: child}")},
+      {-1, 0, JsonTmpl{"if"}}, {-1, 1, JsonTmpl{"while"}},
+      {-1, 2, *parseJsonTmpl("{number: child}")},
   }, /* flattenOnDemand */ false}));
   const ssize_t orListIndex = rs.rules.size()-1;
 
@@ -298,7 +301,7 @@ void testFlattenOnDemand() {
         MatchOrError{2, "Expected keyword 'let'"},
         OrRule{{
           {-1, 3, passthroughTmpl},
-          {-1, 1, *parseJsonLoc("{number: child}")},
+          {-1, 1, *parseJsonTmpl("{number: child}")},
         }, /* flattenOnDemand */ false},
         ConcatFlatRule{{{4, "next_token"}}}
       ), .regexOpts{regexOpts},

@@ -36,13 +36,14 @@ using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
+using oalex::JsonTmpl;
 using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
 using oalex::OutputStream;
 using oalex::OutputTmpl;
 using oalex::OrRule;
-using oalex::parseJsonLoc;
+using oalex::parseJsonTmpl;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
 using oalex::Rule;
@@ -172,7 +173,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
                  {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
                  {6, ""}, {4, "rhs"}, {6, ""}, {5, ""} }}, "FlatDefn"),
                nmRule(OutputTmpl{declIndex, {},
-                 *parseJsonLoc("{var_name, init_value: {type, value: rhs}}")
+                 *parseJsonTmpl("{var_name, init_value: {type, value: rhs}}")
                }, "FlatThenAssembled")),
     .regexOpts = regexOpts,
   };
@@ -181,12 +182,12 @@ void generateConcatFlatTest(const OutputStream& cppos,
 
 void generateSingleWordTemplate(const OutputStream& cppos,
                                 const OutputStream& hos) {
-  JsonLoc jsloc = JsonLoc::Map{{"keyword",
-    JsonLoc{JsonLoc::Placeholder{"the_word"}, 0, 0}}};
+  JsonTmpl jstmpl = JsonTmpl::Map{{"keyword",
+    JsonTmpl{JsonTmpl::Placeholder{"the_word"}, 0, 0}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"word"},
-        nmRule(OutputTmpl{0, "the_word", jsloc}, "WordTmpl")),
+        nmRule(OutputTmpl{0, "the_word", jstmpl}, "WordTmpl")),
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);
@@ -203,9 +204,9 @@ void generateConcatTest(const OutputStream& cppos,
     nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
     nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
                        {3,"value"}, {5,""}, {4,""}},
-                      *parseJsonLoc("{id, value}")}, "Definition"),
+                      *parseJsonTmpl("{id, value}")}, "Definition"),
     nmRule(ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
-                       {4,""}}, *parseJsonLoc("{rhs, lhs}")}, "Assignment")
+                       {4,""}}, *parseJsonTmpl("{rhs, lhs}")}, "Assignment")
     ), regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
@@ -221,7 +222,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       nmRule(ExternParser{}, "parseIndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
-                         {3,"tmpl"}}, *parseJsonLoc("{id, tmpl}")}, "ExtTmpl")
+                         {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
     ), regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
@@ -233,8 +234,8 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
         StringRule{"if"}, StringRule{"while"},
         nmRule(parseRegex("/[0-9]+/"), "OrCompNumber"),
         nmRule(OrRule{{
-          {-1, 0, JsonLoc{"if"}}, {-1, 1, JsonLoc{"while"}},
-          {-1, 2, *parseJsonLoc("{number: child}")},
+          {-1, 0, JsonTmpl{"if"}}, {-1, 1, JsonTmpl{"while"}},
+          {-1, 2, *parseJsonTmpl("{number: child}")},
         }, /* flattenOnDemand */ false}, "OneWordOrList")),
     .regexOpts{regexOpts},
   };
@@ -262,7 +263,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
         nmRule(OrRule{
           // This ErrorValue is actually ignored.
           // It could have been anything else.
-          {{-1, 0, passthroughTmpl}, {-1, 1, JsonLoc::ErrorValue{}}},
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::ErrorValue{}}},
           /* flattenOnDemand */ false,
         }, "ErrorRuleHelloWorld")),
     .regexOpts{regexOpts},
@@ -274,7 +275,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
   OrRule orrule{{
     {-1, 3, passthroughTmpl},
-    {-1, 1, *parseJsonLoc("{number: child}")},
+    {-1, 1, *parseJsonTmpl("{number: child}")},
   }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
