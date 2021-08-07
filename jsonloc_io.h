@@ -32,7 +32,6 @@ std::optional<JsonTmpl> parseJsonTmpl(std::string_view s);
 // These functions are identical to the above for now, except for the
 // return type. Eventually, they will be removed once all the callers have
 // been migrated over.
-std::optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i);
 std::optional<JsonLoc> parseJsonLoc(std::string_view s);
 
 std::optional<JsonLoc> parseJsonLocFromBracketGroup(

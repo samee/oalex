@@ -38,9 +38,8 @@ using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Input;
 using oalex::InputDiags;
-using oalex::JsonLoc;
 using oalex::JsonTmpl;
-using oalex::parseJsonLoc;
+using oalex::parseJsonTmpl;
 using oalex::parseJsonTmplFlexQuote;
 using oalex::Resetter;
 using oalex::showDiags;
@@ -63,10 +62,6 @@ JsonTmpl assertValidJsonTmpl(const char testName[], const char input[]) {
   return assertValidJsonTmpl(testName, input, i);
 }
 
-JsonLoc assertValidJsonLoc(const char testName[], const char input[]) {
-  return assertValidJsonTmpl(testName, input).outputIfFilled();
-}
-
 template <class K, class T> std::vector<K>
 uniqueKeys(const std::vector<std::pair<K,T>>& m) {
   std::vector<K> v;
@@ -80,7 +75,7 @@ void testSimpleSuccess() {
     # json.org.  Includes a trailing comma.
     input: 'hello world', output: ['hello', 'world',], metadata: metadata,
     underscore_identifier: 'done' } )";
-  optional<JsonLoc> json = parseJsonLoc(input);
+  optional<JsonTmpl> json = parseJsonTmpl(input);
   string output = json->prettyPrint(2);
   const char expected[] = R"({
     input: "hello world",
@@ -101,21 +96,21 @@ void testSubstitution() {
     list: ['item 1', input, 'item 2'],   # Duplicate keyword nestled somewhere.
     input2,  # Lone keyword.
   })";
-  optional<JsonLoc> json = parseJsonLoc(input);
-  JsonLoc::PlaceholderMap blanks = json->allPlaceholders();
+  optional<JsonTmpl> json = parseJsonTmpl(input);
+  JsonTmpl::PlaceholderMap blanks = json->allPlaceholders();
   const vector<string> expected_blanks{"input","input2"};
   if(uniqueKeys(blanks) != expected_blanks)
     BugMe("Unexpected blank set: [{}] != [{}]", uniqueKeys(blanks),
           expected_blanks);
 
   // Try one substitution.
-  optional<JsonLoc> part1 = parseJsonLoc(R"({key: 'value'})");
+  optional<JsonTmpl> part1 = parseJsonTmpl(R"({key: 'value'})");
   json->substitute(blanks, "input", *part1);
   if(json->substitutionsOk())
     BugMe("Unexpectedly okay with substitution after only 1 of 2 subs");
 
   // Try second substitution.
-  json->substitute(blanks, "input2", JsonLoc("hello"));
+  json->substitute(blanks, "input2", JsonTmpl("hello"));
   if(!json->substitutionsOk())
     BugMe("Even after all substitutions, still not okay");
 
@@ -137,30 +132,31 @@ void testSubstitution() {
     BugMe("Unexpected output:\n{}", output);
 }
 
+// TODO remove this feature.
 void testParseAndPrintError() {
   const string input = R"({
     input: (error_value),
     msg: "hello world"
   })";
-  JsonLoc json = assertValidJsonLoc(__func__, input.c_str());
+  JsonTmpl json = assertValidJsonTmpl(__func__, input.c_str());
   string output = json.prettyPrint(2);
   assertEqual(__func__, input, output);
 }
 
-void testJsonLocFailure(const char input[], const char errmsg[]) {
+void testJsonTmplFailure(const char input[], const char errmsg[]) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
-  optional<JsonLoc> res = parseJsonLoc(ctx, i);
+  optional<JsonTmpl> res = parseJsonTmpl(ctx, i);
   if(res.has_value() && ctx.diags.empty())
     BugMe("Was expecting failure with input '{}'. Got this instead: {}",
-          input, *res);
+          input, res->prettyPrint());
   assertHasDiagWithSubstr(__func__, ctx.diags, errmsg);
 }
 
-void testJsonLocPosition(const char input[], size_t endi) {
+void testJsonTmplPosition(const char input[], size_t endi) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
-  optional<JsonLoc> res = parseJsonLoc(ctx, i);
+  optional<JsonTmpl> res = parseJsonTmpl(ctx, i);
   if(!ctx.diags.empty()) {
     for(const auto& d : ctx.diags) BugWarn("{}", string(d));
     Bug("Got unexpected diags.");
@@ -169,17 +165,18 @@ void testJsonLocPosition(const char input[], size_t endi) {
                     input, endi, i);
 }
 
+// TODO rename to placeholdersFilled().
 void testSupportsEquality(const char input[], bool expectedRes) {
-  JsonLoc jsloc = assertValidJsonLoc(__func__, input);
-  if(jsloc.supportsEquality() != expectedRes)
+  JsonTmpl jstmpl = assertValidJsonTmpl(__func__, input);
+  if(jstmpl.supportsEquality() != expectedRes)
     Bug("{}: Was expecting supportsEquality() to {} on input \"{}\"",
         __func__, (expectedRes?"succeed":"fail"), input);
 }
 
 void testEquality(const char input1[], const char input2[], bool expectedRes) {
-  JsonLoc jsloc1 = assertValidJsonLoc(__func__, input1);
-  JsonLoc jsloc2 = assertValidJsonLoc(__func__, input2);
-  if((jsloc1 == jsloc2) != expectedRes)
+  JsonTmpl jstmpl1 = assertValidJsonTmpl(__func__, input1);
+  JsonTmpl jstmpl2 = assertValidJsonTmpl(__func__, input2);
+  if((jstmpl1 == jstmpl2) != expectedRes)
     Bug("{}: Was expecting equality check to {} on inputs:\n"
         "  {}\n  {}", __func__, (expectedRes?"succeed":"fail"),
         input1, input2);
@@ -187,25 +184,25 @@ void testEquality(const char input1[], const char input2[], bool expectedRes) {
 
 }  // namespace
 
-// Note: none of these check JsonLoc::stPos or enPos of parse results, since we
+// Note: none of these check JsonTmpl::stPos or enPos of parse results, since we
 // don't quite know how they will actually be used in practice, or what methods
 // are needed to support their use pattern. Avoiding overengineering for now.
 int main() {
   testSimpleSuccess();
   testSubstitution();
   testParseAndPrintError();
-  testJsonLocPosition("(a,b)", 0);
-  testJsonLocPosition("foo", 0);
-  testJsonLocPosition("[a, b] foo", "[a, b]"s.size());
-  testJsonLocFailure("[a,,b]", "Unexpected comma");
-  testJsonLocFailure("[a,b,,]", "Unexpected comma");
-  testJsonLocFailure("[(a,b)]", "Unexpected parenthesis");
-  testJsonLocFailure("{[]:[]}", "Was expecting a key");
-  testJsonLocFailure("{a:}", "Value missing after the colon");
-  testJsonLocFailure("{a:b:c}", "Was expecting a comma here");
-  testJsonLocFailure("{a:b,a:c}", "Duplicate key a");
-  testJsonLocFailure("[a b]", "Was expecting a comma");
-  testJsonLocFailure("[123]", "'123' is not a valid identifier");
+  testJsonTmplPosition("(a,b)", 0);
+  testJsonTmplPosition("foo", 0);
+  testJsonTmplPosition("[a, b] foo", "[a, b]"s.size());
+  testJsonTmplFailure("[a,,b]", "Unexpected comma");
+  testJsonTmplFailure("[a,b,,]", "Unexpected comma");
+  testJsonTmplFailure("[(a,b)]", "Unexpected parenthesis");
+  testJsonTmplFailure("{[]:[]}", "Was expecting a key");
+  testJsonTmplFailure("{a:}", "Value missing after the colon");
+  testJsonTmplFailure("{a:b:c}", "Was expecting a comma here");
+  testJsonTmplFailure("{a:b,a:c}", "Duplicate key a");
+  testJsonTmplFailure("[a b]", "Was expecting a comma");
+  testJsonTmplFailure("[123]", "'123' is not a valid identifier");
   testSupportsEquality("['hello', world]", false);
   testSupportsEquality("['hello', 'world']", true);
   testSupportsEquality("{ msg: 'hello' }", true);

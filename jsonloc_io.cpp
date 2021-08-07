@@ -212,10 +212,6 @@ optional<JsonTmpl> parseJsonTmpl(string_view s) {
   return parseJsonTmpl(ctx,i);
 }
 
-optional<JsonLoc> parseJsonLoc(InputDiags& ctx, size_t& i) {
-  return wrapOutput(parseJsonTmpl(ctx, i));
-}
-
 optional<JsonLoc> parseJsonLoc(string_view s) {
   return wrapOutput(parseJsonTmpl(s));
 }
