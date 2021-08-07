@@ -722,15 +722,15 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
 
 // We can later add where-stanza arguments for extracting partPatterns
 map<Ident,PartPattern>
-makePartPatterns(DiagsDest ctx, const JsonLoc& jsloc) {
-  if(jsloc.holdsVector())
+makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
+  if(jstmpl.holdsVector())
     Unimplemented("Directly outputting list not encased in a map");
-  const JsonLoc::Map* jslocmap = jsloc.getIfMap();
-  if(jslocmap == nullptr)
+  const JsonTmpl::Map* jstmplmap = jstmpl.getIfMap();
+  if(jstmplmap == nullptr)
     Bug("parseJsonTmplFromBracketGroup() returned something strange");
 
   map<Ident, PartPattern> rv;
-  for(const auto& [p, j] : jsloc.allPlaceholders()) {
+  for(const auto& [p, j] : jstmpl.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
     Ident id = Ident::parse(ctx, seg);
     if(id) rv.insert({id, GluedString(std::move(seg))});
@@ -750,8 +750,7 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, JsonTmpl jstmpl,
                    RulesWithLocs& rl) {
-  JsonLoc jsloc = jstmpl.outputIfFilled();
-  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jsloc);
+  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
   optional<Pattern> patt =
