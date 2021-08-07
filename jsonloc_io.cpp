@@ -13,7 +13,6 @@
     limitations under the License. */
 
 #include "jsonloc_io.h"
-#include <map>
 #include <vector>
 #include "lexer.h"
 #include "runtime/util.h"
@@ -29,7 +28,6 @@ using oalex::lex::GluedString;
 using oalex::lex::lexBracketGroup;
 using std::holds_alternative;
 using std::get_if;
-using std::map;
 using std::nullopt;
 using std::optional;
 using std::string;
