@@ -30,10 +30,8 @@ namespace oalex {
 // prettyPrint() also returns something closer to protobufs than json.
 // In other words, this is a complete abuse of the term "json".
 //
-// Another design wart added later: originally the stPos and enPos fields were
-// meant to indicate locations in user input, not in oalex source. But an
-// exception was later made for JsonLoc::Placeholder, since it never shows up
-// in outputs parsed out of user input.
+// The stPos and enPos fields indicate locations in user input,
+// not in oalex source.
 //
 // At some point in the future, we might separate out these into two types:
 //
@@ -42,13 +40,12 @@ namespace oalex {
 //     This will include ellipsis as a variant, but not error values.
 class JsonLoc {
  public:
-  enum class Tag { ErrorValue, String, Vector, Map, Placeholder };
+  enum class Tag { ErrorValue, String, Vector, Map };
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
   struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonLoc>;
   using Map = std::vector<std::pair<std::string, JsonLoc>>;  // sorted keys.
-  struct Placeholder { std::string key; };
 
   size_t stPos=npos, enPos=npos;
   static ssize_t mapLinearFind(const Map& m, std::string_view k);
@@ -57,8 +54,6 @@ class JsonLoc {
   // conversion constructors.
   JsonLoc() = delete;
   JsonLoc(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
-  JsonLoc(Placeholder p, size_t st, size_t en) : stPos{st}, enPos{en},
-    tag_{Tag::Placeholder}, placeholderValue_{std::move(p)} {}
   JsonLoc(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
   JsonLoc(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
   JsonLoc(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
@@ -74,15 +69,10 @@ class JsonLoc {
   bool holdsString() const { return tag_ == Tag::String; }
   bool holdsVector() const { return tag_ == Tag::Vector; }
   bool holdsMap() const { return tag_ == Tag::Map; }
-  bool holdsPlaceholder() const { return tag_ == Tag::Placeholder; }
 
   String* getIfString() { return holdsString() ? &stringValue_ : nullptr; }
   const String* getIfString() const
     { return holdsString() ? &stringValue_ : nullptr; }
-  Placeholder* getIfPlaceholder()
-    { return holdsPlaceholder() ? &placeholderValue_ : nullptr; }
-  const Placeholder* getIfPlaceholder() const
-    { return holdsPlaceholder() ? &placeholderValue_ : nullptr; }
   Vector* getIfVector() { return holdsVector() ? &vectorValue_ : nullptr; }
   const Vector* getIfVector() const
     { return holdsVector() ? &vectorValue_ : nullptr; }
@@ -92,9 +82,7 @@ class JsonLoc {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  std::vector<std::string> allPlaceholders() const;
-
-  // Check if all placeholders have been substituted.
+  // Rename this to hasErrorNodes().
   // Check if child intervals are covered by parent intervals (ignoring npos).
   // Check if child has a valid interval, so does parent.
   // Check if all (stPos==npos) == (enPos==npos).
@@ -102,13 +90,12 @@ class JsonLoc {
   bool substitutionsOk() const;
 
   // The first line is never indented. No newline follows the last character.
-  // Corollary: String and Placeholders are never indented,
-  //   and are not newline-terminated.
+  // Corollary: Strings are never indented, and are not newline-terminated.
   std::string prettyPrint(size_t indent=0) const;
   std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 
-  // This is false iff we have any ErrorValue or Placeholder nodes.
+  // This is false iff we have any ErrorValue nodes.
   //
   // Dev-notes: we may later replace this with hasErrorValue().
   //   See notes on operator==() for reasons.
@@ -116,7 +103,8 @@ class JsonLoc {
 
   // Dev-notes: Right now this equality check is only used for `oalex test`.
   //   If those tests later acquire support for placeholders or omitted fields,
-  //   we will have to generalize this to some relaxed notion of matching.
+  //   we will have to use a more complicated matching between JsonLoc and
+  //   JsonTmpl.
   bool operator==(const JsonLoc& that) const;
   bool operator!=(const JsonLoc& that) const { return !(*this == that); }
  private:
@@ -126,17 +114,11 @@ class JsonLoc {
     String stringValue_;
     Vector vectorValue_;
     Map mapValue_;
-    Placeholder placeholderValue_;
   };
   void destroyValue();
   void copyValue(const JsonLoc& that);
   void moveValue(JsonLoc&& that);
 };
-
-inline bool isPlaceholder(const JsonLoc& jsloc, std::string_view pname) {
-  if(auto* p = jsloc.getIfPlaceholder()) return p->key == pname;
-  else return false;
-}
 
 inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
   for(ssize_t i=0; i<(ssize_t)m.size(); ++i)

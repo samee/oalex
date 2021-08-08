@@ -30,7 +30,6 @@ using std::vector;
 namespace oalex {
 
 using ErrorValue = JsonLoc::ErrorValue;
-using Placeholder = JsonLoc::Placeholder;
 using String = JsonLoc::String;
 using Map = JsonLoc::Map;
 using Vector = JsonLoc::Vector;
@@ -48,8 +47,6 @@ void JsonLoc::copyValue(const JsonLoc& that) {
       new (&vectorValue_) Vector(that.vectorValue_); return;
     case Tag::Map:
       new (&mapValue_) Map(that.mapValue_); return;
-    case Tag::Placeholder:
-      new (&placeholderValue_) Placeholder{that.placeholderValue_};
   }
 }
 
@@ -62,8 +59,6 @@ void JsonLoc::moveValue(JsonLoc&& that) {
       new (&vectorValue_) Vector(std::move(that.vectorValue_)); return;
     case Tag::Map:
       new (&mapValue_) Map(std::move(that.mapValue_)); return;
-    case Tag::Placeholder:
-      new (&placeholderValue_) Placeholder{std::move(that.placeholderValue_)};
   }
 }
 
@@ -73,7 +68,6 @@ void JsonLoc::destroyValue() {
     case Tag::String: stringValue_.~string(); return;
     case Tag::Vector: vectorValue_.~vector(); return;
     case Tag::Map: mapValue_.~vector(); return;
-    case Tag::Placeholder: placeholderValue_.~Placeholder(); return;
   }
 }
 
@@ -110,7 +104,6 @@ string_view JsonLoc::tagName() const {
     case Tag::String: return "String";
     case Tag::Vector: return "Vector";
     case Tag::Map: return "Map";
-    case Tag::Placeholder: return "Placeholder";
     default: BugUnknownJsonType(tag_);
   }
 }
@@ -129,25 +122,6 @@ void JsonLoc::mapSort(Map& m) {
     Bug("maps are supposed to be key-disjoint");
 }
 
-// Template parameters parameterize over const-qualifiers.
-template <class PlaceholderMap, class JsonLocInput>
-static void allPlaceholdersImpl(PlaceholderMap& rv, JsonLocInput& json) {
-  if(auto* p = json.getIfPlaceholder()) rv.push_back(p->key);
-  else if(json.holdsString()) return;
-  else if(auto* v = json.getIfVector())
-    for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
-  else if(auto* m = json.getIfMap())
-    for(auto& [k,v] : *m) allPlaceholdersImpl(rv,v);
-  else BugUnknownJsonType(json.tag());
-}
-
-auto JsonLoc::allPlaceholders() const -> vector<string> {
-  vector<string> rv;
-  allPlaceholdersImpl(rv,*this);
-  std::sort(rv.begin(), rv.end());
-  return rv;
-}
-
 // assumes (stPos == npos) == (enPos == npos)
 static bool childIsGood(const JsonLoc& parent, const JsonLoc& child) {
   if(!child.substitutionsOk()) return false;
@@ -159,7 +133,6 @@ static bool childIsGood(const JsonLoc& parent, const JsonLoc& child) {
 }
 
 bool JsonLoc::substitutionsOk() const {
-  if(holdsPlaceholder()) return false;
   if((this->stPos==JsonLoc::npos) != (this->enPos==JsonLoc::npos)) return false;
 
   if(auto* v = getIfVector()) {
@@ -199,9 +172,7 @@ static string_view assertIdent(string_view ctx, string_view s) {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonLoc& json,
                         bool quoteMapKeys) {
-  if(auto* p = json.getIfPlaceholder())
-    format_to(buf, "{}", assertIdent(__func__, p->key));
-  else if(auto* s = json.getIfString()) printString(buf, *s);
+  if(auto* s = json.getIfString()) printString(buf, *s);
   else if(auto* v = json.getIfVector()) {
     format_to(buf, "[\n");
     bool first = true;
@@ -244,7 +215,7 @@ string JsonLoc::prettyPrintJson(size_t indent) const {
 }
 
 bool JsonLoc::supportsEquality() const {
-  if(holdsPlaceholder() || holdsErrorValue()) return false;
+  if(holdsErrorValue()) return false;
   if(holdsString()) return true;
   if(auto* vec = getIfVector()) {
     for(auto& v : *vec) if(!v.supportsEquality()) return false;
@@ -260,7 +231,7 @@ bool JsonLoc::supportsEquality() const {
 bool JsonLoc::operator==(const JsonLoc& that) const {
   if(this->tag_ != that.tag_) return false;
 
-  if(holdsPlaceholder() || holdsErrorValue()) Bug("supportsEquality() is false");
+  if(holdsErrorValue()) Bug("supportsEquality() is false");
   if(auto* s = getIfString()) return *s == *that.getIfString();
   if(auto* v = getIfVector()) return *v == *that.getIfVector();
   if(auto* m = getIfMap()) return *m == *that.getIfMap();

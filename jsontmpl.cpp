@@ -152,8 +152,7 @@ static JsonLoc
 findSub(const vector<pair<string, JsonLoc>>& subs,
         const JsonTmpl::Placeholder& p) {
   for(auto& [k, v] : subs) if (k == p.key) return v;
-  // TODO stop supporting missing placeholders, and Bug out instead.
-  return {JsonLoc::Placeholder{p.key}, JsonTmpl::npos, JsonTmpl::npos};
+  Bug("No substitutions found for '{}'", p.key);
 }
 
 JsonLoc

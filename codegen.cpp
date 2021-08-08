@@ -125,8 +125,6 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   }
   // TODO std::move this into substitute in the common case.
   JsonLoc rv = seq.outputTmpl.substituteAll(subs);
-  for(auto& id : rv.allPlaceholders())
-    Bug("Undefined field '{}', should have been caught by frontend", id);
   i = j;
   return rv;
 }
