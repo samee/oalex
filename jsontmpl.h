@@ -23,25 +23,9 @@ namespace oalex {
 
 class JsonLoc;
 
-// Even though we call it json, we don't in fact support numbers, booleans,
-// or null. We do support an error type. Together with strings, those two are
-// the only atomic types.
-// stPos and enPos can remain JsonTmpl::npos, if they only have hardcoded values.
-// The other difference is that we treat strings as byte-strings, not utf-8.
-// This also causes a difference in our backslash escaping conventions.
-// prettyPrint() also returns something closer to protobufs than json.
-// In other words, this is a complete abuse of the term "json".
-//
-// Another design wart added later: originally the stPos and enPos fields were
-// meant to indicate locations in user input, not in oalex source. But an
-// exception was later made for JsonTmpl::Placeholder, since it never shows up
-// in outputs parsed out of user input.
-//
-// At some point in the future, we might separate out these into two types:
-//
-//   * The output produced by parsing user input.
-//   * The braced portion of an 'outputs' stanza in a rule or example.
-//     This will include ellipsis as a variant, but not error values.
+// Unlike JsonLoc, the stPos and enPos fields here indicate locations in oalex
+// source, not user input. Right now, they are not populated very accurately.
+// TODO implement better location tracking.
 class JsonTmpl {
  public:
   enum class Tag { ErrorValue, String, Vector, Map, Placeholder };
@@ -94,8 +78,6 @@ class JsonTmpl {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  // The Const version is used for pre-substitution processing, by functions
-  // that only accept const JsonTmpl objects but extract the identifier list.
   using ConstPlaceholderMap
     = std::vector<std::pair<std::string, const JsonTmpl*>>;
   ConstPlaceholderMap allPlaceholders() const;
@@ -106,8 +88,7 @@ class JsonTmpl {
   // Recursively check for Placeholder.
   bool substitutionsNeeded() const;
 
-  // Temporary method to help adoption to JsonTmpl in places that were
-  // previously using JsonLoc. It is likely to be removed later.
+  // Equivalent to substituteAll({}).
   JsonLoc outputIfFilled() const;
 
   // The first line is never indented. No newline follows the last character.
@@ -116,7 +97,6 @@ class JsonTmpl {
   std::string prettyPrint(size_t indent=0) const;
   std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
-
  private:
   Tag tag_;
   union {

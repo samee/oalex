@@ -32,12 +32,6 @@ namespace oalex {
 //
 // The stPos and enPos fields indicate locations in user input,
 // not in oalex source.
-//
-// At some point in the future, we might separate out these into two types:
-//
-//   * The output produced by parsing user input.
-//   * The braced portion of an 'outputs' stanza in a rule or example.
-//     This will include ellipsis as a variant, but not error values.
 class JsonLoc {
  public:
   enum class Tag { ErrorValue, String, Vector, Map };
@@ -82,23 +76,21 @@ class JsonLoc {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  // Rename this to hasErrorNodes().
   // Check if child intervals are covered by parent intervals (ignoring npos).
   // Check if child has a valid interval, so does parent.
   // Check if all (stPos==npos) == (enPos==npos).
-  // Typically, this should be checked after all substitutions are made.
   bool substitutionsOk() const;
 
   // The first line is never indented. No newline follows the last character.
   // Corollary: Strings are never indented, and are not newline-terminated.
+  // The output cannot be parsed back as a template if there are any
+  // JsonLoc::ErrorValue{} components.
   std::string prettyPrint(size_t indent=0) const;
   std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 
   // This is false iff we have any ErrorValue nodes.
-  //
-  // Dev-notes: we may later replace this with hasErrorValue().
-  //   See notes on operator==() for reasons.
+  // Note this is different from holdsErrorValue(), since this is recursive.
   bool supportsEquality() const;
 
   // Dev-notes: Right now this equality check is only used for `oalex test`.
