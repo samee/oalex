@@ -133,7 +133,8 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
   if(outfields.holdsErrorValue()) return outfields;
-  if(out.outputTmpl.substitutionsOk()) return out.outputTmpl.outputIfFilled();
+  if(!out.outputTmpl.substitutionsNeeded())
+    return out.outputTmpl.outputIfFilled();
   JsonLoc::Map container;
   auto* m = outfields.getIfMap();
   if(!m) {
@@ -601,7 +602,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   map<string,string> placeholders;
   // Dev-note: we only produce Bug() if reaching a given control path indicates
   // a bug in the code *generator*.
-  if(!out.outputTmpl.substitutionsOk()) {
+  if(out.outputTmpl.substitutionsNeeded()) {
     cppos("  auto* m = outfields.getIfMap();\n");
     if(out.childName.empty())
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");

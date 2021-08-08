@@ -103,12 +103,8 @@ class JsonTmpl {
   JsonLoc substituteAll(const std::vector<std::pair<std::string,
                                                     JsonLoc>>& subs) const;
 
-  // Check if all placeholders have been substituted.
-  // Check if child intervals are covered by parent intervals (ignoring npos).
-  // Check if child has a valid interval, so does parent.
-  // Check if all (stPos==npos) == (enPos==npos).
-  // Typically, this should be checked after all substitutions are made.
-  bool substitutionsOk() const;
+  // Recursively check for Placeholder.
+  bool substitutionsNeeded() const;
 
   // Temporary method to help adoption to JsonTmpl in places that were
   // previously using JsonLoc. It is likely to be removed later.

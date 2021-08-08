@@ -175,29 +175,14 @@ JsonLoc JsonTmpl::outputIfFilled() const {
   return substituteAll({});
 }
 
-// assumes (stPos == npos) == (enPos == npos)
-static bool childIsGood(const JsonTmpl& parent, const JsonTmpl& child) {
-  if(!child.substitutionsOk()) return false;
-  else if(child.stPos == JsonTmpl::npos) return true;
-  else if(parent.stPos == JsonTmpl::npos) return false;
-  else if(child.stPos < parent.stPos) return false;
-  else if(child.enPos > parent.enPos) return false;
-  else return true;
-}
-
-bool JsonTmpl::substitutionsOk() const {
-  if(holdsPlaceholder()) return false;
-  if((this->stPos==JsonTmpl::npos) != (this->enPos==JsonTmpl::npos))
-    return false;
-
+bool JsonTmpl::substitutionsNeeded() const {
+  if(holdsPlaceholder()) return true;
   if(auto* v = getIfVector()) {
-    for(auto& elt : *v) if(!childIsGood(*this,elt)) return false;
+    for(auto& elt : *v) if(elt.substitutionsNeeded()) return true;
   } else if(auto* m = getIfMap()) {
-    for(auto& [k,v] : *m) if(!childIsGood(*this,v)) return false;
-  } else if(!holdsString()) {
-    BugUnknownJsonType(tag_);
+    for(auto& [k,v] : *m) if(v.substitutionsNeeded()) return true;
   }
-  return true;
+  return false;
 }
 
 static void printString(fmt::memory_buffer& buf, string_view s) {
