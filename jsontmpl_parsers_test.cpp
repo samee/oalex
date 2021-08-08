@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "jsontmpl.h"
+#include "runtime/jsonloc.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using std::get_if;
@@ -38,7 +39,9 @@ using oalex::Bug;
 using oalex::BugWarn;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::JsonLoc;
 using oalex::JsonTmpl;
+using oalex::parseJsonLoc;
 using oalex::parseJsonTmpl;
 using oalex::parseJsonTmplFlexQuote;
 using oalex::Resetter;
@@ -96,25 +99,11 @@ void testSubstitution() {
     list: ['item 1', input, 'item 2'],   # Duplicate keyword nestled somewhere.
     input2,  # Lone keyword.
   })";
-  optional<JsonTmpl> json = parseJsonTmpl(input);
-  JsonTmpl::PlaceholderMap blanks = json->allPlaceholders();
-  const vector<string> expected_blanks{"input","input2"};
-  if(uniqueKeys(blanks) != expected_blanks)
-    BugMe("Unexpected blank set: [{}] != [{}]", uniqueKeys(blanks),
-          expected_blanks);
-
-  // Try one substitution.
-  optional<JsonTmpl> part1 = parseJsonTmpl(R"({key: 'value'})");
-  json->substitute(blanks, "input", *part1);
-  if(json->substitutionsOk())
-    BugMe("Unexpectedly okay with substitution after only 1 of 2 subs");
-
-  // Try second substitution.
-  json->substitute(blanks, "input2", JsonTmpl("hello"));
-  if(!json->substitutionsOk())
-    BugMe("Even after all substitutions, still not okay");
-
-  string output = json->prettyPrint(2);
+  optional<JsonTmpl> jstmpl = parseJsonTmpl(input);
+  optional<JsonLoc> part1 = parseJsonLoc(R"({key: 'value'})");
+  JsonLoc jsloc = jstmpl->substituteAll({{"input", *part1},
+                                        {"input2", JsonLoc{"hello"}}});
+  string output = jsloc.prettyPrint(2);
   const char expected[] = R"({
     input: {
       key: "value"

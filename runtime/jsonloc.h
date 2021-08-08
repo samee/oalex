@@ -92,22 +92,11 @@ class JsonLoc {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  // Note that allPlaceholders() is a non-const member method, since it returns
-  // non-const JsonLoc pointers to various internal components. Pretty much any
-  // direct mutation to *this will invalidate these pointers: only
-  // substitute() is safe.
-  using PlaceholderMap = std::vector<std::pair<std::string, JsonLoc*>>;
-  PlaceholderMap allPlaceholders();
-
   // The Const version is used for pre-substitution processing, by functions
   // that only accept const JsonLoc objects but extract the identifier list.
   using ConstPlaceholderMap
     = std::vector<std::pair<std::string, const JsonLoc*>>;
   ConstPlaceholderMap allPlaceholders() const;
-
-  // Returns number of substitutions made. Zero if key doesn't exist.
-  size_t substitute(const PlaceholderMap& pmap, std::string_view key,
-                    const JsonLoc& json);
 
   // Check if all placeholders have been substituted.
   // Check if child intervals are covered by parent intervals (ignoring npos).

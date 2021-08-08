@@ -94,22 +94,12 @@ class JsonTmpl {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  // Note that allPlaceholders() is a non-const member method, since it returns
-  // non-const JsonTmpl pointers to various internal components. Pretty much any
-  // direct mutation to *this will invalidate these pointers: only
-  // substitute() is safe.
-  using PlaceholderMap = std::vector<std::pair<std::string, JsonTmpl*>>;
-  PlaceholderMap allPlaceholders();
-
   // The Const version is used for pre-substitution processing, by functions
   // that only accept const JsonTmpl objects but extract the identifier list.
   using ConstPlaceholderMap
     = std::vector<std::pair<std::string, const JsonTmpl*>>;
   ConstPlaceholderMap allPlaceholders() const;
 
-  // Returns number of substitutions made. Zero if key doesn't exist.
-  size_t substitute(const PlaceholderMap& pmap, std::string_view key,
-                    const JsonTmpl& json);
   JsonLoc substituteAll(const std::vector<std::pair<std::string,
                                                     JsonLoc>>& subs) const;
 
