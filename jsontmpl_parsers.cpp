@@ -59,12 +59,6 @@ optional<WholeSegment> parseIdent(DiagsDest ctx, const ExprToken& expr) {
   return *seg;
 }
 
-bool isErrorValue(const vector<ExprToken>& v) {
-  if(v.size() != 1) return false;
-  auto* seg = get_if<WholeSegment>(&v[0]);
-  return seg && seg->data == "error_value";
-}
-
 optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(auto id = parseIdent(ctx, *seg))
@@ -79,8 +73,7 @@ optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
     if(bg->type == BracketType::square)
       return parseVector(ctx, std::move(bg->children));
     if(bg->type == BracketType::paren) {
-      if(isErrorValue(bg->children)) return JsonTmpl::ErrorValue{};
-      else return Error(ctx, bg->stPos, "Unexpected parenthesis");
+      return Error(ctx, bg->stPos, "Unexpected parenthesis");
     }
     Bug("Unknown BracketType: {}", int(bg->type));
   }

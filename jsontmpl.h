@@ -28,9 +28,8 @@ class JsonLoc;
 // TODO implement better location tracking.
 class JsonTmpl {
  public:
-  enum class Tag { ErrorValue, String, Vector, Map, Placeholder };
+  enum class Tag { String, Vector, Map, Placeholder };
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
-  struct ErrorValue {};
   using String = std::string;
   using Vector = std::vector<JsonTmpl>;
   using Map = std::vector<std::pair<std::string, JsonTmpl>>;  // sorted keys.
@@ -42,7 +41,6 @@ class JsonTmpl {
 
   // conversion constructors.
   JsonTmpl() = delete;
-  JsonTmpl(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
   JsonTmpl(Placeholder p, size_t st, size_t en) : stPos{st}, enPos{en},
     tag_{Tag::Placeholder}, placeholderValue_{std::move(p)} {}
   JsonTmpl(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
@@ -55,8 +53,6 @@ class JsonTmpl {
   JsonTmpl& operator=(const JsonTmpl& that);
   ~JsonTmpl();
 
-  // Or rename type to Tag::Error.
-  bool holdsErrorValue() const { return tag_ == Tag::ErrorValue; }
   bool holdsString() const { return tag_ == Tag::String; }
   bool holdsVector() const { return tag_ == Tag::Vector; }
   bool holdsMap() const { return tag_ == Tag::Map; }
@@ -100,7 +96,6 @@ class JsonTmpl {
  private:
   Tag tag_;
   union {
-    ErrorValue errorValue_;
     String stringValue_;
     Vector vectorValue_;
     Map mapValue_;

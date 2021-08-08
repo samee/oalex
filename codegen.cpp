@@ -242,7 +242,7 @@ evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
 static bool
 orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
                            const JsonTmpl& tmpl) {
-  if(tmpl.holdsMap() || tmpl.holdsErrorValue()) return true;
+  if(tmpl.holdsMap()) return true;
   return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
 }
 

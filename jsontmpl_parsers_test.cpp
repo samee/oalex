@@ -121,17 +121,6 @@ void testSubstitution() {
     BugMe("Unexpected output:\n{}", output);
 }
 
-// TODO remove this feature.
-void testParseAndPrintError() {
-  const string input = R"({
-    input: (error_value),
-    msg: "hello world"
-  })";
-  JsonTmpl json = assertValidJsonTmpl(__func__, input.c_str());
-  string output = json.prettyPrint(2);
-  assertEqual(__func__, input, output);
-}
-
 void testJsonTmplFailure(const char input[], const char errmsg[]) {
   InputDiags ctx{Input{input}};
   size_t i = 0;
@@ -178,7 +167,6 @@ void testEquality(const char input1[], const char input2[], bool expectedRes) {
 int main() {
   testSimpleSuccess();
   testSubstitution();
-  testParseAndPrintError();
   testJsonTmplPosition("(a,b)", 0);
   testJsonTmplPosition("foo", 0);
   testJsonTmplPosition("[a, b] foo", "[a, b]"s.size());

@@ -28,7 +28,6 @@ using std::vector;
 
 namespace oalex {
 
-using ErrorValue = JsonTmpl::ErrorValue;
 using Placeholder = JsonTmpl::Placeholder;
 using String = JsonTmpl::String;
 using Map = JsonTmpl::Map;
@@ -40,7 +39,6 @@ using Vector = JsonTmpl::Vector;
 
 void JsonTmpl::copyValue(const JsonTmpl& that) {
   switch(tag_) {
-    case Tag::ErrorValue: return;
     case Tag::String:
       new (&stringValue_) String{that.stringValue_}; return;
     case Tag::Vector:
@@ -54,7 +52,6 @@ void JsonTmpl::copyValue(const JsonTmpl& that) {
 
 void JsonTmpl::moveValue(JsonTmpl&& that) {
   switch(tag_) {
-    case Tag::ErrorValue: return;
     case Tag::String:
       new (&stringValue_) String{std::move(that.stringValue_)}; return;
     case Tag::Vector:
@@ -68,7 +65,6 @@ void JsonTmpl::moveValue(JsonTmpl&& that) {
 
 void JsonTmpl::destroyValue() {
   switch(tag_) {
-    case Tag::ErrorValue: return;
     case Tag::String: stringValue_.~string(); return;
     case Tag::Vector: vectorValue_.~vector(); return;
     case Tag::Map: mapValue_.~vector(); return;
@@ -105,7 +101,6 @@ JsonTmpl::~JsonTmpl() { destroyValue(); }
 
 string_view JsonTmpl::tagName() const {
   switch(tag_) {
-    case Tag::ErrorValue: return "ErrorValue";
     case Tag::String: return "String";
     case Tag::Vector: return "Vector";
     case Tag::Map: return "Map";
@@ -239,8 +234,6 @@ static void prettyPrint(fmt::memory_buffer& buf,
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
     format_to(buf, "\n{:{}}}}", "", indent);
-  }else if(json.holdsErrorValue()) {
-    format_to(buf, "(error_value)");
   }else BugUnknownJsonType(json.tag());
 }
 

@@ -73,7 +73,8 @@ class Expectation {
     successMatchingOutput,
   } matchType_ = failedWithErrorSubstr;
   std::string errorSubstr_;
-  JsonTmpl jstmpl_{JsonTmpl::ErrorValue{}};
+  JsonTmpl jstmpl_{JsonTmpl::Placeholder{"ignored-value"},
+                   JsonTmpl::npos, JsonTmpl::npos};
 };
 
 // Alternative to storing stPos, if we don't want to carry around InputDiags.
