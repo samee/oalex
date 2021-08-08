@@ -46,28 +46,32 @@ class Expectation {
   struct ErrorSubstr { std::string msg; };
 
   Expectation() = default;
-  Expectation(Success_t) : success_{true} {}  // implicit ctor
+  Expectation(Success_t) : matchType_{successAnyOutput} {}  // implicit ctor
   Expectation(SuccessWithJson jstmpl)
-    : success_{true}, jstmpl_{std::move(jstmpl.value)} {}
+    : matchType_{successMatchingOutput}, jstmpl_{std::move(jstmpl.value)} {}
   Expectation(ErrorSubstr f)  // implicit ctor
-    : success_{false}, errorSubstr_{std::move(f.msg)} {}
+    : matchType_{failedWithErrorSubstr}, errorSubstr_{std::move(f.msg)} {}
 
   bool matches(const JsonLoc& jsloc, const std::vector<Diag>& diags) const;
 
-  bool isForSuccess() const { return success_; }
+  bool isForSuccess() const {
+    return matchType_ == successAnyOutput
+        || matchType_ == successMatchingOutput;
+  }
   std::optional<JsonTmpl> jstmpl() const {
-    if(success_ && !jstmpl_.holdsErrorValue()) return jstmpl_;
+    if(matchType_ == successMatchingOutput) return jstmpl_;
     else return std::nullopt;
   }
   std::optional<std::string> isForErrorSubstr() const {
-    if(success_) return std::nullopt;
+    if(matchType_ != failedWithErrorSubstr) return std::nullopt;
     else return errorSubstr_;
   }
  private:
-  // Note: success_ == true, but jstmpl_ == JsonTmpl::ErrorValue{}
-  //   indicates examples that just need to pass, but otherwise don't
-  //   care about the output produced.
-  bool success_ = false;
+  enum {
+    failedWithErrorSubstr,
+    successAnyOutput,
+    successMatchingOutput,
+  } matchType_ = failedWithErrorSubstr;
   std::string errorSubstr_;
   JsonTmpl jstmpl_{JsonTmpl::ErrorValue{}};
 };

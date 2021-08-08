@@ -80,11 +80,16 @@ MappedPos::operator string() const {
 bool
 Expectation::matches(const JsonLoc& jsloc,
                      const std::vector<Diag>& diags) const {
-  if(Example::runSucceeded(jsloc, diags) != success_) return false;
-  if(success_)
-    return !jstmpl_.holdsErrorValue()
-      ? jsloc == jstmpl_.outputIfFilled() : true;
-  for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
+  if(Example::runSucceeded(jsloc, diags) != this->isForSuccess()) return false;
+  switch(matchType_) {
+    case Expectation::successMatchingOutput:
+      return jsloc == jstmpl_.outputIfFilled();
+    case Expectation::successAnyOutput: return true;
+    case Expectation::failedWithErrorSubstr:
+      for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
+      return false;
+    default: Bug("Unknown Expectation type {}", matchType_);
+  }
   return false;
 }
 
