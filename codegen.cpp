@@ -125,9 +125,8 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   }
   // TODO std::move this into substitute in the common case.
   JsonLoc rv = seq.outputTmpl.substituteAll(subs);
-  for(auto& [id, jsloc] : rv.allPlaceholders())
-    if(jsloc->holdsPlaceholder())
-      Bug("Undefined field '{}', should have been caught by frontend", id);
+  for(auto& id : rv.allPlaceholders())
+    Bug("Undefined field '{}', should have been caught by frontend", id);
   i = j;
   return rv;
 }
@@ -146,7 +145,6 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
     m = &container;
   }
   vector<pair<string, JsonLoc>> subs;
-  auto pmap = out.outputTmpl.allPlaceholders();
   for(auto& [id, jsloc] : out.outputTmpl.allPlaceholders())
     subs.emplace_back(id, moveEltOrEmpty(*m, id));
   return out.outputTmpl.substituteAll(subs);

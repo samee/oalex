@@ -25,6 +25,7 @@ using std::make_pair;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::vector;
 
 namespace oalex {
 
@@ -131,7 +132,7 @@ void JsonLoc::mapSort(Map& m) {
 // Template parameters parameterize over const-qualifiers.
 template <class PlaceholderMap, class JsonLocInput>
 static void allPlaceholdersImpl(PlaceholderMap& rv, JsonLocInput& json) {
-  if(auto* p = json.getIfPlaceholder()) rv.emplace_back(p->key, &json);
+  if(auto* p = json.getIfPlaceholder()) rv.push_back(p->key);
   else if(json.holdsString()) return;
   else if(auto* v = json.getIfVector())
     for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
@@ -140,12 +141,11 @@ static void allPlaceholdersImpl(PlaceholderMap& rv, JsonLocInput& json) {
   else BugUnknownJsonType(json.tag());
 }
 
-auto JsonLoc::allPlaceholders() const -> ConstPlaceholderMap {
-  auto byfirst = [](auto a, auto b) { return a.first < b.first; };
-  ConstPlaceholderMap rv;
+auto JsonLoc::allPlaceholders() const -> vector<string> {
+  vector<string> rv;
   allPlaceholdersImpl(rv,*this);
-  std::sort(rv.begin(), rv.end(), byfirst);
-  return {rv.begin(), rv.end()};
+  std::sort(rv.begin(), rv.end());
+  return rv;
 }
 
 // assumes (stPos == npos) == (enPos == npos)

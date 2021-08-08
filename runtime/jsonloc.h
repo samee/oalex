@@ -92,11 +92,7 @@ class JsonLoc {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
-  // The Const version is used for pre-substitution processing, by functions
-  // that only accept const JsonLoc objects but extract the identifier list.
-  using ConstPlaceholderMap
-    = std::vector<std::pair<std::string, const JsonLoc*>>;
-  ConstPlaceholderMap allPlaceholders() const;
+  std::vector<std::string> allPlaceholders() const;
 
   // Check if all placeholders have been substituted.
   // Check if child intervals are covered by parent intervals (ignoring npos).
