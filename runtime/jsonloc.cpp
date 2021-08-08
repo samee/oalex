@@ -214,24 +214,10 @@ string JsonLoc::prettyPrintJson(size_t indent) const {
   return fmt::to_string(buf);
 }
 
-bool JsonLoc::supportsEquality() const {
-  if(holdsErrorValue()) return false;
-  if(holdsString()) return true;
-  if(auto* vec = getIfVector()) {
-    for(auto& v : *vec) if(!v.supportsEquality()) return false;
-    return true;
-  }
-  if(auto* m = getIfMap()) {
-    for(auto& [k,v] : *m) if(!v.supportsEquality()) return false;
-    return true;
-  }
-  BugUnknownJsonType(tag_);
-}
-
 bool JsonLoc::operator==(const JsonLoc& that) const {
   if(this->tag_ != that.tag_) return false;
 
-  if(holdsErrorValue()) Bug("supportsEquality() is false");
+  if(holdsErrorValue()) return true;
   if(auto* s = getIfString()) return *s == *that.getIfString();
   if(auto* v = getIfVector()) return *v == *that.getIfVector();
   if(auto* m = getIfMap()) return *m == *that.getIfMap();

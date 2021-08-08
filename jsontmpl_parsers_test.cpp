@@ -146,8 +146,8 @@ void testJsonTmplPosition(const char input[], size_t endi) {
 void testSubstitutionsNeeded(const char input[], bool expectedRes) {
   JsonTmpl jstmpl = assertValidJsonTmpl(__func__, input);
   if(jstmpl.substitutionsNeeded() != expectedRes)
-    Bug("{}: Was expecting supportsEquality() to {} on input \"{}\"",
-        __func__, (expectedRes?"succeed":"fail"), input);
+    Bug("{}: Was expecting substitutions to be {} on input \"{}\"",
+        __func__, (expectedRes?"not needed":"needed"), input);
 }
 
 void testEquality(const char input1[], const char input2[], bool expectedRes) {

@@ -89,10 +89,6 @@ class JsonLoc {
   std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 
-  // This is false iff we have any ErrorValue nodes.
-  // Note this is different from holdsErrorValue(), since this is recursive.
-  bool supportsEquality() const;
-
   // Dev-notes: Right now this equality check is only used for `oalex test`.
   //   If those tests later acquire support for placeholders or omitted fields,
   //   we will have to use a more complicated matching between JsonLoc and
