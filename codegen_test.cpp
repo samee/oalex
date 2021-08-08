@@ -114,9 +114,7 @@ void testErrorRule() {
         StringRule{"hello-world"},
         ErrorRule{"Was expecting a greeting"},
         OrRule{
-          // This ErrorValue is actually ignored.
-          // It could have been anything else.
-          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::ErrorValue{}}},
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::String{"ignored"}}},
           /* flattenOnDemand */ false,
         }),
     .regexOpts{regexOpts},
@@ -167,7 +165,8 @@ void testSingleWordPreserving() {
   ctx = InputDiags{Input{"hello_word"}};
   pos = 0;
   jsloc = eval(ctx, pos, rs, 0);
-  if(!jsloc.holdsErrorValue()) BugMe("Was expecting WordPreserving match to fail");
+  if(!jsloc.holdsErrorValue())
+    BugMe("Was expecting WordPreserving match to fail");
 }
 
 void testRegexMatch() {

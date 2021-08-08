@@ -261,9 +261,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
         StringRule{"hello-world"},
         ErrorRule{"Was expecting a greeting"},
         nmRule(OrRule{
-          // This ErrorValue is actually ignored.
-          // It could have been anything else.
-          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::ErrorValue{}}},
+          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::String{"ignored"}}},
           /* flattenOnDemand */ false,
         }, "ErrorRuleHelloWorld")),
     .regexOpts{regexOpts},
