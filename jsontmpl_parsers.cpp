@@ -12,10 +12,10 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "jsonloc_io.h"
+#include "jsontmpl_parsers.h"
 #include <vector>
-#include "jsontmpl.h"
 #include "lexer.h"
+#include "runtime/jsonloc.h"
 #include "runtime/util.h"
 using oalex::Bug;
 using oalex::DiagsDest;

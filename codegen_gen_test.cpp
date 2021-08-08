@@ -15,7 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
-#include "jsonloc_io.h"
+#include "jsontmpl_parsers.h"
 #include "runtime/oalex.h"
 #include <cstdio>
 #include <cstring>

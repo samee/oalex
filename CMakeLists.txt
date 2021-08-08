@@ -28,7 +28,7 @@ add_subdirectory(submodules/fmt)
 include_directories(submodules/fmt/include)
 
 add_library(oalex-bin-lib STATIC codegen.cpp ident.cpp jsontmpl.cpp
-                                 jsonloc_io.cpp lexer.cpp
+                                 jsontmpl_parsers.cpp lexer.cpp
                                  pattern.cpp regex_io.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
@@ -54,10 +54,10 @@ target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(codegen_run_test oalex-bin-lib)
 add_test(codegen_run_test codegen_run_test)
 
-add_executable(jsonloc_io_test jsonloc_io_test.cpp
+add_executable(jsontmpl_parsers_test jsontmpl_parsers_test.cpp
                $<TARGET_OBJECTS:test_util>)
-target_link_libraries(jsonloc_io_test oalex-bin-lib)
-add_test(jsonloc_io_test jsonloc_io_test)
+target_link_libraries(jsontmpl_parsers_test oalex-bin-lib)
+add_test(jsontmpl_parsers_test jsontmpl_parsers_test)
 
 add_executable(regex_io_test regex_io_test.cpp
                $<TARGET_OBJECTS:test_util>)

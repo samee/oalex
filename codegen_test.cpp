@@ -15,8 +15,9 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
-#include "jsonloc_io.h"
+#include "jsontmpl_parsers.h"
 #include "fmt/core.h"
+#include "runtime/jsonloc_fmt.h"
 #include "runtime/test_util.h"
 #include <string_view>
 #include <tuple>

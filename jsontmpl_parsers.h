@@ -15,15 +15,14 @@
 #pragma once
 #include <string_view>
 #include <utility>
+#include "jsontmpl.h"
 #include "runtime/diags.h"
-#include "runtime/jsonloc_fmt.h"
 
-// TODO rename jsonloc_io -> jsontmpl_parsers
 namespace oalex {
 
 namespace lex { struct BracketGroup; };
 
-class JsonTmpl;
+class JsonLoc;
 // Note: this does not support a bare string or keyword all by itself, outside
 // of square brackets or braces. Without those indicators, it is hard to know
 // when to stop.

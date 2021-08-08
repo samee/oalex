@@ -26,8 +26,7 @@
 #include "lexer.h"
 #include "pattern.h"
 #include "regex_io.h"
-#include "jsonloc_io.h"
-#include "jsontmpl.h"
+#include "jsontmpl_parsers.h"
 #include "runtime/util.h"
 
 using fmt::format;
