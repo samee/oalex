@@ -29,6 +29,7 @@ using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
 using std::map;
+using std::pair;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
@@ -115,16 +116,16 @@ eval(InputDiags& ctx, ssize_t& i,
 
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
-  JsonLoc rv = seq.outputTmpl.outputIfFilled();
-  JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
+  vector<pair<string, JsonLoc>> subs;
   ssize_t j = i;
   for(auto& [idx, outname] : seq.comps) {
-    // TODO move this into substitute in the common case.
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsErrorValue()) return out;
-    if(!outname.empty()) rv.substitute(pmap, outname, out);
+    if(!outname.empty()) subs.emplace_back(outname, std::move(out));
   }
-  for(auto& [id, jsloc] : pmap)
+  // TODO std::move this into substitute in the common case.
+  JsonLoc rv = seq.outputTmpl.substituteAll(subs);
+  for(auto& [id, jsloc] : rv.allPlaceholders())
     if(jsloc->holdsPlaceholder())
       Bug("Undefined field '{}', should have been caught by frontend", id);
   i = j;
@@ -144,11 +145,11 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
     container.push_back({out.childName, std::move(outfields)});
     m = &container;
   }
-  JsonLoc rv = out.outputTmpl.outputIfFilled();
-  JsonLoc::PlaceholderMap pmap = rv.allPlaceholders();
-  for(auto& [id, jsloc] : pmap)
-    rv.substitute(pmap, id, moveEltOrEmpty(*m, id));
-  return rv;
+  vector<pair<string, JsonLoc>> subs;
+  auto pmap = out.outputTmpl.allPlaceholders();
+  for(auto& [id, jsloc] : out.outputTmpl.allPlaceholders())
+    subs.emplace_back(id, moveEltOrEmpty(*m, id));
+  return out.outputTmpl.substituteAll(subs);
 }
 
 static JsonLoc
@@ -222,14 +223,6 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   return rv;
 }
 
-static JsonLoc
-substituteOnePlaceholder(JsonTmpl tmpl, string_view key, const JsonLoc& value) {
-  JsonLoc rv = tmpl.outputIfFilled();
-  ssize_t count = rv.substitute(rv.allPlaceholders(), key, value);
-  if(count > 1) Bug("OrRule wasn't expected to have more than one child");
-  return rv;  // Assumes substitutionsOk();
-}
-
 // Defined in parser_helpers.cpp, but intentionally not exposed in header.
 unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i);
 
@@ -266,8 +259,7 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
       Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
     if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
-    if(!out.holdsErrorValue())
-      return substituteOnePlaceholder(tmpl, "child", out);
+    if(!out.holdsErrorValue()) return tmpl.substituteAll({{"child", out}});
 
     // If we passed evalPeek(), don't try anything else.
     if(lidx != -1) return out;

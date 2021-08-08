@@ -110,6 +110,8 @@ class JsonTmpl {
   // Returns number of substitutions made. Zero if key doesn't exist.
   size_t substitute(const PlaceholderMap& pmap, std::string_view key,
                     const JsonTmpl& json);
+  JsonLoc substituteAll(const std::vector<std::pair<std::string,
+                                                    JsonLoc>>& subs) const;
 
   // Check if all placeholders have been substituted.
   // Check if child intervals are covered by parent intervals (ignoring npos).

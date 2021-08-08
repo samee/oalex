@@ -24,6 +24,7 @@ using std::make_pair;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::vector;
 
 namespace oalex {
 
@@ -171,21 +172,32 @@ size_t JsonTmpl::substitute(const PlaceholderMap& pmap, string_view key,
   return rv;
 }
 
-// TODO stop supporting placeholders.
-JsonLoc JsonTmpl::outputIfFilled() const {
+static JsonLoc
+findSub(const vector<pair<string, JsonLoc>>& subs,
+        const JsonTmpl::Placeholder& p) {
+  for(auto& [k, v] : subs) if (k == p.key) return v;
+  // TODO stop supporting missing placeholders, and Bug out instead.
+  return {JsonLoc::Placeholder{p.key}, JsonTmpl::npos, JsonTmpl::npos};
+}
+
+JsonLoc
+JsonTmpl::substituteAll(const vector<pair<string, JsonLoc>>& subs) const {
   if(auto* s = getIfString()) return *s;
-  else if(auto* p = getIfPlaceholder())
-    return {JsonLoc::Placeholder{p->key}, stPos, enPos};
+  else if(auto* p = getIfPlaceholder()) return findSub(subs, *p);
   else if(auto* v = getIfVector()) {
     JsonLoc::Vector rv;
-    for(auto& elt : *v) rv.push_back(elt.outputIfFilled());
+    for(auto& elt : *v) rv.push_back(elt.substituteAll(subs));
     return rv;
   }else if(auto* m = getIfMap()) {
     JsonLoc::Map rv;
-    for(auto& [k,v] : *m) rv.emplace_back(k, v.outputIfFilled());
+    for(auto& [k,v] : *m) rv.emplace_back(k, v.substituteAll(subs));
     return rv;
   }
   return JsonLoc::ErrorValue{};
+}
+
+JsonLoc JsonTmpl::outputIfFilled() const {
+  return substituteAll({});
 }
 
 // assumes (stPos == npos) == (enPos == npos)
