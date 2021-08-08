@@ -117,17 +117,6 @@ class JsonTmpl {
   std::string prettyPrintJson(size_t indent=0) const;
   std::string prettyPrintWithLocs(size_t indent=0) const;  // TODO
 
-  // This is false iff we have any ErrorValue or Placeholder nodes.
-  //
-  // Dev-notes: we may later replace this with hasErrorValue().
-  //   See notes on operator==() for reasons.
-  bool supportsEquality() const;
-
-  // Dev-notes: Right now this equality check is only used for `oalex test`.
-  //   If those tests later acquire support for placeholders or omitted fields,
-  //   we will have to generalize this to some relaxed notion of matching.
-  bool operator==(const JsonTmpl& that) const;
-  bool operator!=(const JsonTmpl& that) const { return !(*this == that); }
  private:
   Tag tag_;
   union {

@@ -56,7 +56,7 @@ class Expectation {
 
   bool isForSuccess() const { return success_; }
   std::optional<JsonTmpl> jstmpl() const {
-    if(success_ && jstmpl_.supportsEquality()) return jstmpl_;
+    if(success_ && !jstmpl_.holdsErrorValue()) return jstmpl_;
     else return std::nullopt;
   }
   std::optional<std::string> isForErrorSubstr() const {
@@ -64,10 +64,12 @@ class Expectation {
     else return errorSubstr_;
   }
  private:
+  // Note: success_ == true, but jstmpl_ == JsonTmpl::ErrorValue{}
+  //   indicates examples that just need to pass, but otherwise don't
+  //   care about the output produced.
   bool success_ = false;
   std::string errorSubstr_;
-  JsonTmpl jstmpl_{JsonTmpl::ErrorValue{}};  // jstmpl_.supportsEquality()
-                                             //   == false
+  JsonTmpl jstmpl_{JsonTmpl::ErrorValue{}};
 };
 
 // Alternative to storing stPos, if we don't want to carry around InputDiags.

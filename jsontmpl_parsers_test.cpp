@@ -154,18 +154,17 @@ void testJsonTmplPosition(const char input[], size_t endi) {
                     input, endi, i);
 }
 
-// TODO rename to placeholdersFilled().
-void testSupportsEquality(const char input[], bool expectedRes) {
+void testSubstitutionsNeeded(const char input[], bool expectedRes) {
   JsonTmpl jstmpl = assertValidJsonTmpl(__func__, input);
-  if(jstmpl.supportsEquality() != expectedRes)
+  if(jstmpl.substitutionsNeeded() != expectedRes)
     Bug("{}: Was expecting supportsEquality() to {} on input \"{}\"",
         __func__, (expectedRes?"succeed":"fail"), input);
 }
 
 void testEquality(const char input1[], const char input2[], bool expectedRes) {
-  JsonTmpl jstmpl1 = assertValidJsonTmpl(__func__, input1);
-  JsonTmpl jstmpl2 = assertValidJsonTmpl(__func__, input2);
-  if((jstmpl1 == jstmpl2) != expectedRes)
+  JsonLoc jsloc1 = assertValidJsonTmpl(__func__, input1).outputIfFilled();
+  JsonLoc jsloc2 = assertValidJsonTmpl(__func__, input2).outputIfFilled();
+  if((jsloc1 == jsloc2) != expectedRes)
     Bug("{}: Was expecting equality check to {} on inputs:\n"
         "  {}\n  {}", __func__, (expectedRes?"succeed":"fail"),
         input1, input2);
@@ -192,9 +191,9 @@ int main() {
   testJsonTmplFailure("{a:b,a:c}", "Duplicate key a");
   testJsonTmplFailure("[a b]", "Was expecting a comma");
   testJsonTmplFailure("[123]", "'123' is not a valid identifier");
-  testSupportsEquality("['hello', world]", false);
-  testSupportsEquality("['hello', 'world']", true);
-  testSupportsEquality("{ msg: 'hello' }", true);
+  testSubstitutionsNeeded("['hello', world]", true);
+  testSubstitutionsNeeded("['hello', 'world']", false);
+  testSubstitutionsNeeded("{ msg: 'hello' }", false);
   testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
                "{goodbye: ['till', 'next', 'time'], hello: 'world'}",
                true);

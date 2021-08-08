@@ -82,7 +82,7 @@ Expectation::matches(const JsonLoc& jsloc,
                      const std::vector<Diag>& diags) const {
   if(Example::runSucceeded(jsloc, diags) != success_) return false;
   if(success_)
-    return jstmpl_.supportsEquality()
+    return !jstmpl_.holdsErrorValue()
       ? jsloc == jstmpl_.outputIfFilled() : true;
   for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
   return false;
@@ -1046,7 +1046,7 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
     optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks2), ctx);
     if(!jstmpl.has_value()) return nullopt;
-    if(!jstmpl->supportsEquality())
+    if(jstmpl->substitutionsNeeded())
       return Error(ctx, linetoks[2], "Values need to be properly quoted");
     rv.expectation = Expectation::SuccessWithJson{std::move(*jstmpl)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
