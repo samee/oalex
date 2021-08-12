@@ -56,18 +56,27 @@ void sanitizeIdent(DiagsDest ctx, WholeSegment& seg) {
   }
 }
 
+optional<JsonTmpl> locateAt(optional<JsonTmpl> jstmpl,
+                            const oalex::Segment& seg) {
+  if(jstmpl.has_value()) {
+    jstmpl->stPos = seg.stPos;
+    jstmpl->enPos = seg.enPos;
+  }
+  return jstmpl;
+}
+
 optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     sanitizeIdent(ctx, *seg);
     return JsonTmpl(JsonTmpl::Placeholder{seg->data}, seg->stPos, seg->enPos);
   }
   if(auto* qs = get_if<GluedString>(&expr))
-    return JsonTmpl(*qs);
+    return locateAt(JsonTmpl(*qs), *qs);
   if(auto* bg = get_if<BracketGroup>(&expr)) {
     if(bg->type == BracketType::brace)
-      return parseMap(ctx, std::move(bg->children));
+      return locateAt(parseMap(ctx, std::move(bg->children)), *bg);
     if(bg->type == BracketType::square)
-      return parseVector(ctx, std::move(bg->children));
+      return locateAt(parseVector(ctx, std::move(bg->children)), *bg);
     if(bg->type == BracketType::paren) {
       return Error(ctx, bg->stPos, "Unexpected parenthesis");
     }
@@ -172,9 +181,9 @@ optional<JsonTmpl> parseJsonTmplFromBracketGroup(DiagsDest ctx,
                                                  BracketGroup bg) {
   if(bg.type == BracketType::paren) return nullopt;
   if(bg.type == BracketType::square)
-    return parseVector(ctx, std::move(bg.children));
+    return locateAt(parseVector(ctx, std::move(bg.children)), bg);
   if(bg.type == BracketType::brace)
-    return parseMap(ctx, std::move(bg.children));
+    return locateAt(parseMap(ctx, std::move(bg.children)), bg);
   Bug("Unknown BracketType: {}", int(bg.type));
 }
 

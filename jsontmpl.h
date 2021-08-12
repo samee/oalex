@@ -25,7 +25,6 @@ class JsonLoc;
 
 // Unlike JsonLoc, the stPos and enPos fields here indicate locations in oalex
 // source, not user input. Right now, they are not populated very accurately.
-// TODO implement better location tracking.
 class JsonTmpl {
  public:
   enum class Tag { String, Vector, Map, Placeholder };
@@ -36,6 +35,7 @@ class JsonTmpl {
   struct Placeholder { std::string key; };
 
   size_t stPos=npos, enPos=npos;
+  // TODO: rename to mapScanForIndex(), and add mapScanForValue().
   static ssize_t mapLinearFind(const Map& m, std::string_view k);
   static void mapSort(Map& m);
 

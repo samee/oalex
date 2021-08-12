@@ -159,6 +159,20 @@ void testEquality(const char input1[], const char input2[], bool expectedRes) {
         input1, input2);
 }
 
+void testLocations() {
+  JsonTmpl tmpl = assertValidJsonTmpl(__func__,
+      "{hello: 'world', goodbye: ['till', 'next', 'time']}");
+  assertEqual("testLocations.stPos", tmpl.stPos, size_t(0));
+  assertEqual("testLocations.enPos", tmpl.enPos, size_t(51));
+  JsonTmpl::Map* m = tmpl.getIfMap();
+  ssize_t hi = JsonTmpl::mapLinearFind(*m, "hello");
+  ssize_t gi = JsonTmpl::mapLinearFind(*m, "goodbye");
+  assertEqual("testLocations.hello.stPos", (*m)[hi].second.stPos, size_t(8));
+  assertEqual("testLocations.hello.enPos", (*m)[hi].second.enPos, size_t(15));
+  assertEqual("testLocations.goodbye.stPos", (*m)[gi].second.stPos, size_t(26));
+  assertEqual("testLocations.goodbye.enPos", (*m)[gi].second.enPos, size_t(50));
+}
+
 }  // namespace
 
 // Note: none of these check JsonTmpl::stPos or enPos of parse results, since we
@@ -188,4 +202,5 @@ int main() {
   testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
                "{hello: 'world', goodbyee: ['till', 'next', 'time']}",
                false);
+  testLocations();
 }
