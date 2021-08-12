@@ -173,7 +173,7 @@ int main() {
   testJsonTmplFailure("[a,,b]", "Unexpected comma");
   testJsonTmplFailure("[a,b,,]", "Unexpected comma");
   testJsonTmplFailure("[(a,b)]", "Unexpected parenthesis");
-  testJsonTmplFailure("{[]:[]}", "Was expecting a key");
+  testJsonTmplFailure("{[]:[]}", "Was expecting the key to be an identifier");
   testJsonTmplFailure("{a:}", "Value missing after the colon");
   testJsonTmplFailure("{a:b:c}", "Was expecting a comma here");
   testJsonTmplFailure("{a:b,a:c}", "Duplicate key a");

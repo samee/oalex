@@ -49,21 +49,17 @@ bool isIdent(string_view s) {
   return true;
 }
 
-optional<WholeSegment> parseIdent(DiagsDest ctx, const ExprToken& expr) {
-  auto* seg = get_if<WholeSegment>(&expr);
-  if(!seg) return Error(ctx, expr,"Was expecting an identifier");
-  if(!isIdent(seg->data)) {
-    Error(ctx, *seg, "'" + seg->data + "' is not a valid identifier.");
-    return WholeSegment(seg->stPos, seg->enPos, "invalid_identifier");
+void sanitizeIdent(DiagsDest ctx, WholeSegment& seg) {
+  if(!isIdent(seg.data)) {
+    Error(ctx, seg, "'" + seg.data + "' is not a valid identifier.");
+    seg = WholeSegment(seg.stPos, seg.enPos, "invalid_identifier");
   }
-  return *seg;
 }
 
 optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
-    if(auto id = parseIdent(ctx, *seg))
-      return JsonTmpl(JsonTmpl::Placeholder{id->data}, id->stPos, id->enPos);
-    else return nullopt;
+    sanitizeIdent(ctx, *seg);
+    return JsonTmpl(JsonTmpl::Placeholder{seg->data}, seg->stPos, seg->enPos);
   }
   if(auto* qs = get_if<GluedString>(&expr))
     return JsonTmpl(*qs);
@@ -89,11 +85,12 @@ optional<JsonTmpl> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
   for(auto& elt : splitres) {
     if(elt.empty())
       Bug("splitCommaNoEmpty() is returning empty elements.");
-    optional<WholeSegment> key = parseIdent(ctx, elt[0]);
+    WholeSegment* key = get_if<WholeSegment>(&elt[0]);
     if(!key) {
-      Error(ctx, elt[0], "Was expecting a key.");
+      Error(ctx, elt[0], "Was expecting the key to be an identifier");
       continue;
     }
+    sanitizeIdent(ctx, *key);
     optional<JsonTmpl> parsedElt;
     if(elt.size() == 1)
       parsedElt = JsonTmpl{JsonTmpl::Placeholder{key->data},
