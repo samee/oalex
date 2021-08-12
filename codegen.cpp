@@ -164,7 +164,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
     if(name.empty()) return;
-    ssize_t i = JsonLoc::mapLinearFind(rv, name);
+    ssize_t i = JsonLoc::mapScanForIndex(rv, name);
     if(i == -1) {
       if(maxsize > 1) Unimplemented("Late addition needs static key collation");
       i = ssize(rv);

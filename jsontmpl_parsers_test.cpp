@@ -165,12 +165,12 @@ void testLocations() {
   assertEqual("testLocations.stPos", tmpl.stPos, size_t(0));
   assertEqual("testLocations.enPos", tmpl.enPos, size_t(51));
   JsonTmpl::Map* m = tmpl.getIfMap();
-  ssize_t hi = JsonTmpl::mapLinearFind(*m, "hello");
-  ssize_t gi = JsonTmpl::mapLinearFind(*m, "goodbye");
-  assertEqual("testLocations.hello.stPos", (*m)[hi].second.stPos, size_t(8));
-  assertEqual("testLocations.hello.enPos", (*m)[hi].second.enPos, size_t(15));
-  assertEqual("testLocations.goodbye.stPos", (*m)[gi].second.stPos, size_t(26));
-  assertEqual("testLocations.goodbye.enPos", (*m)[gi].second.enPos, size_t(50));
+  const JsonTmpl* hp = JsonTmpl::mapScanForValue(*m, "hello");
+  const JsonTmpl* gp = JsonTmpl::mapScanForValue(*m, "goodbye");
+  assertEqual("testLocations.hello.stPos", hp->stPos, size_t(8));
+  assertEqual("testLocations.hello.enPos", hp->enPos, size_t(15));
+  assertEqual("testLocations.goodbye.stPos", gp->stPos, size_t(26));
+  assertEqual("testLocations.goodbye.enPos", gp->enPos, size_t(50));
 }
 
 }  // namespace

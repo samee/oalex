@@ -35,8 +35,8 @@ class JsonTmpl {
   struct Placeholder { std::string key; };
 
   size_t stPos=npos, enPos=npos;
-  // TODO: rename to mapScanForIndex(), and add mapScanForValue().
-  static ssize_t mapLinearFind(const Map& m, std::string_view k);
+  static ssize_t mapScanForIndex(const Map& m, std::string_view k);
+  static const JsonTmpl* mapScanForValue(const Map& m, std::string_view k);
   static void mapSort(Map& m);
 
   // conversion constructors.

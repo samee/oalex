@@ -109,9 +109,14 @@ string_view JsonTmpl::tagName() const {
   }
 }
 
-ssize_t JsonTmpl::mapLinearFind(const Map& m, std::string_view k) {
+ssize_t JsonTmpl::mapScanForIndex(const Map& m, string_view k) {
   for(ssize_t i=0; i<ssize(m); ++i) if(k == m[i].first) return i;
   return -1;
+}
+
+const JsonTmpl* JsonTmpl::mapScanForValue(const Map& m, string_view k) {
+  ssize_t i = mapScanForIndex(m, k);
+  return i != -1 ? &m[i].second : nullptr;
 }
 
 void JsonTmpl::mapSort(Map& m) {

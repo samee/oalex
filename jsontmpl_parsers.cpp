@@ -121,7 +121,7 @@ optional<JsonTmpl> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
       }
     }
 
-    if(JsonTmpl::mapLinearFind(rv, key->data) != -1)
+    if(JsonTmpl::mapScanForIndex(rv, key->data) != -1)
       Error(ctx, *key, "Duplicate key " + key->data);
     else rv.push_back({key->data, std::move(*parsedElt)});
   }

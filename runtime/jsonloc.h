@@ -42,7 +42,8 @@ class JsonLoc {
   using Map = std::vector<std::pair<std::string, JsonLoc>>;  // sorted keys.
 
   size_t stPos=npos, enPos=npos;
-  static ssize_t mapLinearFind(const Map& m, std::string_view k);
+  static ssize_t mapScanForIndex(const Map& m, std::string_view k);
+  static const JsonLoc* mapScanForValue(const Map& m, std::string_view k);
   static void mapSort(Map& m);
 
   // conversion constructors.
