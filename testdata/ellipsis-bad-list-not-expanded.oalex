@@ -1,0 +1,7 @@
+# expected-error: Should be list-expanded: [var, ...]
+
+var := /[a-z]+/
+
+rule csv:
+  var, ... , var
+outputs: { var }

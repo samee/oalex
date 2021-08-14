@@ -791,6 +791,50 @@ desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
   return rv;
 }
 
+// Checks if all Ident Patterns nested in PatternRepeat or PatternFold
+// are in present listNames and, conversely, if Ident Patterns not in those
+// constructs are absent in listNames. `repeat` indicates if we are currently
+// inside a fold or repeat pattern.
+// FIXME we currently allow multiple definitions of a template ID in a
+// pattern. Stop this.
+bool
+checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
+                      const Pattern& patt, bool repeat) {
+  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
+  else if(auto* id = get_if_unique<Ident>(&patt)) {
+    bool rv = !repeat;
+    for(auto& n : listNames) if(*n == id->preserveCase()) {
+      rv = repeat;
+      break;
+    }
+    if(!rv) {
+      string msg = format(repeat ? "Should be list-expanded: [{}, ...]"
+                                 : "`{}` is a single element",
+                          id->preserveCase());
+      Error(ctx, id->stPos(), id->enPos(), msg);
+    }
+    return rv;
+  }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
+    for(auto& elt : seq->parts)
+      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
+        return false;
+    return true;
+  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
+    for(auto& elt : ors->parts)
+      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
+        return false;
+    return true;
+  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
+    return checkPlaceholderTypes(ctx, listNames, opt->part, repeat);
+  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
+    return checkPlaceholderTypes(ctx, listNames, rep->part, true);
+  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
+    return checkPlaceholderTypes(ctx, listNames, fold->part, true) &&
+           checkPlaceholderTypes(ctx, listNames, fold->glue, true);
+  }else
+    Bug("Unknown pattern index in checkPlaceholderTypes() {}", patt.index());
+}
+
 // We can later add where-stanza arguments for extracting partPatterns
 map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
@@ -821,9 +865,7 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, JsonTmpl jstmpl,
                    RulesWithLocs& rl) {
-  // TODO use return value to check whether the placeholders
-  // are meant for packed values.
-  desugarEllipsisPlaceholders(ctx, jstmpl);
+  vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
@@ -831,6 +873,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
     parsePattern(ctx, tokenizePattern(ctx, patt_string, partPatterns,
                                       defaultLexopts()));
   if(!patt.has_value()) return;
+  if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
 
   ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);

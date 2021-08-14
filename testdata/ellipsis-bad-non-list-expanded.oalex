@@ -1,0 +1,8 @@
+# expected-error: `var` is a single element
+
+var := /[a-z]+/
+num := /[0-9]+/
+
+rule asgn:
+  var = num;
+outputs: { var: [var, ...], num }
