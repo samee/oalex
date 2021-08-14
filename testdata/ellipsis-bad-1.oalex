@@ -1,0 +1,9 @@
+# expected-error: This list should have ended here
+
+val := /[0-9]+/
+
+rule csv:
+  val, val, ..., val
+outputs: {
+  elements: [val, ..., val]
+}

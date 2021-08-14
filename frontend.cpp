@@ -14,6 +14,7 @@
 
 #include "frontend.h"
 
+#include <algorithm>
 #include <map>
 #include <memory>
 #include <optional>
@@ -65,9 +66,11 @@ using std::map;
 using std::nullopt;
 using std::optional;
 using std::pair;
+using std::sort;
 using std::string;
 using std::string_view;
 using std::tuple;
+using std::unique;
 using std::unique_ptr;
 using std::vector;
 
@@ -724,6 +727,70 @@ appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
   }
 }
 
+// Looks for [p, ...] for some `JsonTmpl::Placeholder p`. If found, returns
+// &p, which is guaranteed to point to a JsonTmpl::Placeholder. If not, returns
+// nullptr. Produces error only for [p, ..., "extra items"]
+const JsonTmpl*
+simpleListPlaceholder(DiagsDest ctx, const JsonTmpl& jstmpl) {
+  const JsonTmpl::Vector* vec = jstmpl.getIfVector();
+  if(!vec || vec->size() < 2 || !vec->at(1).holdsEllipsis()) return nullptr;
+  if(vec->at(0).holdsPlaceholder()) {
+    if(vec->size() > 2)
+      Error(ctx, vec->at(2).stPos, "This list should have ended here");
+    // Return even if size() > 2, just ignore the other elements.
+    return &(*vec)[0];
+  }
+  return nullptr;
+}
+
+// Return false means there were uncleaned ellipsis left in.
+// TODO generalize this to accept interlaced outputs.
+bool
+desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
+                                 vector<WholeSegment>& listNames) {
+  if(const JsonTmpl* p = simpleListPlaceholder(ctx, jstmpl)) {
+    listNames.emplace_back(p->stPos, p->enPos, p->getIfPlaceholder()->key);
+    jstmpl = *p;
+    return true;
+  }
+  if(jstmpl.holdsEllipsis()) {
+    Error(ctx, jstmpl.stPos, jstmpl.enPos, "Ellipsis out of place");
+    return false;
+  }
+  if(jstmpl.holdsString() || jstmpl.holdsPlaceholder()) return true;
+  bool rv = true;
+  if(auto* v = jstmpl.getIfVector()) {
+    for(auto& elt : *v)
+      if(!desugarEllipsisPlaceholdersRecur(ctx, elt, listNames))
+        rv = false;
+  }else if(auto* m = jstmpl.getIfMap()) {
+    for(auto& [k,v] : *m)
+      if(!desugarEllipsisPlaceholdersRecur(ctx, v, listNames))
+        rv = false;
+  }else Bug("Unknown JsonTmpl variant in desugarEllipsis {}", jstmpl.tagName());
+  return rv;
+}
+
+// If any ellipsis is found out of place, the whole tmpl is cleared empty
+// and an error is logged. The idea is that we should still be able to
+// continue compilation. Modifies jstmpl in-place to convert any
+// `[p, ...]` to just `p`. Returns all the converted placeholders
+// in an array, so caller can figure out which placeholders were converted.
+vector<WholeSegment>
+desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
+  vector<WholeSegment> rv;
+  if(!desugarEllipsisPlaceholdersRecur(ctx, jstmpl, rv)) {
+    jstmpl = JsonTmpl::Map{};
+    rv.clear();
+  }else {
+    sort(rv.begin(), rv.end(), [](auto& a, auto& b) { return *a < *b; });
+    rv.erase(unique(rv.begin(), rv.end(),
+                    [](auto& a, auto& b) { return *a == *b; }),
+             rv.end());
+  }
+  return rv;
+}
+
 // We can later add where-stanza arguments for extracting partPatterns
 map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
@@ -754,6 +821,9 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, JsonTmpl jstmpl,
                    RulesWithLocs& rl) {
+  // TODO use return value to check whether the placeholders
+  // are meant for packed values.
+  desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
   for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
@@ -839,7 +909,7 @@ hasEllipsis(const JsonTmpl& jstmpl) {
   }else if(auto* m = jstmpl.getIfMap()) {
     for(auto& [k,v] : *m) if(hasEllipsis(v)) return true;
     return false;
-  }else Bug("Unknown JsonTmpl variant in hasEllipsis()", jstmpl.tagName());
+  }else Bug("Unknown JsonTmpl variant in hasEllipsis(): {}", jstmpl.tagName());
 }
 
 // Checks second token just so it is not a BNF rule of the form
@@ -880,7 +950,6 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
 
   optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks), ctx);
   if(!jstmpl.has_value()) return;
-  if(hasEllipsis(*jstmpl)) Unimplemented("Ellipsis in output templates");
   appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
 }
 

@@ -8,7 +8,7 @@ rule oper lookaheads:
 
 rule sum_expr:
   num + ... + num
-outputs: { sum_operands: num }
+outputs: { sum_operands: [num, ...] }
 
 example sum_expr:
   3 + 9 + 22
@@ -20,7 +20,7 @@ outputs error with 'Expected num'
 
 rule sum_level_expr:
   num oper ... oper num
-outputs: { operands: num, signs: oper }
+outputs: { operands: [num, ...], signs: [oper, ...] }
 
 example sum_level_expr:
   3 - 9 + 22

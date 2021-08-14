@@ -100,7 +100,7 @@ outputs: { stmt: "asgn", lhs: "x", rhs: "5" }
 # TODO ellipsis in output template. E.g. [simple_stmt, ...].
 rule compound_stmt:
   simple_stmt; ... ; simple_stmt;
-outputs: { stmt: simple_stmt }
+outputs: { stmt: [simple_stmt, ...] }
 
 example compound_stmt:
   x = 3;
