@@ -504,6 +504,8 @@ codegen(const JsonTmpl& jstmpl, const OutputStream& cppos,
     if(v == placeholders.end())
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(v->second);
+  }else if(jstmpl.holdsEllipsis()) {
+    Bug("Frontend should have desugared all ellipsis");
   }else if(auto* s = jstmpl.getIfString()) {
     cppos(format("{}s", dquoted(*s)));
   }else if(auto* v = jstmpl.getIfVector()) {

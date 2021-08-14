@@ -67,6 +67,7 @@ optional<JsonTmpl> locateAt(optional<JsonTmpl> jstmpl,
 
 optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
+    if(**seg == "...") return locateAt(JsonTmpl{JsonTmpl::Ellipsis{}}, *seg);
     sanitizeIdent(ctx, *seg);
     return locateAt(JsonTmpl(JsonTmpl::Placeholder{seg->data}), *seg);
   }

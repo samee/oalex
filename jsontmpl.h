@@ -27,12 +27,13 @@ class JsonLoc;
 // source, not user input. Right now, they are not populated very accurately.
 class JsonTmpl {
  public:
-  enum class Tag { String, Vector, Map, Placeholder };
+  enum class Tag { String, Vector, Map, Placeholder, Ellipsis };
   static constexpr size_t npos = std::numeric_limits<size_t>::max();
   using String = std::string;
   using Vector = std::vector<JsonTmpl>;
   using Map = std::vector<std::pair<std::string, JsonTmpl>>;  // sorted keys.
   struct Placeholder { std::string key; };
+  struct Ellipsis {};
 
   size_t stPos=npos, enPos=npos;
   static ssize_t mapScanForIndex(const Map& m, std::string_view k);
@@ -44,6 +45,7 @@ class JsonTmpl {
   JsonTmpl(Placeholder p) :
     tag_{Tag::Placeholder}, placeholderValue_{std::move(p)} {}
   JsonTmpl(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
+  JsonTmpl(Ellipsis) : tag_{Tag::Ellipsis} {}
   JsonTmpl(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
   JsonTmpl(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
 
@@ -54,6 +56,7 @@ class JsonTmpl {
   ~JsonTmpl();
 
   bool holdsString() const { return tag_ == Tag::String; }
+  bool holdsEllipsis() const { return tag_ == Tag::Ellipsis; }
   bool holdsVector() const { return tag_ == Tag::Vector; }
   bool holdsMap() const { return tag_ == Tag::Map; }
   bool holdsPlaceholder() const { return tag_ == Tag::Placeholder; }

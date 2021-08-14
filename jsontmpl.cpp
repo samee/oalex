@@ -46,7 +46,8 @@ void JsonTmpl::copyValue(const JsonTmpl& that) {
     case Tag::Map:
       new (&mapValue_) Map(that.mapValue_); return;
     case Tag::Placeholder:
-      new (&placeholderValue_) Placeholder{that.placeholderValue_};
+      new (&placeholderValue_) Placeholder{that.placeholderValue_}; return;
+    case Tag::Ellipsis: return;
   }
 }
 
@@ -60,6 +61,8 @@ void JsonTmpl::moveValue(JsonTmpl&& that) {
       new (&mapValue_) Map(std::move(that.mapValue_)); return;
     case Tag::Placeholder:
       new (&placeholderValue_) Placeholder{std::move(that.placeholderValue_)};
+      return;
+    case Tag::Ellipsis: return;
   }
 }
 
@@ -69,6 +72,7 @@ void JsonTmpl::destroyValue() {
     case Tag::Vector: vectorValue_.~vector(); return;
     case Tag::Map: mapValue_.~vector(); return;
     case Tag::Placeholder: placeholderValue_.~Placeholder(); return;
+    case Tag::Ellipsis: return;
   }
 }
 
@@ -132,7 +136,7 @@ void JsonTmpl::mapSort(Map& m) {
 template <class PlaceholderMap, class JsonTmplInput>
 static void allPlaceholdersImpl(PlaceholderMap& rv, JsonTmplInput& json) {
   if(auto* p = json.getIfPlaceholder()) rv.emplace_back(p->key, &json);
-  else if(json.holdsString()) return;
+  else if(json.holdsString() || json.holdsEllipsis()) return;
   else if(auto* v = json.getIfVector())
     for(auto& elt : *v) allPlaceholdersImpl(rv,elt);
   else if(auto* m = json.getIfMap())
@@ -158,6 +162,7 @@ findSub(const vector<pair<string, JsonLoc>>& subs,
 JsonLoc
 JsonTmpl::substituteAll(const vector<pair<string, JsonLoc>>& subs) const {
   if(auto* s = getIfString()) return *s;
+  else if(holdsEllipsis()) Bug("Tried to produce JsonLoc out of '...'");
   else if(auto* p = getIfPlaceholder()) return findSub(subs, *p);
   else if(auto* v = getIfVector()) {
     JsonLoc::Vector rv;
@@ -177,6 +182,7 @@ JsonLoc JsonTmpl::outputIfFilled() const {
 
 bool JsonTmpl::substitutionsNeeded() const {
   if(holdsPlaceholder()) return true;
+  if(holdsEllipsis()) return false;
   if(auto* v = getIfVector()) {
     for(auto& elt : *v) if(elt.substitutionsNeeded()) return true;
   } else if(auto* m = getIfMap()) {
@@ -214,6 +220,7 @@ static void prettyPrint(fmt::memory_buffer& buf,
                         bool quoteMapKeys) {
   if(auto* p = json.getIfPlaceholder())
     format_to(buf, "{}", assertIdent(__func__, p->key));
+  else if(json.holdsEllipsis()) format_to(buf, "...");
   else if(auto* s = json.getIfString()) printString(buf, *s);
   else if(auto* v = json.getIfVector()) {
     format_to(buf, "[\n");

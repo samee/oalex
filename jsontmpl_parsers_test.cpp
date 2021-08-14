@@ -77,10 +77,15 @@ void testSimpleSuccess() {
     # We support comments and single-quotes, among other divergences from
     # json.org.  Includes a trailing comma.
     input: 'hello world', output: ['hello', 'world',], metadata: metadata,
+    ellipsis_value: [list_elt,...],
     underscore_identifier: 'done' } )";
   optional<JsonTmpl> json = parseJsonTmpl(input);
   string output = json->prettyPrint(2);
   const char expected[] = R"({
+    ellipsis_value: [
+      list_elt,
+      ...
+    ],
     input: "hello world",
     metadata: metadata,
     output: [

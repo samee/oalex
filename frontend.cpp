@@ -829,6 +829,19 @@ parseOutputBraces(vector<ExprToken> linetoks, DiagsDest ctx) {
   return jstmpl;
 }
 
+bool
+hasEllipsis(const JsonTmpl& jstmpl) {
+  if(jstmpl.holdsEllipsis()) return true;
+  else if(jstmpl.holdsString() || jstmpl.holdsPlaceholder()) return false;
+  else if(auto* v = jstmpl.getIfVector()) {
+    for(auto& elt : *v) if(hasEllipsis(elt)) return true;
+    return false;
+  }else if(auto* m = jstmpl.getIfMap()) {
+    for(auto& [k,v] : *m) if(hasEllipsis(v)) return true;
+    return false;
+  }else Bug("Unknown JsonTmpl variant in hasEllipsis()", jstmpl.tagName());
+}
+
 // Checks second token just so it is not a BNF rule of the form
 // `rule :=`. We want to avoid requiring too many reserved keywords
 // if possible.
@@ -867,6 +880,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
 
   optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks), ctx);
   if(!jstmpl.has_value()) return;
+  if(hasEllipsis(*jstmpl)) Unimplemented("Ellipsis in output templates");
   appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
 }
 
@@ -1051,6 +1065,7 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
     optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks2), ctx);
     if(!jstmpl.has_value()) return nullopt;
+    if(hasEllipsis(*jstmpl)) Unimplemented("Ellipsis in output templates");
     if(jstmpl->substitutionsNeeded())
       return Error(ctx, linetoks[2], "Values need to be properly quoted");
     rv.expectation = Expectation::SuccessWithJson{std::move(*jstmpl)};
