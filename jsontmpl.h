@@ -41,7 +41,7 @@ class JsonTmpl {
 
   // conversion constructors.
   JsonTmpl() = delete;
-  JsonTmpl(Placeholder p, size_t st, size_t en) : stPos{st}, enPos{en},
+  JsonTmpl(Placeholder p) :
     tag_{Tag::Placeholder}, placeholderValue_{std::move(p)} {}
   JsonTmpl(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
   JsonTmpl(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}

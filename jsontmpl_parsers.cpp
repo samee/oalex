@@ -68,7 +68,7 @@ optional<JsonTmpl> locateAt(optional<JsonTmpl> jstmpl,
 optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     sanitizeIdent(ctx, *seg);
-    return JsonTmpl(JsonTmpl::Placeholder{seg->data}, seg->stPos, seg->enPos);
+    return locateAt(JsonTmpl(JsonTmpl::Placeholder{seg->data}), *seg);
   }
   if(auto* qs = get_if<GluedString>(&expr))
     return locateAt(JsonTmpl(*qs), *qs);
@@ -102,8 +102,7 @@ optional<JsonTmpl> parseMap(DiagsDest ctx, vector<ExprToken> elts) {
     sanitizeIdent(ctx, *key);
     optional<JsonTmpl> parsedElt;
     if(elt.size() == 1)
-      parsedElt = JsonTmpl{JsonTmpl::Placeholder{key->data},
-                          key->stPos, key->enPos};
+      parsedElt = locateAt(JsonTmpl{JsonTmpl::Placeholder{key->data}}, *key);
     else {
       if(!isToken(elt[1],":")) {
         Error(ctx, enPos(elt[0]), "Was expecting a colon sign after the key.");

@@ -183,7 +183,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
 void generateSingleWordTemplate(const OutputStream& cppos,
                                 const OutputStream& hos) {
   JsonTmpl jstmpl = JsonTmpl::Map{{"keyword",
-    JsonTmpl{JsonTmpl::Placeholder{"the_word"}, 0, 0}}};
+    JsonTmpl{JsonTmpl::Placeholder{"the_word"}}}};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"word"},

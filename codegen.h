@@ -149,7 +149,7 @@ class LoopRule final : public LoopRuleFields, public Rule {
   std::string specifics_typename() const override { return "LoopRule"; }
 };
 
-inline const JsonTmpl passthroughTmpl(JsonTmpl::Placeholder{"child"}, 0, 0);
+inline const JsonTmpl passthroughTmpl{JsonTmpl::Placeholder{"child"}};
 inline bool isPassthroughTmpl(const JsonTmpl& jstmpl) {
   return isPlaceholder(jstmpl, "child");
 }
