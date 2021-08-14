@@ -69,7 +69,8 @@ optional<JsonTmpl> parseJsonTmpl(DiagsDest ctx, ExprToken expr) {
   if(auto* seg = get_if<WholeSegment>(&expr)) {
     if(**seg == "...") return locateAt(JsonTmpl{JsonTmpl::Ellipsis{}}, *seg);
     sanitizeIdent(ctx, *seg);
-    return locateAt(JsonTmpl(JsonTmpl::Placeholder{seg->data}), *seg);
+    return locateAt(JsonTmpl(JsonTmpl::Placeholder{std::move(seg->data)}),
+                    *seg);
   }
   if(auto* qs = get_if<GluedString>(&expr))
     return locateAt(JsonTmpl(*qs), *qs);
