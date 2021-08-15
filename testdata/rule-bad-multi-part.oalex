@@ -1,0 +1,7 @@
+# expected-error: Output part 'var' appears multiple times in the pattern
+
+var := /[a-z]+/
+
+rule asgn:
+  var = var;
+outputs: { var }
