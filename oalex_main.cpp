@@ -69,6 +69,7 @@ Usage:  oalex [eval] filename                    # Parses stdin
                          [--h-out=outname.h] \
                          [--test-cpp-out=outname_test.cpp] \
                          filename                # Generate test drivers
+
         oalex --help                             # This message
         oalex help                               #
 )";
@@ -163,9 +164,14 @@ getInputOutputFilenames(int argc, char *argv[], int start) {
   }
 }
 
+optional<CmdlineOptions>
+showUsageAndAbort(int, char**, int) {
+  fprintf(stderr, "%s\n", usage);
+  return nullopt;
+}
+
 // This table is matched from bottom to top in parseCmdlineOptions. So the most
 // specific command prefix should appear at the end.
-// TODO `oalex help`
 const CmdModeTableEntry
 cmdModeTable[] = {
   { {"oalex"}, CmdMode::eval, getRulesetFilename },
@@ -174,6 +180,8 @@ cmdModeTable[] = {
   { {"oalex", "eval", "test"}, CmdMode::evalTest, getRulesetFilename },
   { {"oalex", "build"}, CmdMode::build, getInputOutputFilenames },
   { {"oalex", "build", "test"}, CmdMode::buildTest, getInputOutputFilenames },
+  { {"oalex", "help"}, CmdMode{}, showUsageAndAbort },
+  { {"oalex", "--help"}, CmdMode{}, showUsageAndAbort },
 };
 
 optional<CmdlineOptions>
