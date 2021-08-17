@@ -585,10 +585,11 @@ defaultLexopts() {
 Pattern to Rule compilation
 ---------------------------
 
-This block of code is almost all helpers of appendPatternRules (plural).
-Most functions here follow this convention:
+Objects of class PatternToRulesCompiler are not usually long-lived. They are
+used only for the compilation of a single input rule. Conventions followed by
+methods of this class:
 
-  * They append newly compiled rules into RulesWithLocs.
+  * They append newly compiled rules into RulesWithLocs rl_.
   * Each function may append one or more Rules.
   * They return the location of the entry point index for the newly created
     block of Rules.
@@ -605,10 +606,12 @@ we want a particular rule output to be available to the outermost OutputTmpl,
 we need to keep propagating it up.
 
 Every pattern produces a map, except for the literal string ones (e.g.
-appendWordOrError, appendLiteralOrError). They produce a string but that result
-is ignored when part of a Pattern object. They could produce maps too, or
-nothing at all, but right now they produce strings just so the functions can
-be used elsewhere in the frontend.
+appendWordOrError, appendLiteralOrError, appendRegexOrError). The Word and
+Literal variants produce a string but that result is ignored when part of a
+Pattern object. The Regex variant also returns a string, but the result is
+generally propagated up to the user. They could produce maps too, or nothing at
+all, but right now they produce strings just so the functions can be used
+elsewhere in the frontend.
 
 How to follow this convention for new rules types with subcomponents:
 If you want something to be preserved until an OutputTmpl catches it, make it a
@@ -617,111 +620,119 @@ propagated, while strings will be dropped either by OutputTmpl or
 ConcatFlatRule.
 */
 
-// Forward decl.
-ssize_t
-appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl);
+class PatternToRulesCompiler {
+  DiagsDest ctx_;      // These is where all errors and warnings get logged.
+  RulesWithLocs* rl_;  // This is where new rules get appended.
+  ssize_t processConcat(const PatternConcat& concatPatt);
+  ssize_t processOrList(const PatternOrList& orPatt);
+  ssize_t processOptional(const PatternOptional& optPatt);
+  ssize_t processIdent(const Ident& ident);
+  ssize_t processRepeat(const PatternRepeat& repPatt);
+  ssize_t processFold(const PatternFold& foldPatt);
+ public:
+  PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl) :
+    ctx_(ctx), rl_(&rl) {}
+  // Just to prevent accidental copying.
+  PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
+  ssize_t process(const Pattern& patt);
+};
 
 ssize_t
-appendPatternConcat(DiagsDest ctx, const PatternConcat& concatPatt,
-                    RulesWithLocs& rl) {
+PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
   ConcatFlatRule concatRule{ {} };
   for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
-      concatRule.comps.push_back({rl.ssize(), {}});
-      rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false, &oalexSkip});
+      concatRule.comps.push_back({rl_->ssize(), {}});
+      rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false, &oalexSkip});
     }
     const Pattern& child = concatPatt.parts[i];
-    ssize_t j = appendPatternRule(ctx, child, rl);
+    ssize_t j = this->process(child);
     concatRule.comps.push_back({j, {}});
   }
-  rl.appendAnonRule(std::move(concatRule));
-  return rl.ssize()-1;
+  rl_->appendAnonRule(std::move(concatRule));
+  return rl_->ssize()-1;
 }
 
 // TODO failed tests should output location. Or tests should have names.
 ssize_t
-appendPatternOrList(DiagsDest ctx, const PatternOrList& orPatt,
-                    RulesWithLocs& rl) {
+PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
   OrRule orRule{{}, /* flattenOnDemand */ true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
-    ssize_t j = appendPatternRule(ctx, child, rl);
-    if(i+1 != ssize(orPatt.parts)) j = rl.appendAnonRule(QuietMatch{j});
+    ssize_t j = this->process(child);
+    if(i+1 != ssize(orPatt.parts)) j = rl_->appendAnonRule(QuietMatch{j});
     orRule.comps.push_back({-1, j, passthroughTmpl});
   }
-  rl.appendAnonRule(std::move(orRule));
-  return rl.ssize()-1;
+  rl_->appendAnonRule(std::move(orRule));
+  return rl_->ssize()-1;
 }
 
 ssize_t
-appendPatternOptional(DiagsDest ctx, const PatternOptional& optPatt,
-                      RulesWithLocs& rl) {
+PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
   ssize_t i;
   OrRule orRule{{}, /* flattenOnDemand */ true};
 
-  i = appendPatternRule(ctx, optPatt.part, rl);
-  i = rl.appendAnonRule(QuietMatch{i});
+  i = this->process(optPatt.part);
+  i = rl_->appendAnonRule(QuietMatch{i});
   orRule.comps.push_back({-1, i, passthroughTmpl});
 
   // This branch always produces a Map on success.
-  i = rl.appendAnonRule(StringRule{{}});
+  i = rl_->appendAnonRule(StringRule{{}});
   orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
 
-  return rl.appendAnonRule(std::move(orRule));
+  return rl_->appendAnonRule(std::move(orRule));
 }
 
 ssize_t
-appendPatternIdent(const Ident& ident, RulesWithLocs& rl) {
-  ssize_t i = rl.findOrAppendIdent(ident);
-  return rl.appendAnonRule(ConcatFlatRule{{
+PatternToRulesCompiler::processIdent(const Ident& ident) {
+  ssize_t i = rl_->findOrAppendIdent(ident);
+  return rl_->appendAnonRule(ConcatFlatRule{{
       {i, ident.preserveCase()},
   }});
 }
 
 ssize_t
-appendPatternRepeat(DiagsDest ctx, const PatternRepeat& repPatt,
-                    RulesWithLocs& rl) {
-  ssize_t i = appendPatternRule(ctx, repPatt.part, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                            &oalexSkip});
-  return rl.appendAnonRule(LoopRule{{
+PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
+  ssize_t i = this->process(repPatt.part);
+  ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                              &oalexSkip});
+  return rl_->appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t
-appendPatternFold(DiagsDest ctx, const PatternFold& foldPatt,
-                  RulesWithLocs& rl) {
-  ssize_t pi = appendPatternRule(ctx, foldPatt.part, rl);
-  ssize_t gi = appendPatternRule(ctx, foldPatt.glue, rl);
-  ssize_t ski = rl.appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                            &oalexSkip});
-  return rl.appendAnonRule(LoopRule{{
+PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
+  ssize_t pi = this->process(foldPatt.part);
+  ssize_t gi = this->process(foldPatt.glue);
+  ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
+                                              &oalexSkip});
+  return rl_->appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
 }
 
 ssize_t
-appendPatternRule(DiagsDest ctx, const Pattern& patt, RulesWithLocs& rl) {
+PatternToRulesCompiler::process(const Pattern& patt) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
-    return appendWordOrError(rl, **word);
+    return appendWordOrError(*rl_, **word);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
-    return appendLiteralOrError(rl, **oper);
+    return appendLiteralOrError(*rl_, **oper);
   }else if(get_if_unique<NewlineChar>(&patt)) {
-    return appendLiteralOrError(rl, "\n");
+    return appendLiteralOrError(*rl_, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return appendPatternIdent(*ident, rl);
+    return processIdent(*ident);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
-    return appendPatternConcat(ctx, *concatPatt, rl);
+    return processConcat(*concatPatt);
   }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
-    return appendPatternOrList(ctx, *orPatt, rl);
+    return processOrList(*orPatt);
   }else if(auto* optPatt = get_if_unique<PatternOptional>(&patt)) {
-    return appendPatternOptional(ctx, *optPatt, rl);
+    return processOptional(*optPatt);
   }else if(auto* repPatt = get_if_unique<PatternRepeat>(&patt)) {
-    return appendPatternRepeat(ctx, *repPatt, rl);
+    return processRepeat(*repPatt);
   }else if(auto* foldPatt = get_if_unique<PatternFold>(&patt)) {
-    return appendPatternFold(ctx, *foldPatt, rl);
+    return processFold(*foldPatt);
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
@@ -918,7 +929,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
 
-  ssize_t newIndex = appendPatternRule(ctx, *patt, rl);
+  PatternToRulesCompiler comp{ctx, rl};
+  ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
   rl.deferred_assign(newIndex2, OutputTmpl{
