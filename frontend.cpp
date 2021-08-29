@@ -119,6 +119,7 @@ resemblesIdent(const ExprToken& x) {
 using LocPair = pair<ssize_t,ssize_t>;
 constexpr LocPair nrange{-1,-1};
 
+// TODO move this class to a different file so we can unit-test it.
 // This class keeps location information around while we are still building
 // up the vector<Rule>. This allows us to provide error messages such as
 // "variable used here but never defined". Once we are sure there is no error,
@@ -151,6 +152,12 @@ class RulesWithLocs {
      nrange() so that it is later filled in by findOrAppendIdent.
   */
   ssize_t defineIdent(DiagsDest ctx, const Ident& ident);
+
+  /* Tries to reserve a local name just so we can later detect a conflict
+     with a global name later. If a global name is already defined, this
+     function will immediately raise an error, but otherwise not do much else.
+  */
+  void reserveLocalName(DiagsDest ctx, const Ident& ident);
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
      Anonymous rules don't need usage location so far, since we never refer to
@@ -194,12 +201,23 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
   return this->ssize()-1;
 }
 
+void
+logLocalNamesakeError(DiagsDest ctx, const Ident& ident) {
+  Error(ctx, ident.stPos(), ident.enPos(),
+        format("Local variable name '{}' conflicts with a global name",
+               ident.preserveCase()));
+}
+
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
-    if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+    if(dynamic_cast<const ReservedRule*>(rules_[i].get())) {
+      logLocalNamesakeError(ctx, *name);
+      rules_[i] = make_unique<UnassignedRule>(ident);
+      return i;
+    }else if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
@@ -208,6 +226,22 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   rules_.push_back(make_unique<UnassignedRule>(ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
+}
+
+void
+RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
+  for(ssize_t i=0; i<this->ssize(); ++i) {
+    const Ident* name = rules_[i]->nameOrNull();
+    if(name == nullptr || ident != *name) continue;
+    if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+      rules_[i] = make_unique<ReservedRule>(ident);
+    }else if(!dynamic_cast<const ReservedRule*>(rules_[i].get())) {
+      logLocalNamesakeError(ctx, ident);
+      return;
+    }
+  }
+  rules_.push_back(make_unique<ReservedRule>(ident));
+  firstUseLocs_.push_back(nrange);
 }
 
 template <class X> ssize_t
@@ -962,18 +996,13 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
 
     const PatternToRuleBinding* local = findRuleLocalBinding(k, pattToRule);
     if(local != nullptr) {
+      rl.reserveLocalName(ctx, local->outTmplKey);
       ruleIdent = local->ruleName;
     }
     ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
   return rv;
-}
-
-bool
-isLocalId(const Ident& id, const vector<PatternToRuleBinding>& localDefs) {
-  for(auto& binding : localDefs) if(id == binding.outTmplKey) return true;
-  return false;
 }
 
 // Once we have extracted everything we need from InputDiags,
@@ -987,8 +1016,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    RulesWithLocs& rl) {
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
-  for(auto& [id, pp] : partPatterns) if(!isLocalId(id, pattToRule))
-    registerLocations(rl, id);
+  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
   optional<Pattern> patt =
     parsePattern(ctx, tokenizePattern(ctx, patt_string, partPatterns,
@@ -1362,7 +1390,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
       continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
-  rl.deferred_assign(orIndex, std::move(orRule));
+  if(orIndex != -1) rl.deferred_assign(orIndex, std::move(orRule));
 }
 
 // Checks second token just so it is not a BNF rule of the form

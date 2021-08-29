@@ -56,6 +56,19 @@ class UnassignedRule final : public Rule {
   std::string specifics_typename() const override { return "(unassigned)"; }
 };
 
+// This is a dummy rule that is meant to reserve a name for which no
+// rule should be defined. This is used as a mechanism detect conflicts between
+// a local name in a rule's `where` stanza and a global name.
+//
+// This is in contrast with UnassignedRule, where we do expect a rule
+// to be defined at some point in the file.
+class ReservedRule final : public Rule {
+ public:
+  ReservedRule() = default;
+  explicit ReservedRule(Ident name) : Rule(std::move(name)) {}
+  std::string specifics_typename() const override { return "ReservedRule"; }
+};
+
 // isTentativeTarget should be true if this rule is a target of either some:
 // * OrRule::comps[].lookidx in the containing RuleSet, or some
 // * QuietMatch::compidx in the containing RuleSet
@@ -273,6 +286,7 @@ class StringRule final : public Rule {
   Return types are either an ErrorValue or:
 
     * UnassignedRule: Doesn't return, not to be used in eval or codegen.
+    * ReservedRule: Doesn't return, not to be used in eval or codegen.
     * string, WordPreserving, RegexRule: Returns string.
     * SkipPoint: Something dummy (to be checked).
     * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.

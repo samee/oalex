@@ -77,6 +77,7 @@ class JsonTmpl {
   Tag tag() const { return tag_; }
   std::string_view tagName() const;
 
+  // TODO change this to a vector<JsonTmpl> that only has placeholders.
   using ConstPlaceholderMap
     = std::vector<std::pair<std::string, const JsonTmpl*>>;
   ConstPlaceholderMap allPlaceholders() const;

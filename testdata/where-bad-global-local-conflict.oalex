@@ -1,0 +1,14 @@
+# expected-error: Local variable name 'rhs' conflicts with a global name
+
+rule expr:
+  lhs = rhs
+outputs: {lhs, rhs}
+where:
+  lhs ~ ident
+  rhs ~ ident
+
+ident := /[a-zA-Z_]+/
+
+rule rhs:
+  -->
+outputs: { expr_type: "rhs" }
