@@ -1036,6 +1036,17 @@ hasEllipsis(const JsonTmpl& jstmpl) {
   }else Bug("Unknown JsonTmpl variant in hasEllipsis(): {}", jstmpl.tagName());
 }
 
+optional<JsonTmpl>
+parseRuleOutput(vector<ExprToken> linetoks, InputDiags& ctx) {
+  // TODO: See if this entire function can be absorbed into parseOutputBraces.
+  if(linetoks.size() < 2 || !isToken(linetoks[1], ":")) {
+    Error(ctx, enPos(linetoks[0]), "Expected ':' after 'outputs'");
+    return nullopt;
+  }
+
+  return parseOutputBraces<2>(std::move(linetoks), ctx);
+}
+
 // Checks second token just so it is not a BNF rule of the form
 // `rule :=`. We want to avoid requiring too many reserved keywords
 // if possible.
@@ -1067,12 +1078,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     return;
   }
 
-  if(linetoks.size() < 2 || !isToken(linetoks[1], ":")) {
-    Error(ctx, enPos(linetoks[0]), "Expected ':' after 'outputs'");
-    return;
-  }
-
-  optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks), ctx);
+  optional<JsonTmpl> jstmpl = parseRuleOutput(std::move(linetoks), ctx);
   if(!jstmpl.has_value()) return;
   appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
 }
