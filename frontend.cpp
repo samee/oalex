@@ -623,6 +623,7 @@ ConcatFlatRule.
 class PatternToRulesCompiler {
   DiagsDest ctx_;      // These is where all errors and warnings get logged.
   RulesWithLocs* rl_;  // This is where new rules get appended.
+  const vector<pair<Ident,ssize_t>>* p2rule_;  // Rule index for placeholders
   ssize_t processConcat(const PatternConcat& concatPatt);
   ssize_t processOrList(const PatternOrList& orPatt);
   ssize_t processOptional(const PatternOptional& optPatt);
@@ -630,8 +631,9 @@ class PatternToRulesCompiler {
   ssize_t processRepeat(const PatternRepeat& repPatt);
   ssize_t processFold(const PatternFold& foldPatt);
  public:
-  PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl) :
-    ctx_(ctx), rl_(&rl) {}
+  PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
+                         const vector<pair<Ident,ssize_t>>& p2rule) :
+    ctx_(ctx), rl_(&rl), p2rule_(&p2rule) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
   ssize_t process(const Pattern& patt);
@@ -686,9 +688,13 @@ PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
 
 ssize_t
 PatternToRulesCompiler::processIdent(const Ident& ident) {
-  ssize_t i = rl_->findOrAppendIdent(ident);
+  size_t i;
+  for(i=0; i<p2rule_->size(); ++i) if(ident == p2rule_->at(i).first) break;
+  if(i == p2rule_->size())
+    Bug("Ident map should already have an entry for '{}'",
+        ident.preserveCase());
   return rl_->appendAnonRule(ConcatFlatRule{{
-      {i, ident.preserveCase()},
+      {p2rule_->at(i).second, ident.preserveCase()},
   }});
 }
 
@@ -911,6 +917,25 @@ registerLocations(RulesWithLocs& rl, const Ident& id) {
   rl.findOrAppendIdent(id);
 }
 
+Ident
+identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
+  auto* p = jstmpl.getIfPlaceholder();
+  if(!p) Bug("Expected a Placeholder, got {}", jstmpl.prettyPrint());
+  return Ident::parse(ctx, WholeSegment{jstmpl.stPos, jstmpl.enPos, p->key});
+}
+
+vector<pair<Ident, ssize_t>>
+mapToRule(DiagsDest ctx, RulesWithLocs& rl,
+          const JsonTmpl::ConstPlaceholderMap& outputKeys) {
+  vector<pair<Ident, ssize_t>> rv;
+  for(auto& [k, kcontainer] : outputKeys) {
+    Ident outputIdent = identOf(ctx, *kcontainer);
+    ssize_t ruleIndex = rl.findOrAppendIdent(outputIdent);
+    rv.emplace_back(std::move(outputIdent), ruleIndex);
+  }
+  return rv;
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -928,8 +953,10 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(!patt.has_value()) return;
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
+  vector<pair<Ident, ssize_t>> pl2ruleMap
+    = mapToRule(ctx, rl, jstmpl.allPlaceholders());
 
-  PatternToRulesCompiler comp{ctx, rl};
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
   ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
