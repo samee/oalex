@@ -527,8 +527,8 @@ indent_of(const Input& input, const ExprToken& tok) {
 }
 
 bool
-goodIndent(DiagsDest ctx, const WholeSegment& indent1,
-           const WholeSegment& indent2) {
+requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
+                  const WholeSegment& indent2) {
   IndentCmp cmpres = indentCmp(*indent1, *indent2);
   if(cmpres == IndentCmp::bad) {
     Error(ctx, indent2,
@@ -536,7 +536,7 @@ goodIndent(DiagsDest ctx, const WholeSegment& indent1,
     return false;
   }
   else if(cmpres != IndentCmp::lt) {
-    Error(ctx, indent2, "Code block needs more indentation");
+    Error(ctx, indent2, format("{} needs more indentation", desc));
     return false;
   }
   else return true;
@@ -967,8 +967,7 @@ parseIndentedBlock(InputDiags& ctx, size_t& i, const WholeSegment& refIndent,
   if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
     // Consume input the next block even if it is not indented enough.
     rv = lexIndentedSource(ctx, i, **ind);
-    // TODO rename goodIndent -> requireGoodIndent to indicate error diags.
-    if(!goodIndent(ctx, refIndent, *ind)) return nullopt;
+    if(!requireGoodIndent(ctx, "Code block", refIndent, *ind)) return nullopt;
   }
   if(!rv.has_value())
     Error(ctx, i, format("No indented {} follows", blockName));
