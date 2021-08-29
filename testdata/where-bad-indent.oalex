@@ -1,0 +1,9 @@
+# expected-error: Local declaration needs more indentation
+
+# TODO: Produce fewer errors. It should try to distinguish between
+# unindented "a ~ b" or an "outputs:" leader, and skip accordingly.
+rule test:
+  Hello
+where:
+Hello ~ nothing
+outputs: {}

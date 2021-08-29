@@ -1,0 +1,12 @@
+# expected-error: Duplicate definition for placeholder 'a'
+
+int_value := /[0-9]+/
+
+rule simple_sum:
+  a + b
+where:
+  a ~ int_value
+  a ~ int_value
+outputs: {
+  a
+}

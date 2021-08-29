@@ -1,0 +1,7 @@
+# expected-error: Expected pattern name
+
+rule test:
+  Hello
+where:
+  "Hello" ~ test
+outputs: {}

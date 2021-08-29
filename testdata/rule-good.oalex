@@ -16,12 +16,15 @@ ident := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
 
 rule decl:
-  var ident = int_value;
-outputs: { ident, int_value }
+  var ident = rhs;
+outputs: { ident, rhs }
+where:
+  rhs ~ int_value
+
 
 example decl:
   var x = 5;
-outputs: { ident: "x", int_value: "5" }
+outputs: { ident: "x", rhs: "5" }
 
 example decl:
   var x = y;
@@ -42,3 +45,15 @@ outputs: { int_value, type: "literal-int" }
 example single_non_terminal:
   42
 outputs: { int_value: "42", type: "literal-int" }
+
+# See if we can reuse local names
+rule simple_sum:
+  lhs + rhs
+outputs: { lhs, rhs }
+where:
+  lhs ~ ident
+  rhs ~ ident
+
+example simple_sum:
+  a + b
+outputs: { lhs: "a", rhs: "b" }

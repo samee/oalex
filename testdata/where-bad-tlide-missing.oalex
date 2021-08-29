@@ -1,0 +1,6 @@
+# expected-error: Expected '~' after this
+rule test:
+  Hello
+where:
+  Hello World
+outputs: {}

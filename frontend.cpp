@@ -527,14 +527,21 @@ indent_of(const Input& input, const ExprToken& tok) {
 }
 
 bool
-requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
-                  const WholeSegment& indent2) {
-  IndentCmp cmpres = indentCmp(*indent1, *indent2);
+requireCompatIndent(IndentCmp cmpres, DiagsDest ctx,
+                    const WholeSegment& nextLineIndent) {
   if(cmpres == IndentCmp::bad) {
-    Error(ctx, indent2,
+    Error(ctx, nextLineIndent,
           "Bad mix of spaces and tabs compared to the previous line");
     return false;
   }
+  return true;
+}
+
+bool
+requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
+                  const WholeSegment& indent2) {
+  IndentCmp cmpres = indentCmp(*indent1, *indent2);
+  if(!requireCompatIndent(cmpres, ctx, indent2)) return false;
   else if(cmpres != IndentCmp::lt) {
     Error(ctx, indent2, format("{} needs more indentation", desc));
     return false;
@@ -917,6 +924,26 @@ registerLocations(RulesWithLocs& rl, const Ident& id) {
   rl.findOrAppendIdent(id);
 }
 
+// These are the usual entries in a `where:` stanza of a rule. An entry:
+//
+//   "patt" as var ~ lhs
+//
+// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
+struct PatternToRuleBinding {
+  PartPattern pp;
+  Ident outTmplKey;
+  Ident ruleName;
+};
+
+// Caller must already ensure no duplicate bindings for the same outTmplKey.
+const PatternToRuleBinding*
+findRuleLocalBinding(string_view outk,
+                     const vector<PatternToRuleBinding>& pattToRule) {
+  for(auto& binding : pattToRule) if(binding.outTmplKey.preserveCase() == outk)
+    return &binding;
+  return nullptr;
+}
+
 Ident
 identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
   auto* p = jstmpl.getIfPlaceholder();
@@ -926,26 +953,42 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
 
 vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
+          const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   vector<pair<Ident, ssize_t>> rv;
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
-    ssize_t ruleIndex = rl.findOrAppendIdent(outputIdent);
+    Ident ruleIdent = outputIdent;
+
+    const PatternToRuleBinding* local = findRuleLocalBinding(k, pattToRule);
+    if(local != nullptr) {
+      ruleIdent = local->ruleName;
+    }
+    ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
   return rv;
 }
 
+bool
+isLocalId(const Ident& id, const vector<PatternToRuleBinding>& localDefs) {
+  for(auto& binding : localDefs) if(id == binding.outTmplKey) return true;
+  return false;
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
+// Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
-                   GluedString patt_string, JsonTmpl jstmpl,
+                   GluedString patt_string,
+                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                    RulesWithLocs& rl) {
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
-  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
+  for(auto& [id, pp] : partPatterns) if(!isLocalId(id, pattToRule))
+    registerLocations(rl, id);
 
   optional<Pattern> patt =
     parsePattern(ctx, tokenizePattern(ctx, patt_string, partPatterns,
@@ -954,7 +997,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap
-    = mapToRule(ctx, rl, jstmpl.allPlaceholders());
+    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
 
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
   ssize_t newIndex = comp.process(*patt);
@@ -1076,6 +1119,63 @@ parseRuleOutput(vector<ExprToken> linetoks, InputDiags& ctx) {
   return parseOutputBraces<2>(std::move(linetoks), ctx);
 }
 
+bool
+requireUniqueBinding(const vector<PatternToRuleBinding>& collected,
+                     const PatternToRuleBinding& found, DiagsDest ctx) {
+  for(auto& c : collected) if(c.outTmplKey == found.outTmplKey) {
+    Error(ctx, found.outTmplKey.stPos(), found.outTmplKey.enPos(),
+          format("Duplicate definition for placeholder '{}'",
+                 found.outTmplKey.preserveCase()));
+    return false;
+  }
+  return true;
+}
+
+// On a bad error error, the caller should advance i to the next line that
+// matches leaderIndent. Such errors are indicated by an empty return vector.
+vector<PatternToRuleBinding>
+parseRuleLocalDecls(InputDiags& ctx, size_t& i,
+                    const WholeSegment& leaderIndent) {
+  size_t j = i;
+  vector<PatternToRuleBinding> rv;
+
+  vector<ExprToken> line = lexNextLine(ctx, j);
+  if(line.empty()) return rv;
+  WholeSegment lineIndent = indent_of(ctx.input, line[0]);
+  if(!requireGoodIndent(ctx, "Local declaration", leaderIndent, lineIndent))
+    return rv;
+  WholeSegment refIndent = lineIndent;
+  IndentCmp cmpres;
+  do {
+    i = j;
+    auto* lhs = get_if<WholeSegment>(&line[0]);
+    auto* rhs = (line.size() >= 3 ? get_if<WholeSegment>(&line[2]) : nullptr);
+    if(lhs == nullptr) Error(ctx, line[0], "Expected pattern name");
+    else if(line.size() < 2 || !isToken(line[1], "~"))
+      Error(ctx, enPos(line[0]), "Expected '~' after this");
+    else if(rhs == nullptr) Error(ctx, enPos(line[2]), "Expected rule name");
+    else {
+      PatternToRuleBinding binding{
+        .pp{GluedString{*lhs}},
+        .outTmplKey{Ident::parse(ctx, *lhs)},
+        .ruleName{Ident::parse(ctx, *rhs)},
+      };
+      if(requireUniqueBinding(rv, binding, ctx))
+        rv.push_back(std::move(binding));
+    }
+
+    line = lexNextLine(ctx, j);
+    if(line.empty()) break;
+    lineIndent = indent_of(ctx.input, line[0]);
+    cmpres = indentCmp(*refIndent, *lineIndent);
+    if(cmpres == IndentCmp::lt)
+      Error(ctx, stPos(line[0]), "This line is indented too deep");
+  }while(cmpres == IndentCmp::eq || cmpres == IndentCmp::lt);
+  if(!requireCompatIndent(cmpres, ctx, lineIndent)) return {};
+
+  return rv;
+}
+
 // Checks second token just so it is not a BNF rule of the form
 // `rule :=`. We want to avoid requiring too many reserved keywords
 // if possible.
@@ -1096,9 +1196,11 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
   const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
-  bool sawOutputsKw = false;
+  bool sawOutputsKw = false, sawWhereKw = false;
   optional<JsonTmpl> jstmpl;
+  vector<PatternToRuleBinding> local_decls;
 
+  // Consume next line for the outputs stanza.
   while(true) {
     size_t oldi = i;
     auto toks = lexNextLine(ctx, i);
@@ -1108,6 +1210,12 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     else if(**leader == "outputs") {
       if(skipStanzaIfSeen(sawOutputsKw, *leader, ctx, i)) continue;
       jstmpl = parseRuleOutput(std::move(toks), ctx);
+    }else if(**leader == "where") {
+      if(skipStanzaIfSeen(sawWhereKw, *leader, ctx, i)) continue;
+      WholeSegment leaderIndent = indent_of(ctx.input, toks[0]);
+      auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
+      if(!new_local_decls.empty()) local_decls = std::move(new_local_decls);
+      else i = skipToIndentLe(ctx, i, *leaderIndent);
     }else { i = oldi; break; }
   }
 
@@ -1118,8 +1226,8 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
 
   if(!jstmpl.has_value()) return;
-  appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
-}
+  appendPatternRules(ctx, ident, std::move(*patt), std::move(local_decls),
+                     std::move(*jstmpl), rl); }
 
 // For error-locating, it assumes !v.empty().
 Ident
