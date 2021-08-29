@@ -1,0 +1,5 @@
+# expected-error: Only one `outputs` stanza allowed per rule
+rule test:
+  Hello world
+outputs: { x: "y" }
+outputs: { x: "z" }

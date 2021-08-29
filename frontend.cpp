@@ -1036,6 +1036,35 @@ hasEllipsis(const JsonTmpl& jstmpl) {
   }else Bug("Unknown JsonTmpl variant in hasEllipsis(): {}", jstmpl.tagName());
 }
 
+// Like all skippers, can return npos if comment is unfinished.
+size_t
+skipToIndentLe(InputDiags& ctx, size_t i, string_view refIndent) {
+  const Input& input = ctx.input;
+  while(true) {
+    while(input.sizeGt(i) && input.bol(i) != i) ++i;
+    i = oalexWSkip.acrossLines(input, i);
+    if(!input.sizeGt(i)) return i;
+    size_t bol = input.bol(i);
+    IndentCmp cmpres = indentCmp(input.substr(bol, i-bol), refIndent);
+    if(cmpres == IndentCmp::lt || cmpres == IndentCmp::eq) return bol;
+  }
+}
+
+bool
+skipStanzaIfSeen(bool& done_indicator, const WholeSegment& stanzaLeader,
+                 InputDiags& ctx, size_t& i) {
+  if(done_indicator) {
+    WholeSegment leaderIndent = indent_of(ctx.input, stanzaLeader);
+    i = skipToIndentLe(ctx, stanzaLeader.enPos, *leaderIndent);
+    Error(ctx, stanzaLeader,
+        format("Only one `{}` stanza allowed per rule", *stanzaLeader));
+    return true;
+  }else {
+    done_indicator = true;
+    return false;
+  }
+}
+
 optional<JsonTmpl>
 parseRuleOutput(vector<ExprToken> linetoks, InputDiags& ctx) {
   // TODO: See if this entire function can be absorbed into parseOutputBraces.
@@ -1067,18 +1096,27 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
   const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
+  bool sawOutputsKw = false;
+  optional<JsonTmpl> jstmpl;
 
-  // Consume next line for the outputs stanza.
-  if(auto toks = lexNextLine(ctx, i);
-     !toks.empty() && matchesTokens(toks, {"outputs"}))
-    linetoks = std::move(toks);
-  else {
+  while(true) {
+    size_t oldi = i;
+    auto toks = lexNextLine(ctx, i);
+    if(toks.empty()) break;
+    auto* leader = get_if<WholeSegment>(&toks[0]);
+    if(!leader) { i = oldi; break; }
+    else if(**leader == "outputs") {
+      if(skipStanzaIfSeen(sawOutputsKw, *leader, ctx, i)) continue;
+      jstmpl = parseRuleOutput(std::move(toks), ctx);
+    }else { i = oldi; break; }
+  }
+
+  if(!sawOutputsKw) {
     Error(ctx, i, format("outputs stanza missing in rule {}",
                          ident.preserveCase()));
     return;
   }
 
-  optional<JsonTmpl> jstmpl = parseRuleOutput(std::move(linetoks), ctx);
   if(!jstmpl.has_value()) return;
   appendPatternRules(ctx, ident, std::move(*patt), std::move(*jstmpl), rl);
 }
