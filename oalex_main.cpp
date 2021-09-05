@@ -286,6 +286,19 @@ auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   }
 }
 
+// It's a heuristic for the first rule as the user sees it,
+// not the first in how we arranged it in RuleSet.
+ssize_t firstRule(const RuleSet& rs) {
+  size_t idpos = size_t(-1);
+  ssize_t rv = -1;
+  for(size_t i=0; i<rs.rules.size(); ++i)
+    if(dynamic_cast<const ReservedRule*>(rs.rules[i].get()) == nullptr) {
+      const Ident* name = rs.rules[i]->nameOrNull();
+      if(name && name->stPos() > 0 && name->stPos() < idpos) rv = i;
+    }
+  return rv;
+}
+
 class StdinStream : public oalex::InputStream {
  public:
   int16_t getch() override
@@ -296,7 +309,12 @@ JsonLoc processStdin(const RuleSet& rs) {
   StdinStream ss;
   InputDiags ctx(Input{&ss});
   ssize_t pos = 0;
-  JsonLoc jsloc = eval(ctx, pos, rs, 0);
+  ssize_t rule_i = firstRule(rs);
+  if(rule_i == -1) {
+    fprintf(stderr, "No rule defined");
+    return JsonLoc::ErrorValue{};
+  }
+  JsonLoc jsloc = eval(ctx, pos, rs, rule_i);
   if(!jsloc.holdsErrorValue()) return JsonLoc::Map{{"msg", std::move(jsloc)}};
   for(const auto& d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
