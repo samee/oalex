@@ -315,7 +315,7 @@ JsonLoc processStdin(const RuleSet& rs) {
     return JsonLoc::ErrorValue{};
   }
   JsonLoc jsloc = eval(ctx, pos, rs, rule_i);
-  if(!jsloc.holdsErrorValue()) return JsonLoc::Map{{"msg", std::move(jsloc)}};
+  if(!jsloc.holdsErrorValue()) return jsloc;
   for(const auto& d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
 }
