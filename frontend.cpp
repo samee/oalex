@@ -1016,17 +1016,18 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    RulesWithLocs& rl) {
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
-  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
 
-  optional<Pattern> patt =
-    parsePattern(ctx, tokenizePattern(ctx, patt_string, partPatterns,
-                                      defaultLexopts()));
+  auto toks = tokenizePattern(ctx, patt_string, partPatterns, defaultLexopts());
+  if(!patt_string.empty() && toks.empty()) return;
+  optional<Pattern> patt = parsePattern(ctx, std::move(toks));
   if(!patt.has_value()) return;
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
 
+  // Register locations late to avoid spurious 'used but undefined' messages.
+  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
   ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
