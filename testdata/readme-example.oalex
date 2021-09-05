@@ -1,0 +1,34 @@
+# This is a copy of the example in the project readme.
+
+rule my_function_declaration:
+
+  fn fname(type param, type param, ... , type param)
+
+# Identify various parts of the pattern above
+where:            # Read as:
+  fname ~ ident   #   "fname _matches_ ident",
+  type  ~ ident   #   "type _matches_ ident", and
+  param ~ ident   #   "param _matches_ ident"
+
+# Lay out the output fields as desired
+outputs: {
+  name      : fname,
+  type_list : [type, ...],
+  param_list: [param, ...],
+}
+
+# Finally, define what `ident` is, since we used it
+ident := /[a-zA-Z_]+/
+
+
+# Examples like these are tested with `oalex test readme-example-good.oalex`.
+# The command is quiet on success, but if you tweak the expected
+# output below it will complain of a mismatch.
+
+example my_function_declaration:
+  fn connect(int x, string s)
+outputs: {
+  name: "connect",
+  type_list: [ "int", "string" ],
+  param_list: [ "x", "s" ],
+}
