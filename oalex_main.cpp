@@ -275,9 +275,15 @@ auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
   InputDiags ctx{Input{*s}};
-  auto rv = parseOalexSource(ctx);
-  diagsToStderr(ctx.diags);
-  return rv;
+  try {
+    auto rv = parseOalexSource(ctx);
+    diagsToStderr(ctx.diags);
+    return rv;
+  }catch(...) {
+    // This branch is mostly for BugEx(), but useful in all exceptions.
+    diagsToStderr(ctx.diags);
+    throw;
+  }
 }
 
 class StdinStream : public oalex::InputStream {
