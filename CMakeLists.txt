@@ -27,7 +27,7 @@ enable_testing()
 add_subdirectory(submodules/fmt)
 include_directories(submodules/fmt/include)
 
-add_library(oalex-bin-lib STATIC codegen.cpp ident.cpp jsontmpl.cpp
+add_library(oalex-bin-lib STATIC codegen.cpp compiler.cpp ident.cpp jsontmpl.cpp
                                  jsontmpl_parsers.cpp lexer.cpp
                                  pattern.cpp regex_io.cpp)
 target_link_libraries(oalex-bin-lib oalex)
