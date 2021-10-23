@@ -32,6 +32,67 @@ using std::vector;
 
 namespace oalex {
 
+namespace {
+
+/*
+Pattern to Rule compilation
+---------------------------
+
+Objects of class PatternToRulesCompiler are not usually long-lived. They are
+used only for the compilation of a single input rule. Conventions followed by
+methods of this class:
+
+  * They append newly compiled rules into RulesWithLocs rl_.
+  * Each function may append one or more Rules.
+  * They return the location of the entry point index for the newly created
+    block of Rules.
+
+The result of pattern compilation is some rule that produces one of two things:
+
+  * The entire Pattern is just one Ident and nothing else.
+  * All the identifiers in the pattern is to be gathered up into a single
+    flat JsonLoc::Map object (e.g. by using ConcatFlatRule).
+
+These identifiers are then assembled by an OutputTmpl object specified outside
+the Pattern object. The syntax for that varies. The impliciation is that if
+we want a particular rule output to be available to the outermost OutputTmpl,
+we need to keep propagating it up.
+
+Every pattern produces a map, except for the literal string ones (e.g.
+appendWordOrError, appendLiteralOrError, appendRegexOrError). The Word and
+Literal variants produce a string but that result is ignored when part of a
+Pattern object. The Regex variant also returns a string, but the result is
+generally propagated up to the user. They could produce maps too, or nothing at
+all, but right now they produce strings just so the functions can be used
+elsewhere in the frontend.
+
+How to follow this convention for new rules types with subcomponents:
+If you want something to be preserved until an OutputTmpl catches it, make it a
+named field in a map. You can safely use passthroughTmpl: map fields will be
+propagated, while strings will be dropped either by OutputTmpl or
+ConcatFlatRule.
+*/
+
+class PatternToRulesCompiler {
+  DiagsDest ctx_;      // These is where all errors and warnings get logged.
+  RulesWithLocs* rl_;  // This is where new rules get appended.
+  // Rule index for placeholders
+  const vector<pair<Ident,ssize_t>>* p2rule_;
+  ssize_t processConcat(const PatternConcat& concatPatt);
+  ssize_t processOrList(const PatternOrList& orPatt);
+  ssize_t processOptional(const PatternOptional& optPatt);
+  ssize_t processIdent(const Ident& ident);
+  ssize_t processRepeat(const PatternRepeat& repPatt);
+  ssize_t processFold(const PatternFold& foldPatt);
+ public:
+  PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
+                         const vector<pair<Ident,ssize_t>>& p2rule) :
+    ctx_(ctx), rl_(&rl), p2rule_(&p2rule) {}
+  // Just to prevent accidental copying.
+  PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
+  ssize_t process(const Pattern& patt);
+};
+
 ssize_t
 PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
   ConcatFlatRule concatRule{ {} };
@@ -143,6 +204,8 @@ logLocalNamesakeError(DiagsDest ctx, const Ident& ident) {
         format("Local variable name '{}' conflicts with a global name",
                ident.preserveCase()));
 }
+
+}  // namespace
 
 Rule& RulesWithLocs::operator[](ssize_t i) {
   if(rules_[i]) return *rules_[i];
@@ -308,10 +371,12 @@ appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   return newIndex + 1;
 }
 
+// ---------------------- Start appendPatternRules() --------------------------
+
 // Looks for [p, ...] for some `JsonTmpl::Placeholder p`. If found, returns
 // &p, which is guaranteed to point to a JsonTmpl::Placeholder. If not, returns
 // nullptr. Produces error only for [p, ..., "extra items"]
-const JsonTmpl*
+static const JsonTmpl*
 simpleListPlaceholder(DiagsDest ctx, const JsonTmpl& jstmpl) {
   const JsonTmpl::Vector* vec = jstmpl.getIfVector();
   if(!vec || vec->size() < 2 || !vec->at(1).holdsEllipsis()) return nullptr;
@@ -326,7 +391,7 @@ simpleListPlaceholder(DiagsDest ctx, const JsonTmpl& jstmpl) {
 
 // Return false means there were uncleaned ellipsis left in.
 // TODO generalize this to accept interlaced outputs.
-bool
+static bool
 desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
                                  vector<WholeSegment>& listNames) {
   if(const JsonTmpl* p = simpleListPlaceholder(ctx, jstmpl)) {
@@ -357,7 +422,7 @@ desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
 // continue compilation. Modifies jstmpl in-place to convert any
 // `[p, ...]` to just `p`. Returns all the converted placeholders
 // in an array, so caller can figure out which placeholders were converted.
-vector<WholeSegment>
+static vector<WholeSegment>
 desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
   vector<WholeSegment> rv;
   if(!desugarEllipsisPlaceholdersRecur(ctx, jstmpl, rv)) {
@@ -373,7 +438,7 @@ desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
 }
 
 // We can later add where-stanza arguments for extracting partPatterns
-map<Ident,PartPattern>
+static map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
   if(jstmpl.holdsVector())
     Unimplemented("Directly outputting list not encased in a map");
@@ -394,7 +459,7 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
 // are in present listNames and, conversely, if Ident Patterns not in those
 // constructs are absent in listNames. `repeat` indicates if we are currently
 // inside a fold or repeat pattern.
-bool
+static bool
 checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
                       const Pattern& patt, bool repeat) {
   if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
@@ -432,7 +497,7 @@ checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
     Bug("Unknown pattern index in checkPlaceholderTypes() {}", patt.index());
 }
 
-bool
+static bool
 checkMultipleTmplPartsRecur(DiagsDest ctx,
                             vector<pair<string, int>>& counts,
                             const Pattern& patt) {
@@ -468,7 +533,7 @@ checkMultipleTmplPartsRecur(DiagsDest ctx,
 // Dev-note: we do intend to allow Pattern Idents that do *not* appear in
 // the output template. While such Idents cannot be represented in the input
 // syntax today, it will become possible later.
-bool
+static bool
 checkMultipleTmplParts(DiagsDest ctx, const JsonTmpl::ConstPlaceholderMap& m,
                        const Pattern& patt) {
   vector<pair<string, int>> counts;
@@ -476,7 +541,7 @@ checkMultipleTmplParts(DiagsDest ctx, const JsonTmpl::ConstPlaceholderMap& m,
   return checkMultipleTmplPartsRecur(ctx, counts, patt);
 }
 
-Ident
+static Ident
 identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
   auto* p = jstmpl.getIfPlaceholder();
   if(!p) Bug("Expected a Placeholder, got {}", jstmpl.prettyPrint());
@@ -484,7 +549,7 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
 }
 
 // Caller must already ensure no duplicate bindings for the same outTmplKey.
-const PatternToRuleBinding*
+static const PatternToRuleBinding*
 findRuleLocalBinding(string_view outk,
                      const vector<PatternToRuleBinding>& pattToRule) {
   for(auto& binding : pattToRule) if(binding.outTmplKey.preserveCase() == outk)
@@ -492,7 +557,7 @@ findRuleLocalBinding(string_view outk,
   return nullptr;
 }
 
-vector<pair<Ident, ssize_t>>
+static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
@@ -512,7 +577,7 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   return rv;
 }
 
-void
+static void
 registerLocations(RulesWithLocs& rl, const Ident& id) {
   rl.findOrAppendIdent(id);
 }
