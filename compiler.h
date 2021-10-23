@@ -95,6 +95,17 @@ class RulesWithLocs {
   std::vector<LocPair> firstUseLocs_;
 };
 
+// These are the usual entries in a `where:` stanza of a rule. An entry:
+//
+//   "patt" as var ~ lhs
+//
+// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
+struct PatternToRuleBinding {
+  PartPattern pp;
+  Ident outTmplKey;
+  Ident ruleName;
+};
+
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 		     std::string_view literal);
@@ -107,6 +118,12 @@ assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    std::string errmsg, std::unique_ptr<const Regex> regex);
 ssize_t
 appendRegexOrError(RulesWithLocs& rl, std::unique_ptr<const Regex> regex);
+
+void
+appendPatternRules(DiagsDest ctx, const Ident& ident,
+                   lex::GluedString patt_string, const LexDirective& lexOpts,
+                   std::vector<PatternToRuleBinding> pattToRule,
+                   JsonTmpl jstmpl, RulesWithLocs& rl);
 
 /*
 Pattern to Rule compilation

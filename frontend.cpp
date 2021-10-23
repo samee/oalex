@@ -15,7 +15,6 @@
 #include "frontend.h"
 
 #include <algorithm>
-#include <map>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -63,10 +62,8 @@ using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using std::get_if;
 using std::make_unique;
-using std::map;
 using std::nullopt;
 using std::optional;
-using std::pair;
 using std::sort;
 using std::string;
 using std::string_view;
@@ -409,260 +406,6 @@ defaultLexopts() {
   return *var;
 }
 
-// Looks for [p, ...] for some `JsonTmpl::Placeholder p`. If found, returns
-// &p, which is guaranteed to point to a JsonTmpl::Placeholder. If not, returns
-// nullptr. Produces error only for [p, ..., "extra items"]
-const JsonTmpl*
-simpleListPlaceholder(DiagsDest ctx, const JsonTmpl& jstmpl) {
-  const JsonTmpl::Vector* vec = jstmpl.getIfVector();
-  if(!vec || vec->size() < 2 || !vec->at(1).holdsEllipsis()) return nullptr;
-  if(vec->at(0).holdsPlaceholder()) {
-    if(vec->size() > 2)
-      Error(ctx, vec->at(2).stPos, "This list should have ended here");
-    // Return even if size() > 2, just ignore the other elements.
-    return &(*vec)[0];
-  }
-  return nullptr;
-}
-
-// Return false means there were uncleaned ellipsis left in.
-// TODO generalize this to accept interlaced outputs.
-bool
-desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
-                                 vector<WholeSegment>& listNames) {
-  if(const JsonTmpl* p = simpleListPlaceholder(ctx, jstmpl)) {
-    listNames.emplace_back(p->stPos, p->enPos, p->getIfPlaceholder()->key);
-    jstmpl = *p;
-    return true;
-  }
-  if(jstmpl.holdsEllipsis()) {
-    Error(ctx, jstmpl.stPos, jstmpl.enPos, "Ellipsis out of place");
-    return false;
-  }
-  if(jstmpl.holdsString() || jstmpl.holdsPlaceholder()) return true;
-  bool rv = true;
-  if(auto* v = jstmpl.getIfVector()) {
-    for(auto& elt : *v)
-      if(!desugarEllipsisPlaceholdersRecur(ctx, elt, listNames))
-        rv = false;
-  }else if(auto* m = jstmpl.getIfMap()) {
-    for(auto& [k,v] : *m)
-      if(!desugarEllipsisPlaceholdersRecur(ctx, v, listNames))
-        rv = false;
-  }else Bug("Unknown JsonTmpl variant in desugarEllipsis {}", jstmpl.tagName());
-  return rv;
-}
-
-// If any ellipsis is found out of place, the whole tmpl is cleared empty
-// and an error is logged. The idea is that we should still be able to
-// continue compilation. Modifies jstmpl in-place to convert any
-// `[p, ...]` to just `p`. Returns all the converted placeholders
-// in an array, so caller can figure out which placeholders were converted.
-vector<WholeSegment>
-desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
-  vector<WholeSegment> rv;
-  if(!desugarEllipsisPlaceholdersRecur(ctx, jstmpl, rv)) {
-    jstmpl = JsonTmpl::Map{};
-    rv.clear();
-  }else {
-    sort(rv.begin(), rv.end(), [](auto& a, auto& b) { return *a < *b; });
-    rv.erase(unique(rv.begin(), rv.end(),
-                    [](auto& a, auto& b) { return *a == *b; }),
-             rv.end());
-  }
-  return rv;
-}
-
-// Checks if all Ident Patterns nested in PatternRepeat or PatternFold
-// are in present listNames and, conversely, if Ident Patterns not in those
-// constructs are absent in listNames. `repeat` indicates if we are currently
-// inside a fold or repeat pattern.
-bool
-checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
-                      const Pattern& patt, bool repeat) {
-  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
-  else if(auto* id = get_if_unique<Ident>(&patt)) {
-    bool rv = !repeat;
-    for(auto& n : listNames) if(*n == id->preserveCase()) {
-      rv = repeat;
-      break;
-    }
-    if(!rv) {
-      string msg = format(repeat ? "Should be list-expanded: [{}, ...]"
-                                 : "`{}` is a single element",
-                          id->preserveCase());
-      Error(ctx, id->stPos(), id->enPos(), msg);
-    }
-    return rv;
-  }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
-    for(auto& elt : seq->parts)
-      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
-        return false;
-    return true;
-  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
-    for(auto& elt : ors->parts)
-      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
-        return false;
-    return true;
-  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, opt->part, repeat);
-  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, rep->part, true);
-  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, fold->part, true) &&
-           checkPlaceholderTypes(ctx, listNames, fold->glue, true);
-  }else
-    Bug("Unknown pattern index in checkPlaceholderTypes() {}", patt.index());
-}
-
-bool
-checkMultipleTmplPartsRecur(DiagsDest ctx,
-                            vector<pair<string, int>>& counts,
-                            const Pattern& patt) {
-  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
-  else if(auto* id = get_if_unique<Ident>(&patt)) {
-    for(auto& [k, count] : counts) if(k == id->preserveCase() && ++count > 1) {
-      Error(ctx, id->stPos(), id->enPos(),
-        format("Output part '{}' appears multiple times in the pattern", k));
-      return false;
-    }
-    return true;
-  }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
-    for(auto& elt : seq->parts)
-      if(!checkMultipleTmplPartsRecur(ctx, counts, elt))
-        return false;
-    return true;
-  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
-    for(auto& elt : ors->parts)
-      if(!checkMultipleTmplPartsRecur(ctx, counts, elt))
-        return false;
-    return true;
-  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, opt->part);
-  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, rep->part);
-  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, fold->part) &&
-           checkMultipleTmplPartsRecur(ctx, counts, fold->glue);
-  }else
-    Bug("Unknown pattern index in checkMultipleTmplParts() {}", patt.index());
-}
-
-// Dev-note: we do intend to allow Pattern Idents that do *not* appear in
-// the output template. While such Idents cannot be represented in the input
-// syntax today, it will become possible later.
-bool
-checkMultipleTmplParts(DiagsDest ctx, const JsonTmpl::ConstPlaceholderMap& m,
-                       const Pattern& patt) {
-  vector<pair<string, int>> counts;
-  for(auto& [k,v] : m) counts.emplace_back(k, 0);
-  return checkMultipleTmplPartsRecur(ctx, counts, patt);
-}
-
-// We can later add where-stanza arguments for extracting partPatterns
-map<Ident,PartPattern>
-makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
-  if(jstmpl.holdsVector())
-    Unimplemented("Directly outputting list not encased in a map");
-  const JsonTmpl::Map* jstmplmap = jstmpl.getIfMap();
-  if(jstmplmap == nullptr)
-    Bug("parseJsonTmplFromBracketGroup() returned something strange");
-
-  map<Ident, PartPattern> rv;
-  for(const auto& [p, j] : jstmpl.allPlaceholders()) {
-    WholeSegment seg(j->stPos, j->enPos, p);
-    Ident id = Ident::parse(ctx, seg);
-    if(id) rv.insert({id, GluedString(std::move(seg))});
-  }
-  return rv;
-}
-
-void
-registerLocations(RulesWithLocs& rl, const Ident& id) {
-  rl.findOrAppendIdent(id);
-}
-
-// These are the usual entries in a `where:` stanza of a rule. An entry:
-//
-//   "patt" as var ~ lhs
-//
-// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
-struct PatternToRuleBinding {
-  PartPattern pp;
-  Ident outTmplKey;
-  Ident ruleName;
-};
-
-// Caller must already ensure no duplicate bindings for the same outTmplKey.
-const PatternToRuleBinding*
-findRuleLocalBinding(string_view outk,
-                     const vector<PatternToRuleBinding>& pattToRule) {
-  for(auto& binding : pattToRule) if(binding.outTmplKey.preserveCase() == outk)
-    return &binding;
-  return nullptr;
-}
-
-Ident
-identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
-  auto* p = jstmpl.getIfPlaceholder();
-  if(!p) Bug("Expected a Placeholder, got {}", jstmpl.prettyPrint());
-  return Ident::parse(ctx, WholeSegment{jstmpl.stPos, jstmpl.enPos, p->key});
-}
-
-vector<pair<Ident, ssize_t>>
-mapToRule(DiagsDest ctx, RulesWithLocs& rl,
-          const vector<PatternToRuleBinding>& pattToRule,
-          const JsonTmpl::ConstPlaceholderMap& outputKeys) {
-  vector<pair<Ident, ssize_t>> rv;
-  for(auto& [k, kcontainer] : outputKeys) {
-    Ident outputIdent = identOf(ctx, *kcontainer);
-    Ident ruleIdent = outputIdent;
-
-    const PatternToRuleBinding* local = findRuleLocalBinding(k, pattToRule);
-    if(local != nullptr) {
-      rl.reserveLocalName(ctx, local->outTmplKey);
-      ruleIdent = local->ruleName;
-    }
-    ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
-    rv.emplace_back(std::move(outputIdent), ruleIndex);
-  }
-  return rv;
-}
-
-// Once we have extracted everything we need from InputDiags,
-// this is where we compile the extracted string fragments into a rule.
-// InputDiags is still used as a destination for error messages.
-// Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
-void
-appendPatternRules(DiagsDest ctx, const Ident& ident,
-                   GluedString patt_string,
-                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-                   RulesWithLocs& rl) {
-  vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
-
-  auto toks = tokenizePattern(ctx, patt_string, partPatterns, defaultLexopts());
-  if(!patt_string.empty() && toks.empty()) return;
-  optional<Pattern> patt = parsePattern(ctx, std::move(toks));
-  if(!patt.has_value()) return;
-  if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
-  if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
-  vector<pair<Ident, ssize_t>> pl2ruleMap
-    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-
-  // Register locations late to avoid spurious 'used but undefined' messages.
-  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
-  ssize_t newIndex = comp.process(*patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
-  if(newIndex2 == -1) return;
-  rl.deferred_assign(newIndex2, OutputTmpl{
-      /* childidx */ newIndex,
-      /* childName */ "",
-      /* outputTmpl */ std::move(jstmpl)
-  });
-}
-
 // ---------- End of Pattern to Rule compilation ----------
 
 // Assumes colonPos > 0, since the error message
@@ -879,8 +622,9 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
 
   if(!jstmpl.has_value()) return;
-  appendPatternRules(ctx, ident, std::move(*patt), std::move(local_decls),
-                     std::move(*jstmpl), rl); }
+  appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
+                     std::move(local_decls), std::move(*jstmpl), rl);
+}
 
 // For error-locating, it assumes !v.empty().
 Ident
