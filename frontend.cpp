@@ -268,6 +268,7 @@ parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
 }
 
 // Resets RulesWithLoc back to initial size unless disarm() is called.
+// Not meant for any complicated rewinding.
 class RuleRewinder {
  public:
   explicit RuleRewinder(RulesWithLocs& rl)
