@@ -375,9 +375,9 @@ appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
 
 void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                   string errmsg, RegexPattern regex) {
+                   string errmsg, unique_ptr<const Regex> regex) {
   rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.appendAnonRule(RegexRule{std::move(regex.patt)});
+  rl.appendAnonRule(RegexRule{std::move(regex)});
 }
 
 ssize_t
@@ -515,7 +515,8 @@ parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
     string errmsg = format("Expected {}", ident.preserveCase());
-    assignRegexOrError(rl, ruleIndex, std::move(errmsg), std::move(*regex));
+    assignRegexOrError(rl, ruleIndex, std::move(errmsg),
+                       std::move(regex->patt));
     rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
