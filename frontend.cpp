@@ -171,7 +171,7 @@ class RulesWithLocs {
   template <class X> ssize_t appendAnonRule(X x);
 
   /* For assigning to a rule after they have already been named */
-  template <class X> auto deferred_assign(ssize_t idx, X x);
+  template <class X> void deferred_assign(ssize_t idx, X x);
 
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
@@ -281,8 +281,8 @@ RulesWithLocs::releaseRules() {
   return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
-template <class X>
-auto RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+template <class X> void
+RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
      !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
