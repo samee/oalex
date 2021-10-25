@@ -88,6 +88,13 @@ void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   Bug("{} had unexpected errors", testName);
 }
 
+void assertWhatHasSubstr(string_view msg, const std::exception& ex,
+                         string_view expected_what) {
+  if(string_view(ex.what()).find(expected_what) == string_view::npos)
+    Bug("Exception in {} didn't have the expected what(), found \"{}\"",
+        msg, ex.what());
+}
+
 class GetFromString : public InputStream {
   std::string src;
   size_t i=0;

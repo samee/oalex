@@ -214,6 +214,7 @@ Rule& RulesWithLocs::operator[](ssize_t i) {
 
 ssize_t
 RulesWithLocs::findOrAppendIdent(const Ident& id) {
+  if(!id) Bug("findOrAppendIdent() invoked with empty Ident");
   LocPair thisPos{id.stPos(), id.enPos()};
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();

@@ -62,6 +62,9 @@ void assertHasDiagWithSubstrAt(std::string_view testName,
 void assertEmptyDiags(std::string_view testName,
                       const std::vector<oalex::Diag>& diags);
 
+void assertWhatHasSubstr(std::string_view msg, const std::exception& ex,
+                         std::string_view expected_what);
+
 // Often, the cb parameter of assertProducesDiags() has an extra return value
 // that we don't care about in assertProducesDiag(). Using a macro on the
 // caller-side (as opposed to a template here) lets us use vanilla function
