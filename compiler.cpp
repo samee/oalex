@@ -232,17 +232,18 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
-    if(dynamic_cast<const ReservedRule*>(rules_[i].get())) {
-      logLocalNamesakeError(ctx, *name);
-      rules_[i] = make_unique<UnassignedRule>(ident);
+    bool isreserved = dynamic_cast<const ReservedRule*>(rules_[i].get());
+    if(isreserved) logLocalNamesakeError(ctx, *name);
+    if(isreserved || dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+      rules_[i] = make_unique<DefinitionInProgress>(ident);
       return i;
-    }else if(!dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+    }else {
       Error(ctx, ident.stPos(), ident.enPos(),
             format("'{}' has multiple definitions", ident.preserveCase()));
       return -1;
-    }else return i;
+    }
   }
-  rules_.push_back(make_unique<UnassignedRule>(ident));
+  rules_.push_back(make_unique<DefinitionInProgress>(ident));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
@@ -270,7 +271,6 @@ RulesWithLocs::appendAnonRule(X x) {
   return rules_.size()-1;
 }
 
-template ssize_t RulesWithLocs::appendAnonRule(UnassignedRule);
 template ssize_t RulesWithLocs::appendAnonRule(ReservedRule);
 template ssize_t RulesWithLocs::appendAnonRule(StringRule);
 template ssize_t RulesWithLocs::appendAnonRule(WordPreserving);
@@ -318,6 +318,7 @@ RulesWithLocs::releaseRules() {
 template <class X> void
 RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
+     !dynamic_cast<const DefinitionInProgress*>(rules_[idx].get()) &&
      !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
   Ident name;
@@ -344,7 +345,7 @@ assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(UnassignedRule{});
+  rl.appendAnonRule(DefinitionInProgress{});
   assignLiteralOrError(rl, newIndex, literal);
   return newIndex;
 }

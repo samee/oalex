@@ -8,6 +8,7 @@ using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
 using oalex::assertWhatHasSubstr;
 using oalex::Bug;
+using oalex::DefinitionInProgress;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
@@ -61,10 +62,10 @@ void testDefineIdentNormal() {
               rl[v1_index].nameOrNull()->preserveCase(), "foo");
   assertEqual("stPos", rl[v1_index].nameOrNull()->stPos(), 0u);
   assertEqual("enPos", rl[v1_index].nameOrNull()->enPos(), 3u);
+  if(!dynamic_cast<DefinitionInProgress*>(&rl[v1_index]))
+    BugMe("defineIdent() should have started the definition process. Found {}",
+          rl[v1_index].specifics_typename());
   assertEmptyDiags(__func__, ctx.diags);
-
-  // TODO remove this line
-  rl.deferred_assign(v1_index, oalex::ConcatRule{{}, oalex::JsonTmpl{""}});
 
   ++pos;
   Ident v2 = Ident::parse(ctx, pos);

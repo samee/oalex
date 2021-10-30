@@ -49,11 +49,22 @@ class Rule {
   Ident name_;
 };
 
+// UnassignedRule really means used but not defined. It is used when we have
+// partially processed a file, and have not yet seen a definition of a name that
+// has already been used. If these names remain undefined at the end of the file
+// we can report an "undefined rule" error.
 class UnassignedRule final : public Rule {
  public:
-  UnassignedRule() = default;
   explicit UnassignedRule(Ident name) : Rule(std::move(name)) {}
   std::string specifics_typename() const override { return "(unassigned)"; }
+};
+
+class DefinitionInProgress final : public Rule {
+ public:
+  DefinitionInProgress() = default;
+  explicit DefinitionInProgress(Ident name) : Rule(std::move(name)) {}
+  std::string specifics_typename() const override
+    { return "DefinitionInProgress"; }
 };
 
 // This is a dummy rule that is meant to reserve a name for which no

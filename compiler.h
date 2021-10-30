@@ -49,14 +49,20 @@ class RulesWithLocs {
   */
   ssize_t findOrAppendIdent(const Ident& id);
 
-  /* Returns the index of UnassignedRule named ident.
-       If one already exists, its index is returned with no change.
-       If one doesn't already exist,
+  /* Returns the index of a new DefinitionInProgress rule named ident.
+     This is usually called when we start processing a definition. When we
+     have the complete rule definition, the DefinitionInProgress is replaced
+     with a real rule using deferred_assign().
+
+       If an UnassignedRule with the same name exists, that is returned
+         after changing it to DefinitionInProgress.
+       If that name doesn't already exist,
          one is appended and the new index is returned.
-     If an assigned rule named ident already exists, it produces a
+
+     If some other rule named ident already exists, it produces a
      "multiple definition" error and returns -1.
 
-     In case we are actually appending a new entry, the firstUseLocs_ remains
+     In case this appends a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
   */
   ssize_t defineIdent(DiagsDest ctx, const Ident& ident);
