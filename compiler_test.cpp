@@ -12,23 +12,22 @@ using std::string_view;
 namespace {
 
 void testFindOrAppendNormalOperations() {
-  // TODO cleanup: long int isn't always the same as ssize_t
   auto exprid = Ident::parseGenerated("expr");
   auto stmtid = Ident::parseGenerated("stmt");
 
   RulesWithLocs rl;
-  assertEqual("RulesWithLocs initial size", rl.ssize(), 0l);
+  assertEqual("RulesWithLocs initial size", rl.ssize(), 0);
   assertEqual("1st findOrAppendIdent() result",
-              rl.findOrAppendIdent(exprid), 0l);
-  assertEqual("RulesWithLocs size after referencing 'expr'", rl.ssize(), 1l);
+              rl.findOrAppendIdent(exprid), 0);
+  assertEqual("RulesWithLocs size after referencing 'expr'", rl.ssize(), 1);
   assertEqual("2nd findOrAppendIdent() result",
-              rl.findOrAppendIdent(stmtid), 1l);
-  assertEqual("RulesWithLocs size after referencing 'stmt'", rl.ssize(), 2l);
+              rl.findOrAppendIdent(stmtid), 1);
+  assertEqual("RulesWithLocs size after referencing 'stmt'", rl.ssize(), 2);
   assertEqual("Position for 'expr' after another insert",
-              rl.findOrAppendIdent(exprid), 0l);
+              rl.findOrAppendIdent(exprid), 0);
   assertEqual("Position for 'block' without prior insert",
-              rl.findOrAppendIdent(Ident::parseGenerated("block")), 2l);
-  assertEqual("RulesWithLocs size after referencing 'block'", rl.ssize(), 3l);
+              rl.findOrAppendIdent(Ident::parseGenerated("block")), 2);
+  assertEqual("RulesWithLocs size after referencing 'block'", rl.ssize(), 3);
 }
 
 void testFindOrAppendEmptyIdentFails() {
