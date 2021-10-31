@@ -13,6 +13,7 @@ using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::RulesWithLocs;
+using oalex::UnassignedRule;
 using std::string_view;
 
 namespace {
@@ -88,6 +89,32 @@ void testDefineIdentEmptyIdentFails() {
   }
 }
 
+void testFindThenDefine() {
+  // TODO refactor out assertRuleType()
+  InputDiags ctx{Input{"foo bar baz bar"}};
+  RulesWithLocs rl;
+  size_t pos = 0;
+  Ident foo = Ident::parse(ctx, pos); ++pos;
+  Ident bar = Ident::parse(ctx, pos); ++pos;
+  Ident baz = Ident::parse(ctx, pos); ++pos;
+  Ident bar_defn = Ident::parse(ctx, pos);
+  ssize_t i;
+  i = rl.findOrAppendIdent(foo);
+  assertEqual("foo index", i, 0);
+  i = rl.findOrAppendIdent(bar);
+  assertEqual("bar index", i, 1);
+  i = rl.findOrAppendIdent(baz);
+  assertEqual("baz index", i, 2);
+  if(!dynamic_cast<UnassignedRule*>(&rl[1]))
+    Bug("bar is already assigned before a definition. Type {}",
+        rl[1].specifics_typename());
+  i = rl.defineIdent(ctx, bar_defn);
+  assertEqual(me("defineIdent() is different from earlier findOrAppendIdent()"),
+              i, 1);
+  if(!dynamic_cast<DefinitionInProgress*>(&rl[1]))
+    Bug("bar definition didn't take. Type {}", rl[1].specifics_typename());
+}
+
 void testReserveLocalNameEmptyIdentFails() {
   RulesWithLocs rl;
   try {
@@ -108,4 +135,5 @@ int main() {
   testDefineIdentNormal();
   testDefineIdentEmptyIdentFails();
   testReserveLocalNameEmptyIdentFails();
+  testFindThenDefine();
 }
