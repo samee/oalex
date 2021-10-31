@@ -229,6 +229,7 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
 
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
+  if(!ident) Bug("defineIdent() invoked with empty Ident");
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
@@ -250,6 +251,7 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
 
 void
 RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
+  if(!ident) Bug("reserveLocalName() invoked with empty Ident");
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;

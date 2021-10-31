@@ -76,10 +76,36 @@ void testDefineIdentNormal() {
   assertEqual("Failure indicator", -1, v2_index);
 }
 
+void testDefineIdentEmptyIdentFails() {
+  RulesWithLocs rl;
+  try {
+    InputDiags ctx{Input{"ignored input"}};
+    rl.defineIdent(ctx, Ident{});
+    BugMe("Was expecting defineIdent() to fail on null parameter");
+  }catch(const std::logic_error& ex) {
+    assertWhatHasSubstr(__func__, ex,
+                        "defineIdent() invoked with empty Ident");
+  }
+}
+
+void testReserveLocalNameEmptyIdentFails() {
+  RulesWithLocs rl;
+  try {
+    InputDiags ctx{Input{"ignored input"}};
+    rl.reserveLocalName(ctx, Ident{});
+    BugMe("Was expecting reserveLocalName() to fail on null parameter");
+  }catch(const std::logic_error& ex) {
+    assertWhatHasSubstr(__func__, ex,
+                        "reserveLocalName() invoked with empty Ident");
+  }
+}
+
 }  // namespace
 
 int main() {
   testFindOrAppendNormalOperations();
   testFindOrAppendEmptyIdentFails();
   testDefineIdentNormal();
+  testDefineIdentEmptyIdentFails();
+  testReserveLocalNameEmptyIdentFails();
 }
