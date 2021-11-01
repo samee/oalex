@@ -260,7 +260,7 @@ RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
     }else if(!dynamic_cast<const ReservedRule*>(rules_[i].get())) {
       logLocalNamesakeError(ctx, ident);
       return;
-    }
+    }else return;
   }
   rules_.push_back(make_unique<ReservedRule>(ident));
   firstUseLocs_.push_back(nrange);

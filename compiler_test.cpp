@@ -134,6 +134,21 @@ void testReserveLocalNameEmptyIdentFails() {
   }
 }
 
+void testReserveLocalName() {
+  InputDiags ctx{Input{"foo"}};
+  RulesWithLocs rl;
+  size_t pos = 0;
+  Ident foo = Ident::parse(ctx, pos);
+
+  assertEqual("No initial definitions", rl.ssize(), 0);
+  // Use 'foo' lots of times as a local variable.
+  rl.reserveLocalName(ctx, foo);
+  rl.reserveLocalName(ctx, foo);
+  rl.reserveLocalName(ctx, foo);
+  assertEqual("'foo' should be reserved exactly once", rl.ssize(), 1);
+  assertEmptyDiags(__func__, ctx.diags);
+}
+
 }  // namespace
 
 int main() {
@@ -143,4 +158,5 @@ int main() {
   testDefineIdentEmptyIdentFails();
   testReserveLocalNameEmptyIdentFails();
   testFindThenDefine();
+  testReserveLocalName();
 }
