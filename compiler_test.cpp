@@ -149,6 +149,31 @@ void testReserveLocalName() {
   assertEmptyDiags(__func__, ctx.diags);
 }
 
+void testDefineAndReserveProducesError() {
+  InputDiags ctx{Input{"foo"}};
+  size_t pos = 0;
+  Ident foo = Ident::parse(ctx, pos);
+
+  {
+    RulesWithLocs rl;
+    assertEmptyDiags(me("No initial diags expected"), ctx.diags);
+    rl.defineIdent(ctx, foo);
+    rl.reserveLocalName(ctx, foo);
+    assertHasDiagWithSubstr(__func__, ctx.diags,
+        "Local variable name 'foo' conflicts with a global name");
+  }
+  {
+    RulesWithLocs rl;
+    ctx.diags.clear();
+    assertEmptyDiags(me("No initial diags expected"), ctx.diags);
+    rl.reserveLocalName(ctx, foo);
+    rl.defineIdent(ctx, foo);
+    assertHasDiagWithSubstr(__func__, ctx.diags,
+        "Local variable name 'foo' conflicts with a global name");
+  }
+
+}
+
 }  // namespace
 
 int main() {
@@ -159,4 +184,5 @@ int main() {
   testReserveLocalNameEmptyIdentFails();
   testFindThenDefine();
   testReserveLocalName();
+  testDefineAndReserveProducesError();
 }
