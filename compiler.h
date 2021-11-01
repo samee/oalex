@@ -72,6 +72,7 @@ class RulesWithLocs {
      function will immediately raise an error, but otherwise not do much else.
   */
   void reserveLocalName(DiagsDest ctx, const Ident& ident);
+  Ident findReservedLocalIdent(const Ident& ident) const;
 
   /* Utility for anon rules that also appends a dummy first-use location entry.
      Anonymous rules don't need usage location so far, since we never refer to
@@ -99,6 +100,8 @@ class RulesWithLocs {
   // Invariant: these two must have equal sizes at all times.
   std::vector<std::unique_ptr<Rule>> rules_;
   std::vector<LocPair> firstUseLocs_;
+
+  std::vector<Ident> reservedLocalNames_;
 };
 
 // These are the usual entries in a `where:` stanza of a rule. An entry:

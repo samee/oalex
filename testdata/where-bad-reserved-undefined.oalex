@@ -1,0 +1,14 @@
+# expected-error: Rule 'lhs' was used but never defined
+
+rule expr:
+  lhs = rhs
+outputs: {lhs, rhs}
+where:
+  lhs ~ ident
+  rhs ~ ident
+
+ident := /[a-zA-Z_]+/
+
+rule equation:
+  lhs == rhs
+outputs: {lhs, rhs}

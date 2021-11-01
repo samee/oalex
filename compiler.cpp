@@ -227,15 +227,22 @@ RulesWithLocs::findOrAppendIdent(const Ident& id) {
   return this->ssize()-1;
 }
 
+Ident
+RulesWithLocs::findReservedLocalIdent(const Ident& ident) const {
+  for(size_t i=0; i<reservedLocalNames_.size(); ++i)
+    if(reservedLocalNames_[i] == ident) return reservedLocalNames_[i];
+  return {};
+}
+
 ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   if(!ident) Bug("defineIdent() invoked with empty Ident");
+  Ident res_instance = findReservedLocalIdent(ident);
+  if(res_instance) logLocalNamesakeError(ctx, res_instance);
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
-    bool isreserved = dynamic_cast<const ReservedRule*>(rules_[i].get());
-    if(isreserved) logLocalNamesakeError(ctx, *name);
-    if(isreserved || dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
+    if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       rules_[i] = make_unique<DefinitionInProgress>(ident);
       return i;
     }else {
@@ -249,21 +256,22 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   return this->ssize()-1;
 }
 
+static void appendIfNew(vector<Ident>& v, const Ident& ident) {
+  for(auto& elt : v) if(elt == ident) return;
+  v.push_back(ident);
+}
+
 void
 RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
   if(!ident) Bug("reserveLocalName() invoked with empty Ident");
-  for(ssize_t i=0; i<this->ssize(); ++i) {
-    const Ident* name = rules_[i]->nameOrNull();
+  appendIfNew(reservedLocalNames_, ident);
+  for(const auto& rule : rules_) {
+    const Ident* name = rule->nameOrNull();
     if(name == nullptr || ident != *name) continue;
-    if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
-      rules_[i] = make_unique<ReservedRule>(ident);
-    }else if(!dynamic_cast<const ReservedRule*>(rules_[i].get())) {
+    if(!dynamic_cast<const UnassignedRule*>(rule.get()))
       logLocalNamesakeError(ctx, ident);
-      return;
-    }else return;
+    return;
   }
-  rules_.push_back(make_unique<ReservedRule>(ident));
-  firstUseLocs_.push_back(nrange);
 }
 
 template <class X> ssize_t
@@ -273,7 +281,6 @@ RulesWithLocs::appendAnonRule(X x) {
   return rules_.size()-1;
 }
 
-template ssize_t RulesWithLocs::appendAnonRule(ReservedRule);
 template ssize_t RulesWithLocs::appendAnonRule(StringRule);
 template ssize_t RulesWithLocs::appendAnonRule(WordPreserving);
 template ssize_t RulesWithLocs::appendAnonRule(RegexRule);
@@ -561,6 +568,12 @@ findRuleLocalBinding(string_view outk,
   return nullptr;
 }
 
+// TODO: add a unit-test that breaks if we delete registerLocations()
+static void
+registerLocations(RulesWithLocs& rl, const Ident& id) {
+  rl.findOrAppendIdent(id);
+}
+
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
@@ -574,16 +587,11 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     if(local != nullptr) {
       rl.reserveLocalName(ctx, local->outTmplKey);
       ruleIdent = local->ruleName;
-    }
+    }else registerLocations(rl, outputIdent);
     ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
   return rv;
-}
-
-static void
-registerLocations(RulesWithLocs& rl, const Ident& id) {
-  rl.findOrAppendIdent(id);
 }
 
 // Once we have extracted everything we need from InputDiags,
@@ -607,8 +615,6 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   vector<pair<Ident, ssize_t>> pl2ruleMap
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
 
-  // Register locations late to avoid spurious 'used but undefined' messages.
-  for(auto& [id, pp] : partPatterns) registerLocations(rl, id);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
   ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);

@@ -46,7 +46,6 @@ using oalex::JsonLoc;
 using oalex::ParsedSource;
 using oalex::parseOalexSource;
 using oalex::RegexOptions;
-using oalex::ReservedRule;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
@@ -291,11 +290,10 @@ auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
 ssize_t firstRule(const RuleSet& rs) {
   size_t idpos = size_t(-1);
   ssize_t rv = -1;
-  for(size_t i=0; i<rs.rules.size(); ++i)
-    if(dynamic_cast<const ReservedRule*>(rs.rules[i].get()) == nullptr) {
-      const Ident* name = rs.rules[i]->nameOrNull();
-      if(name && name->stPos() > 0 && name->stPos() < idpos) rv = i;
-    }
+  for(size_t i=0; i<rs.rules.size(); ++i) {
+    const Ident* name = rs.rules[i]->nameOrNull();
+    if(name && name->stPos() > 0 && name->stPos() < idpos) rv = i;
+  }
   return rv;
 }
 
@@ -404,8 +402,7 @@ FileStream fopenw(const string& s) {
 }
 
 bool needsCodegen(const Rule& r) {
-  return r.nameOrNull() != nullptr &&
-         dynamic_cast<const ReservedRule*>(&r) == nullptr;
+  return r.nameOrNull() != nullptr;
 }
 
 void produceSourceFiles(const ParsedSource& src,

@@ -145,7 +145,10 @@ void testReserveLocalName() {
   rl.reserveLocalName(ctx, foo);
   rl.reserveLocalName(ctx, foo);
   rl.reserveLocalName(ctx, foo);
-  assertEqual("'foo' should be reserved exactly once", rl.ssize(), 1);
+  if(rl.findReservedLocalIdent(foo) != foo)
+    BugMe("findReservedLocalIdent() should return a reserved local");
+  assertEqual("reserving a local name shouldn't mark it as used as a global",
+              rl.ssize(), 0);
   assertEmptyDiags(__func__, ctx.diags);
 }
 
@@ -159,7 +162,7 @@ void testDefineAndReserveProducesError() {
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
     rl.defineIdent(ctx, foo);
     rl.reserveLocalName(ctx, foo);
-    assertHasDiagWithSubstr(__func__, ctx.diags,
+    assertHasDiagWithSubstr(me("define-then-reserve"), ctx.diags,
         "Local variable name 'foo' conflicts with a global name");
   }
   {
@@ -168,7 +171,7 @@ void testDefineAndReserveProducesError() {
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
     rl.reserveLocalName(ctx, foo);
     rl.defineIdent(ctx, foo);
-    assertHasDiagWithSubstr(__func__, ctx.diags,
+    assertHasDiagWithSubstr(me("reserve-then-define"), ctx.diags,
         "Local variable name 'foo' conflicts with a global name");
   }
 
