@@ -12,11 +12,23 @@ using oalex::DefinitionInProgress;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::Rule;
 using oalex::RulesWithLocs;
 using oalex::UnassignedRule;
 using std::string_view;
 
 namespace {
+
+void assertUnassignedRule(string_view msg, const Rule& rule) {
+  if(dynamic_cast<const UnassignedRule*>(&rule)) return;
+  Bug("{}. Expected UnassignedRule, found {}", msg, rule.specifics_typename());
+}
+
+void assertDefinitionInProgress(string_view msg, const Rule& rule) {
+  if(dynamic_cast<const DefinitionInProgress*>(&rule)) return;
+  Bug("{}. Expected DefinitionInProgress, found {}", msg,
+      rule.specifics_typename());
+}
 
 void testFindOrAppendNormalOperations() {
   auto exprid = Ident::parseGenerated("expr");
@@ -63,9 +75,8 @@ void testDefineIdentNormal() {
               rl[v1_index].nameOrNull()->preserveCase(), "foo");
   assertEqual("stPos", rl[v1_index].nameOrNull()->stPos(), 0u);
   assertEqual("enPos", rl[v1_index].nameOrNull()->enPos(), 3u);
-  if(!dynamic_cast<DefinitionInProgress*>(&rl[v1_index]))
-    BugMe("defineIdent() should have started the definition process. Found {}",
-          rl[v1_index].specifics_typename());
+  assertDefinitionInProgress(
+      "defineIdent() should have started the definition process", rl[v1_index]);
   assertEmptyDiags(__func__, ctx.diags);
 
   ++pos;
@@ -90,7 +101,6 @@ void testDefineIdentEmptyIdentFails() {
 }
 
 void testFindThenDefine() {
-  // TODO refactor out assertRuleType()
   InputDiags ctx{Input{"foo bar baz bar"}};
   RulesWithLocs rl;
   size_t pos = 0;
@@ -105,14 +115,11 @@ void testFindThenDefine() {
   assertEqual("bar index", i, 1);
   i = rl.findOrAppendIdent(baz);
   assertEqual("baz index", i, 2);
-  if(!dynamic_cast<UnassignedRule*>(&rl[1]))
-    Bug("bar is already assigned before a definition. Type {}",
-        rl[1].specifics_typename());
+  assertUnassignedRule("bar should be unassigned before definition", rl[1]);
   i = rl.defineIdent(ctx, bar_defn);
   assertEqual(me("defineIdent() is different from earlier findOrAppendIdent()"),
               i, 1);
-  if(!dynamic_cast<DefinitionInProgress*>(&rl[1]))
-    Bug("bar definition didn't take. Type {}", rl[1].specifics_typename());
+  assertDefinitionInProgress("bar definition didn't take", rl[1]);
 }
 
 void testReserveLocalNameEmptyIdentFails() {
