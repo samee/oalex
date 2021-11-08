@@ -324,17 +324,22 @@ RulesWithLocs::releaseRules() {
   return std::move(rules_);  // This is guaranteed to clear rules_.
 }
 
+// Bypasses Rule::nameOrNull() protections. Use with care!
+static Ident
+ruleNameOrEmpty(const Rule* r) {
+  if(r == nullptr) return {};
+  else if(const Ident* id = r->nameOrNull()) return *id;
+  else return {};
+}
+
 template <class X> void
 RulesWithLocs::deferred_assign(ssize_t idx, X x) {
   if(rules_[idx] != nullptr &&
      !dynamic_cast<const DefinitionInProgress*>(rules_[idx].get()) &&
      !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
-  Ident name;
-  if(rules_[idx] != nullptr) {
-    if(auto name2 = rules_[idx]->nameOrNull()) name = std::move(*name2);
-  }
-  x.deferred_name(std::move(name));
+
+  x.deferred_name(ruleNameOrEmpty(rules_[idx].get()));  // preserve old name
   rules_[idx] = move_to_unique(x);
 }
 
