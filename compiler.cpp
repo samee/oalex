@@ -568,12 +568,6 @@ findRuleLocalBinding(string_view outk,
   return nullptr;
 }
 
-// TODO: add a unit-test that breaks if we delete registerLocations()
-static void
-registerLocations(RulesWithLocs& rl, const Ident& id) {
-  rl.findOrAppendIdent(id);
-}
-
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
@@ -581,13 +575,13 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   vector<pair<Ident, ssize_t>> rv;
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
-    Ident ruleIdent = outputIdent;
+    Ident ruleIdent;
 
     const PatternToRuleBinding* local = findRuleLocalBinding(k, pattToRule);
     if(local != nullptr) {
       rl.reserveLocalName(ctx, local->outTmplKey);
       ruleIdent = local->ruleName;
-    }else registerLocations(rl, outputIdent);
+    }else ruleIdent = outputIdent;
     ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
