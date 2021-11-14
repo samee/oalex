@@ -267,18 +267,18 @@ parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
   return SkipPoint{ /* stayWithinLine */ withinLine, &oalexSkip};
 }
 
-// Resets RulesWithLoc back to initial size unless disarm() is called.
-// Not meant for any complicated rewinding.
-class RuleRewinder {
- public:
-  explicit RuleRewinder(RulesWithLocs& rl)
-    : rl{&rl}, orig_size{rl.ssize()} {}
-  ~RuleRewinder() { if(rl) rl->resize_down(orig_size); }
-  void disarm() { rl = nullptr; }
- private:
-  RulesWithLocs* rl;
-  ssize_t orig_size;
-};
+// Dev-note: technically speaking, we could have cached this index found here
+// and reused it later for defineIdent(). In practice, if that really becomes
+// an issue, I'd be much better off using a hashmap in RulesWithLocs.
+bool
+requireUndefined(DiagsDest ctx, const RulesWithLocs& rl, const Ident& ident) {
+  ssize_t i = rl.findIdent(ident);
+  if(i == -1) return true;
+  if(dynamic_cast<const UnassignedRule*>(&rl[i])) return true;
+  Error(ctx, ident.stPos(), ident.enPos(),
+        format("'{}' has multiple definitions", ident.preserveCase()));
+  return false;
+}
 
 void
 parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
@@ -287,31 +287,30 @@ parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     Error(ctx, linetoks[0], "Identifier expected");
     return;
   }
-  RuleRewinder rewinder(rl);
-  const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
-  if(ruleIndex == -1) return;
+  if(!requireUndefined(ctx, rl, ident)) return;
+  ssize_t orig_size = rl.ssize();
   if(linetoks.size() < 3) {
     Error(ctx, linetoks[1], "Rule's right-hand side missing");
   }else if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
+    const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
     assignLiteralOrError(rl, ruleIndex, *literal);
-    rewinder.disarm();
   }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
     if(!requireEol(linetoks, 3, ctx)) return;
+    const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
     string errmsg = format("Expected {}", ident.preserveCase());
     assignRegexOrError(rl, ruleIndex, std::move(errmsg),
                        std::move(regex->patt));
-    rewinder.disarm();
   }else if(isToken(linetoks[2], "Concat")) {
     if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
+      const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
       rl.deferred_assign(ruleIndex, std::move(*c));
-      rewinder.disarm();
-    }
+    }else rl.resize_down(orig_size);
   }else if(isToken(linetoks[2], "SkipPoint")) {
     if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
+      const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
       rl.deferred_assign(ruleIndex, std::move(*sp));
-      rewinder.disarm();
-    }
+    }else rl.resize_down(orig_size);
   }else {
     Error(ctx, linetoks[2], "Expected string literal");
   }
