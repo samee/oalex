@@ -150,6 +150,8 @@ void testReserveLocalName() {
   assertEqual("reserving a local name shouldn't mark it as used as a global",
               rl.ssize(), 0);
   assertEmptyDiags(__func__, ctx.diags);
+  if(rl.findReservedLocalIdent(Ident::parseGenerated("bar")))
+    BugMe("Found identifier that was never reserved");
 }
 
 void testDefineAndReserveProducesError() {
