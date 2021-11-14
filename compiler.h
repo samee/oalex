@@ -85,6 +85,9 @@ class RulesWithLocs {
   */
   template <class X> ssize_t appendAnonRule(X x);
 
+  /* Returns -1 if not found */
+  ssize_t findIdent(const Ident& ident) const;
+
   /* For assigning to a rule after they have already been named */
   template <class X> void deferred_assign(ssize_t idx, X x);
 

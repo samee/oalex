@@ -56,7 +56,7 @@ void testFindOrAppendEmptyIdentFails() {
     BugMe("Was expecting findOrAppendIdent() to fail on null parameter");
   }catch(const std::logic_error& ex) {
     assertWhatHasSubstr(__func__, ex,
-                        "findOrAppendIdent() invoked with empty Ident");
+                        "findIdent() invoked with empty Ident");
   }
 }
 

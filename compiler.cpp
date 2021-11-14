@@ -213,12 +213,21 @@ Rule& RulesWithLocs::operator[](ssize_t i) {
 }
 
 ssize_t
-RulesWithLocs::findOrAppendIdent(const Ident& id) {
-  if(!id) Bug("findOrAppendIdent() invoked with empty Ident");
-  LocPair thisPos{id.stPos(), id.enPos()};
+RulesWithLocs::findIdent(const Ident& id) const {
+  if(!id) Bug("findIdent() invoked with empty Ident");
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || id != *name) continue;
+    return i;
+  }
+  return -1;
+}
+
+ssize_t
+RulesWithLocs::findOrAppendIdent(const Ident& id) {
+  LocPair thisPos{id.stPos(), id.enPos()};
+  ssize_t i = findIdent(id);
+  if(i != -1) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
   }
