@@ -123,7 +123,8 @@ Ident Ident::parseGenerated(string s) {
 /* isSeparator(i) should either return:
      * -1 if we are not to split before position i
      * r if we are about to start a separator of length r
-   r is either 0 or 1 in all current use cases. */
+   r is either 0 or 1 in all current use cases.
+   Empty components are not returned. */
 template <class Cb>
 auto splitAt(string_view s, Cb isSeparator) -> vector<string> {
   vector<string> rv;
@@ -131,10 +132,10 @@ auto splitAt(string_view s, Cb isSeparator) -> vector<string> {
   for(j=0; j<s.size(); ++j) {
     ssize_t r = isSeparator(j);
     if(r < 0) continue;
-    rv.emplace_back(s.substr(i, j-i));
+    if(i < j) rv.emplace_back(s.substr(i, j-i));
     i = j+r;
   }
-  rv.emplace_back(s.substr(i));
+  if(i < s.size()) rv.emplace_back(s.substr(i));
   return rv;
 }
 
@@ -189,7 +190,7 @@ string Ident::toUCamelCase() const {
   string rv;
   for(auto& word : splitWords(orig_)) {
     word = lower(std::move(word));
-    if(!word.empty()) word[0] = toupper(word[0]);
+    word[0] = toupper(word[0]);
     rv += word;
   }
   return rv;
@@ -199,7 +200,7 @@ string Ident::toLCamelCase() const {
   string rv;
   for(auto& word : splitWords(orig_)) {
     word = lower(std::move(word));
-    if(!rv.empty() && !word.empty()) word[0] = toupper(word[0]);
+    if(!rv.empty()) word[0] = toupper(word[0]);
     rv += word;
   }
   return rv;
