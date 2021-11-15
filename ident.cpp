@@ -120,6 +120,10 @@ Ident Ident::parseGenerated(string s) {
   return rv;
 }
 
+/* isSeparator(i) should either return:
+     * -1 if we are not to split before position i
+     * r if we are about to start a separator of length r
+   r is either 0 or 1 in all current use cases. */
 template <class Cb>
 auto splitAt(string_view s, Cb isSeparator) -> vector<string> {
   vector<string> rv;
@@ -129,7 +133,6 @@ auto splitAt(string_view s, Cb isSeparator) -> vector<string> {
     if(r < 0) continue;
     rv.emplace_back(s.substr(i, j-i));
     i = j+r;
-    if(r > 1) j += r-1;  // Skip over separator.
   }
   rv.emplace_back(s.substr(i));
   return rv;
