@@ -25,9 +25,22 @@ using std::string;
 using std::string_view;
 using std::vector;
 
+// Assumes id[pos] != '_'. The caller is supposed to skip over those.
+static bool isSeparator(const string& id, size_t pos) {
+  if(pos == 0 || pos == id.size()) return true;
+  char a = id[pos-1], b = id[pos];
+  if(a == '_') return true;
+  if(isdigit(a) != isdigit(b)) return true;
+  return islower(a) && isupper(b);
+}
+
 size_t std::hash<oalex::Ident>::operator()(const oalex::Ident& ident) const {
   std::string s;
-  for(char ch : ident.orig_) if(ch != '_') s += tolower(ch);
+  const string& orig = ident.orig_;
+  for(size_t i=0; i<orig.size(); ++i) if(orig[i] != '_') {
+    if(isSeparator(orig, i)) s += '|';
+    s += tolower(orig[i]);
+  }
   // Maybe memoize s as a member of Ident if this becomes a bottleneck.
   return hash_helper(s);
 }
@@ -40,6 +53,7 @@ bool operator==(const Ident& a, const Ident& b) {
     char ai = a.orig_[i], bj = b.orig_[j];
     if(ai == '_') { ++i; continue; }
     if(bj == '_') { ++j; continue; }
+    if(isSeparator(a.orig_, i) != isSeparator(b.orig_, j)) return false;
     if(tolower(ai) != tolower(bj)) return false;
     ++i; ++j;
   }
@@ -53,6 +67,8 @@ bool operator<(const Ident& a, const Ident& b) {
     char ai = tolower(a.orig_[i]), bj = tolower(b.orig_[j]);
     if(ai == '_') { ++i; continue; }
     if(bj == '_') { ++j; continue; }
+    bool sa = isSeparator(a.orig_, i), sb = isSeparator(b.orig_, j);
+    if(sa != sb) return sa;
     if(ai != bj) return ai < bj;
     ++i; ++j;
   }

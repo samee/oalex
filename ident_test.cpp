@@ -70,7 +70,6 @@ void testEqualities() {
   pair<string,string> equals[] = {
     {"foo_bar", "fooBar"},
     {"foo_bar_42", "fooBar42"},
-    {"bitEnum", "biteNum"},
   };
   for(const auto& [a,b] : equals) {
     Ident ai = fromString(__func__, a), bi = fromString(__func__, b);
@@ -80,6 +79,8 @@ void testEqualities() {
   pair<string,string> not_equals[] = {
     {"foo_barx", "fooBar"},
     {"foo_bar_42", "fooBar4"},
+    {"foobar", "foo_bar"},
+    {"bitEnum", "biteNum"},
   };
   for(const auto& [a,b] : not_equals) {
     Ident ai = fromString(__func__, a), bi = fromString(__func__, b);
