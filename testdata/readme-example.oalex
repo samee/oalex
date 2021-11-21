@@ -26,7 +26,9 @@ ident := /[a-zA-Z_]+/
 # output below it will complain of a mismatch.
 
 example my_function_declaration:
+
   fn connect(int x, string s)
+
 outputs: {
   name: "connect",
   type_list: [ "int", "string" ],

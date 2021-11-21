@@ -367,10 +367,7 @@ requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
   else return true;
 }
 
-// Dev-note: This comment block was associated with a now-removed function
-// called trimNewlines(). The comment is left behind since it raises valid
-// issues that will likely have to be figured out at some point.
-//
+// TODO
 // Decide how lexIndentedSource should treat leading and trailing newlines.
 // As a general rule, if newlines matter, the user should be encouraged to use
 // fenced inputs or quoted inputs.
@@ -395,6 +392,15 @@ requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
 //     newlines.
 //
 // Preference: Maybe don't allow surprise matches that start or end mid-line.
+GluedString
+trimNewlines(GluedString gs) {
+  size_t i, j;
+  for(i=0; i<gs.size(); ++i) if(gs[i] != '\n') break;
+  if(i == gs.size()) return gs.subqstr(i, 0);
+  for(j=gs.size()-1; i<j; --j) if(gs[j] != '\n') break;
+  return gs.subqstr(i, j-i+1);
+}
+
 
 const LexDirective&
 defaultLexopts() {
@@ -437,6 +443,7 @@ parseIndentedBlock(InputDiags& ctx, size_t& i, const WholeSegment& refIndent,
   }
   if(!rv.has_value())
     Error(ctx, i, format("No indented {} follows", blockName));
+  else rv = trimNewlines(std::move(*rv));
   return rv;
 }
 
