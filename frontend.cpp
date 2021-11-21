@@ -889,6 +889,9 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
 }  // namespace
 
+const Skipper&
+defaultSkip() { return defaultLexopts().skip; }
+
 optional<ParsedSource>
 parseOalexSource(InputDiags& ctx) {
   static const auto* userRegexOpts = new RegexOptions{
