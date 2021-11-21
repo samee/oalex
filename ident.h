@@ -51,6 +51,10 @@ struct WholeSegment;
 struct InputDiags;
 class DiagsDest;
 
+// This class is meant to represent an identifier in the _generated_ code, not
+// in the input oalex source code. It is only useful if we might need to change
+// case or remove underscores to conform to some target style. Otherwise, use
+// a WholeSegment.
 // Dev-note: This really could be a subclass of WholeSegment.
 class Ident {
   std::string orig_;
