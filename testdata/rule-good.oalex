@@ -46,10 +46,10 @@ example single_non_terminal:
   42
 outputs: { int_value: "42", type: "literal-int" }
 
-# See if we can reuse local names
+# See if we can reuse local names,
+# and can deduce sensible output templates.
 rule simple_sum:
   lhs + rhs
-outputs: { lhs, rhs }
 where:
   lhs ~ ident
   rhs ~ ident

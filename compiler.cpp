@@ -503,6 +503,14 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
   return rv;
 }
 
+static map<Ident,PartPattern>
+makePartPatterns(const vector<PatternToRuleBinding>& pattToRule) {
+  map<Ident, PartPattern> rv;
+  for(const auto& binding : pattToRule)
+    rv.insert({binding.outTmplKey, binding.pp}).second;
+  return rv;
+}
+
 // Checks if all Ident Patterns nested in PatternRepeat or PatternFold
 // are in present listNames and, conversely, if Ident Patterns not in those
 // constructs are absent in listNames. `repeat` indicates if we are currently
@@ -605,6 +613,7 @@ findRuleLocalBinding(string_view outk,
   return nullptr;
 }
 
+// This is when `output:` is specified.
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
@@ -621,6 +630,19 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     }else ruleIdent = outputIdent;
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
+  }
+  return rv;
+}
+
+// This is for when we have `where:` but no `output:`
+static vector<pair<Ident, ssize_t>>
+mapToRule(DiagsDest ctx, RulesWithLocs& rl,
+          const vector<PatternToRuleBinding>& pattToRule) {
+  vector<pair<Ident, ssize_t>> rv;
+  for(auto& binding : pattToRule) {
+    rl.reserveLocalName(ctx, binding.outTmplKey);
+    rv.emplace_back(std::move(binding.outTmplKey),
+                    rl.findOrAppendIdent(ctx, binding.ruleName));
   }
   return rv;
 }
@@ -655,6 +677,26 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
       /* childName */ "",
       /* outputTmpl */ std::move(jstmpl)
   });
+}
+
+// Dev-note: keeping this function separate from its overload for now. Might
+// merge them later.
+void
+appendPatternRules(DiagsDest ctx, const Ident& ident,
+                   GluedString patt_string, const LexDirective& lexOpts,
+                   vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
+  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
+  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
+  if(!patt_string.empty() && toks.empty()) return;
+  optional<Pattern> patt = parsePattern(ctx, std::move(toks));
+  vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
+
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
+  ssize_t newIndex = comp.process(*patt);
+  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
+  if(newIndex2 == -1) return;
+  // TODO: Optimize this indirection.
+  rl.deferred_assign(newIndex2, ConcatFlatRule{{ {newIndex, ""} }});
 }
 
 }  // namespace oalex

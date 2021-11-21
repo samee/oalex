@@ -138,4 +138,9 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    std::vector<PatternToRuleBinding> pattToRule,
                    JsonTmpl jstmpl, RulesWithLocs& rl);
 
+void
+appendPatternRules(DiagsDest ctx, const Ident& ident,
+                   lex::GluedString patt_string, const LexDirective& lexOpts,
+                   std::vector<PatternToRuleBinding> pattToRule,
+                   RulesWithLocs& rl);
 }  // namespace oalex

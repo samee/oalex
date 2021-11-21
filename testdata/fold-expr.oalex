@@ -28,3 +28,12 @@ outputs: {
   operands: [ "3", "9", "22" ],
   signs: ["-", "+"],
 }
+
+rule sum_expr_deduced_output:
+  term + ... + term
+where:
+  term ~ num
+
+example sum_expr_deduced_output:
+  3 + 9 + 22
+outputs: { term: [ "3", "9", "22" ] }

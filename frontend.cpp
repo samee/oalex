@@ -623,8 +623,12 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
 
   if(!sawOutputsKw) {
-    Error(ctx, i, format("outputs stanza missing in rule {}",
-                         ident.preserveCase()));
+    if(sawWhereKw)
+      appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
+                         std::move(local_decls), rl);
+    else
+      Error(ctx, i, format("outputs stanza missing in rule {}",
+                           ident.preserveCase()));
     return;
   }
 
