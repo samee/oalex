@@ -229,7 +229,7 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     }
     if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
       if(Ident id = Ident::parse(ctx, *tok))
-        concat.comps.push_back({rl.findOrAppendIdent(id), argname});
+        concat.comps.push_back({rl.findOrAppendIdent(ctx, id), argname});
       else return nullopt;
     }else if(const auto* s = get_if<GluedString>(&comp[0])) {
       if(s->ctor() != GluedString::Ctor::squoted) {
@@ -272,7 +272,7 @@ parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
 // an issue, I'd be much better off using a hashmap in RulesWithLocs.
 bool
 requireUndefined(DiagsDest ctx, const RulesWithLocs& rl, const Ident& ident) {
-  ssize_t i = rl.findIdent(ident);
+  ssize_t i = rl.findIdent(ctx, ident);
   if(i == -1) return true;
   if(dynamic_cast<const UnassignedRule*>(&rl[i])) return true;
   Error(ctx, ident.stPos(), ident.enPos(),
@@ -660,7 +660,7 @@ lookaheadRuleIndex(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx,
   }
   const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
   if(!lookId) return -1;
-  return rl.findOrAppendIdent(lookId);
+  return rl.findOrAppendIdent(ctx, lookId);
 }
 
 Ident
@@ -721,7 +721,7 @@ parseLookaheadBranchAction(const vector<ExprToken>& branch,
                             rl.appendAnonRule(ErrorRule{string{}}));
   }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos))
     orRule.comps.push_back({
-        .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(parseId),
+        .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(ctx, parseId),
         .tmpl{passthroughTmpl}
     });
   return true;

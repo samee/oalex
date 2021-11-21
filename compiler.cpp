@@ -205,6 +205,21 @@ logLocalNamesakeError(DiagsDest ctx, const Ident& ident) {
                ident.preserveCase()));
 }
 
+// Used for catching inconsistent-cased identifiers.
+bool
+exactMatch(const Ident& a, const Ident& b) {
+  return a.preserveCase() == b.preserveCase();
+}
+bool
+requireExactMatch(DiagsDest ctx, const Ident& a, const Ident& b) {
+  bool rv = exactMatch(a, b);
+  if(!rv)
+    Error(ctx, a.stPos(), a.enPos(),
+          format("'{}' case-conflicts with '{}'",
+                 a.preserveCase(), b.preserveCase()));
+  return rv;
+}
+
 }  // namespace
 
 Rule& RulesWithLocs::operator[](ssize_t i) {
@@ -218,20 +233,21 @@ const Rule& RulesWithLocs::operator[](ssize_t i) const {
 }
 
 ssize_t
-RulesWithLocs::findIdent(const Ident& id) const {
+RulesWithLocs::findIdent(DiagsDest ctx, const Ident& id) const {
   if(!id) Bug("findIdent() invoked with empty Ident");
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || id != *name) continue;
+    requireExactMatch(ctx, id, *name);
     return i;
   }
   return -1;
 }
 
 ssize_t
-RulesWithLocs::findOrAppendIdent(const Ident& id) {
+RulesWithLocs::findOrAppendIdent(DiagsDest ctx, const Ident& id) {
   LocPair thisPos{id.stPos(), id.enPos()};
-  ssize_t i = findIdent(id);
+  ssize_t i = findIdent(ctx, id);
   if(i != -1) {
     if(firstUseLocs_[i] == nrange) firstUseLocs_[i] = thisPos;
     return i;
@@ -256,6 +272,8 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
+    requireExactMatch(ctx, ident, *name);
+
     if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
       rules_[i] = make_unique<DefinitionInProgress>(ident);
       return i;
@@ -601,7 +619,7 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
       rl.reserveLocalName(ctx, local->outTmplKey);
       ruleIdent = local->ruleName;
     }else ruleIdent = outputIdent;
-    ssize_t ruleIndex = rl.findOrAppendIdent(ruleIdent);
+    ssize_t ruleIndex = rl.findOrAppendIdent(ctx, ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
   return rv;

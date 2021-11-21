@@ -31,28 +31,30 @@ void assertDefinitionInProgress(string_view msg, const Rule& rule) {
 }
 
 void testFindOrAppendNormalOperations() {
+  InputDiags ctx{Input{""}};
   auto exprid = Ident::parseGenerated("expr");
   auto stmtid = Ident::parseGenerated("stmt");
 
   RulesWithLocs rl;
   assertEqual("RulesWithLocs initial size", rl.ssize(), 0);
   assertEqual("1st findOrAppendIdent() result",
-              rl.findOrAppendIdent(exprid), 0);
+              rl.findOrAppendIdent(ctx, exprid), 0);
   assertEqual("RulesWithLocs size after referencing 'expr'", rl.ssize(), 1);
   assertEqual("2nd findOrAppendIdent() result",
-              rl.findOrAppendIdent(stmtid), 1);
+              rl.findOrAppendIdent(ctx, stmtid), 1);
   assertEqual("RulesWithLocs size after referencing 'stmt'", rl.ssize(), 2);
   assertEqual("Position for 'expr' after another insert",
-              rl.findOrAppendIdent(exprid), 0);
+              rl.findOrAppendIdent(ctx, exprid), 0);
   assertEqual("Position for 'block' without prior insert",
-              rl.findOrAppendIdent(Ident::parseGenerated("block")), 2);
+              rl.findOrAppendIdent(ctx, Ident::parseGenerated("block")), 2);
   assertEqual("RulesWithLocs size after referencing 'block'", rl.ssize(), 3);
 }
 
 void testFindOrAppendEmptyIdentFails() {
+  InputDiags ctx{Input{""}};
   RulesWithLocs rl;
   try {
-    rl.findOrAppendIdent(Ident{});
+    rl.findOrAppendIdent(ctx, Ident{});
     BugMe("Was expecting findOrAppendIdent() to fail on null parameter");
   }catch(const std::logic_error& ex) {
     assertWhatHasSubstr(__func__, ex,
@@ -109,17 +111,34 @@ void testFindThenDefine() {
   Ident baz = Ident::parse(ctx, pos); ++pos;
   Ident bar_defn = Ident::parse(ctx, pos);
   ssize_t i;
-  i = rl.findOrAppendIdent(foo);
+  i = rl.findOrAppendIdent(ctx, foo);
   assertEqual("foo index", i, 0);
-  i = rl.findOrAppendIdent(bar);
+  i = rl.findOrAppendIdent(ctx, bar);
   assertEqual("bar index", i, 1);
-  i = rl.findOrAppendIdent(baz);
+  i = rl.findOrAppendIdent(ctx, baz);
   assertEqual("baz index", i, 2);
   assertUnassignedRule("bar should be unassigned before definition", rl[1]);
   i = rl.defineIdent(ctx, bar_defn);
   assertEqual(me("defineIdent() is different from earlier findOrAppendIdent()"),
               i, 1);
   assertDefinitionInProgress("bar definition didn't take", rl[1]);
+}
+
+void testCaseConflicts() {
+  InputDiags ctx{Input{"fooBar foo_bar foobar"}};
+  size_t pos = 0;
+  Ident v1 = Ident::parse(ctx, pos); ++pos;
+  Ident v2 = Ident::parse(ctx, pos); ++pos;
+  Ident v3 = Ident::parse(ctx, pos);
+
+  RulesWithLocs rl;
+  rl.findOrAppendIdent(ctx, v1);
+  rl.findOrAppendIdent(ctx, v2);
+  assertHasDiagWithSubstr(__func__, ctx.diags, "case-conflicts");
+
+  ctx.diags.clear();
+  rl.defineIdent(ctx, v3);
+  assertHasDiagWithSubstr(__func__, ctx.diags, "case-conflicts");
 }
 
 void testReserveLocalNameEmptyIdentFails() {
@@ -188,6 +207,7 @@ int main() {
   testDefineIdentEmptyIdentFails();
   testReserveLocalNameEmptyIdentFails();
   testFindThenDefine();
+  testCaseConflicts();
   testReserveLocalName();
   testDefineAndReserveProducesError();
 }

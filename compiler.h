@@ -48,7 +48,7 @@ class RulesWithLocs {
        firstUseLocs_.
      Assumes ident.empty() == false
   */
-  ssize_t findOrAppendIdent(const Ident& id);
+  ssize_t findOrAppendIdent(DiagsDest ctx, const Ident& id);
 
   /* Returns the index of a new DefinitionInProgress rule named ident.
      This is usually called when we start processing a definition. When we
@@ -87,7 +87,7 @@ class RulesWithLocs {
   template <class X> ssize_t appendAnonRule(X x);
 
   /* Returns -1 if not found */
-  ssize_t findIdent(const Ident& ident) const;
+  ssize_t findIdent(DiagsDest ctx, const Ident& ident) const;
 
   /* For assigning to a rule after they have already been named */
   template <class X> void deferred_assign(ssize_t idx, X x);
