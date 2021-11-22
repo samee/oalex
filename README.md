@@ -9,10 +9,8 @@ For example, this could be a syntax in your own custom language:
       fn fname(type param, type param, ... , type param)
 
     # Identify various parts of the pattern above
-    where:            # Read as:
-      fname ~ ident   #   "fname _matches_ ident",
-      type  ~ ident   #   "type _matches_ ident", and
-      param ~ ident   #   "param _matches_ ident"
+    where:
+      fname, type, param ~ ident
 
     # Lay out the output fields as desired
     outputs: {

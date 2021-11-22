@@ -534,6 +534,37 @@ requireUniqueBinding(const vector<PatternToRuleBinding>& collected,
   return true;
 }
 
+// Strips out a comma-separated WordSegment prefix.
+// Modifies linetoks. Assumes non-empty linetoks.
+// (otherwise we don't have a good way to put LocPair on diags).
+// On success, returns non-empty vector and removes items and commas
+// from linetoks. On failure, returns empty vector and
+// leaves linetoks unchanged.
+vector<WholeSegment>
+consumeWordList(DiagsDest ctx, vector<ExprToken>& linetoks,
+                string_view word_desc) {
+  vector<WholeSegment> rv;
+  size_t i;
+
+  for(i=0; i<linetoks.size(); i+=2) {
+    auto* item = get_if<WholeSegment>(&linetoks[i]);
+    if(item == nullptr) {
+      Error(ctx, linetoks[i], format("Expected {}", word_desc));
+      break;
+    }
+    rv.push_back(*item);  // don't std::move, in case we encounter error later.
+    if(!matchesTokens(linetoks, i+1, {","})) {
+      linetoks.erase(linetoks.begin(), linetoks.begin()+i+1);
+      return rv;
+    }
+  }
+  // If we are here, we probably have a trailing comma.
+  if(!linetoks.empty())
+    Error(ctx, enPos(linetoks.back()),
+          format("Expected {} after comma", word_desc));
+  return {};
+}
+
 // On a bad error error, the caller should advance i to the next line that
 // matches leaderIndent. Such errors are indicated by an empty return vector.
 vector<PatternToRuleBinding>
@@ -551,20 +582,25 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   IndentCmp cmpres;
   do {
     i = j;
-    auto* lhs = get_if<WholeSegment>(&line[0]);
-    auto* rhs = (line.size() >= 3 ? get_if<WholeSegment>(&line[2]) : nullptr);
-    if(lhs == nullptr) Error(ctx, line[0], "Expected pattern name");
-    else if(line.size() < 2 || !isToken(line[1], "~"))
-      Error(ctx, enPos(line[0]), "Expected '~' after this");
-    else if(rhs == nullptr) Error(ctx, enPos(line[2]), "Expected rule name");
+    vector<WholeSegment> lhs = consumeWordList(ctx, line, "pattern name");
+    const WholeSegment* rhs
+      = (line.size() >= 2 ? get_if<WholeSegment>(&line[1]) : nullptr);
+    if(lhs.empty()) { /* do nothing */ }
+    else if(!matchesTokens(line, 0, {"~"}))
+      Error(ctx, lhs.back().enPos, "Expected '~' after this");
+    else if(rhs == nullptr)
+      Error(ctx, enPos(line[0]), "Expected rule name after this");
     else {
-      PatternToRuleBinding binding{
-        .pp{GluedString{*lhs}},
-        .outTmplKey{Ident::parse(ctx, *lhs)},
-        .ruleName{Ident::parse(ctx, *rhs)},
-      };
-      if(requireUniqueBinding(rv, binding, ctx))
-        rv.push_back(std::move(binding));
+      for(const auto& elt : lhs) {
+        PatternToRuleBinding binding{
+          .pp{GluedString{elt}},
+          .outTmplKey{Ident::parse(ctx, elt)},
+          .ruleName{Ident::parse(ctx, *rhs)},
+        };
+        if(requireUniqueBinding(rv, binding, ctx))
+          rv.push_back(std::move(binding));
+      }
+      requireEol(line, 2, ctx);
     }
 
     line = lexNextLine(ctx, j);

@@ -1,0 +1,10 @@
+# expected-error: 8:30: error: Expected end of line
+
+rule my_function_declaration:
+
+  fn fname(type param, type param, ... , type param)
+
+where:
+  fname, type, param ~ ident and more
+
+ident := /[a-zA-Z_]+/
