@@ -1,0 +1,6 @@
+# expected-error: Unexpected end of line
+
+rule hello_world:
+  Hello world
+where:
+  world

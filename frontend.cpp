@@ -61,6 +61,7 @@ using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::stPos;
 using std::get_if;
+using std::holds_alternative;
 using std::make_unique;
 using std::nullopt;
 using std::optional;
@@ -565,6 +566,63 @@ consumeWordList(DiagsDest ctx, vector<ExprToken>& linetoks,
   return {};
 }
 
+// On error, doesn't modify p2rule.
+// On success, one new definition is appended.
+void
+parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
+                            vector<PatternToRuleBinding>& p2rule) {
+  auto* ps = get_if<GluedString>(&line[0]);
+  if(!ps) {
+    Error(ctx, line[0], "Expected a quoted string");
+    return;
+  }
+  auto* ws = line.size() >= 3 ? get_if<WholeSegment>(&line[2]) : nullptr;
+  Ident outkey;
+  if(ws) outkey = Ident::parse(ctx, *ws);
+  else Error(ctx, line[2], "Expected an output key");
+  if(!outkey) return;
+
+  if(!matchesTokens(line, 3, {"~"})) {
+    Error(ctx, line[2], "Expected '~' after this");
+    return;
+  }
+  ws = line.size() >= 5 ? get_if<WholeSegment>(&line[4]) : nullptr;
+  Ident rulename;
+  if(ws) rulename = Ident::parse(ctx, *ws);
+  else Error(ctx, line[4], "Expected rule name");
+  if(!rulename) return;
+  p2rule.push_back(PatternToRuleBinding{
+    .pp{*ps}, .outTmplKey{std::move(outkey)}, .ruleName{std::move(rulename)}
+  });
+  requireEol(line, 5, ctx);
+}
+
+// On error, doesn't modify p2rule. On success, new definitions are appended.
+void
+parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
+                            vector<PatternToRuleBinding>& p2rule) {
+  vector<WholeSegment> lhs = consumeWordList(ctx, line, "pattern name");
+  const WholeSegment* rhs
+    = (line.size() >= 2 ? get_if<WholeSegment>(&line[1]) : nullptr);
+  if(lhs.empty()) { /* do nothing, consumeWordList already emitted errors */ }
+  else if(!matchesTokens(line, 0, {"~"}))
+    Error(ctx, lhs.back().enPos, "Expected '~' after this");
+  else if(rhs == nullptr)
+    Error(ctx, enPos(line[0]), "Expected rule name after this");
+  else {
+    for(const auto& elt : lhs) {
+      PatternToRuleBinding binding{
+        .pp{GluedString{elt}},
+        .outTmplKey{Ident::parse(ctx, elt)},  // TODO abort on parse error
+        .ruleName{Ident::parse(ctx, *rhs)},
+      };
+      if(requireUniqueBinding(p2rule, binding, ctx))
+        p2rule.push_back(std::move(binding));
+    }
+    requireEol(line, 2, ctx);
+  }
+}
+
 // On a bad error error, the caller should advance i to the next line that
 // matches leaderIndent. Such errors are indicated by an empty return vector.
 vector<PatternToRuleBinding>
@@ -582,26 +640,20 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   IndentCmp cmpres;
   do {
     i = j;
-    vector<WholeSegment> lhs = consumeWordList(ctx, line, "pattern name");
-    const WholeSegment* rhs
-      = (line.size() >= 2 ? get_if<WholeSegment>(&line[1]) : nullptr);
-    if(lhs.empty()) { /* do nothing */ }
-    else if(!matchesTokens(line, 0, {"~"}))
-      Error(ctx, lhs.back().enPos, "Expected '~' after this");
-    else if(rhs == nullptr)
-      Error(ctx, enPos(line[0]), "Expected rule name after this");
-    else {
-      for(const auto& elt : lhs) {
-        PatternToRuleBinding binding{
-          .pp{GluedString{elt}},
-          .outTmplKey{Ident::parse(ctx, elt)},
-          .ruleName{Ident::parse(ctx, *rhs)},
-        };
-        if(requireUniqueBinding(rv, binding, ctx))
-          rv.push_back(std::move(binding));
-      }
-      requireEol(line, 2, ctx);
-    }
+    // We can assume !line.empty()
+    const WholeSegment* tok0 = get_if<WholeSegment>(&line[0]);
+    bool goodtok0 = false;
+    if(tok0 && Ident::parse(ctx, *tok0)) goodtok0 = true;
+    else if(holds_alternative<GluedString>(line[0])) goodtok0 = true;
+
+    if(!goodtok0) Error(ctx, line[0], "Expected a part of the pattern");
+    else if(line.size() == 1)
+      Error(ctx, enPos(line[0]), "Unexpected end of line");
+    else if(isToken(line[1], "as"))
+      parseSingleAliasedLocalDecl(ctx, std::move(line), rv);
+    else if(isToken(line[1], "~") || isToken(line[1], ","))
+      parseUnaliasedLocalDeclList(ctx, std::move(line), rv);
+    else Error(ctx, enPos(line[1]), "Expected '~' after this");
 
     line = lexNextLine(ctx, j);
     if(line.empty()) break;

@@ -1,0 +1,6 @@
+# expected-error: Expected a part of the pattern
+
+rule hello_world:
+  Hello world
+where:
+  ~

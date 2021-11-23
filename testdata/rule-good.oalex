@@ -14,6 +14,7 @@ outputs success
 
 ident := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
+binop := /[-+*\/]/
 
 rule decl:
   var ident = rhs;
@@ -57,3 +58,13 @@ where:
 example simple_sum:
   a + b
 outputs: { lhs: "a", rhs: "b" }
+
+rule binop_expr:
+  lhs + rhs
+where:
+  lhs, rhs ~ ident
+  "+" as bop ~ binop
+
+example binop_expr:
+  a * b
+outputs: { lhs: "a", rhs: "b", bop: "*" }
