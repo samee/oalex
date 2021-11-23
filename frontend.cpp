@@ -541,28 +541,27 @@ requireUniqueBinding(const vector<PatternToRuleBinding>& collected,
 // On success, returns non-empty vector and removes items and commas
 // from linetoks. On failure, returns empty vector and
 // leaves linetoks unchanged.
-vector<WholeSegment>
-consumeWordList(DiagsDest ctx, vector<ExprToken>& linetoks,
-                string_view word_desc) {
-  vector<WholeSegment> rv;
+vector<Ident>
+consumeIdentList(DiagsDest ctx, vector<ExprToken>& linetoks,
+                 string_view word_desc) {
+  vector<Ident> rv;
   size_t i;
 
   for(i=0; i<linetoks.size(); i+=2) {
     auto* item = get_if<WholeSegment>(&linetoks[i]);
-    if(item == nullptr) {
+    Ident id;
+    if(item) id = Ident::parse(ctx, *item);
+    if(!id) {
       Error(ctx, linetoks[i], format("Expected {}", word_desc));
       break;
     }
-    rv.push_back(*item);  // don't std::move, in case we encounter error later.
+    rv.push_back(std::move(id));
     if(!matchesTokens(linetoks, i+1, {","})) {
       linetoks.erase(linetoks.begin(), linetoks.begin()+i+1);
       return rv;
     }
   }
   // If we are here, we probably have a trailing comma.
-  if(!linetoks.empty())
-    Error(ctx, enPos(linetoks.back()),
-          format("Expected {} after comma", word_desc));
   return {};
 }
 
@@ -601,19 +600,21 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
 void
 parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
                             vector<PatternToRuleBinding>& p2rule) {
-  vector<WholeSegment> lhs = consumeWordList(ctx, line, "pattern name");
+  vector<Ident> lhs = consumeIdentList(ctx, line, "pattern name");
   const WholeSegment* rhs
     = (line.size() >= 2 ? get_if<WholeSegment>(&line[1]) : nullptr);
-  if(lhs.empty()) { /* do nothing, consumeWordList already emitted errors */ }
+  if(lhs.empty()) { /* do nothing, consumeIdentList already emitted errors */ }
   else if(!matchesTokens(line, 0, {"~"}))
-    Error(ctx, lhs.back().enPos, "Expected '~' after this");
+    Error(ctx, lhs.back().enPos(), "Expected '~' after this");
   else if(rhs == nullptr)
     Error(ctx, enPos(line[0]), "Expected rule name after this");
   else {
     for(const auto& elt : lhs) {
       PatternToRuleBinding binding{
-        .pp{GluedString{elt}},
-        .outTmplKey{Ident::parse(ctx, elt)},  // TODO abort on parse error
+        .pp{GluedString{
+          WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
+        }},
+        .outTmplKey{elt},
         .ruleName{Ident::parse(ctx, *rhs)},
       };
       if(requireUniqueBinding(p2rule, binding, ctx))

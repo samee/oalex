@@ -1,0 +1,10 @@
+# expected-error: Expected pattern name
+
+rule my_function_declaration:
+
+  fn fname(type param, type param, ... , type param)
+
+where:
+  fname, type, : ~ ident and more
+
+ident := /[a-zA-Z_]+/
