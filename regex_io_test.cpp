@@ -191,6 +191,8 @@ void testParseDiags() {
     {"/[\\w]/", "Unknown escape"},
     {"/[\\xwq]/", "Invalid hex code"},
     {"/[\\\0x\\-]/"s, "Unknown escape"},
+    {R"(/[+\-\*\/]+/)", "Unknown escape"},
+    {"/\\:/", "Unknown escape"},
     {"/)", "Unmatched ')'"},
     {"/(/", "Unmatched '('"},
     {"/"+string(256,'('), "nested too deep"},
@@ -234,6 +236,7 @@ void testRegexMatches() {
     {"/\\bfoo\\b/", "foo ", 3},
     {"/$/", "", 0},
     {"/^/", "foo", 0},
+    {R"(/[+\-*\/]+/)", "+-*/", 4},
   };
   for(auto& [pattern, inputstr, matchLen] : testVectors) {
     InputDiags regex_input{Input{pattern}};

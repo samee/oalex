@@ -292,17 +292,17 @@ auto parseEscapeCode(InputDiags& ctx, size_t& i, const char meta[]) ->
 optional<unsigned char> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'\\')) return nullopt;
-  if(!input.sizeGt(i+1)) Fatal(ctx, i, i+1, "Incomplete escape code");
+  if(!input.sizeGt(i+1)) return Error(ctx, i, i+1, "Incomplete escape code");
   if(input[i+1] == 'x') return parseHexCode(ctx, i);
   if(auto res = unescaped(input[i+1], meta)) { i=i+2; return res; }
-  else { i += 2; return Error(ctx, i-2, i, "Unknown escape code"); }
+  else return Error(ctx, i, i+2, "Unknown escape code");
 }
 
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '/') {
-    Fatal(ctx, i, i+1, "Expected closing ']'");
+    Error(ctx, i, i+1, "Expected closing ']'");
     return nullopt;
   }
   if(input[i] == '\\') return parseEscapeCode(ctx, i, "^\\/-]");
@@ -327,7 +327,11 @@ auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<RegexCharSet> {
   // One or more set elements, not zero or more.
   // Allow ']' as the first set element. It does not close the set.
   do {
-    if(!input.sizeGt(j)) Fatal(ctx, i, i+1, "Unmatched '['");
+    if(!input.sizeGt(j)) {
+      Error(ctx, i, i+1, "Unmatched '['");
+      i = j;
+      return nullptr;
+    }
     if(auto st = parseCharSetElt(ctx, j)) cset.ranges.push_back({*st,*st});
     else { ++j; continue; }
 
@@ -362,7 +366,10 @@ auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<RegexCharSet> {
 
 auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth)
   -> unique_ptr<const Regex> {
-  if(depth == kMaxDepth) Fatal(ctx, i, i+1, "Parentheses nested too deep");
+  if(depth == kMaxDepth) {
+    Error(ctx, i, i+1, "Parentheses nested too deep");
+    return nullptr;
+  }
   const Input& input = ctx.input;
   size_t j = i;
   if(!hasChar(input,i,'('))
@@ -465,9 +472,10 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth)
       i = j;
       return unpackSingleton(contractStrings(std::move(concat)));
     }else if(startsRepeat(input[j])) {
-      if(++repdepth > kMaxRepDepth)
-        Fatal(ctx, j, j+1, "Too many consecutive repeat operators.");
-      if(!repeatBack(ctx, j, concat)) return nullptr;
+      if(++repdepth > kMaxRepDepth) {
+        Error(ctx, j, j+1, "Too many consecutive repeat operators.");
+        ++j;
+      }else if(!repeatBack(ctx, j, concat)) return nullptr;
       else continue;  // Skip checking subres.
     }else if(input[j] == '.') {
       subres = move_to_unique(RegexCharSet{{}, true});
@@ -524,7 +532,6 @@ RegexCharSet parseRegexCharSet(string input) {
   }
 }
 
-// Current state: only parses concatenation of character sets.
 auto parseRegex(InputDiags& ctx, size_t& i) -> unique_ptr<const Regex> {
   const Input& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullptr;
