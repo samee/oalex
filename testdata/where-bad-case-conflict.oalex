@@ -1,0 +1,11 @@
+# expected-error: 'rhs' case-conflicts with 'RHS'
+
+ident := /[_a-zA-Z]+/
+int_value := /-?[0-9]+/
+
+rule decl:
+  var ident = RHS;
+outputs: { ident, RHS }
+where:
+  rhs ~ int_value
+  ident ~ ident

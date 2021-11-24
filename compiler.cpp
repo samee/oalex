@@ -611,10 +611,12 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
 
 // Caller must already ensure no duplicate bindings for the same outTmplKey.
 static const PatternToRuleBinding*
-findRuleLocalBinding(string_view outk,
+findRuleLocalBinding(DiagsDest ctx, const Ident& outputIdent,
                      const vector<PatternToRuleBinding>& pattToRule) {
-  for(auto& binding : pattToRule) if(binding.outTmplKey.preserveCase() == outk)
+  for(auto& binding : pattToRule) if(binding.outTmplKey == outputIdent) {
+    requireExactMatch(ctx, binding.outTmplKey, outputIdent);
     return &binding;
+  }
   return nullptr;
 }
 
@@ -628,7 +630,8 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     Ident outputIdent = identOf(ctx, *kcontainer);
     Ident ruleIdent;
 
-    const PatternToRuleBinding* local = findRuleLocalBinding(k, pattToRule);
+    const PatternToRuleBinding* local
+      = findRuleLocalBinding(ctx, outputIdent, pattToRule);
     if(local != nullptr) {
       rl.reserveLocalName(ctx, local->outTmplKey);
       ruleIdent = local->ruleName;
