@@ -190,6 +190,15 @@ void testDefineAndReserveProducesError() {
     RulesWithLocs rl;
     ctx.diags.clear();
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
+    rl.defineIdent(ctx, Ident::parseGenerated("Foo"));
+    rl.reserveLocalName(ctx, foo);
+    assertHasDiagWithSubstr(me("define-then-reserve-case-conflict"), ctx.diags,
+        "Local variable name 'foo' conflicts with the global name 'Foo'");
+  }
+  {
+    RulesWithLocs rl;
+    ctx.diags.clear();
+    assertEmptyDiags(me("No initial diags expected"), ctx.diags);
     rl.reserveLocalName(ctx, foo);
     rl.defineIdent(ctx, foo);
     assertHasDiagWithSubstr(me("reserve-then-define"), ctx.diags,

@@ -198,13 +198,6 @@ PatternToRulesCompiler::process(const Pattern& patt) {
   }
 }
 
-void
-logLocalNamesakeError(DiagsDest ctx, const Ident& ident) {
-  Error(ctx, ident.stPos(), ident.enPos(),
-        format("Local variable name '{}' conflicts with a global name",
-               ident.preserveCase()));
-}
-
 // Used for catching inconsistent-cased identifiers.
 bool
 exactMatch(const Ident& a, const Ident& b) {
@@ -218,6 +211,18 @@ requireExactMatch(DiagsDest ctx, const Ident& a, const Ident& b) {
           format("'{}' case-conflicts with '{}'",
                  a.preserveCase(), b.preserveCase()));
   return rv;
+}
+
+void
+logLocalNamesakeError(DiagsDest ctx, const Ident& local, const Ident& global) {
+  if(!exactMatch(local, global))
+    Error(ctx, local.stPos(), local.enPos(),
+          format("Local variable name '{}' conflicts with the global name '{}'",
+                 local.preserveCase(), global.preserveCase()));
+  else
+    Error(ctx, local.stPos(), local.enPos(),
+          format("Local variable name '{}' conflicts with a global name",
+                 local.preserveCase()));
 }
 
 }  // namespace
@@ -268,7 +273,7 @@ ssize_t
 RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
   if(!ident) Bug("defineIdent() invoked with empty Ident");
   Ident res_instance = findReservedLocalIdent(ident);
-  if(res_instance) logLocalNamesakeError(ctx, res_instance);
+  if(res_instance) logLocalNamesakeError(ctx, res_instance, ident);
   for(ssize_t i=0; i<this->ssize(); ++i) {
     const Ident* name = rules_[i]->nameOrNull();
     if(name == nullptr || ident != *name) continue;
@@ -301,7 +306,7 @@ RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
     const Ident* name = rule->nameOrNull();
     if(name == nullptr || ident != *name) continue;
     if(!dynamic_cast<const UnassignedRule*>(rule.get()))
-      logLocalNamesakeError(ctx, ident);
+      logLocalNamesakeError(ctx, ident, *name);
     return;
   }
 }
