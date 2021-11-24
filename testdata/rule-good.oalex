@@ -21,6 +21,7 @@ rule decl:
 outputs: { ident, rhs }
 where:
   rhs ~ int_value
+  ident ~ ident
 
 
 example decl:
@@ -63,8 +64,8 @@ rule binop_expr:
   lhs + rhs
 where:
   lhs, rhs ~ ident
-  "+" as bop ~ binop
+  "+" as binop ~ binop
 
 example binop_expr:
   a * b
-outputs: { lhs: "a", rhs: "b", bop: "*" }
+outputs: { lhs: "a", rhs: "b", binop: "*" }

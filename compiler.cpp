@@ -620,12 +620,41 @@ findRuleLocalBinding(DiagsDest ctx, const Ident& outputIdent,
   return nullptr;
 }
 
+static vector<Ident>
+filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
+  vector<Ident> rv;
+  for(auto& b : pattToRule) rv.push_back(b.ruleName);
+  sort(rv.begin(), rv.end());
+  size_t i=0, j=0;
+  for(i=j=0; j<rv.size(); ++j) {
+    if((j>0 && rv[j]==rv[j-1]) || (j+1<rv.size() && rv[j]==rv[j+1])) continue;
+    rv[i] = rv[j];
+    ++i;
+  }
+  rv.erase(rv.begin()+i, rv.end());
+  return rv;
+}
+static void
+reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
+                       const PatternToRuleBinding& binding,
+                       const vector<Ident>& unq_lhs) {
+  if(binding.outTmplKey != binding.ruleName)
+    rl.reserveLocalName(ctx, binding.outTmplKey);
+  else if(!std::binary_search(unq_lhs.begin(), unq_lhs.end(),
+                              binding.outTmplKey)) {
+    Error(ctx, binding.outTmplKey.stPos(), binding.outTmplKey.enPos(),
+          "Reusing rule name is allowed only if "
+          "its use is unique in this definition");
+  }
+}
+
 // This is when `output:` is specified.
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   vector<pair<Ident, ssize_t>> rv;
+  vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
     Ident ruleIdent;
@@ -633,7 +662,7 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     const PatternToRuleBinding* local
       = findRuleLocalBinding(ctx, outputIdent, pattToRule);
     if(local != nullptr) {
-      rl.reserveLocalName(ctx, local->outTmplKey);
+      reserveLocalNameInRule(ctx, rl, *local, unq_lhs);
       ruleIdent = local->ruleName;
     }else ruleIdent = outputIdent;
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, ruleIdent);
@@ -647,8 +676,9 @@ static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule) {
   vector<pair<Ident, ssize_t>> rv;
+  vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& binding : pattToRule) {
-    rl.reserveLocalName(ctx, binding.outTmplKey);
+    reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     rv.emplace_back(std::move(binding.outTmplKey),
                     rl.findOrAppendIdent(ctx, binding.ruleName));
   }
