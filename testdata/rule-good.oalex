@@ -32,6 +32,32 @@ example decl:
   var x = y;
 outputs error with 'Expected int_value'
 
+rule global_vars:
+
+  globals (
+    var x = 5;  // This comment doesn't
+    var y = 7;  //   mess up repeat-detection.
+    ...
+  )
+
+where:
+  "var...;" as decls ~ decl
+
+example global_vars:
+
+  globals (
+    var a = 1;
+    var b = 2;
+  )
+
+outputs: {
+  decls: [
+    { ident: "a", rhs: "1" },
+    { ident: "b", rhs: "2" },
+  ]
+}
+
+
 rule single_word:
   Word
 outputs: { keyword: "word" }

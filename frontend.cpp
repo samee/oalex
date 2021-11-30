@@ -38,6 +38,7 @@ using oalex::OutputTmpl;
 using oalex::parseJsonTmplFromBracketGroup;
 using oalex::parsePattern;
 using oalex::parseRegexCharSet;
+using oalex::PartPattern;
 using oalex::passthroughTmpl;
 using oalex::Pattern;
 using oalex::tokenizePattern;
@@ -565,6 +566,40 @@ consumeIdentList(DiagsDest ctx, vector<ExprToken>& linetoks,
   return {};
 }
 
+// Outcomes:
+//   No ellipsis  --> returns 0
+//   One ellipsis --> returns 1 and sets stPos, enPos (relative to gs)
+//   Bad ellipsis --> returns -1
+int
+findEllipsis(DiagsDest ctx, GluedString gs, size_t& stPos, size_t& enPos) {
+  string_view ellipsis = "...";  // TODO change with lexopts/metachars
+  size_t i = gs.find(ellipsis);
+  if(i == string::npos) return 0;
+  size_t i2 = gs.find(ellipsis, i+1);
+  if(i2 == string::npos) {
+    stPos = i; enPos = i+ellipsis.size();
+    return 1;
+  }
+  size_t i2i = gs.inputPos(i2);
+  if(i2 > i + ellipsis.size()) Error(ctx, i2i, i2i+ellipsis.size(),
+                                     "Only one omission allowed in a pattern");
+  else Error(ctx, gs.inputPos(i), i2i+ellipsis.size(),
+             "Too many consecutive dots");
+  return -1;
+}
+
+optional<PartPattern>
+parsePartPattern(DiagsDest ctx, GluedString gs) {
+  size_t stPos, enPos;
+  ssize_t ec = findEllipsis(ctx, gs, stPos, enPos);
+  if(ec < 0) return nullopt;
+  if(ec == 0) return PartPattern{std::move(gs)};
+  else return DelimPair{
+    .st = gs.subqstr(0, stPos),
+    .en = gs.subqstr(enPos, string::npos)
+  };
+}
+
 // On error, doesn't modify p2rule.
 // On success, one new definition is appended.
 void
@@ -575,6 +610,8 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
     Error(ctx, line[0], "Expected a quoted string");
     return;
   }
+  optional<PartPattern> patt = parsePartPattern(ctx, *ps);
+  if(!patt) return;
   auto* ws = line.size() >= 3 ? get_if<WholeSegment>(&line[2]) : nullptr;
   Ident outkey;
   if(ws) outkey = Ident::parse(ctx, *ws);
@@ -591,7 +628,8 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
   else Error(ctx, line[4], "Expected rule name");
   if(!rulename) return;
   p2rule.push_back(PatternToRuleBinding{
-    .pp{*ps}, .outTmplKey{std::move(outkey)}, .ruleName{std::move(rulename)}
+    .pp{std::move(*patt)}, .outTmplKey{std::move(outkey)},
+    .ruleName{std::move(rulename)}
   });
   requireEol(line, 5, ctx);
 }
