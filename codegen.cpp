@@ -37,6 +37,12 @@ using std::vector;
 
 namespace oalex {
 
+const string&
+ExternParser::externalName() const {
+  if(!externalName_.empty()) return externalName_;
+  else Bug("External parsers must have an external name");
+}
+
 // eval()
 // ------
 
@@ -867,20 +873,19 @@ codegenParserCall(const Rule& rule, string_view posVar,
     else cppos(format("oalex::errorValue(ctx, {}, {})",
                       posVar, dquoted(err->msg)));
   }
-  else if(const Ident* rname = rule.nameOrNull()) {
-    if(dynamic_cast<const ExternParser*>(&rule))
-      cppos(format("{}(ctx, {});", rname->preserveCase(), posVar));
-    else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
-  }
+  else if(auto* ext = dynamic_cast<const ExternParser*>(&rule))
+    cppos(format("{}(ctx, {});", ext->externalName(), posVar));
+  else if(const Ident* rname = rule.nameOrNull())
+    cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   // When adding a new branch here, remember to change StringRule::needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
 }
 
 static void
-genExternDeclaration(const OutputStream& hos, const Ident& rname) {
+genExternDeclaration(const OutputStream& hos, string_view extName) {
   hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& j);\n",
-             rname.preserveCase()));
+             extName));
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
@@ -894,8 +899,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   if(r.nameOrNull() == nullptr) Bug("Cannot codegen for unnamed rules");
   Ident rname = *r.nameOrNull();
 
-  if(dynamic_cast<const ExternParser*>(&r)) {
-    genExternDeclaration(hos, rname);
+  if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
+    genExternDeclaration(hos, ext->externalName());
     return;
   }
   parserHeaders(rname, cppos, hos); cppos("{\n");

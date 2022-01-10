@@ -250,8 +250,13 @@ class MatchOrError final : public Rule {
 
 // Note: we currently don't support ExternParser in tentative contexts.
 class ExternParser final : public Rule {
+  std::string externalName_;
  public:
+  // TODO: require names to have "oalexPlugin..." prefix to avoid collision
+  // with generated names.
+  explicit ExternParser(std::string_view extName) : externalName_{extName} {}
   std::string specifics_typename() const override { return "ExternParser"; }
+  const std::string& externalName() const;
 };
 
 class RegexRule final : public Rule {
