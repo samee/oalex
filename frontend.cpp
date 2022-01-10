@@ -590,7 +590,7 @@ findEllipsis(DiagsDest ctx, GluedString gs, size_t& stPos, size_t& enPos) {
 
 optional<PartPattern>
 parsePartPattern(DiagsDest ctx, GluedString gs) {
-  size_t stPos, enPos;
+  size_t stPos=0, enPos=0;
   ssize_t ec = findEllipsis(ctx, gs, stPos, enPos);
   if(ec < 0) return nullopt;
   if(ec == 0) return PartPattern{std::move(gs)};
