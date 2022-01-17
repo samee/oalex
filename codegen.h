@@ -280,23 +280,6 @@ class StringRule final : public Rule {
   template <class X> friend bool holds_alternative(const Rule& rule);
   template <class X> friend X* get_if(Rule* rule);
   template <class X> friend const X* get_if(const Rule* rule);
-  /*
-  Return types are either an ErrorValue or:
-
-    * UnassignedRule: Doesn't return, not to be used in eval or codegen.
-    * string, WordPreserving, RegexRule: Returns string.
-    * SkipPoint: Something dummy (to be checked).
-    * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
-    * ConcatFlatRule: Returns Map, flattenable.
-    * OutputTmpl: Returns Map, not flattenable.
-    * LoopRule: Returns Map, flattenable.
-    * OrRule: Depends on flattenOnDemand. If set, we require all children
-      to be makesFlattenableMap() too.
-    * ErrorRule: ErrorValue only. Satisfies makesFlattenableMap().
-      Maybe rename to makesFlattenableMapOrError().
-    * QuietMatch: Same as its child.
-    * MatchOrError: Same as child.
-  */
 };
 
 // TODO this needs a debug() printer.
@@ -311,6 +294,23 @@ class OutputStream {
   virtual ~OutputStream() {}
 };
 
+/*
+Return types are either an ErrorValue or:
+
+  * UnassignedRule: Doesn't return, not to be used in eval or codegen.
+  * string, WordPreserving, RegexRule: Returns string.
+  * SkipPoint: Something dummy (to be checked).
+  * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
+  * ConcatFlatRule: Returns Map, flattenable.
+  * OutputTmpl: Returns Map, not flattenable.
+  * LoopRule: Returns Map, flattenable.
+  * OrRule: Depends on flattenOnDemand. If set, we require all children
+    to be makesFlattenableMap() too.
+  * ErrorRule: ErrorValue only. Satisfies makesFlattenableMap().
+    Maybe rename to makesFlattenableMapOrError().
+  * QuietMatch: Same as its child.
+  * MatchOrError: Same as child.
+*/
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos);
 void codegenDefaultRegexOptions(const RuleSet& ruleset,
