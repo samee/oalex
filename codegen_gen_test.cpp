@@ -219,7 +219,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       WordPreserving{"let"},
       nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
-      nmRule(ExternParser{"parseIndentedTmpl"}, "IndentedTmpl"),
+      nmRule(ExternParser{"oalexPluginIndentedTmpl"}, "IndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")

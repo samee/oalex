@@ -170,7 +170,7 @@ void runConcatTest() {
 }  // namespace
 
 // This one needs to be extern for linking to generated code.
-JsonLoc parseIndentedTmpl(InputDiags& ctx, ssize_t& i) {
+JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   static const Skipper *shskip = new Skipper{ {{"#", "\n"}}, {} };
   const Input& input = ctx.input;
   ssize_t j = shskip->whitespace(ctx.input, i);

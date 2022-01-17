@@ -37,6 +37,14 @@ using std::vector;
 
 namespace oalex {
 
+bool ExternParser::validExtName(string_view name) {
+  return name.find("oalexPlugin") == 0 || name.find("oalexBuiltin") == 0;
+}
+
+ExternParser::ExternParser(string_view extName) : externalName_{extName} {
+  if(!validExtName(extName))
+    Bug("External names need to start either with oalexPlugin or oalexBuiltin");
+}
 const string&
 ExternParser::externalName() const {
   if(!externalName_.empty()) return externalName_;
@@ -718,6 +726,14 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
 }
 
 static void
+codegen(const ExternParser& extRule, const OutputStream& cppos) {
+  cppos(format(
+        "  extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
+        extRule.externalName()));
+  cppos(format("  return {}(ctx, i);\n", extRule.externalName()));
+}
+
+static void
 codegen(const ErrorRule& errRule, const OutputStream& cppos) {
   if(errRule.msg.empty()) cppos("  return JsonLoc::ErrorValue{};\n");
   else cppos(format("  return oalex::errorValue(ctx, i, {});\n",
@@ -901,7 +917,6 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
 
   if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
     genExternDeclaration(hos, ext->externalName());
-    return;
   }
   parserHeaders(rname, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
@@ -921,6 +936,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *out, cppos);
   }else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
     codegen(ruleset, *loop, cppos);
+  }else if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
+    codegen(*ext, cppos);
   }else if(auto* err = dynamic_cast<const ErrorRule*>(&r)) {
     codegen(*err, cppos);
   }else if(auto* qm = dynamic_cast<const QuietMatch*>(&r)) {

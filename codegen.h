@@ -252,9 +252,8 @@ class MatchOrError final : public Rule {
 class ExternParser final : public Rule {
   std::string externalName_;
  public:
-  // TODO: require names to have "oalexPlugin..." prefix to avoid collision
-  // with generated names.
-  explicit ExternParser(std::string_view extName) : externalName_{extName} {}
+  static bool validExtName(std::string_view extName);
+  explicit ExternParser(std::string_view extName);
   std::string specifics_typename() const override { return "ExternParser"; }
   const std::string& externalName() const;
 };
