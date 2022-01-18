@@ -219,10 +219,20 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       WordPreserving{"let"},
       nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
-      nmRule(ExternParser{"oalexPluginIndentedTmpl"}, "IndentedTmpl"),
+      nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
+    ), regexOpts
+  };
+  codegenNamedRules(rs, cppos, hos);
+}
+
+void generateExternParserParams(const OutputStream& cppos,
+                                const OutputStream& hos) {
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
+      nmRule(parseRegex("/[a-zA-Z_]+\\b/"), "ParamId"),
+      nmRule(ExternParser{"oalexPluginBulletedList", {0}}, "BulletListIds")
     ), regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
@@ -472,6 +482,8 @@ int main(int argc, char* argv[]) {
   generateConcatTest(cppos, hos);
   linebreaks();
   generateExternParserDeclaration(cppos, hos);
+  linebreaks();
+  generateExternParserParams(cppos, hos);
   linebreaks();
   generateOrTest(cppos, hos);
   linebreaks();

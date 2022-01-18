@@ -183,6 +183,63 @@ JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   else return JsonLoc::ErrorValue{};
 }
 
+bool skipPluginBullet(InputDiags& ctx, ssize_t& i) {
+  const Input& input = ctx.input;
+  if(ssize_t(input.bol(i)) != i) {
+    Error(ctx, i, "Expected the beginning of a new line");
+    return false;
+  }
+  ssize_t j = i;
+  while(input.sizeGt(j) && input[j] == ' ') ++j; // No tabs
+  if(!input.sizeGt(j)) return false;
+  else if(input[j] == '*') ++j;
+  else {
+    Error(ctx, j, "Expected a bullet point '*'");
+    return false;
+  }
+  i = j;
+  while(input.sizeGt(i) && input[i] == ' ') ++i;
+  return true;
+}
+bool pluginBulletedListSkipToBolOrEof(InputDiags& ctx, ssize_t& i) {
+  const Input& input = ctx.input;
+  while(input.sizeGt(i) && i != ssize_t(input.bol(i))) {
+    if(!oalex::is_in(input[i], " \n\t")) {
+      Error(ctx, i, "Expected end of line");
+      return false;
+    }
+    ++i;
+  }
+  return true;
+}
+
+JsonLoc oalexPluginBulletedList(
+    InputDiags& ctx, ssize_t& i,
+    JsonLoc (*parseEntry)(InputDiags&, ssize_t&)) {
+  JsonLoc::Vector outvec;
+  ssize_t j=i, fallback_point=i;
+  if(!pluginBulletedListSkipToBolOrEof(ctx, j)) return JsonLoc::ErrorValue{};
+  while(ctx.input.sizeGt(j) && ctx.input[j]=='\n') ++j;
+
+  while(true) {
+    if(!skipPluginBullet(ctx, j)) {
+      if(ctx.input.bol(j) != size_t(j) && outvec.empty())
+        Error(ctx, j, "Expected a list item");
+      break;
+    }
+    JsonLoc entry = parseEntry(ctx, j);
+    if(!entry.holdsErrorValue()) outvec.push_back(std::move(entry));
+    else break;  // Simple parser, no error recovery.
+    if(!pluginBulletedListSkipToBolOrEof(ctx, j)) break;
+    fallback_point = j;
+  }
+  JsonLoc rv = JsonLoc::ErrorValue{};
+  if(!outvec.empty()) rv = std::move(outvec);
+  rv.stPos = i; rv.enPos = fallback_point;
+  i = fallback_point;
+  return rv;
+}
+
 namespace {
 
 void runExternParserDeclaration() {
@@ -203,6 +260,22 @@ void runExternParserDeclaration() {
   })";
   if(jsloc.holdsErrorValue()) BugMe("parseExtTmpl() failed");
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
+}
+
+void runExternParserParams() {
+  const char msg[] = R"(
+    * eat
+    * sleep
+    * code
+  )";
+  InputDiags ctx{Input{msg}};
+  ssize_t pos = 0;
+  JsonLoc jsloc = parseBulletListIds(ctx, pos);
+  if(jsloc.holdsErrorValue()) {
+    showDiags(ctx.diags);
+    BugMe("parseBulletListIds() failed");
+  }
+  assertEqual(__func__, jsloc, *parseJsonLoc("['eat', 'sleep', 'code']"));
 }
 
 void runOrTest() {
@@ -409,6 +482,7 @@ int main() {
   runSingleWordTemplate();
   runConcatTest();
   runExternParserDeclaration();
+  runExternParserParams();
   runOrTest();
   runFlattenOnDemand();
   runLookaheads();

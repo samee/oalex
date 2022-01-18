@@ -41,10 +41,12 @@ bool ExternParser::validExtName(string_view name) {
   return name.find("oalexPlugin") == 0 || name.find("oalexBuiltin") == 0;
 }
 
-ExternParser::ExternParser(string_view extName) : externalName_{extName} {
+ExternParser::ExternParser(string_view extName, vector<ssize_t> params)
+  : externalName_{extName}, params_{std::move(params)} {
   if(!validExtName(extName))
     Bug("External names need to start either with oalexPlugin or oalexBuiltin");
 }
+
 const string&
 ExternParser::externalName() const {
   if(!externalName_.empty()) return externalName_;
@@ -725,12 +727,33 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  return rv;\n");
 }
 
+static string
+parserNamesJoinTail(const RuleSet& ruleset, const vector<ssize_t>& rules) {
+  string rv;
+  for(auto& ruleIndex: rules) {
+    const Ident* name = ruleAt(ruleset, ruleIndex).nameOrNull();
+    if(!name) Bug("ExternParser params must have names");
+    rv += ", &" + parserName(*name);
+  }
+  return rv;
+}
+
+static string
+parserCallbacksTail(size_t paramCount) {
+  string rv;
+  for(size_t i=0; i<paramCount; ++i)
+    rv += ", JsonLoc (*)(InputDiags&, ssize_t&)";
+  return rv;
+}
+
 static void
-codegen(const ExternParser& extRule, const OutputStream& cppos) {
+codegen(const RuleSet& ruleset, const ExternParser& extRule,
+        const OutputStream& cppos) {
   cppos(format(
-        "  extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
-        extRule.externalName()));
-  cppos(format("  return {}(ctx, i);\n", extRule.externalName()));
+        "  extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i{});\n",
+        extRule.externalName(), parserCallbacksTail(extRule.params().size())));
+  cppos(format("  return {}(ctx, i{});\n", extRule.externalName(),
+               parserNamesJoinTail(ruleset, extRule.params())));
 }
 
 static void
@@ -889,7 +912,8 @@ codegenParserCall(const Rule& rule, string_view posVar,
     else cppos(format("oalex::errorValue(ctx, {}, {})",
                       posVar, dquoted(err->msg)));
   }
-  else if(auto* ext = dynamic_cast<const ExternParser*>(&rule))
+  else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
+          ext && ext->params().empty())
     cppos(format("{}(ctx, {});", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull())
     cppos(format("{}(ctx, {})", parserName(*rname), posVar));
@@ -937,7 +961,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
     codegen(ruleset, *loop, cppos);
   }else if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
-    codegen(*ext, cppos);
+    codegen(ruleset, *ext, cppos);
   }else if(auto* err = dynamic_cast<const ErrorRule*>(&r)) {
     codegen(*err, cppos);
   }else if(auto* qm = dynamic_cast<const QuietMatch*>(&r)) {

@@ -251,11 +251,15 @@ class MatchOrError final : public Rule {
 // Note: we currently don't support ExternParser in tentative contexts.
 class ExternParser final : public Rule {
   std::string externalName_;
+  std::vector<ssize_t> params_;
  public:
   static bool validExtName(std::string_view extName);
-  explicit ExternParser(std::string_view extName);
+  ExternParser(
+      std::string_view extName,
+      std::vector<ssize_t> params);
   std::string specifics_typename() const override { return "ExternParser"; }
   const std::string& externalName() const;
+  const std::vector<ssize_t>& params() const { return params_; }
 };
 
 class RegexRule final : public Rule {
