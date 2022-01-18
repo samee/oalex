@@ -81,7 +81,7 @@ add_test(pattern_test pattern_test)
 
 add_subdirectory(runtime)
 
-add_executable(oalex-bin oalex_main.cpp frontend.cpp)
+add_executable(oalex-bin oalex_main.cpp frontend.cpp frontend_pieces.cpp)
 target_include_directories(oalex-bin PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(oalex-bin oalex-bin-lib)
 set_target_properties(oalex-bin PROPERTIES OUTPUT_NAME "oalex")
@@ -91,3 +91,7 @@ add_test(NAME oalex_main_test
                  --bin $<TARGET_FILE:oalex-bin>
                  --source-path ${CMAKE_SOURCE_DIR}
                  --build-path ${CMAKE_BINARY_DIR})
+
+add_test(NAME frontend_pieces_test
+         COMMAND $<TARGET_FILE:oalex-bin> test
+           ${CMAKE_SOURCE_DIR}/frontend_pieces.oalex)

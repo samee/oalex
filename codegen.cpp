@@ -288,6 +288,36 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   return out;
 }
 
+// TODO move this to runtime/ directory if we want to use this in
+// `oalex build`. Or link the generated source files with oalex-bin-lib.
+static JsonLoc
+oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
+  if(ctx.input.substr(i, 5) == "hello") {
+    i += 5;
+    return JsonLoc::String{"hello"};
+  } else {
+    Error(ctx, i, "Expected 'hello'");
+    return JsonLoc::ErrorValue{};
+  }
+}
+
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const ExternParser& ext) {
+  string_view extname = ext.externalName();
+  if(extname.find("oalexBuiltin") != string::npos) {
+    string_view builtin = extname.substr(sizeof("oalexBuiltin")-1);
+    if(builtin == "Hello") return oalexBuiltinHello(ctx, i);
+    else {
+      Error(ctx, i, format("Unknown builtin name {}", builtin));
+      return JsonLoc::ErrorValue{};
+    }
+  }else {
+    // Use dlopen() someday
+    Error(ctx, i, "eval() doesn't support 'extern' parsers");
+    return JsonLoc::ErrorValue{};
+  }
+}
+
 // TODO recheck if we are properly initializing
 // rv.stPos and rv.enPos in all cases.
 JsonLoc
@@ -297,8 +327,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     return match(ctx, i, s->val);
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&r))
     return match(ctx, i, ruleset.regexOpts.word, **wp);
-  else if(dynamic_cast<const ExternParser*>(&r))  // use dlopen() someday
-    UserError("eval() doesn't support 'extern' parsers");
+  else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
+    return eval(ctx, i, *ext);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
     return skip(ctx, i, *sp);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
@@ -860,7 +890,7 @@ codegen(const SkipPoint& sp, const OutputStream& cppos) {
     cppos(format("    .nestedComment{{ {{ {}, {} }} }},\n",
                  dquoted(st), dquoted(en)));
   }else {
-    cppos("    .nestedComment{}, \n");
+    cppos("    .nestedComment{},\n");
   }
   cppos(format("    .indicateBlankLines = {},\n",
                alphabool(sp.skip->indicateBlankLines)));

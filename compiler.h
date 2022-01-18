@@ -143,4 +143,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    lex::GluedString patt_string, const LexDirective& lexOpts,
                    std::vector<PatternToRuleBinding> pattToRule,
                    RulesWithLocs& rl);
+
+void
+appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 }  // namespace oalex

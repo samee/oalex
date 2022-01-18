@@ -1,0 +1,10 @@
+
+extern rule hello = oalexBuiltinHello;
+
+example hello:
+  hello
+outputs success
+
+example hello:
+  goodbye
+outputs error with 'Expected \'hello\''

@@ -24,6 +24,7 @@
 #include "fmt/core.h"
 
 #include "compiler.h"
+#include "frontend_pieces.h"
 #include "lexer.h"
 #include "pattern.h"
 #include "regex_io.h"
@@ -60,6 +61,7 @@ using oalex::lex::NewlineChar;
 using oalex::lex::oalexSkip;
 using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
+using oalex::lex::skipBlankLines;
 using oalex::lex::stPos;
 using std::get_if;
 using std::holds_alternative;
@@ -73,6 +75,9 @@ using std::tuple;
 using std::unique;
 using std::unique_ptr;
 using std::vector;
+
+// TODO generate namespaces in frontend_pieces.{cpp,h}
+using ::parseExternRule;
 
 namespace oalex {
 
@@ -255,6 +260,11 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
     if(!requireEol(linetoks, 6, ctx)) return nullopt;
   }
   return concat;
+}
+
+bool
+resemblesExternRule(const Input& input, size_t i) {
+  return input.bol(i) == i && input.substr(i, 7) == "extern ";
 }
 
 optional<SkipPoint>
@@ -1034,8 +1044,22 @@ parseOalexSource(InputDiags& ctx) {
   vector<Example> examples;
   RulesWithLocs rl;
   while(ctx.input.sizeGt(i)) {
-    if(i != ctx.input.bol(i))
-      FatalBug(ctx, i, "Rules must start at bol()");
+    i = skipBlankLines(ctx, i);
+    if(i == string::npos) return nullopt;
+    i = ctx.input.bol(i);
+
+    // First try bootstrapped pieces. They don't need linetoks.
+    // But they do use ssize_t.
+    ssize_t is = i;
+    bool tok_needed = false;
+    if(resemblesExternRule(ctx.input, is)) {
+      appendExternRule(parseExternRule(ctx, is), ctx, rl);
+    }else {
+      tok_needed = true;
+    }
+    i = is;
+
+    if(!tok_needed) continue;
     vector<ExprToken> linetoks = lexNextLine(ctx, i);
     if(linetoks.empty()) {
       if(ctx.input.sizeGt(i)) return nullopt;  // Error case

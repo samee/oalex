@@ -16,6 +16,7 @@
 #include <map>
 #include <utility>
 #include "fmt/core.h"
+#include "runtime/jsonloc.h"
 #include "runtime/util.h"
 using fmt::format;
 using oalex::lex::GluedString;
@@ -735,6 +736,54 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(newIndex2 == -1) return;
   // TODO: Optimize this indirection.
   rl.deferred_assign(newIndex2, ConcatFlatRule{{ {newIndex, ""} }});
+}
+
+static Ident
+identFrom(const JsonLoc& jsloc, string_view desc, DiagsDest ctx) {
+  const string* s = jsloc.getIfString();
+  if(!s) Bug("{} should have been a string, found {}", desc, jsloc.tagName());
+  const WholeSegment wseg{jsloc.stPos, jsloc.enPos, *s};
+  return Ident::parse(ctx, wseg);
+}
+
+// TODO revisit error-handling here.
+// TODO revisit all error-handling from Ident::parse() in the repo.
+//   It may return empty. findOrAppendIdent() and friends don't expect it.
+void
+appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
+  if(ruletoks.holdsErrorValue()) return;  // Diags already populated in parser
+  auto* toks = ruletoks.getIfMap();
+  if(!toks) Bug("Parser output should have been a map");
+
+  // TODO condense nullptr checks
+  const JsonLoc* rname = JsonLoc::mapScanForValue(*toks, "rule_name");
+  const string* ext_name = JsonLoc::mapScanForValue(*toks, "external_name")
+                           ->getIfString();
+  const vector<JsonLoc>* params;
+  if(auto* paramjs = JsonLoc::mapScanForValue(*toks, "param")) {
+    params = paramjs->getIfVector();
+  }else params = nullptr;
+  if(rname == nullptr) Bug("Expected rule_name in extern_rule");
+  if(ext_name == nullptr) Bug("Expected external_name in extern_rule");
+  /*
+  TODO: handle this error.
+  if(!ext_name || !ExternParser::validExtName(*ext_name)) {
+    Error(ctx, ext_name, "External names must begin with oalexPlugin");
+    return;
+  }
+  */
+
+  vector<ssize_t> ruleIndices;
+  if(params) for(auto& p: *params) {
+    auto param_ident = identFrom(p, "param", ctx);
+    if(param_ident)
+      ruleIndices.push_back(rl.findOrAppendIdent(ctx, param_ident));
+  }
+  ssize_t newIndex = rl.defineIdent(ctx, identFrom(*rname, "rule name", ctx));
+  if(newIndex == -1) return;
+  rl.deferred_assign(newIndex, ExternParser{
+      std::move(*ext_name), std::move(ruleIndices)
+  });
 }
 
 }  // namespace oalex
