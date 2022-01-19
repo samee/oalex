@@ -198,6 +198,14 @@ std::optional<BracketGroup> lexBracketGroup(InputDiags& lex, size_t& i);
 // multiple times in succession.
 std::vector<ExprToken> lexNextLine(InputDiags& lex, size_t& i);
 
+/* Skips over blank lines and comments. Errors out unless pos is:
+     * in a blank line, or
+     * at the end of some previous line
+  On success, it stops at the first non-blank char of the next line.
+*/
+size_t
+skipBlankLines(InputDiags& ctx, size_t pos);
+
 // Used, for instance, to lex list of lookaheads,
 // with the leader character set to '|'.
 // On parse error, it still returns and consumes as many lines as possible.

@@ -101,13 +101,6 @@ bool isSectionHeaderNonSpace(char ch) {
       || ch=='_';
 }
 
-optional<size_t>
-skipBlankLine(InputDiags& ctx, size_t i) {
-  size_t j = oalexSkip.withinLine(ctx.input, i);
-  if(ctx.input.bol(i) == ctx.input.bol(j)) return nullopt;
-  else return j;
-}
-
 // TODO use generic word-lexer based on a char set.
 optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
@@ -361,6 +354,20 @@ char closeBracket(BracketType bt) {
 }
 
 }  // namespace
+
+size_t
+skipBlankLines(InputDiags& ctx, size_t pos) {
+  const Input& input = ctx.input;
+  size_t rv = oalexSkip.acrossLines(input, pos);
+  if(rv == string::npos) {
+    Error(ctx, oalexSkip.whitespace(input, pos), "Unfinished comment");
+    return rv;
+  }else if(rv == oalexSkip.acrossLines(input, input.bol(rv))) return rv;
+  else {
+    Error(ctx, rv, "Expected end of line");
+    return string::npos;
+  }
+}
 
 IndentCmp indentCmp(string_view indent1, string_view indent2) {
   size_t i = 0;
@@ -794,7 +801,7 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   if(i != ctx.input.bol(i)) return {};
 
   Resetter rst(ctx, i);
-  while(auto j = skipBlankLine(ctx,i)) i = *j;
+  if(size_t j = skipBlankLines(ctx,i); j != string::npos) i = ctx.input.bol(j);
   optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
   if(!rv) return {};
   optional<size_t> stDash=lexDashLine(ctx,i);
@@ -820,7 +827,7 @@ vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
                debugPrefix(ctx.input, i)));
 
   Resetter rst(ctx, i);
-  while(optional<size_t> j = skipBlankLine(ctx,i)) i = *j;
+  if(size_t j = skipBlankLines(ctx, i); j != string::npos) i = ctx.input.bol(j);
 
   vector<ExprToken> rv;
   size_t prevBol = i;

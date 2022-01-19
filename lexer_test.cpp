@@ -17,6 +17,7 @@
 
 #include <string>
 #include <string_view>
+#include <tuple>
 
 #include "fmt/format.h"
 
@@ -31,6 +32,7 @@ using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::tuple;
 using std::vector;
 using namespace std::string_literals;
 using oalex::assertEqual;
@@ -54,6 +56,7 @@ using oalex::lex::lexQuotedString;
 using oalex::lex::lexSectionHeader;
 using oalex::lex::lookahead;
 using oalex::lex::NewlineChar;
+using oalex::lex::skipBlankLines;
 using oalex::lex::matcher::braces;
 using oalex::lex::matcher::BracketGroupMatcher;
 using oalex::lex::matcher::ExprMatcher;
@@ -524,6 +527,22 @@ var "unfinished
 
 )";
 
+void testSkipBlankLines() {
+  const tuple<string_view, size_t, size_t> test_cases[] = {
+    {"Foo bar", 0, 0},
+    {"\n\n  Foo bar", 0, 4},
+    {"foo bar", 3, string::npos},
+  };
+  size_t test_index = 0;
+  for(auto& [msg, inpos, expected]: test_cases) {
+    test_index++;
+    InputDiags ctx{Input{msg}};
+    size_t observed = skipBlankLines(ctx, inpos);
+    assertEqual(format("{} test case {}", __func__, test_index),
+                observed, expected);
+  }
+}
+
 // Failed lexQuotedString() commits if input starts with a quote character,
 // and tries pretty hard to recover. In those cases, we should not try
 // an alternate parsing assuming the cursor is still unchanged.
@@ -683,6 +702,8 @@ int main() {
   bracketGroupThrows("@","Unexpected character '@'");
 
   newlinePositionIsCorrect();
+
+  testSkipBlankLines();
 
   nextLineSuccess(goodLine, (vector<ExprMatcher>{
         "var", ":=", glued("Hello!")}));
