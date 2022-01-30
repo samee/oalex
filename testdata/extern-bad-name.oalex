@@ -1,0 +1,4 @@
+# expected-error: External names must begin with oalexPlugin
+
+extern rule hello = someOtherParser;
+
