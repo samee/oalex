@@ -746,25 +746,69 @@ identFrom(const JsonLoc& jsloc, string_view desc, DiagsDest ctx) {
   return Ident::parse(ctx, wseg);
 }
 
+// MapFields takes a JsonLoc::Map from some bootstrapped rule, and
+// extracts named fields. Most errors here result in Bug() rather than a
+// user-reported Error().
+class MapFields {
+ public:
+  MapFields(const JsonLoc::Map* jmap, string_view rule_name)
+    : jmap_{jmap}, rule_name_{rule_name} {
+    if(!jmap) Bug("Parser output for {} should have been a map", rule_name);
+  }
+
+  template <class T> using get_t = std::conditional_t<
+    std::is_pointer_v<T>,
+    const std::remove_pointer_t<T>*,
+    const T&>;
+  template <class T> get_t<T> get(string_view field_name) const = delete;
+ private:
+  const JsonLoc::Map* jmap_;
+  string_view rule_name_;
+};
+
+template <> const JsonLoc&
+MapFields::get<JsonLoc>(string_view field_name) const {
+  const JsonLoc* rv = JsonLoc::mapScanForValue(*jmap_, field_name);
+  if(!rv) Bug("Expected {} in {}", field_name, rule_name_);
+  return *rv;
+}
+
+template <> const string&
+MapFields::get<string>(string_view field_name) const {
+  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
+  const string* s = jsloc.getIfString();
+  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
+  return *s;
+}
+
+template <> const JsonLoc::Vector&
+MapFields::get<JsonLoc::Vector>(string_view field_name) const {
+  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
+  const JsonLoc::Vector* vec = jsloc.getIfVector();
+  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
+  return *vec;
+}
+
+template <> const JsonLoc::Vector*
+MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
+  const JsonLoc* jsloc = JsonLoc::mapScanForValue(*jmap_, field_name);
+  if(!jsloc) return nullptr;
+  const JsonLoc::Vector* vec = jsloc->getIfVector();
+  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
+  return vec;
+}
+
 // TODO revisit error-handling here.
 // TODO revisit all error-handling from Ident::parse() in the repo.
 //   It may return empty. findOrAppendIdent() and friends don't expect it.
 void
 appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   if(ruletoks.holdsErrorValue()) return;  // Diags already populated in parser
-  auto* toks = ruletoks.getIfMap();
-  if(!toks) Bug("Parser output should have been a map");
+  MapFields fields{ruletoks.getIfMap(), "extern_rule"};
+  auto& rname    = fields.get<JsonLoc>("rule_name");
+  auto& ext_name = fields.get<string>("external_name");
+  auto* params   = fields.get<JsonLoc::Vector*>("param");
 
-  // TODO condense nullptr checks
-  const JsonLoc* rname = JsonLoc::mapScanForValue(*toks, "rule_name");
-  const string* ext_name = JsonLoc::mapScanForValue(*toks, "external_name")
-                           ->getIfString();
-  const vector<JsonLoc>* params;
-  if(auto* paramjs = JsonLoc::mapScanForValue(*toks, "param")) {
-    params = paramjs->getIfVector();
-  }else params = nullptr;
-  if(rname == nullptr) Bug("Expected rule_name in extern_rule");
-  if(ext_name == nullptr) Bug("Expected external_name in extern_rule");
   /*
   TODO: handle this error.
   if(!ext_name || !ExternParser::validExtName(*ext_name)) {
@@ -779,10 +823,10 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
     if(param_ident)
       ruleIndices.push_back(rl.findOrAppendIdent(ctx, param_ident));
   }
-  ssize_t newIndex = rl.defineIdent(ctx, identFrom(*rname, "rule name", ctx));
+  ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx));
   if(newIndex == -1) return;
   rl.deferred_assign(newIndex, ExternParser{
-      std::move(*ext_name), std::move(ruleIndices)
+      std::move(ext_name), std::move(ruleIndices)
   });
 }
 
