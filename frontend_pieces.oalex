@@ -1,3 +1,5 @@
+# Copyright 2022 The oalex authors.
+
 # This file is the source that was used to generate frontend_pieces.{cpp,h}
 
 word := /[a-zA-Z_0-9]+/
