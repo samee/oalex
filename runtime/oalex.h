@@ -15,6 +15,7 @@
 #pragma once
 
 // TODO: Move these into an oalex/ directory once we implement `make install`.
+#include "builtins.h"
 #include "diags.h"
 #include "input_view.h"
 #include "jsonloc.h"

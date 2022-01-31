@@ -5,6 +5,8 @@
 acceptTestWord := "TestWord"
 rejectTestWord := "BadWord"
 
+# TODO: change this keyword `lookahead` to `any_of` or `one_of`.
+# Or without underscores: like `any of` or `one of`.
 rule matchAfterAbsorb lookaheads:
 | rejectTestWord   # This will produce error messages on "TestWord"
 | acceptTestWord   # But then we accept "TestWord" anyway.
