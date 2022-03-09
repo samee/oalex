@@ -29,10 +29,13 @@
 #include "pattern.h"
 #include "regex_io.h"
 #include "jsontmpl_parsers.h"
+#include "runtime/indent.h"
 #include "runtime/util.h"
 
 using fmt::format;
 using oalex::DiagsDest;
+using oalex::IndentCmp;
+using oalex::indentCmp;
 using oalex::LexDirective;
 using oalex::Note;
 using oalex::OutputTmpl;
@@ -49,8 +52,6 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
-using oalex::lex::IndentCmp;
-using oalex::lex::indentCmp;
 using oalex::lex::inputSegment;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;

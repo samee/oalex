@@ -52,6 +52,7 @@
 
 #include "regex_io.h"
 #include "segment.h"
+#include "runtime/indent.h"
 #include "runtime/input_view.h"
 #include "runtime/util.h"
 
@@ -366,17 +367,6 @@ skipBlankLines(InputDiags& ctx, size_t pos) {
   else {
     Error(ctx, rv, "Expected end of line");
     return string::npos;
-  }
-}
-
-IndentCmp indentCmp(string_view indent1, string_view indent2) {
-  size_t i = 0;
-  while(true) {
-    if(i>=indent1.size() && i>=indent2.size()) return IndentCmp::eq;
-    if(i>=indent1.size()) return IndentCmp::lt;
-    if(i>=indent2.size()) return IndentCmp::gt;
-    if(indent1[i]!=indent2[i]) return IndentCmp::bad;
-    ++i;
   }
 }
 

@@ -21,6 +21,7 @@
 
 #include "fmt/format.h"
 
+#include "runtime/indent.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
 using fmt::format;
@@ -38,6 +39,8 @@ using namespace std::string_literals;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Diag;
+using oalex::IndentCmp;
+using oalex::indentCmp;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::WholeSegment;
@@ -45,8 +48,6 @@ using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::GluedString;
-using oalex::lex::IndentCmp;
-using oalex::lex::indentCmp;
 using oalex::lex::lexBracketGroup;
 using oalex::lex::lexFencedSource;
 using oalex::lex::lexIndentedSource;
