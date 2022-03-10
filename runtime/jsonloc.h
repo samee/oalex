@@ -21,6 +21,31 @@
 
 namespace oalex {
 
+/* class StringLoc: just a pair of a string and location. Can be easily
+converted to and from JsonLoc. No way to modify it after construction, other
+than by releasing.
+
+Dev notes: It would have been a lot more efficient to use an unowned
+std::string_view instead of std::string. However, this will often point to
+strings a bit too ephemeral, such as:
+
+  * Input objects that "forget" inputs already processed
+  * JsonLoc objects that don't live long enough.
+*/
+class StringLoc {
+ public:
+  StringLoc(std::string s, size_t stPos) : s_{std::move(s)}, stPos_{stPos} {}
+  size_t stPos() const { return stPos_; }
+  size_t enPos() const { return stPos_+s_.size(); }
+  const std::string& operator*() const { return s_; }
+  const std::string* operator->() const { return &s_; }
+  std::string release() { stPos_ = std::string::npos; return std::move(s_); }
+  explicit operator bool() const { return stPos_ != std::string::npos; }
+ private:
+  std::string s_;
+  size_t stPos_;
+};
+
 // Even though we call it json, we don't in fact support numbers, booleans,
 // or null. We do support an error type. Together with strings, those two are
 // the only atomic types.
@@ -50,6 +75,9 @@ class JsonLoc {
   JsonLoc() = delete;
   JsonLoc(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
   JsonLoc(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
+  JsonLoc(StringLoc s) :
+    stPos{s.stPos()}, enPos{s.enPos()}, tag_{Tag::String},
+    stringValue_{s.release()} {}
   JsonLoc(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
   JsonLoc(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
 

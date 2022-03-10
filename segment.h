@@ -63,6 +63,8 @@ enum class SegmentTag : Segment::tagint_t { wholeSegment = 1 };
 // by itself. These are meant to be a lightweight string wrapper, and do not
 // use complex rowCol() maps. This also disallows any backslash escape sequence
 // such as '\n' or '\t'.
+// TODO: see if this type is still useful, now that we have StringLoc in
+// runtime/jsonloc.h
 struct WholeSegment : Segment {
   static constexpr auto type_tag = tagint_t(SegmentTag::wholeSegment);
   std::string data;
