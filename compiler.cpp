@@ -761,8 +761,14 @@ class MapFields {
     const std::remove_pointer_t<T>*,
     const T&>;
   template <class T> get_t<T> get(string_view field_name) const = delete;
-  template <class T> pair<get_t<T>, const JsonLoc&>
-    get_with_loc(string_view field_name) const = delete;
+
+  // This exists just to support T = StringLoc. It's generic just to keep
+  // interface consistency with get<T>() above.
+  // Dev note: fold this into get<T>() if
+  //   we ever make getIfStringLoc() return a reference.
+  template <class T, class =
+    std::enable_if_t<!std::is_reference_v<T> && !std::is_pointer_v<T>>>
+    T get_copy(string_view field_name) const { return get<T>(field_name); }
  private:
   const JsonLoc::Map* jmap_;
   string_view rule_name_;
@@ -775,17 +781,19 @@ MapFields::get<JsonLoc>(string_view field_name) const {
   return *rv;
 }
 
-template <> pair<const string&, const JsonLoc&>
-MapFields::get_with_loc<string>(string_view field_name) const {
+template <> const string&
+MapFields::get<string>(string_view field_name) const {
   const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
   const string* s = jsloc.getIfString();
   if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
-  return {*s, jsloc};
+  return *s;
 }
-
-template <> const string&
-MapFields::get<string>(string_view field_name) const {
-  return get_with_loc<string>(field_name).first;
+template <> StringLoc
+MapFields::get_copy<StringLoc>(string_view field_name) const {
+  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
+  StringLoc s = jsloc.getIfStringLoc();
+  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
+  return s;
 }
 
 template <> const JsonLoc::Vector&
@@ -813,8 +821,7 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   if(ruletoks.holdsErrorValue()) return;  // Diags already populated in parser
   MapFields fields{ruletoks.getIfMap(), "extern_rule"};
   auto& rname    = fields.get<JsonLoc>("rule_name");
-  auto [ext_name, ext_name_jsloc]
-    = fields.get_with_loc<string>("external_name");
+  auto ext_name  = fields.get_copy<StringLoc>("external_name");
   auto* params   = fields.get<JsonLoc::Vector*>("param");
 
   vector<ssize_t> ruleIndices;
@@ -826,12 +833,12 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx));
   if(newIndex == -1) return;
 
-  if(ExternParser::validExtName(ext_name))
+  if(ExternParser::validExtName(*ext_name))
     rl.deferred_assign(newIndex,
-                       ExternParser{ ext_name, std::move(ruleIndices) });
+                       ExternParser{ *ext_name, std::move(ruleIndices) });
   else {
     rl.deferred_assign(newIndex, StringRule{"suppress-undefined-error"});
-    Error(ctx, ext_name_jsloc.stPos, ext_name_jsloc.enPos,
+    Error(ctx, ext_name.stPos(), ext_name.enPos(),
           "External names must begin with oalexPlugin");
   }
 }

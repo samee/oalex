@@ -34,6 +34,7 @@ strings a bit too ephemeral, such as:
 */
 class StringLoc {
  public:
+  StringLoc() : s_{}, stPos_{std::string::npos} {}
   StringLoc(std::string s, size_t stPos) : s_{std::move(s)}, stPos_{stPos} {}
   size_t stPos() const { return stPos_; }
   size_t enPos() const { return stPos_+s_.size(); }
@@ -96,6 +97,9 @@ class JsonLoc {
   String* getIfString() { return holdsString() ? &stringValue_ : nullptr; }
   const String* getIfString() const
     { return holdsString() ? &stringValue_ : nullptr; }
+  StringLoc getIfStringLoc() const {
+    return holdsString() ? StringLoc{stringValue_, stPos} : StringLoc{};
+  }
   Vector* getIfVector() { return holdsVector() ? &vectorValue_ : nullptr; }
   const Vector* getIfVector() const
     { return holdsVector() ? &vectorValue_ : nullptr; }
