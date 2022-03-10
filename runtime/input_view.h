@@ -105,6 +105,9 @@ class Input final : public InputPiece {
   // Unlike std::string_view, it will stay valid even if s is appended to,
   // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const override;
+  std::string substr_range(size_t st, size_t en) const {
+    return substr(st, en-st);
+  }
   using InputPiece::hasPrefix;
   bool hasPrefix(size_t pos, std::string_view s) const override;
   size_t find(char ch, size_t pos) const override;

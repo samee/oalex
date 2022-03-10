@@ -51,6 +51,7 @@ using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
+using oalex::lex::fromSegment;
 using oalex::lex::GluedString;
 using oalex::lex::inputSegment;
 using oalex::lex::isToken;
@@ -350,16 +351,22 @@ matchesTokens(const vector<ExprToken>& tokens,
   return matchesTokens(tokens, 0, expectations);
 }
 
-WholeSegment
+StringLoc
 indent_of(const Input& input, const ExprToken& tok) {
-  ssize_t bol = input.bol(stPos(tok));
-  ssize_t indent_end = oalexWSkip.withinLine(input, bol);
-  return inputSegment(bol, indent_end, input);
+  size_t bol = input.bol(stPos(tok));
+  size_t indent_end = oalexWSkip.withinLine(input, bol);
+  return {input.substr_range(bol, indent_end), bol};
+}
+
+// TODO: move to a more appropriate header. E.g. parser_helpers.h ?
+std::nullopt_t
+Error(DiagsDest ctx, const StringLoc& s, std::string msg) {
+  return Error(ctx, s.stPos(), s.enPos(), std::move(msg));
 }
 
 bool
 requireCompatIndent(IndentCmp cmpres, DiagsDest ctx,
-                    const WholeSegment& nextLineIndent) {
+                    const StringLoc& nextLineIndent) {
   if(cmpres == IndentCmp::bad) {
     Error(ctx, nextLineIndent,
           "Bad mix of spaces and tabs compared to the previous line");
@@ -369,8 +376,8 @@ requireCompatIndent(IndentCmp cmpres, DiagsDest ctx,
 }
 
 bool
-requireGoodIndent(DiagsDest ctx, string_view desc, const WholeSegment& indent1,
-                  const WholeSegment& indent2) {
+requireGoodIndent(DiagsDest ctx, string_view desc,
+                  const StringLoc& indent1, const StringLoc& indent2) {
   IndentCmp cmpres = indentCmp(*indent1, *indent2);
   if(!requireCompatIndent(cmpres, ctx, indent2)) return false;
   else if(cmpres != IndentCmp::lt) {
@@ -446,13 +453,14 @@ requireColonEol(const vector<ExprToken>& linetoks, size_t colonPos,
 
 // Requires block to be indented strictly more than the reference indent.
 optional<GluedString>
-parseIndentedBlock(InputDiags& ctx, size_t& i, const WholeSegment& refIndent,
+parseIndentedBlock(InputDiags& ctx, size_t& i, const StringLoc& refIndent,
                    string_view blockName) {
   optional<GluedString> rv;
   if(optional<WholeSegment> ind = lookaheadParIndent(ctx, i)) {
     // Consume input the next block even if it is not indented enough.
     rv = lexIndentedSource(ctx, i, **ind);
-    if(!requireGoodIndent(ctx, "Code block", refIndent, *ind)) return nullopt;
+    if(!requireGoodIndent(ctx, "Code block", refIndent, fromSegment(*ind)))
+      return nullopt;
   }
   if(!rv.has_value())
     Error(ctx, i, format("No indented {} follows", blockName));
@@ -513,7 +521,7 @@ bool
 skipStanzaIfSeen(bool& done_indicator, const WholeSegment& stanzaLeader,
                  InputDiags& ctx, size_t& i) {
   if(done_indicator) {
-    WholeSegment leaderIndent = indent_of(ctx.input, stanzaLeader);
+    StringLoc leaderIndent = indent_of(ctx.input, stanzaLeader);
     i = skipToIndentLe(ctx, stanzaLeader.enPos, *leaderIndent);
     Error(ctx, stanzaLeader,
         format("Only one `{}` stanza allowed per rule", *stanzaLeader));
@@ -677,16 +685,16 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
 // matches leaderIndent. Such errors are indicated by an empty return vector.
 vector<PatternToRuleBinding>
 parseRuleLocalDecls(InputDiags& ctx, size_t& i,
-                    const WholeSegment& leaderIndent) {
+                    const StringLoc& leaderIndent) {
   size_t j = i;
   vector<PatternToRuleBinding> rv;
 
   vector<ExprToken> line = lexNextLine(ctx, j);
   if(line.empty()) return rv;
-  WholeSegment lineIndent = indent_of(ctx.input, line[0]);
+  StringLoc lineIndent = indent_of(ctx.input, line[0]);
   if(!requireGoodIndent(ctx, "Local declaration", leaderIndent, lineIndent))
     return rv;
-  WholeSegment refIndent = lineIndent;
+  StringLoc refIndent = lineIndent;
   IndentCmp cmpres;
   do {
     i = j;
@@ -753,7 +761,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       jstmpl = parseRuleOutput(std::move(toks), ctx);
     }else if(**leader == "where") {
       if(skipStanzaIfSeen(sawWhereKw, *leader, ctx, i)) continue;
-      WholeSegment leaderIndent = indent_of(ctx.input, toks[0]);
+      StringLoc leaderIndent = indent_of(ctx.input, toks[0]);
       auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
       if(!new_local_decls.empty()) local_decls = std::move(new_local_decls);
       else i = skipToIndentLe(ctx, i, *leaderIndent);

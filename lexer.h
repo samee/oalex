@@ -24,6 +24,8 @@
 
 namespace oalex {
 
+class StringLoc;  // forward declaration
+
 namespace lex {
 
 class GluedString;
@@ -49,6 +51,8 @@ inline WholeSegment
 inputSegment(size_t st, size_t en, const Input& input) {
   return WholeSegment{st, en, input.substr(st, en-st)};
 }
+
+StringLoc fromSegment(WholeSegment s);
 
 // The factory friend function ensure the following invariants on rcmap:
 //   * rcmap.pos are provided in strictly increasing order.

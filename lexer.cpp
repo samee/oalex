@@ -54,6 +54,7 @@
 #include "segment.h"
 #include "runtime/indent.h"
 #include "runtime/input_view.h"
+#include "runtime/jsonloc.h"
 #include "runtime/util.h"
 
 using fmt::format;
@@ -91,6 +92,10 @@ const char* exprTagName(const ExprToken& t) {
     case LexSegmentTag::regexPattern: return "regexPattern";
     default: Bug("Unknown index {}", int(tag));
   }
+}
+
+StringLoc fromSegment(WholeSegment s) {
+  return StringLoc{std::move(s.data), s.stPos};
 }
 
 namespace {
