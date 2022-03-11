@@ -13,6 +13,9 @@
     limitations under the License. */
 
 #include "runtime/indent.h"
+#include "runtime/input_view.h"
+#include "runtime/jsonloc.h"
+#include "runtime/skipper.h"
 using std::string_view;
 
 namespace oalex {
@@ -26,6 +29,15 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
     if(indent1[i]!=indent2[i]) return IndentCmp::bad;
     ++i;
   }
+}
+
+StringLoc
+indent_of(const Input& input, size_t i) {
+  // TODO remove uses of oalexWSkip elsewhere.
+  const static Skipper* wskip = new Skipper{};
+  size_t bol = input.bol(i);
+  size_t indent_end = wskip->withinLine(input, bol);
+  return {input.substr_range(bol, indent_end), bol};
 }
 
 }  // namespace oalex

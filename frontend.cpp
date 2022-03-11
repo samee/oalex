@@ -353,9 +353,7 @@ matchesTokens(const vector<ExprToken>& tokens,
 
 StringLoc
 indent_of(const Input& input, const ExprToken& tok) {
-  size_t bol = input.bol(stPos(tok));
-  size_t indent_end = oalexWSkip.withinLine(input, bol);
-  return {input.substr_range(bol, indent_end), bol};
+  return indent_of(input, stPos(tok));
 }
 
 // TODO: move to a more appropriate header. E.g. parser_helpers.h ?
