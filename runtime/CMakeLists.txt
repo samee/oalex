@@ -28,6 +28,5 @@ add_test(input_view_test input_view_test)
 
 add_executable(skipper_test skipper_test.cpp
                $<TARGET_OBJECTS:test_util>)
-target_link_libraries(input_view_test oalex)
 target_link_libraries(skipper_test oalex)
 add_test(skipper_test skipper_test)
