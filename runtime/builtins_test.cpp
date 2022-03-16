@@ -41,12 +41,18 @@ const Parser simpleItem = [](InputDiags& ctx, ssize_t& i) -> JsonLoc {
   }
   return res;
 };
+const Parser leaderBadLocation = [](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+  JsonLoc rv = match(ctx, i, "my_list:");
+  rv.stPos = rv.enPos = Input::npos;
+  return rv;
+};
 void testSimpleList() {
   const char msg[] = R"(  my_list:
     item
     item
     item
-End of list)";
+End of list
+    more stuff)";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 2;
   JsonLoc observed =
@@ -58,6 +64,16 @@ End of list)";
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   if(observed != expected) {
     BugMe("Output: {}", observed.prettyPrint(2));
+  }
+
+  // See that we don't depend on diag location.
+  pos = 2;
+  observed =
+    oalexBuiltinIndentedList(ctx, pos, leaderBadLocation, simpleItem);
+  if(!ctx.diags.empty()) showDiags(ctx.diags);
+  if(observed != expected) {
+    BugMe("Parsing depends on diag location. Output: {}",
+          observed.prettyPrint(2));
   }
 }
 void testBadLeaderResets() {

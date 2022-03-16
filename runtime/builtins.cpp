@@ -59,7 +59,7 @@ oalexBuiltinIndentedList(
   JsonLoc jsloc_h = leader(ctx, j);
   if(jsloc_h.holdsErrorValue()) return jsloc_h;
 
-  StringLoc hindent = indent_of(input, jsloc_h.stPos);
+  StringLoc hindent = indent_of(input, i);
 
   // TODO make this a parameter, instead of hardcoding it. When we do, remember
   // to disallow comments before lineItem() on each non-blank line.
