@@ -271,19 +271,22 @@ void diagsToStderr(const vector<Diag>& diags) {
     fprintf(stderr, "  %s\n", string(d).c_str());
 }
 
+// Replace this class with std::scope_exit when that's available.
+class DiagsExitPrinter {
+ public:
+  explicit DiagsExitPrinter(const vector<Diag>& diags) : diags_{&diags} {}
+  ~DiagsExitPrinter() { diagsToStderr(*diags_); }
+ private:
+  const vector<Diag>* diags_;
+};
+
 auto parseOalexFile(const string& filename) -> optional<ParsedSource> {
   optional<string> s = fileContents(filename);
   if(!s.has_value()) return nullopt;
   InputDiags ctx{Input{*s}};
-  try {
-    auto rv = parseOalexSource(ctx);
-    diagsToStderr(ctx.diags);
-    return rv;
-  }catch(...) {
-    // This branch is mostly for BugEx(), but useful in all exceptions.
-    diagsToStderr(ctx.diags);
-    throw;
-  }
+  DiagsExitPrinter exit_printer{ctx.diags};
+  auto rv = parseOalexSource(ctx);
+  return rv;
 }
 
 // It's a heuristic for the first rule as the user sees it,
