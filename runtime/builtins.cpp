@@ -53,7 +53,7 @@ static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
 JsonLoc
 oalexBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
-    Parser leader, Parser lineItem) {
+    const Parser& leader, const Parser& lineItem) {
   const Input& input = ctx.input;
   ssize_t j = i;
   JsonLoc jsloc_h = leader(ctx, j);

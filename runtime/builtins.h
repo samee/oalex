@@ -18,7 +18,21 @@
 #include "jsonloc.h"
 
 namespace oalex {
-  using Parser = JsonLoc(*)(InputDiags&, ssize_t&);
+  class Parser {
+   public:
+    virtual JsonLoc operator()(InputDiags& ctx, ssize_t& pos) const = 0;
+    virtual ~Parser() {}
+  };
+  class ParserPtr : public Parser {
+   public:
+    using callback_type = JsonLoc (*)(InputDiags&, ssize_t&);
+    ParserPtr(callback_type cb) : cb_{cb} {}  // implicit
+    JsonLoc operator()(InputDiags& ctx, ssize_t& pos) const override {
+      return cb_(ctx, pos);
+    }
+   private:
+    callback_type cb_;
+  };
 }
 
 /* While we have only one function declared below, more can be added later.
@@ -94,4 +108,4 @@ namespace oalex {
 oalex::JsonLoc
 oalexBuiltinIndentedList(
     oalex::InputDiags& ctx, ssize_t& i,
-    oalex::Parser leader, oalex::Parser lineItem);
+    const oalex::Parser& leader, const oalex::Parser& lineItem);

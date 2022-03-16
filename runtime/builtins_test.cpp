@@ -24,24 +24,23 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::match;
-using oalex::Parser;
+using oalex::ParserPtr;
 using oalex::showDiags;
 
 namespace {
 
-// Use this syntax for function declaration to ensure that the
-// signature matches the expected one in oalex::Parser.
-const Parser simpleLeader = [](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+const ParserPtr simpleLeader = +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
   return match(ctx, i, "my_list:");
 };
-const Parser simpleItem = [](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
   JsonLoc res = match(ctx, i, "item");
   if(res.holdsErrorValue()) {
     Error(ctx, i, "Expected 'item'");
   }
   return res;
 };
-const Parser leaderBadLocation = [](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+const ParserPtr leaderBadLocation =
+  +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
   JsonLoc rv = match(ctx, i, "my_list:");
   rv.stPos = rv.enPos = Input::npos;
   return rv;
