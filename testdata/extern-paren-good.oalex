@@ -1,0 +1,11 @@
+
+# This test case tests for a bug that appears if `where` stanza precedes an
+# extern rule. It used to throw an exception since lexer.cpp didn't like
+# semicolons (`;`) appearing in tokens.
+
+rule dummy:
+  hello
+where:
+  hello ~ hello_with_parens
+
+extern rule hello_with_parens = oalexBuiltinHello();

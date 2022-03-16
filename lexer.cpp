@@ -254,7 +254,7 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
 // Note: '/' starts a regex, and is not an operator in oalex.
 bool isquote(char ch) { return ch=='"' || ch=='\''; }
 bool isbracket(char ch) { return strchr("(){}[]", ch) != NULL; }
-bool isoperch(char ch) { return strchr(":,=|~.-><", ch) != NULL; }
+bool isoperch(char ch) { return strchr(":,=|~.-><;", ch) != NULL; }
 bool isregex(char ch) { return ch == '/'; }
 
 auto toCtor(char ch) -> GluedString::Ctor {

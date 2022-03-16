@@ -7,6 +7,8 @@ word := /[a-zA-Z_0-9]+/
 # TODO wrap this up in a haskell-like indentation-checker, that ensures that
 # every token is indented strictly more than the 'extern' keyword.
 # TODO: don't *require* spaces around metachars like this.
+# TODO: remove the semicolon when we can treat newlines as
+#       significant for a single rule
 rule extern_rule:
   extern rule rule_name = external_name [ ( [param, ... ,param] ) ] ;
 where:
