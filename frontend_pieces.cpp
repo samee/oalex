@@ -116,8 +116,6 @@ oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   res = parseWord(ctx, j);
   if(res.holdsErrorValue()) return res;
   m.emplace_back("rule_name", std::move(res));
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
@@ -174,8 +172,6 @@ oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
   res = parseWord(ctx, j);
   if(res.holdsErrorValue()) return res;
   m.emplace_back("external_name", std::move(res));
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
@@ -232,8 +228,6 @@ oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
   res = parseWord(ctx, j);
   if(res.holdsErrorValue()) return res;
   m.emplace_back("param", std::move(res));
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
@@ -291,7 +285,6 @@ oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
       return oalex::errorValue(ctx, j, "Unfinished comment");
     first = false;
   }
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = fallback_point;
   i = fallback_point;
@@ -361,8 +354,6 @@ oalex::JsonLoc parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
 
   res = parseRule23(ctx, j);
   if(res.holdsErrorValue()) return res;
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
@@ -462,8 +453,6 @@ oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
 
   res = parseRule28(ctx, j);
   if(res.holdsErrorValue()) return res;
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
@@ -480,8 +469,6 @@ oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
   res = parseRule29(ctx, j);
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
-
-  JsonLoc::mapSort(m);
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;

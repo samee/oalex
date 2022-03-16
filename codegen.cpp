@@ -126,7 +126,6 @@ eval(InputDiags& ctx, ssize_t& i,
       rv.push_back({std::move(outname), std::move(out)});
   }
   i = j;
-  JsonLoc::mapSort(rv);
   return rv;
 }
 
@@ -232,7 +231,6 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     first = false;
   }
   i = fallback_point;  // discard any failures and SkipPoints.
-  JsonLoc::mapSort(rv);
   return rv;
 }
 
@@ -595,7 +593,6 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     else if(!key.empty())
       cppos(format("  m.emplace_back({}, std::move(res));\n", dquoted(key)));
   }
-  cppos("\n  JsonLoc::mapSort(m);\n");
   cppos("  JsonLoc rv{std::move(m)};\n");
   cppos("  rv.stPos = i; rv.enPos = j;\n");
   cppos("  i = j;\n");
@@ -750,7 +747,6 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   }
   cppos("    first = false;\n");
   cppos("  }\n");
-  cppos("  JsonLoc::mapSort(m);\n");
   cppos("  JsonLoc rv{std::move(m)};\n");
   cppos("  rv.stPos = i; rv.enPos = fallback_point;\n");
   cppos("  i = fallback_point;\n");

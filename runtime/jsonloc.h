@@ -80,7 +80,9 @@ class JsonLoc {
     stPos{s.stPos()}, enPos{s.enPos()}, tag_{Tag::String},
     stringValue_{s.release()} {}
   JsonLoc(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
-  JsonLoc(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
+  JsonLoc(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {
+    mapSort(mapValue_);
+  }
 
   JsonLoc(JsonLoc&& that);
   JsonLoc(const JsonLoc& that);
