@@ -299,13 +299,48 @@ oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
   }
 }
 
+class ExternParserParam : public Parser {
+ public:
+  ExternParserParam(const RuleSet& rs, ssize_t ruleIndex)
+    : rs_{rs}, ruleIndex_{ruleIndex} {}
+  JsonLoc operator()(InputDiags& ctx, ssize_t& i) const override {
+    return eval(ctx, i, rs_, ruleIndex_);
+  }
+ private:
+  const RuleSet& rs_;
+  ssize_t ruleIndex_;
+};
+
+static vector<unique_ptr<Parser>>
+externParams(const vector<ssize_t>& params, const RuleSet& rs) {
+  vector<unique_ptr<Parser>> rv;
+  for(ssize_t ri : params)
+    rv.push_back(move_to_unique(ExternParserParam{rs, ri}));
+  return rv;
+}
+
+// Dev-note: Generalize this to requireEqual() if needed.
+// TODO: catch this problem in the frontend, or when constructing ExternParser.
+static void
+requireParamCount(size_t expected_count, size_t observed_count,
+                  string_view externalName) {
+  if(expected_count != observed_count)
+    Bug("{} requires {} parameters, found {}", externalName,
+        expected_count, observed_count);
+}
+
 static JsonLoc
-eval(InputDiags& ctx, ssize_t& i, const ExternParser& ext) {
+eval(InputDiags& ctx, ssize_t& i, const ExternParser& ext, const RuleSet& rs) {
   string_view extname = ext.externalName();
   if(extname.find("oalexBuiltin") != string::npos) {
     string_view builtin = extname.substr(sizeof("oalexBuiltin")-1);
+    vector<unique_ptr<Parser>> params = externParams(ext.params(), rs);
     if(builtin == "Hello") return oalexBuiltinHello(ctx, i);
-    else {
+    else if(builtin == "IndentedList") {
+      // TODO hoist this outside the branch.
+      requireParamCount(2, params.size(), builtin);
+      return oalexBuiltinIndentedList(ctx, i, *params[0], *params[1]);
+    } else {
       Error(ctx, i, format("Unknown builtin name {}", builtin));
       return JsonLoc::ErrorValue{};
     }
@@ -326,7 +361,7 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&r))
     return match(ctx, i, ruleset.regexOpts.word, **wp);
   else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
-    return eval(ctx, i, *ext);
+    return eval(ctx, i, *ext, ruleset);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
     return skip(ctx, i, *sp);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))

@@ -8,3 +8,38 @@ outputs success
 example hello:
   goodbye
 outputs error with 'Expected \'hello\''
+
+ident := /[a-z_]+/
+
+# TODO more compact syntax for these rules.
+rule list_leader:
+  list_name:
+where:
+  list_name ~ ident
+
+rule list_item:
+  * var_name
+where:
+  var_name ~ ident
+
+extern rule var_list = oalexBuiltinIndentedList(list_leader, list_item);
+
+# TODO allow lists with same indent as leader.
+# Either, first item misparsed exits, or make a separate builtin.
+# I prefer fewer builtins and variants for the user to remember.
+
+example var_list:
+
+  person_fields:
+   * name
+   * address
+   * phone_number
+
+outputs: {
+  leader: {list_name: "person_fields"},
+  items: [
+    {var_name: "name"},
+    {var_name: "address"},
+    {var_name: "phone_number"},
+  ]
+}
