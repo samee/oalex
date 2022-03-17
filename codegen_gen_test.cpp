@@ -238,6 +238,23 @@ void generateExternParserParams(const OutputStream& cppos,
   codegenNamedRules(rs, cppos, hos);
 }
 
+void generateIndentedListBuiltin(const OutputStream& cppos,
+                                 const OutputStream& hos) {
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
+      StringRule{"my_list"},
+      nmRule(SkipPoint{false, &cskip}, "ListLeaderSkip"),
+      StringRule{":"},
+      nmRule(ConcatFlatRule{{ {0, ""}, {1, ""}, {2, ""} }}, "ListLeader"),
+      nmRule(StringRule{"item"}, "ListItemKeyword"),
+      nmRule(parseRegex("/[0-9]+/"), "ListItemNumber"),
+      nmRule(ConcatFlatRule{{ {4, ""}, {1, ""}, {5, "num"} }}, "ListItem"),
+      nmRule(ExternParser{"oalexBuiltinIndentedList", {3,6}},
+             "SimpleIndentedList")
+    ), regexOpts
+  };
+  codegenNamedRules(rs, cppos, hos);
+}
+
 void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
@@ -484,6 +501,8 @@ int main(int argc, char* argv[]) {
   generateExternParserDeclaration(cppos, hos);
   linebreaks();
   generateExternParserParams(cppos, hos);
+  linebreaks();
+  generateIndentedListBuiltin(cppos, hos);
   linebreaks();
   generateOrTest(cppos, hos);
   linebreaks();

@@ -828,25 +828,37 @@ static string
 parserNamesJoinTail(const RuleSet& ruleset, const vector<ssize_t>& rules) {
   string rv;
   for(auto& ruleIndex: rules) {
-    rv += ", &" + parserName(externParamName(ruleset, ruleIndex));
+    rv += format(", *{}Wrapper",
+                 externParamName(ruleset, ruleIndex).toLCamelCase());
   }
   return rv;
 }
 
+// TODO: Add names from rules we point to.
+// TODO: Emit oalex:: qualifier only for headers, not cpp file.
 static string
 parserCallbacksTail(size_t paramCount) {
   string rv;
   for(size_t i=0; i<paramCount; ++i)
-    rv += ", JsonLoc (*)(InputDiags&, ssize_t&)";
+    rv += ", const oalex::Parser&";
   return rv;
 }
 
 static void
 codegen(const RuleSet& ruleset, const ExternParser& extRule,
         const OutputStream& cppos) {
+  cppos("  using oalex::InputDiags;\n");
+  cppos("  using oalex::JsonLoc;\n");
+  cppos("  using oalex::Parser;\n");
+  cppos("  using oalex::ParserPtr;\n");
   cppos(format(
-        "  extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i{});\n",
+        "  extern JsonLoc {}(InputDiags& ctx, ssize_t& i{});\n",
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
+  for(const auto& param : extRule.params()) {
+    const Ident& name = externParamName(ruleset, param);
+    cppos(format("  const static Parser* {}Wrapper = new ParserPtr(&{});\n",
+          name.toLCamelCase(), parserName(name)));
+  }
   cppos(format("  return {}(ctx, i{});\n", extRule.externalName(),
                parserNamesJoinTail(ruleset, extRule.params())));
 }
@@ -1018,9 +1030,10 @@ codegenParserCall(const Rule& rule, string_view posVar,
 }
 
 static void
-genExternDeclaration(const OutputStream& hos, string_view extName) {
-  hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& j);\n",
-             extName));
+genExternDeclaration(const OutputStream& hos, string_view extName,
+                     ssize_t paramCount) {
+  hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, "
+             "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
@@ -1035,7 +1048,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   Ident rname = *r.nameOrNull();
 
   if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
-    genExternDeclaration(hos, ext->externalName());
+    genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
   parserHeaders(rname, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {

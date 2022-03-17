@@ -35,6 +35,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::parseJsonLoc;
+using oalex::Parser;
 using oalex::Skipper;
 using oalex::sign_cast;
 using oalex::lex::lexIndentedSource;
@@ -214,8 +215,7 @@ bool pluginBulletedListSkipToBolOrEof(InputDiags& ctx, ssize_t& i) {
 }
 
 JsonLoc oalexPluginBulletedList(
-    InputDiags& ctx, ssize_t& i,
-    JsonLoc (*parseEntry)(InputDiags&, ssize_t&)) {
+    InputDiags& ctx, ssize_t& i, const Parser& parseEntry) {
   JsonLoc::Vector outvec;
   ssize_t j=i, fallback_point=i;
   if(!pluginBulletedListSkipToBolOrEof(ctx, j)) return JsonLoc::ErrorValue{};
@@ -276,6 +276,25 @@ void runExternParserParams() {
     BugMe("parseBulletListIds() failed");
   }
   assertEqual(__func__, jsloc, *parseJsonLoc("['eat', 'sleep', 'code']"));
+}
+
+void runIndentedListBuiltin() {
+  const char msg[] = R"(my_list :
+    item 1
+    item 2
+    item 3
+  )";
+  InputDiags ctx{Input{msg}};
+  ssize_t pos = 0;
+  JsonLoc jsloc = parseSimpleIndentedList(ctx, pos);
+  if(jsloc.holdsErrorValue()) {
+    showDiags(ctx.diags);
+    BugMe("parseSimpleIndentedList() failed");
+  }
+  assertEqual(__func__, jsloc, *parseJsonLoc(R"({
+    leader: {},
+    items: [{num: '1'}, {num: '2'}, {num: '3'}]
+  })"));
 }
 
 void runOrTest() {
@@ -483,6 +502,7 @@ int main() {
   runConcatTest();
   runExternParserDeclaration();
   runExternParserParams();
+  runIndentedListBuiltin();
   runOrTest();
   runFlattenOnDemand();
   runLookaheads();
