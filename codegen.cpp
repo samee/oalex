@@ -37,8 +37,42 @@ using std::vector;
 
 namespace oalex {
 
-bool ExternParser::validExtName(string_view name) {
+static bool validExtName(string_view name) {
   return name.find("oalexPlugin") == 0 || name.find("oalexBuiltin") == 0;
+}
+static ssize_t
+expectedParamCount(string_view builtinSuff) {
+  const vector<pair<string, ssize_t>> builtin_param_counts {
+    {"Hello", 0}, {"IndentedList", 2}
+  };
+  for(auto& [name,count] : builtin_param_counts) if(name == builtinSuff) {
+    return count;
+  }
+  return -1;
+}
+
+bool ExternParser::requireValidNameAndParamCount(
+    const StringLoc& extName, ssize_t providedParamCount, DiagsDest ctx) {
+  if(extName->find("oalexPlugin") == 0) return true;
+  else if(extName->find("oalexBuiltin") != 0) {
+    Error(ctx, extName.stPos(), extName.enPos(),
+          "External parser names need to start either with 'oalexPlugin...'"
+          " or 'oalexBuiltin...'");
+    return false;
+  }
+  string_view suff = *extName;
+  suff.remove_prefix(sizeof("oalexBuiltin")-1);
+  ssize_t expected = expectedParamCount(suff);
+  if(expected == providedParamCount) return true;
+  else if(expected == -1) {
+    Error(ctx, extName.stPos(), extName.enPos(),
+          format("{} is not a known builtin parser", *extName));
+  }else {
+    Error(ctx, extName.stPos(), extName.enPos(), format(
+            "oalexBuiltin{}() expects {} parameters, but {} was provided",
+            suff, expected, providedParamCount));
+  }
+  return false;
 }
 
 ExternParser::ExternParser(string_view extName, vector<ssize_t> params)
@@ -320,7 +354,6 @@ externParams(const vector<ssize_t>& params, const RuleSet& rs) {
 }
 
 // Dev-note: Generalize this to requireEqual() if needed.
-// TODO: catch this problem in the frontend, or when constructing ExternParser.
 static void
 requireParamCount(size_t expected_count, size_t observed_count,
                   string_view externalName) {
@@ -332,18 +365,14 @@ requireParamCount(size_t expected_count, size_t observed_count,
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const ExternParser& ext, const RuleSet& rs) {
   string_view extname = ext.externalName();
-  if(extname.find("oalexBuiltin") != string::npos) {
+  if(extname.find("oalexBuiltin") == 0) {
     string_view builtin = extname.substr(sizeof("oalexBuiltin")-1);
     vector<unique_ptr<Parser>> params = externParams(ext.params(), rs);
+    requireParamCount(expectedParamCount(builtin), params.size(), extname);
     if(builtin == "Hello") return oalexBuiltinHello(ctx, i);
-    else if(builtin == "IndentedList") {
-      // TODO hoist this outside the branch.
-      requireParamCount(2, params.size(), builtin);
+    else if(builtin == "IndentedList")
       return oalexBuiltinIndentedList(ctx, i, *params[0], *params[1]);
-    } else {
-      Error(ctx, i, format("Unknown builtin name {}", builtin));
-      return JsonLoc::ErrorValue{};
-    }
+    else Bug("Unknown builtin. Should have been caught during compilation");
   }else {
     // Use dlopen() someday
     Error(ctx, i, "eval() doesn't support 'extern' parsers");

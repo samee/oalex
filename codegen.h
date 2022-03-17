@@ -248,12 +248,16 @@ class MatchOrError final : public Rule {
   std::string errmsg;
 };
 
+class StringLoc;  // forward declaration
+
 // Note: we currently don't support ExternParser in tentative contexts.
 class ExternParser final : public Rule {
   std::string externalName_;
   std::vector<ssize_t> params_;
  public:
-  static bool validExtName(std::string_view extName);
+  static bool requireValidNameAndParamCount(
+      const oalex::StringLoc& extName, ssize_t providedParamCount,
+      oalex::DiagsDest ctx);
   ExternParser(
       std::string_view extName,
       std::vector<ssize_t> params);

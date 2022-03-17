@@ -1,4 +1,4 @@
-# expected-error: External names must begin with oalexPlugin
+# expected-error: External parser names need to start either with 'oalexPlugin...' or 'oalexBuiltin...'
 
 extern rule hello = someOtherParser;
 

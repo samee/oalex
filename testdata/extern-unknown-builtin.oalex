@@ -1,0 +1,4 @@
+# expected-error: not a known builtin parser
+
+extern rule hello = oalexBuiltinAlien;
+

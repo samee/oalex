@@ -833,13 +833,12 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx));
   if(newIndex == -1) return;
 
-  if(ExternParser::validExtName(*ext_name))
+  if(ExternParser::requireValidNameAndParamCount(ext_name, ruleIndices.size(),
+                                                  ctx))
     rl.deferred_assign(newIndex,
                        ExternParser{ *ext_name, std::move(ruleIndices) });
   else {
     rl.deferred_assign(newIndex, StringRule{"suppress-undefined-error"});
-    Error(ctx, ext_name.stPos(), ext_name.enPos(),
-          "External names must begin with oalexPlugin");
   }
 }
 
