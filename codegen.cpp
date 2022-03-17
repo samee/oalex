@@ -817,13 +817,18 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  return rv;\n");
 }
 
+static const Ident&
+externParamName(const RuleSet& ruleset, ssize_t ruleIndex) {
+  const Ident* name = ruleAt(ruleset, ruleIndex).nameOrNull();
+  if(!name) Bug("Extern params must have names");
+  return *name;
+}
+
 static string
 parserNamesJoinTail(const RuleSet& ruleset, const vector<ssize_t>& rules) {
   string rv;
   for(auto& ruleIndex: rules) {
-    const Ident* name = ruleAt(ruleset, ruleIndex).nameOrNull();
-    if(!name) Bug("ExternParser params must have names");
-    rv += ", &" + parserName(*name);
+    rv += ", &" + parserName(externParamName(ruleset, ruleIndex));
   }
   return rv;
 }
