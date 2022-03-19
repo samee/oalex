@@ -299,10 +299,12 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   using std::literals::string_literals::operator""s;
   JsonLoc res{JsonLoc::ErrorValue{}};
   res = parseRule20(ctx, i);
-  if(!res.holdsErrorValue()) return res;
+  if(!res.holdsErrorValue())
+    return JsonLoc::withPos(res, res.stPos, res.enPos);
   res = oalex::match(ctx, i, "");
-  if(!res.holdsErrorValue()) return JsonLoc::Map{
-  };
+  if(!res.holdsErrorValue())
+    return JsonLoc::withPos(JsonLoc::Map{
+    }, res.stPos, res.enPos);
   return res;
 }
 
@@ -368,10 +370,12 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   using std::literals::string_literals::operator""s;
   JsonLoc res{JsonLoc::ErrorValue{}};
   res = parseRule25(ctx, i);
-  if(!res.holdsErrorValue()) return res;
+  if(!res.holdsErrorValue())
+    return JsonLoc::withPos(res, res.stPos, res.enPos);
   res = oalex::match(ctx, i, "");
-  if(!res.holdsErrorValue()) return JsonLoc::Map{
-  };
+  if(!res.holdsErrorValue())
+    return JsonLoc::withPos(JsonLoc::Map{
+    }, res.stPos, res.enPos);
   return res;
 }
 

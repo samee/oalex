@@ -40,6 +40,7 @@ using oalex::Skipper;
 using oalex::sign_cast;
 using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
+using oalex::test::assertLocPairEqual;
 using std::optional;
 using std::pair;
 using std::string;
@@ -123,6 +124,7 @@ void runConcatFlatTest() {
   ctx.diags.clear();
   observed = parseFlatThenAssembled(ctx, pos);
   assertEqual(__func__, observed, expected);
+  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
 
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
@@ -307,6 +309,7 @@ void runOrTest() {
     InputDiags ctx{Input{msg}};
     JsonLoc observed = parseOneWordOrList(ctx, pos);
     assertEqual(__func__, expected, observed);
+    assertLocPairEqual(__func__, 0, msg.size(), observed);
   }
 
   ssize_t pos = 0;

@@ -90,6 +90,11 @@ class JsonLoc {
   JsonLoc& operator=(const JsonLoc& that);
   ~JsonLoc();
 
+  static JsonLoc withPos(JsonLoc jsloc, size_t st, size_t en) {
+    jsloc.stPos = st; jsloc.enPos = en;
+    return jsloc;
+  }
+
   // Or rename type to Tag::Error.
   bool holdsErrorValue() const { return tag_ == Tag::ErrorValue; }
   bool holdsString() const { return tag_ == Tag::String; }

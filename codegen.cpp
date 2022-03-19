@@ -159,8 +159,7 @@ eval(InputDiags& ctx, ssize_t& i,
     else if(!outname.empty())
       rv.push_back({std::move(outname), std::move(out)});
   }
-  i = j;
-  return rv;
+  return JsonLoc::withPos(std::move(rv), std::exchange(i, j), j);
 }
 
 static JsonLoc
@@ -174,8 +173,7 @@ eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
   }
   // TODO std::move this into substitute in the common case.
   JsonLoc rv = seq.outputTmpl.substituteAll(subs);
-  i = j;
-  return rv;
+  return JsonLoc::withPos(std::move(rv), std::exchange(i, j), j);
 }
 
 static JsonLoc
@@ -195,7 +193,8 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   vector<pair<string, JsonLoc>> subs;
   for(auto& [id, jsloc] : out.outputTmpl.allPlaceholders())
     subs.emplace_back(id, moveEltOrEmpty(*m, id));
-  return out.outputTmpl.substituteAll(subs);
+  return JsonLoc::withPos(out.outputTmpl.substituteAll(subs),
+                          outfields.stPos, outfields.enPos);
 }
 
 static JsonLoc
@@ -264,8 +263,9 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     }
     first = false;
   }
-  i = fallback_point;  // discard any failures and SkipPoints.
-  return rv;
+  // discard any failures and SkipPoints.
+  return JsonLoc::withPos(std::move(rv), std::exchange(i, fallback_point),
+                                         fallback_point);
 }
 
 // Defined in parser_helpers.cpp, but intentionally not exposed in header.
@@ -304,7 +304,9 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
       Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
     if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
-    if(!out.holdsErrorValue()) return tmpl.substituteAll({{"child", out}});
+    if(!out.holdsErrorValue())
+      return JsonLoc::withPos(tmpl.substituteAll({{"child", out}}),
+                              out.stPos, out.enPos);
 
     // If we passed evalPeek(), don't try anything else.
     if(lidx != -1) return out;
@@ -633,12 +635,6 @@ codegen(const JsonTmpl& jstmpl, const OutputStream& cppos,
   }else cppos("JsonLoc::ErrorValue{}");
 }
 
-static bool
-hasEmptyPlaceholder(const vector<ConcatRule::Component>& comps) {
-  for(auto& comp : comps) if(comp.outputPlaceholder.empty()) return true;
-  return false;
-}
-
 static void
 codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
@@ -669,8 +665,7 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   map<string,string> placeholders;
-  if(hasEmptyPlaceholder(concatRule.comps))
-    cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
+  cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
   for(auto& comp : concatRule.comps) {
     const string resvar = "res" + comp.outputPlaceholder;
     const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
@@ -686,11 +681,12 @@ codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
       cppos(";\n");
     cppos(format("  if({0}.holdsErrorValue()) return {0};\n", resvar));
   }
-  cppos("\n  i = j;\n");
-  // TODO add source location.
-  cppos("  return ");
+  cppos("\n  res = ");
     codegen(concatRule.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");
+  cppos("  res.stPos = i; res.enPos = j;\n");
+  cppos("  i = j;\n");
+  cppos("  return res;\n");
 }
 
 // TODO Make it possible to figure out at compile-time whether a rule produces
@@ -704,6 +700,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::assertNotNull;\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
+  cppos("  ssize_t oldi = i;\n");
   cppos("  JsonLoc outfields = ");
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
@@ -727,9 +724,11 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
       placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
                                        dquoted(key))});
   }
-  cppos("  return ");
+  cppos("  JsonLoc rv = ");
     codegen(out.outputTmpl, cppos, placeholders, 2);
     cppos(";\n");
+  cppos("  rv.stPos = oldi; rv.enPos = i;\n");
+  cppos("  return rv;\n");
 }
 
 static void
@@ -903,10 +902,11 @@ codegenReturnErrorOrTmpl(string_view resvar, const JsonTmpl& tmpl,
   if(isPassthroughTmpl(tmpl)) {
     cppos(format("    return {};\n", resvar));
   }else {
-    cppos(format("    if(!{}.holdsErrorValue()) return ", resvar));
+    // TODO test this code path.
+    cppos(format("    if({0}.holdsErrorValue()) return {0};\n", resvar));
+    cppos(       "    return JsonLoc::withPos(");
       codegen(tmpl, cppos, {{"child", string(resvar)}}, 4);
-      cppos(";\n");
-    cppos(format("    else return {};\n", resvar));
+      cppos(format(", {0}.stPos, {0}.enPos);\n", resvar));
   }
 }
 
@@ -925,9 +925,10 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
       cppos("  res = ");
         codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
-      cppos("  if(!res.holdsErrorValue()) return ");
-        codegen(tmpl, cppos, {{"child", "res"}}, 2);
-        cppos(";\n");
+      cppos("  if(!res.holdsErrorValue())\n");
+      cppos("    return JsonLoc::withPos(");
+        codegen(tmpl, cppos, {{"child", "res"}}, 4);
+        cppos(", res.stPos, res.enPos);\n");
     }else {
       cppos("  if(");
         codegenLookahead(ruleset, lidx, cppos);

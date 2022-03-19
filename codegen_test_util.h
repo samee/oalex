@@ -49,4 +49,10 @@ template <class X> RuleSet singletonRuleSet(X x) {
 void assertJsonLocIsString(std::string_view testName, const JsonLoc& jsloc,
                            std::string_view s, size_t stPos, size_t enPos);
 
+// TODO use LocPair as the actual type.
+void
+assertLocPairEqual(std::string_view msg,
+                   size_t stPosExpected, size_t enPosExpected,
+                   const JsonLoc& jsloc);
+
 }  // namespace oalex::test

@@ -48,4 +48,14 @@ RegexRule parseRegex(string_view s) {
   else return RegexRule{std::move(rv)};
 }
 
+void
+assertLocPairEqual(string_view msg,
+                   size_t stPosExpected, size_t enPosExpected,
+                   const JsonLoc& jsloc) {
+  if(stPosExpected == jsloc.stPos && enPosExpected == jsloc.enPos) return;
+  // TODO refactor with locationString.
+  Bug("{}. Expected location ({}, {}). Got ({}, {})", msg,
+      stPosExpected, enPosExpected, jsloc.stPos, jsloc.enPos);
+}
+
 }  // namespace oalex::test

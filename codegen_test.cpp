@@ -59,6 +59,7 @@ using oalex::StringRule;
 using oalex::SkipPoint;
 using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
+using oalex::test::assertLocPairEqual;
 using oalex::test::cskip;
 using oalex::test::nmRule;
 using oalex::test::regexOpts;
@@ -202,6 +203,7 @@ void testConcatMatch() {
   })");
   JsonLoc observed = eval(ctx, pos, rs, concatIndex);
   assertEqual(__func__, expected, observed);
+  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
 
   pos = 0;
   ctx = InputDiags{Input{"orangeCount = 5 missing-semicolon;"}};
@@ -239,6 +241,7 @@ void testConcatFlatMatch() {
       "{var_name: 'x', init_value: {type: 'int', value: '5'}}");
   JsonLoc observed = eval(ctx, pos, rs, outIndex);
   assertEqual(__func__, expected, observed);
+  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
   observed = eval(ctx, pos, rs, outIndex);
@@ -282,6 +285,7 @@ void testKeywordsOrNumber() {
     JsonLoc observed = eval(ctx, pos, rs, orListIndex);
     assertEqual(__func__, expected, observed);
     assertEqual(__func__, pos, ssize_t(msg.size()));
+    assertLocPairEqual(__func__, 0, msg.size(), observed);
   }
 
   ssize_t pos = 0;
@@ -463,6 +467,7 @@ void testLoopRule() {
     assertEqual(__func__, expectedJsloc, observed);
     if(expectedEnd == -1) expectedEnd = msg.size()-1;
     assertEqual(format("{}: test case '{}'", __func__, msg), expectedEnd, pos);
+    assertLocPairEqual(__func__, 0, expectedEnd, observed);
     assertEmptyDiags(format("{}-with-glue", __func__), ctx.diags);
   }
   pair<string, string> badcases[] = {
