@@ -58,6 +58,7 @@ using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexListEntries;
 using oalex::lex::lexNextLine;
+using oalex::lex::lookahead;
 using oalex::lex::lookaheadParIndent;
 using oalex::lex::NewlineChar;
 using oalex::lex::oalexSkip;
@@ -265,8 +266,11 @@ parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
 }
 
 bool
-resemblesExternRule(const Input& input, size_t i) {
-  return input.bol(i) == i && input.substr(i, 7) == "extern ";
+resemblesExternRule(InputDiags& ctx, size_t i) {
+  const Input& input = ctx.input;
+  if(input.bol(i) != i) return false;
+  optional<WholeSegment> tokopt = lookahead(ctx, i);
+  return tokopt && **tokopt == "extern";
 }
 
 optional<SkipPoint>
@@ -1059,7 +1063,7 @@ parseOalexSource(InputDiags& ctx) {
     // But they do use ssize_t.
     ssize_t is = i;
     bool tok_needed = false, parse_error = false;
-    if(resemblesExternRule(ctx.input, is)) {
+    if(resemblesExternRule(ctx, is)) {
       if(JsonLoc jsloc = parseExternRule(ctx, is))
         appendExternRule(jsloc, ctx, rl);
       else parse_error = true;

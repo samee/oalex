@@ -1,4 +1,7 @@
 # expected-error: External parser names need to start either with 'oalexPlugin...' or 'oalexBuiltin...'
 
-extern rule hello = someOtherParser;
+# Keyword rule appears on a separate line to ensure we don't need a space
+# after extern
+extern
+  rule hello = someOtherParser;
 
