@@ -1,0 +1,3 @@
+# expected-error: Expected '='
+
+extern rule hello := oalexBuiltinHello;

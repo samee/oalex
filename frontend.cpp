@@ -1058,20 +1058,23 @@ parseOalexSource(InputDiags& ctx) {
     // First try bootstrapped pieces. They don't need linetoks.
     // But they do use ssize_t.
     ssize_t is = i;
-    bool tok_needed = false;
+    bool tok_needed = false, parse_error = false;
     if(resemblesExternRule(ctx.input, is)) {
-      appendExternRule(parseExternRule(ctx, is), ctx, rl);
+      if(JsonLoc jsloc = parseExternRule(ctx, is))
+        appendExternRule(jsloc, ctx, rl);
+      else parse_error = true;
     }else {
       tok_needed = true;
     }
     i = is;
 
-    if(!tok_needed) continue;
+    if(!parse_error && !tok_needed) continue;
     vector<ExprToken> linetoks = lexNextLine(ctx, i);
     if(linetoks.empty()) {
       if(ctx.input.sizeGt(i)) return nullopt;  // Error case
       else break;
     }
+    if(parse_error) continue;
 
     if(resemblesBnfRule(linetoks)) {
       parseBnfRule(std::move(linetoks), ctx, rl);

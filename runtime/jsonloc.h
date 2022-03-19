@@ -100,6 +100,7 @@ class JsonLoc {
   bool holdsString() const { return tag_ == Tag::String; }
   bool holdsVector() const { return tag_ == Tag::Vector; }
   bool holdsMap() const { return tag_ == Tag::Map; }
+  operator bool() const { return tag_ != Tag::ErrorValue; }
 
   String* getIfString() { return holdsString() ? &stringValue_ : nullptr; }
   const String* getIfString() const
