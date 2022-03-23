@@ -1,5 +1,5 @@
 # expected-error: Non-word inline lookahead
-rule simple_stmt lookaheads:
+rule simple_stmt choices:
 | "my var" -> decl
 | asgn
 

@@ -863,9 +863,9 @@ resemblesLookaheadBranch(const vector<ExprToken>& branch) {
 }
 
 bool
-parseLookaheadBranchAction(const vector<ExprToken>& branch,
-                           ssize_t pos, ssize_t lookidx,
-                           DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
+parseBranchAction(const vector<ExprToken>& branch,
+                  ssize_t pos, ssize_t lookidx,
+                  DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
   if(resemblesErrorBranch(branch, pos)) {
     string_view err = parseErrorBranch(ctx, branch, pos);
     // TODO deduplicate SkipRules in codegen
@@ -887,19 +887,19 @@ parseLookaheadBranchAction(const vector<ExprToken>& branch,
 }
 
 bool
-resemblesLookaheadRule(const vector<ExprToken>& linetoks) {
+resemblesMultiMatchRule(const vector<ExprToken>& linetoks) {
   return linetoks.size() >= 3 && isToken(linetoks[0], "rule")
-         && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "lookaheads");
+         && resemblesIdent(linetoks[1]) && isToken(linetoks[2], "choices");
 }
 
 void
-parseLookaheadRule(vector<ExprToken> linetoks,
-                        InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
+parseMultiMatchRule(vector<ExprToken> linetoks,
+                    InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   if(!requireColonEol(linetoks, 3, ctx)) return;
   vector<vector<ExprToken>> branches = lexListEntries(ctx, i, '|');
   if(branches.empty()) {
     Error(ctx, enPos(linetoks.back()),
-          "Expected lookahead branches after this");
+          "Expected choice branches after this");
     return;
   }
   const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
@@ -914,7 +914,7 @@ parseLookaheadRule(vector<ExprToken> linetoks,
       if(lookidx == -1) continue;
       actionPos += 2;   // Skip over "->"
     }
-    if(!parseLookaheadBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))
+    if(!parseBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))
       continue;
   }
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
@@ -1085,8 +1085,8 @@ parseOalexSource(InputDiags& ctx) {
     }else if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
-    }else if(resemblesLookaheadRule(linetoks)) {
-      parseLookaheadRule(std::move(linetoks), ctx, i, rl);
+    }else if(resemblesMultiMatchRule(linetoks)) {
+      parseMultiMatchRule(std::move(linetoks), ctx, i, rl);
     }else if(resemblesRule(linetoks)) {
       parseRule(std::move(linetoks), ctx, i, rl);
     }else

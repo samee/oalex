@@ -1,4 +1,4 @@
 # expected-error: Expected keyword 'error' after 'quiet'
 
-rule var lookaheads:
+rule var choices:
 | "var" -> quiet down

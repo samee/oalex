@@ -7,13 +7,13 @@ rejectTestWord := "BadWord"
 
 # TODO: change this keyword `lookahead` to `any_of` or `one_of`.
 # Or without underscores: like `any of` or `one of`.
-rule matchAfterAbsorb lookaheads:
+rule matchAfterAbsorb choices:
 | rejectTestWord   # This will produce error messages on "TestWord"
 | acceptTestWord   # But then we accept "TestWord" anyway.
 
 # The question now is: if matchAfterAbsorb is used as a lookahead,
 # is it considered a success or failure? It tests peekMatch().
-rule peekTester lookaheads:
+rule peekTester choices:
 | matchAfterAbsorb -> acceptTestWord
 | error 'Failed to absorb errors'
 

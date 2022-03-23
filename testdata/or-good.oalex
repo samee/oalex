@@ -1,7 +1,7 @@
 # This no-look `asgn` rule is different from the `_ -> asgn` I was planning.
 # This version can fall back to a different rule. The hypothetical blank-match
 # version cannot, since that match always succeeds.
-rule simple_stmt lookaheads:
+rule simple_stmt choices:
 | "var" -> decl
 | int_value -> error 'Statement cannot start with a number'
 | asgn
@@ -21,7 +21,7 @@ ident_regex := /[_a-zA-Z]+/
 int_value := /-?[0-9]+/
 
 # TODO non-word inline lookaheads
-rule ident lookaheads:
+rule ident choices:
 | "var" -> error 'Reserved keyword "var" cannot be a variable name'
 | ident_regex
 
@@ -80,11 +80,11 @@ outputs error with 'Reserved keyword "var" cannot be a variable name'
 
 # TODO success test with end-position marker, like codegen ignored tests.
 
-rule simple_stmt_flipped lookaheads:
+rule simple_stmt_flipped choices:
 | asgn_quiet
 | "var" -> decl
 
-rule asgn_quiet lookaheads:
+rule asgn_quiet choices:
 | "var" -> quiet error
 | asgn
 

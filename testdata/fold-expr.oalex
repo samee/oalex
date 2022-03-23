@@ -2,7 +2,7 @@ num := /[0-9]+/
 plus := "+"
 minus := "-"
 
-rule oper lookaheads:
+rule oper choices:
 | plus
 | minus
 

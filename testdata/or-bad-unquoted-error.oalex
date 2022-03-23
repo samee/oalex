@@ -2,5 +2,5 @@
 
 some_string := "Use 'var' instead"
 
-rule stmt lookaheads:
+rule stmt choices:
 | "let" -> error some_string
