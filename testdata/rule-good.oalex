@@ -95,3 +95,14 @@ where:
 example binop_expr:
   a * b
 outputs: { lhs: "a", rhs: "b", binop: "*" }
+
+rule ignored_levels:
+  var level: num
+where:
+  var ~ ident
+  num ~ int_value
+outputs: { leveled_var: var }  # A rule that doesn't use all its inputs.
+
+example ignored_levels:
+  msg level: 500
+outputs: { leveled_var: "msg" }

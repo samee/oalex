@@ -669,6 +669,12 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, ruleIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
+  // Duplicates a few entries, but seems mostly harmless for now.
+  for(auto& binding : pattToRule) {
+    reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
+    rv.emplace_back(binding.outTmplKey,
+                    rl.findOrAppendIdent(ctx, binding.ruleName));
+  }
   return rv;
 }
 
@@ -696,7 +702,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                    RulesWithLocs& rl) {
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl);
+  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
+  partPatterns.merge(makePartPatterns(ctx, jstmpl));
 
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
   if(!patt_string.empty() && toks.empty()) return;

@@ -138,6 +138,9 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    std::vector<PatternToRuleBinding> pattToRule,
                    JsonTmpl jstmpl, RulesWithLocs& rl);
 
+
+// This overload takes no explicit JsonTmpl parameter. Instead, the inner
+// ConcatFlatRule result is passed directly onto the output with no change.
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    lex::GluedString patt_string, const LexDirective& lexOpts,
