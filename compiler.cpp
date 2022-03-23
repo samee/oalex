@@ -686,7 +686,7 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
-    rv.emplace_back(std::move(binding.outTmplKey),
+    rv.emplace_back(binding.outTmplKey,
                     rl.findOrAppendIdent(ctx, binding.ruleName));
   }
   return rv;
