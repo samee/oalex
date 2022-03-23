@@ -1,0 +1,8 @@
+# expected-error: Empty '|' branch is not supported
+
+word := /[a-z]+/
+
+rule test:
+  opt1 | | opt2
+where:
+  opt1 ~ word

@@ -735,6 +735,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
   if(!patt_string.empty() && toks.empty()) return;
   optional<Pattern> patt = parsePattern(ctx, std::move(toks));
+  if(!patt.has_value()) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
 
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
