@@ -216,18 +216,18 @@ optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
 
 // For a backslash code, this function assumes `i` is already at the character
 // just after the backslash, inside a string literal.
-optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
-  if(!input.sizeGt(i)) return Error(ctx, i-1, "Incomplete escape code");
+optional<char> lexQuotedEscape(string_view s, size_t& i,
+                               DiagsDest ctx, size_t iPos) {
+  if(i >= s.size()) return Error(ctx, iPos-1, "Incomplete escape code");
   char ch;
   // If this changes, please change jsonloc::pringString() as well.
-  switch(input[i]) {
+  switch(s[i]) {
     case '\\': ch = '\\'; break;
     case 'n': ch = '\n'; break;
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
     case '\'': ch = '\''; break;
-    case 'x': ++i; return lexHexCode(input.substr(i,2), Shift{i,0}, ctx, i);
+    case 'x': ++i; return lexHexCode(s, i, ctx, iPos+1);
     default: return Error(ctx, i-1, "Invalid escape code");
   }
   ++i;
@@ -700,7 +700,9 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
         return GluedString(rst.start(), i, s, toCtor(quote), std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
-      if(optional<char> escres = lexQuotedEscape(ctx, ++i)) {
+      ++i;
+      if(optional<char> escres =
+          lexQuotedEscape(input.substr(i,3), Shift{i,0}, ctx, i)) {
         s += *escres;
         imap.push_back(IndexRelation{.inputPos = i, .quotePos = s.size()});
       } else error = true;
