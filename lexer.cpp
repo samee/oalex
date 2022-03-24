@@ -687,7 +687,7 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || !isquote(input[i])) return nullopt;
   const char quote = input[i];
-  Resetter rst(ctx, i);
+  size_t starti = i;
   string s;
   vector<IndexRelation> imap;
   bool error = false;
@@ -695,9 +695,9 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
   while(input.sizeGt(i) && input[i] != '\n') {
     if(input[i] == quote) {
-      rst.markUsed(++i);
+      ++i;
       if(!error)
-        return GluedString(rst.start(), i, s, toCtor(quote), std::move(imap));
+        return GluedString(starti, i, s, toCtor(quote), std::move(imap));
       else return nullopt;
     }else if(input[i] == '\\') {
       ++i;
@@ -708,8 +708,8 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
       } else error = true;
     }else s += input[i++];
   }
-  Error(ctx, rst.start(), i, "Unexpected end of line");
-  rst.markUsed(++i);
+  Error(ctx, starti, i, "Unexpected end of line");
+  ++i;
   return nullopt;
 }
 
