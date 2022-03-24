@@ -98,20 +98,6 @@ StringLoc fromSegment(WholeSegment s) {
   return StringLoc{std::move(s.data), s.stPos};
 }
 
-// The fact that this utility is needed speaks to the inconsistency between
-// our conventions in various parts of this project.
-// TODO: make this class unnecessary.
-class Shift {
- public:
-  explicit Shift(size_t& i, size_t newValue)
-    : i_{&i}, j_{newValue}, j0_{newValue} {}
-  ~Shift() { *i_ += j_-j0_; }
-  operator size_t&() { return j_; }
- private:
-  size_t* i_;
-  size_t j_, j0_;
-};
-
 // For a "\xhh" code, this function assumes "\x" has been consumed, and now we
 // are just parsing the "hh" part. `i` points to what should be the first hex
 // digit. This is why all errors start at iPos-2:
@@ -701,9 +687,11 @@ optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
       else return nullopt;
     }else if(input[i] == '\\') {
       ++i;
+      size_t j=0;
       if(optional<char> escres =
-          lexQuotedEscape(input.substr(i,3), Shift{i,0}, ctx, i)) {
+          lexQuotedEscape(input.substr(i,3), j, ctx, i)) {
         s += *escres;
+        i += j;
         imap.push_back(IndexRelation{.inputPos = i, .quotePos = s.size()});
       } else error = true;
     }else s += input[i++];
