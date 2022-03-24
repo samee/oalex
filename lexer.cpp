@@ -98,6 +98,39 @@ StringLoc fromSegment(WholeSegment s) {
   return StringLoc{std::move(s.data), s.stPos};
 }
 
+// The fact that this utility is needed speaks to the inconsistency between
+// our conventions in various parts of this project.
+// TODO: make this class unnecessary.
+class Shift {
+ public:
+  explicit Shift(size_t& i, size_t newValue)
+    : i_{&i}, j_{newValue}, j0_{newValue} {}
+  ~Shift() { *i_ += j_-j0_; }
+  operator size_t&() { return j_; }
+ private:
+  size_t* i_;
+  size_t j_, j0_;
+};
+
+// For a "\xhh" code, this function assumes "\x" has been consumed, and now we
+// are just parsing the "hh" part. `i` points to what should be the first hex
+// digit. This is why all errors start at iPos-2:
+//
+//     \xhh
+//     | |
+//     | +-- iPos
+//     +---- iPos-2
+
+optional<char> lexHexCode(string_view s, size_t& i,
+                          DiagsDest ctx, size_t iPos) {
+  if(i+1 >= s.size())
+    return Error(ctx, iPos-2, iPos+s.size()-i, "Incomplete hex code");
+  if(!isxdigit(s[i]) || !isxdigit(s[i+1]))
+    return Error(ctx, iPos-2, iPos+2, "Invalid hex code");
+  i += 2;
+  return stoi(string(s.substr(i-2,2)), nullptr, 16);
+}
+
 namespace {
 
 bool isSectionHeaderNonSpace(char ch) {
@@ -194,7 +227,7 @@ optional<char> lexQuotedEscape(InputDiags& ctx, size_t& i) {
     case 't': ch = '\t'; break;
     case '"': ch = '"'; break;
     case '\'': ch = '\''; break;
-    case 'x': return lexHexCode(ctx, ++i);
+    case 'x': ++i; return lexHexCode(input.substr(i,2), Shift{i,0}, ctx, i);
     default: return Error(ctx, i-1, "Invalid escape code");
   }
   ++i;
@@ -436,19 +469,6 @@ optional<WholeSegment> GluedString::getSegment() const {
     Bug("GluedString should never have an empty index");
   else return nullopt;
   // Corner case when s_ ends with a '\n'. FIXME
-}
-
-// For a "\xhh" code, this function assumes "\x" has been consumed, and now we
-// are just parsing the "hh" part. `i` points to what should be the first hex
-// digit.
-optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
-  if(!input.sizeGt(i+1))
-    return Error(ctx, i-2, "Incomplete hex code");
-  if(!isxdigit(input[i]) || !isxdigit(input[i+1]))
-    return Error(ctx, i-2, "Invalid hex code");
-  i += 2;
-  return stoi(string(input.substr(i-2,2)),nullptr,16);
 }
 
 // Returns error-free nullopt if and only if !isregex(input[i]). In all other

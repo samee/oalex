@@ -29,6 +29,7 @@ using std::nullopt;
 using std::optional;
 using std::strchr;
 using std::string;
+using std::string_view;
 using std::unique_ptr;
 using std::vector;
 using oalex::InputDiags;
@@ -39,8 +40,18 @@ namespace oalex {
 // Forward declaration from lexer.h. Can be moved to some parser util later,
 // so we don't have to include all of lexer.h and dependencies.
 namespace lex {
-optional<char> lexHexCode(InputDiags& ctx, size_t& i);
+
+optional<char> lexHexCode(string_view s, size_t& i,
+                          DiagsDest ctx, size_t iPos);
+
+optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
+  size_t j=0;
+  auto rv = lexHexCode(ctx.input.substr(i,2), j, ctx, i);
+  i += j;
+  return rv;
 }
+
+}  // namespace lex
 
 namespace {
 

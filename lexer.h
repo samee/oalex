@@ -181,7 +181,6 @@ inline Skipper oalexSkip{{{"#","\n"}}, {}};
 inline Skipper oalexWSkip{};
 extern RegexOptions oalexRegexOpts;
 
-std::optional<char> lexHexCode(InputDiags& ctx, size_t& i);
 std::vector<WholeSegment> lexSectionHeader(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexQuotedString(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexFencedSource(InputDiags& lex, size_t& i);
