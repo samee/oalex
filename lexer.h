@@ -76,7 +76,7 @@ class GluedString final : public Segment, public InputPiece {
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
   explicit GluedString(WholeSegment s);
-  friend auto lexQuotedString(InputDiags& ctx, size_t& i)
+  friend auto unquote(const StringLoc& literal, DiagsDest ctx)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)
     -> std::optional<GluedString>;
@@ -182,6 +182,7 @@ inline Skipper oalexWSkip{};
 extern RegexOptions oalexRegexOpts;
 
 std::vector<WholeSegment> lexSectionHeader(InputDiags& lex, size_t& i);
+std::optional<GluedString> unquote(const StringLoc& s, DiagsDest ctx);
 std::optional<GluedString> lexQuotedString(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexFencedSource(InputDiags& lex, size_t& i);
 std::optional<GluedString> lexIndentedSource(InputDiags& lex, size_t& i,

@@ -664,6 +664,51 @@ optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
   else Fatal(ctx, i, "Invalid input character");
 }
 
+// Input literal is assumed to match /"([^"\\\n]|\\")*"/
+optional<GluedString> unquote(const StringLoc& literal, DiagsDest ctx) {
+  if(literal->empty() || !isquote(literal->at(0))
+                      || !isquote(literal->back()))
+    Bug("Expected quoted literal. Received '{}'", *literal);
+  vector<IndexRelation> imap;
+  string s;
+  imap.push_back(IndexRelation{.inputPos = literal.stPos()+1, .quotePos = 0});
+  size_t i = 1;
+  while(i+1<literal->size()) {
+    if(literal->at(i) == '\\') {
+      ++i;
+      if(optional<char> escres
+          = lexQuotedEscape(*literal, i, ctx, literal.stPos()+i)) {
+        s += *escres;
+        imap.push_back(IndexRelation{.inputPos = literal.stPos()+i,
+                                     .quotePos = s.size()});
+      }else return nullopt;
+    }else s += literal->at(i++);
+  }
+  return GluedString(literal.stPos(), literal.enPos(), s,
+                     toCtor(literal->at(0)), std::move(imap));
+}
+
+// Returns Input::npos if and only if the line ends
+// before the end quote is found.
+size_t findMatchingQuote(InputDiags& ctx, size_t i) {
+  const Input& input = ctx.input;
+  if(!input.sizeGt(i))
+    Bug("{}: Position {} is past the end of string", __func__, i);
+  const char quote = input[i];
+  size_t j = i+1;
+  bool skip_next_char = false;
+  while(input.sizeGt(j) && input[j] != '\n') {
+    if(skip_next_char) skip_next_char = false;
+    else if(input[j] == '\\') skip_next_char = true;
+    else if(input[j] == quote) return j;
+    ++j;
+  }
+  if(skip_next_char) Error(ctx, j-1, "Incomplete escape code");
+  else Error(ctx, j-1, "Unexpected end of line");
+  i = j;
+  return Input::npos;
+}
+
 // It returns an error-free nullopt iff ctx.input[i] is not a '"', in which case
 // the caller should try parsing something else. In all other cases, it will
 // either return a valid string, or nullopt with errors added to ctx.diags. In
@@ -672,33 +717,12 @@ optional<WholeSegment> lookahead(InputDiags& ctx, size_t i) {
 optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || !isquote(input[i])) return nullopt;
-  const char quote = input[i];
-  size_t starti = i;
-  string s;
-  vector<IndexRelation> imap;
-  bool error = false;
-  ++i;
-  imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
-  while(input.sizeGt(i) && input[i] != '\n') {
-    if(input[i] == quote) {
-      ++i;
-      if(!error)
-        return GluedString(starti, i, s, toCtor(quote), std::move(imap));
-      else return nullopt;
-    }else if(input[i] == '\\') {
-      ++i;
-      size_t j=0;
-      if(optional<char> escres =
-          lexQuotedEscape(input.substr(i,3), j, ctx, i)) {
-        s += *escres;
-        i += j;
-        imap.push_back(IndexRelation{.inputPos = i, .quotePos = s.size()});
-      } else error = true;
-    }else s += input[i++];
-  }
-  Error(ctx, starti, i, "Unexpected end of line");
-  ++i;
-  return nullopt;
+
+  size_t j = findMatchingQuote(ctx, i);
+  if(j == Input::npos) return nullopt;
+  auto rv = unquote(StringLoc{input.substr_range(i, j+1), i}, ctx);
+  i = j+1;  // Callers expect i to advance even on failure
+  return rv;
 }
 
 static bool isSourceFence(string_view fence) {

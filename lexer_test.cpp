@@ -138,7 +138,7 @@ const char stringDoesntEnd[] = "\"Foo";
 const char multiLineString[] = "\"Foo\nBar\"";
 const char incompleteEscape[] = "\"Foo\\";
 const char invalidEscape[] = "\"\\&\"";
-const char incompleteHex[] = R"("Foo\xF)";
+const char incompleteHex[] = R"("Foo\x")";
 const char invalidHex[] = R"("\xag")";
 
 void stringSuccessImpl(const char testInput[], const char testName[],
@@ -547,7 +547,7 @@ void testSkipBlankLines() {
 // Failed lexQuotedString() commits if input starts with a quote character,
 // and tries pretty hard to recover. In those cases, we should not try
 // an alternate parsing assuming the cursor is still unchanged.
-const char badEagerRecovery[] = "\"\\x\"die\n";
+const char badEagerRecovery[] = "\"\\x0\"die\n";
 
 const char invalidCharInput[] = "hello \x01 world";
 
