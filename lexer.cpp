@@ -466,7 +466,6 @@ static optional<RegexPattern> lexRegexPattern(InputDiags& ctx, size_t& i) {
   if(!input.sizeGt(i) || !isregex(input[i])) return nullopt;
   Resetter rst(ctx, i);
   unique_ptr<const Regex> rv = parseRegex(ctx, i);  // TODO: improve naming.
-  //if(rv == nullptr) return nullopt;
   if(rv == nullptr) {
     // Scan till the next unescaped '/'
     ++i;
