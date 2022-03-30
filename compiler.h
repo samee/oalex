@@ -136,7 +136,7 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    lex::GluedString patt_string, const LexDirective& lexOpts,
                    std::vector<PatternToRuleBinding> pattToRule,
-                   JsonTmpl jstmpl, RulesWithLocs& rl);
+                   JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
 
 
 // This overload takes no explicit JsonTmpl parameter. Instead, the inner
@@ -145,7 +145,7 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    lex::GluedString patt_string, const LexDirective& lexOpts,
                    std::vector<PatternToRuleBinding> pattToRule,
-                   RulesWithLocs& rl);
+                   JsonLoc errors, RulesWithLocs& rl);
 
 void
 appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);

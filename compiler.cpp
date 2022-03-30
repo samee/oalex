@@ -81,6 +81,10 @@ class PatternToRulesCompiler {
   RulesWithLocs* rl_;  // This is where new rules get appended.
   // Rule index for placeholders
   const vector<pair<Ident,ssize_t>>* p2rule_;
+  // Optional error message for any failures. This can later be extended
+  // with recovery rules and alternate branches. The Idents here are assumed
+  // to be a subset of those in p2rule_ above.
+  const vector<pair<Ident,string>>* errmsg_;
   ssize_t processConcat(const PatternConcat& concatPatt);
   ssize_t processOrList(const PatternOrList& orPatt);
   ssize_t processOptional(const PatternOptional& optPatt);
@@ -89,8 +93,9 @@ class PatternToRulesCompiler {
   ssize_t processFold(const PatternFold& foldPatt);
  public:
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
-                         const vector<pair<Ident,ssize_t>>& p2rule) :
-    ctx_(ctx), rl_(&rl), p2rule_(&p2rule) {}
+                         const vector<pair<Ident,ssize_t>>& p2rule,
+                         const vector<pair<Ident,string>>& errmsg) :
+    ctx_(ctx), rl_(&rl), p2rule_(&p2rule), errmsg_(&errmsg) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
   ssize_t process(const Pattern& patt);
@@ -150,9 +155,18 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
   if(i == p2rule_->size())
     Bug("Ident map should already have an entry for '{}'",
         ident.preserveCase());
-  return rl_->appendAnonRule(ConcatFlatRule{{
+  ssize_t identRule = rl_->appendAnonRule(ConcatFlatRule{{
       {p2rule_->at(i).second, ident.preserveCase()},
   }});
+
+  for(i=0; i<errmsg_->size(); ++i) if(ident == errmsg_->at(i).first) break;
+  if(i == errmsg_->size()) return identRule;
+  ssize_t errRule = rl_->appendAnonRule(ErrorRule{errmsg_->at(i).second});
+
+  return rl_->appendAnonRule(OrRule{ {
+      {.lookidx{-1}, .parseidx{identRule}, .tmpl{passthroughTmpl}},
+      {.lookidx{-1}, .parseidx{errRule}, .tmpl{passthroughTmpl}},
+  }, true});
 }
 
 ssize_t
@@ -779,7 +793,7 @@ void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-                   RulesWithLocs& rl) {
+                   JsonLoc errors, RulesWithLocs& rl) {
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
   partPatterns.merge(makePartPatterns(ctx, jstmpl));
@@ -792,8 +806,10 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
+  vector<pair<Ident, string>> errmsg
+    = destructureErrors(ctx, std::move(errors));
 
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
   ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;
@@ -809,15 +825,18 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
-                   vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
+                   vector<PatternToRuleBinding> pattToRule, JsonLoc errors,
+                   RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
   if(!patt_string.empty() && toks.empty()) return;
   optional<Pattern> patt = parsePattern(ctx, std::move(toks));
   if(!patt.has_value()) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
+  vector<pair<Ident, string>> errmsg
+    = destructureErrors(ctx, std::move(errors));
 
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap};
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
   ssize_t newIndex = comp.process(*patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;

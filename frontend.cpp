@@ -747,9 +747,10 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(!patt.has_value()) return;
   // Guaranteed to succeed by resemblesRule().
   const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
-  bool sawOutputsKw = false, sawWhereKw = false;
+  bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
   optional<JsonTmpl> jstmpl;
   vector<PatternToRuleBinding> local_decls;
+  JsonLoc errors = JsonLoc::ErrorValue{};
 
   // Consume next line for the outputs stanza.
   while(true) {
@@ -767,13 +768,20 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
       if(!new_local_decls.empty()) local_decls = std::move(new_local_decls);
       else i = skipToIndentLe(ctx, i, *leaderIndent);
+    }else if(**leader == "errors") {
+      if(skipStanzaIfSeen(sawErrorsKw, *leader, ctx, i)) continue;
+      ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
+      errors = parseErrorStanza(ctx, is);
+      if(errors.holdsErrorValue()) continue;
+      i = oalexSkip.withinLine(ctx.input, is);
     }else { i = oldi; break; }
   }
+  if(errors.holdsErrorValue()) errors = JsonLoc::Map{};
 
   if(!sawOutputsKw) {
     if(sawWhereKw)
       appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
-                         std::move(local_decls), rl);
+                         std::move(local_decls), std::move(errors), rl);
     else
       Error(ctx, i, format("outputs stanza missing in rule {}",
                            ident.preserveCase()));
@@ -782,7 +790,8 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
 
   if(!jstmpl.has_value()) return;
   appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
-                     std::move(local_decls), std::move(*jstmpl), rl);
+                     std::move(local_decls), std::move(*jstmpl),
+                     std::move(errors), rl);
 }
 
 // For error-locating, it assumes !v.empty().
