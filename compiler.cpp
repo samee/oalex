@@ -51,7 +51,7 @@ methods of this class:
 The result of pattern compilation is some rule that produces one of two things:
 
   * The entire Pattern is just one Ident and nothing else.
-  * All the identifiers in the pattern is to be gathered up into a single
+  * All the identifiers in the pattern are to be gathered up into a single
     flat JsonLoc::Map object (e.g. by using ConcatFlatRule).
 
 These identifiers are then assembled by an OutputTmpl object specified outside
@@ -97,7 +97,7 @@ class PatternToRulesCompiler {
 ssize_t
 PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
   ConcatFlatRule concatRule{ {} };
-  for(ssize_t i = 0; i < (ssize_t)concatPatt.parts.size(); ++i) {
+  for(ssize_t i = 0; i < ssize(concatPatt.parts); ++i) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl_->ssize(), {}});
