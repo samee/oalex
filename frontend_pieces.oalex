@@ -3,6 +3,18 @@
 # This file is the source that was used to generate frontend_pieces.{cpp,h}
 
 word := /[a-zA-Z_0-9]+/
+double_quoted_literal := /"([^"\\]|\\.)*"/
+
+example double_quoted_literal:
+  "hello world"
+outputs success
+example double_quoted_literal:
+  "Inline double-quote: \""
+outputs success
+example double_quoted_literal:
+  "Unfinished escape \
+outputs error with 'Expected double_quoted_literal'
+
 
 # TODO wrap this up in a haskell-like indentation-checker, that ensures that
 # every token is indented strictly more than the 'extern' keyword.
@@ -10,7 +22,9 @@ word := /[a-zA-Z_0-9]+/
 # TODO: remove the semicolon when we can treat newlines as
 #       significant for a single rule
 rule extern_rule:
+
   extern rule rule_name = external_name [ ( [param, ... ,param] ) ] ;
+
 where:
   rule_name, external_name, param ~ word
 
@@ -31,4 +45,36 @@ outputs: {
   rule_name: "two_param",
   external_name: "oalexPluginTwoParams",
   param: ["foo", "bar"],
+}
+
+# TODO add recovery rule to skip bad lines
+rule error_stanza_line:
+
+  ident: "error msg"
+
+where:
+  ident ~ word
+  "\"error msg\"" as error_msg ~ double_quoted_literal
+
+example error_stanza_line:
+  foo: "Expected Foo here"
+outputs: { ident: "foo", error_msg: "\"Expected Foo here\"" }
+
+rule error_stanza_leader:
+  errors after failing:
+outputs: {}
+
+extern rule error_stanza =
+  oalexBuiltinIndentedList(error_stanza_leader, error_stanza_line);
+
+example error_stanza:
+  errors  after  failing:  # Extra space to check tokenization above
+    foo: "Missing Foo"
+    bar: "Expected more Bar"
+outputs: {
+  leader: {},
+  items: [
+    { ident: "foo", error_msg: "\"Missing Foo\"" },
+    { ident: "bar", error_msg: "\"Expected more Bar\"" },
+  ]
 }
