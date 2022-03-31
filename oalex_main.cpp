@@ -296,7 +296,10 @@ ssize_t firstRule(const RuleSet& rs) {
   ssize_t rv = -1;
   for(size_t i=0; i<rs.rules.size(); ++i) {
     const Ident* name = rs.rules[i]->nameOrNull();
-    if(name && name->stPos() > 0 && name->stPos() < idpos) rv = i;
+    if(name && name->stPos() > 0 && name->stPos() < idpos) {
+      rv = i;
+      idpos = name->stPos();
+    }
   }
   return rv;
 }

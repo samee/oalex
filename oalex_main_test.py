@@ -98,6 +98,26 @@ def eval_testdata_files():
             f"Was expecting test {filename} to succeed quietly. " + \
             f"Got output:\n{output}"
 
+def eval_stdin_input():
+  # This is to test that firstRule() really does pick up the first rule
+  testfile = "or-good.oalex"
+  input = "var x = 4"
+  result = subprocess.run(
+      [ sysargs.bin, "eval",
+        os.path.join(sysargs.testdata, testfile)
+      ], input=input.encode(), capture_output = True)
+  assert result.returncode == 0, (
+           f"eval or-good.oalex failed parsing '{input}' as simple_stmt\n" +
+           result.stderr.decode('utf-8'))
+  expected = { 'stmt': 'decl', 'varname': 'x', 'init_value': '4' }
+  try:
+    observed = json.loads(result.stdout)
+    assert observed == expected, f"Result unexpected {observed} != {expected}"
+  except json.JSONDecodeError:
+    print("Output is not valid json. Got", result.stdout.decode("utf-8"))
+    sys.exit(1)
+
+
 def test_gen_compiles():
   # Right now I'm only using two test files, since I'm a little worried
   # about increasing unit-test runtime. Running g++ multiple times can be a
@@ -124,4 +144,5 @@ def test_gen_compiles():
 
 test_malformed_cmdline_errors()
 eval_testdata_files()
+eval_stdin_input()
 test_gen_compiles()
