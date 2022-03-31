@@ -78,6 +78,7 @@ void testSimpleSuccess() {
     # json.org.  Includes a trailing comma.
     input: 'hello world', output: ['hello', 'world',], metadata: metadata,
     ellipsis_value: [list_elt,...],
+    quoted_value: '"inside" quotes',
     underscore_identifier: 'done' } )";
   optional<JsonTmpl> json = parseJsonTmpl(input);
   string output = json->prettyPrint(2);
@@ -92,6 +93,7 @@ void testSimpleSuccess() {
       "hello",
       "world"
     ],
+    quoted_value: "\"inside\" quotes",
     underscore_identifier: "done"
   })";
   if(output != expected)
@@ -103,6 +105,7 @@ void testSubstitution() {
     input,
     list: ['item 1', input, 'item 2'],   # Duplicate keyword nestled somewhere.
     input2,  # Lone keyword.
+    quoted_value: '"inside" quotes',
   })";
   optional<JsonTmpl> jstmpl = parseJsonTmpl(input);
   optional<JsonLoc> part1 = parseJsonLoc(R"({key: 'value'})");
@@ -120,7 +123,8 @@ void testSubstitution() {
         key: "value"
       },
       "item 2"
-    ]
+    ],
+    quoted_value: "\"inside\" quotes"
   })";
   if(output != expected)
     BugMe("Unexpected output:\n{}", output);

@@ -149,12 +149,14 @@ bool JsonLoc::substitutionsOk() const {
   return true;
 }
 
+// TODO: refactor this with its duplicate in jsontmpl.cpp.
+// We've already had to fix a bug here twice.
 static void printString(fmt::memory_buffer& buf, string_view s) {
   format_to(buf, "\"");
   // If this changes, please change lexQuotedEscape as well.
   // TODO write test.
   for(char ch : s) {
-    if(ch=='"') format_to(buf, "\"");
+    if(ch=='"') format_to(buf, "\\\"");
     else if(ch=='\\') format_to(buf, "\\\\");
     else if(ch=='\n') format_to(buf, "\\n");
     else if(ch=='\t') format_to(buf, "\\t");
@@ -165,6 +167,8 @@ static void printString(fmt::memory_buffer& buf, string_view s) {
   format_to(buf, "\"");
 }
 
+// TODO: refactor this with its duplicate in jsontmpl.cpp.
+// We've already had to fix a bug here twice.
 static string_view assertIdent(string_view ctx, string_view s) {
   if(s.empty()) Bug("{}: Identifier can't be null.", ctx);
   if(isdigit(s[0])) Bug("{}: Identifier can't start with a digit.", ctx);
