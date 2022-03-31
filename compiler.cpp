@@ -226,6 +226,58 @@ logLocalNamesakeError(DiagsDest ctx, const Ident& local, const Ident& global) {
                  local.preserveCase()));
 }
 
+// MapFields takes a JsonLoc::Map from some bootstrapped rule, and
+// extracts named fields. Most errors here result in Bug() rather than a
+// user-reported Error().
+class MapFields {
+ public:
+  MapFields(const JsonLoc::Map* jmap, string_view rule_name)
+    : jmap_{jmap}, rule_name_{rule_name} {
+    if(!jmap) Bug("Parser output for {} should have been a map", rule_name);
+  }
+
+  template <class T> using get_t = std::conditional_t<
+    std::is_pointer_v<T>,
+    const std::remove_pointer_t<T>*,
+    const T&>;
+  template <class T> get_t<T> get(string_view field_name) const = delete;
+
+  // This exists just to support T = StringLoc. It's generic just to keep
+  // interface consistency with get<T>() above.
+  // Dev note: fold this into get<T>() if
+  //   we ever make getIfStringLoc() return a reference.
+  template <class T, class =
+    std::enable_if_t<!std::is_reference_v<T> && !std::is_pointer_v<T>>>
+    T get_copy(string_view field_name) const { return get<T>(field_name); }
+ private:
+  const JsonLoc::Map* jmap_;
+  string_view rule_name_;
+};
+
+template <> const JsonLoc&
+MapFields::get<JsonLoc>(string_view field_name) const {
+  const JsonLoc* rv = JsonLoc::mapScanForValue(*jmap_, field_name);
+  if(!rv) Bug("Expected {} in {}", field_name, rule_name_);
+  return *rv;
+}
+
+template <> StringLoc
+MapFields::get_copy<StringLoc>(string_view field_name) const {
+  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
+  StringLoc s = jsloc.getIfStringLoc();
+  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
+  return s;
+}
+
+template <> const JsonLoc::Vector*
+MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
+  const JsonLoc* jsloc = JsonLoc::mapScanForValue(*jmap_, field_name);
+  if(!jsloc) return nullptr;
+  const JsonLoc::Vector* vec = jsloc->getIfVector();
+  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
+  return vec;
+}
+
 }  // namespace
 
 Rule& RulesWithLocs::operator[](ssize_t i) {
@@ -752,73 +804,6 @@ identFrom(const JsonLoc& jsloc, string_view desc, DiagsDest ctx) {
   if(!s) Bug("{} should have been a string, found {}", desc, jsloc.tagName());
   const WholeSegment wseg{jsloc.stPos, jsloc.enPos, *s};
   return Ident::parse(ctx, wseg);
-}
-
-// MapFields takes a JsonLoc::Map from some bootstrapped rule, and
-// extracts named fields. Most errors here result in Bug() rather than a
-// user-reported Error().
-class MapFields {
- public:
-  MapFields(const JsonLoc::Map* jmap, string_view rule_name)
-    : jmap_{jmap}, rule_name_{rule_name} {
-    if(!jmap) Bug("Parser output for {} should have been a map", rule_name);
-  }
-
-  template <class T> using get_t = std::conditional_t<
-    std::is_pointer_v<T>,
-    const std::remove_pointer_t<T>*,
-    const T&>;
-  template <class T> get_t<T> get(string_view field_name) const = delete;
-
-  // This exists just to support T = StringLoc. It's generic just to keep
-  // interface consistency with get<T>() above.
-  // Dev note: fold this into get<T>() if
-  //   we ever make getIfStringLoc() return a reference.
-  template <class T, class =
-    std::enable_if_t<!std::is_reference_v<T> && !std::is_pointer_v<T>>>
-    T get_copy(string_view field_name) const { return get<T>(field_name); }
- private:
-  const JsonLoc::Map* jmap_;
-  string_view rule_name_;
-};
-
-template <> const JsonLoc&
-MapFields::get<JsonLoc>(string_view field_name) const {
-  const JsonLoc* rv = JsonLoc::mapScanForValue(*jmap_, field_name);
-  if(!rv) Bug("Expected {} in {}", field_name, rule_name_);
-  return *rv;
-}
-
-template <> const string&
-MapFields::get<string>(string_view field_name) const {
-  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
-  const string* s = jsloc.getIfString();
-  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
-  return *s;
-}
-template <> StringLoc
-MapFields::get_copy<StringLoc>(string_view field_name) const {
-  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
-  StringLoc s = jsloc.getIfStringLoc();
-  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
-  return s;
-}
-
-template <> const JsonLoc::Vector&
-MapFields::get<JsonLoc::Vector>(string_view field_name) const {
-  const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
-  const JsonLoc::Vector* vec = jsloc.getIfVector();
-  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
-  return *vec;
-}
-
-template <> const JsonLoc::Vector*
-MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
-  const JsonLoc* jsloc = JsonLoc::mapScanForValue(*jmap_, field_name);
-  if(!jsloc) return nullptr;
-  const JsonLoc::Vector* vec = jsloc->getIfVector();
-  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
-  return vec;
 }
 
 // TODO revisit error-handling here.
