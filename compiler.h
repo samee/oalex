@@ -149,4 +149,13 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
 
 void
 appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
+
+// Internal functions, exposed for testing only
+// Dev-note: consider a separate compiler_testables.h
+
+class Ident;
+class JsonLoc;
+std::vector<std::pair<Ident, std::string>>
+destructureErrors(DiagsDest ctx, JsonLoc errors);
+
 }  // namespace oalex

@@ -15,6 +15,7 @@
 #include "compiler.h"
 #include <string_view>
 #include "ident.h"
+#include "frontend_pieces.h"
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
 using oalex::assertEmptyDiags;
@@ -29,7 +30,10 @@ using oalex::InputDiags;
 using oalex::Rule;
 using oalex::RulesWithLocs;
 using oalex::UnassignedRule;
+using std::pair;
+using std::string;
 using std::string_view;
+using std::vector;
 
 namespace {
 
@@ -221,6 +225,28 @@ void testDefineAndReserveProducesError() {
 
 }
 
+void testDestructureErrors() {
+  InputDiags ctx{Input{R"(errors after failing:
+    id1: "msg1"
+    id2: "msg2")"}};
+  ssize_t pos = 0;
+  vector<pair<Ident,string>> observed
+    = destructureErrors(ctx, parseErrorStanza(ctx, pos));
+  vector<pair<Ident,string>> expected = {
+    {Ident::parseGenerated("id1"), "msg1"},
+    {Ident::parseGenerated("id2"), "msg2"},
+  };
+  // assertEqual() won't work without an fmtlib formatter
+  if(observed != expected) {
+    fmt::print(stderr, "observed output: {{\n");
+    for(auto& [id, s] : observed) {
+      fmt::print(stderr, "  {{ {}, {} }}\n", id.preserveCase(), s);
+    }
+    fmt::print(stderr, "}}\n");
+    BugMe("{}", "expected output: { {id1, msg1}, {id2, msg2} }");
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -233,4 +259,5 @@ int main() {
   testCaseConflicts();
   testReserveLocalName();
   testDefineAndReserveProducesError();
+  testDestructureErrors();
 }

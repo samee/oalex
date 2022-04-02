@@ -54,7 +54,7 @@ target_include_directories(codegen_run_test PRIVATE ${CMAKE_BINARY_DIR})
 target_link_libraries(codegen_run_test oalex-bin-lib)
 add_test(codegen_run_test codegen_run_test)
 
-add_executable(compiler_test compiler_test.cpp
+add_executable(compiler_test compiler_test.cpp frontend_pieces.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(compiler_test oalex-bin-lib)
 add_test(compiler_test compiler_test)

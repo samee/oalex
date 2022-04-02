@@ -18,10 +18,12 @@
 #include "fmt/core.h"
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"
+#include "lexer.h"
 using fmt::format;
 using oalex::lex::GluedString;
 using oalex::lex::oalexSkip;
 using oalex::lex::NewlineChar;
+using oalex::lex::unquote;
 using std::make_unique;
 using std::map;
 using std::optional;
@@ -740,6 +742,31 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     rv.emplace_back(binding.outTmplKey,
                     rl.findOrAppendIdent(ctx, binding.ruleName));
+  }
+  return rv;
+}
+
+/* Input: the JsonLoc from the output of error_stanza in frontend_pieces.oalex.
+   Argument errors.items should be a JsonLoc::Vector that looks like this: [
+     { ident: "id1", error_msg: "msg1" },
+     { ident: "id2", error_msg: "msg2" },
+     ...
+   ]
+   Output: { {"id1", "msg1"}, {"id2", "msg2"}, ... },
+     converted from JsonLoc to C++ standard structures. */
+vector<pair<Ident, string>>
+destructureErrors(DiagsDest ctx, JsonLoc errors) {
+  MapFields fields{errors.getIfMap(), "errors of a rule"};
+  const auto* rname = fields.get<JsonLoc::Vector*>("items");
+  if(!rname) return {};
+  vector<pair<Ident, string>> rv;
+  for(auto& pair_jsloc : *rname) {
+    MapFields pair{pair_jsloc.getIfMap(), "custom errors"};
+    auto part_name = pair.get_copy<StringLoc>("ident");
+    auto msgq = pair.get_copy<StringLoc>("error_msg");
+    optional<GluedString> msg = unquote(msgq, ctx);
+    if(!msg) continue;
+    rv.push_back({Ident::parse(ctx, part_name), string{*msg}});
   }
   return rv;
 }
