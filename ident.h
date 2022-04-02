@@ -49,6 +49,7 @@ namespace oalex {
 // ident_test.cpp with regex_io.cpp.
 struct WholeSegment;
 struct InputDiags;
+struct StringLoc;
 class DiagsDest;
 
 // This class is meant to represent an identifier in the _generated_ code, not
@@ -66,6 +67,7 @@ class Ident {
   Ident() = default;
   static Ident parse(InputDiags& ctx, size_t& i);
   static Ident parse(DiagsDest ctx, const WholeSegment& s);
+  static Ident parse(DiagsDest ctx, const StringLoc& s);
 
   /* parseGenerated() dies on invalid input. It is expected to be used only
   for hardcoded inputs and sanitized inputs. It also preserves the invariant

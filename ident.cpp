@@ -18,6 +18,7 @@
 #include<vector>
 #include "segment.h"
 #include "runtime/diags.h"
+#include "runtime/jsonloc.h"
 #include "runtime/util.h"
 using oalex::WholeSegment;
 using std::all_of;
@@ -109,6 +110,15 @@ Ident Ident::parse(DiagsDest ctx, const WholeSegment& s) {
   for(size_t i=0; i<s->size(); ++i) if(!isIdentChar(s.data[i]))
     return Error(ctx, s.stPos+i, s.stPos+i+1, "Invalid identifier character");
   return parseFromString(ctx, *s, s.stPos);
+}
+
+Ident Ident::parse(DiagsDest ctx, const StringLoc& s) {
+  if(s->size() > kMaxIdentLen)
+    return Error(ctx, s.stPos(), s.enPos(), "Identifier too long");
+  for(size_t i=0; i<s->size(); ++i) if(!isIdentChar(s->at(i)))
+    return Error(ctx, s.stPos()+i, s.stPos()+i+1,
+                 "Invalid identifier character");
+  return parseFromString(ctx, *s, s.stPos());
 }
 
 Ident Ident::parseGenerated(string s) {

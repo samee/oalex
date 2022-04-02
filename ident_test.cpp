@@ -16,6 +16,7 @@
 #include<set>
 #include<unordered_set>
 #include<string_view>
+#include"runtime/jsonloc.h"
 #include"runtime/test_util.h"
 #include"segment.h"
 using namespace oalex;
@@ -53,6 +54,9 @@ void testParseErrors() {
   for(const auto& [s,err] : wholetests) {
     InputDiags ctx{Input{string(s)}};
     auto rv = Ident::parse(ctx, WholeSegment(0, s.size(), s));
+    assertHasDiagWithSubstr(__func__, ctx.diags, err);
+    ctx.diags.clear();
+    rv = Ident::parse(ctx, StringLoc(string(s), 0));
     assertHasDiagWithSubstr(__func__, ctx.diags, err);
   }
 }
