@@ -148,6 +148,7 @@ PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
   return rl_->appendAnonRule(std::move(orRule));
 }
 
+// TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
 ssize_t
 PatternToRulesCompiler::processIdent(const Ident& ident) {
   size_t i;
@@ -161,6 +162,7 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
 
   for(i=0; i<errmsg_->size(); ++i) if(ident == errmsg_->at(i).first) break;
   if(i == errmsg_->size()) return identRule;
+  identRule = rl_->appendAnonRule(QuietMatch{identRule});
   ssize_t errRule = rl_->appendAnonRule(ErrorRule{errmsg_->at(i).second});
 
   return rl_->appendAnonRule(OrRule{ {
