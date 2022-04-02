@@ -149,38 +149,10 @@ bool JsonLoc::substitutionsOk() const {
   return true;
 }
 
-// TODO: refactor this with its duplicate in jsontmpl.cpp.
-// We've already had to fix a bug here twice.
-static void printString(fmt::memory_buffer& buf, string_view s) {
-  format_to(buf, "\"");
-  // If this changes, please change lexQuotedEscape as well.
-  // TODO write test.
-  for(char ch : s) {
-    if(ch=='"') format_to(buf, "\\\"");
-    else if(ch=='\\') format_to(buf, "\\\\");
-    else if(ch=='\n') format_to(buf, "\\n");
-    else if(ch=='\t') format_to(buf, "\\t");
-    else if(isprint(ch))
-      format_to(buf, "{}", ch);  // check this after '"' and '\\'.
-    else format_to(buf, "\\x{:02x}", ch);
-  }
-  format_to(buf, "\"");
-}
-
-// TODO: refactor this with its duplicate in jsontmpl.cpp.
-// We've already had to fix a bug here twice.
-static string_view assertIdent(string_view ctx, string_view s) {
-  if(s.empty()) Bug("{}: Identifier can't be null.", ctx);
-  if(isdigit(s[0])) Bug("{}: Identifier can't start with a digit.", ctx);
-  for(size_t i=0; i<s.size(); ++i) if(s[i]!='_' && !isalnum(s[i]))
-    Bug("{}: Invalid identifier character at position {}.", ctx, i);
-  return s;
-}
-
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonLoc& json,
                         bool quoteMapKeys) {
-  if(auto* s = json.getIfString()) printString(buf, *s);
+  if(auto* s = json.getIfString()) printJsonLocString(buf, *s);
   else if(auto* v = json.getIfVector()) {
     format_to(buf, "[\n");
     bool first = true;
@@ -198,9 +170,10 @@ static void prettyPrint(fmt::memory_buffer& buf,
       if(!first) format_to(buf, ",\n");
       first = false;
       if(quoteMapKeys) {
-        format_to(buf, "{:{}}\"{}\": ", "", indent+2, assertIdent(__func__,k));
+        format_to(buf, "{:{}}\"{}\": ", "", indent+2,
+                  assertJsonLocKey(__func__,k));
       }else {
-        format_to(buf, "{:{}}{}: ", "", indent+2, assertIdent(__func__,k));
+        format_to(buf, "{:{}}{}: ", "", indent+2, assertJsonLocKey(__func__,k));
       }
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
