@@ -1,0 +1,16 @@
+# expected-error: custom errors specified more than once
+
+ident := /[a-zA-Z_]+/
+int := /[0-9]+/
+
+rule decl:
+
+  var new_name = num;
+
+where:
+  new_name ~ ident
+  num ~ int
+errors after failing:
+  new_name: "Expected a valid name for a new variable"
+  num: "This must be a simple non-negative integer, with digits only"
+  new_name: "Variable name is invalid"

@@ -785,6 +785,31 @@ destructureErrors(DiagsDest ctx, JsonLoc errors) {
   return rv;
 }
 
+static bool
+requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
+                   const vector<pair<Ident,ssize_t>>& p2rule) {
+  bool rv = true;
+  for(auto& [id, _] : errmsg) {
+    bool found = false;
+    for(auto& [id2, _] : p2rule) if(id == id2) { found = true; break; }
+    if(!found) {
+      Error(ctx, id.stPos(), id.enPos(),
+            format("Undefined part pattern '{}'", id.preserveCase()));
+      rv = false;
+    }
+  }
+  for(size_t i=0; i<errmsg.size(); ++i)
+    for(size_t j=i+1; j<errmsg.size(); ++j)
+      if(errmsg[i].first == errmsg[j].first) {
+        const Ident& id = errmsg[j].first;
+        Error(ctx, id.stPos(), id.enPos(),
+            format("'{}' has custom errors specified more than once",
+              id.preserveCase()));
+        rv = false;
+      }
+  return rv;
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -808,6 +833,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
+  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
   ssize_t newIndex = comp.process(*patt);
@@ -835,6 +861,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
+  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
   ssize_t newIndex = comp.process(*patt);
