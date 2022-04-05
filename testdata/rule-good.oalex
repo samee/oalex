@@ -86,6 +86,14 @@ example simple_sum:
   a + b
 outputs: { lhs: "a", rhs: "b" }
 
+rule includes_simple_sum:
+  (simple_sum)
+outputs: { simple_sum }
+
+example includes_simple_sum:
+  (a + b)
+outputs success
+
 rule binop_expr:
   lhs + rhs
 where:

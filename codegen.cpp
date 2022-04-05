@@ -153,7 +153,8 @@ eval(InputDiags& ctx, ssize_t& i,
       if(!m) Bug("Child {} was expected to return a map, got: {}",
                  ruleDebugId(rs, idx), out);
       if(!outname.empty())
-        Bug("Flattenable children are not supposed to have names");
+        Bug("Flattenable children are not supposed to have names. Got {}",
+            outname);
       mapAppend(rv, std::move(*m));
     }
     else if(!outname.empty())

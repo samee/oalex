@@ -30,7 +30,11 @@ where:
 
 example extern_rule:
   extern rule noparam = oalexPluginNoParam;
-outputs: { rule_name: "noparam", external_name: "oalexPluginNoParam" }
+outputs: {
+  rule_name: "noparam",
+  external_name: "oalexPluginNoParam",
+  param: {}  # TODO: decide if this key should even exist for empty inputs
+}
 
 example extern_rule:
   extern rule one_param = oalexPluginOneParam(foo);
