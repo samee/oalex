@@ -87,19 +87,21 @@ JsonTmpl::JsonTmpl(const JsonTmpl& that)
   copyValue(that);
 }
 JsonTmpl& JsonTmpl::operator=(JsonTmpl&& that) {
+  JsonTmpl tmp{std::move(that)};  // that may be part of this. Save that first.
   destroyValue();
-  this->stPos = that.stPos;
-  this->enPos = that.enPos;
-  this->tag_ = that.tag_;
-  moveValue(std::move(that));
+  this->stPos = tmp.stPos;
+  this->enPos = tmp.enPos;
+  this->tag_ = tmp.tag_;
+  moveValue(std::move(tmp));
   return *this;
 }
 JsonTmpl& JsonTmpl::operator=(const JsonTmpl& that) {
+  JsonTmpl tmp{that};  // that may be part of this. Save that first.
   destroyValue();
-  this->stPos = that.stPos;
-  this->enPos = that.enPos;
-  this->tag_ = that.tag_;
-  copyValue(that);
+  this->stPos = tmp.stPos;
+  this->enPos = tmp.enPos;
+  this->tag_ = tmp.tag_;
+  moveValue(std::move(tmp));
   return *this;
 }
 JsonTmpl::~JsonTmpl() { destroyValue(); }

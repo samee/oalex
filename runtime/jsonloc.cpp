@@ -81,19 +81,21 @@ JsonLoc::JsonLoc(const JsonLoc& that)
   copyValue(that);
 }
 JsonLoc& JsonLoc::operator=(JsonLoc&& that) {
+  JsonLoc tmp{std::move(that)};  // that may be part of this. Save that first.
   destroyValue();
-  this->stPos = that.stPos;
-  this->enPos = that.enPos;
-  this->tag_ = that.tag_;
-  moveValue(std::move(that));
+  this->stPos = tmp.stPos;
+  this->enPos = tmp.enPos;
+  this->tag_ = tmp.tag_;
+  moveValue(std::move(tmp));
   return *this;
 }
 JsonLoc& JsonLoc::operator=(const JsonLoc& that) {
+  JsonLoc tmp{that};  // that may be part of this. Save that first.
   destroyValue();
-  this->stPos = that.stPos;
-  this->enPos = that.enPos;
-  this->tag_ = that.tag_;
-  copyValue(that);
+  this->stPos = tmp.stPos;
+  this->enPos = tmp.enPos;
+  this->tag_ = tmp.tag_;
+  moveValue(std::move(tmp));
   return *this;
 }
 JsonLoc::~JsonLoc() { destroyValue(); }
