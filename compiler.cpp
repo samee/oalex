@@ -298,11 +298,6 @@ MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
 
 }  // namespace
 
-Rule& RulesWithLocs::operator[](ssize_t i) {
-  if(rules_[i]) return *rules_[i];
-  else Bug("Dereferencing null Rule at index {}", i);
-}
-
 const Rule& RulesWithLocs::operator[](ssize_t i) const {
   if(rules_[i]) return *rules_[i];
   else Bug("Dereferencing null Rule at index {}", i);

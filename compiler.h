@@ -38,7 +38,6 @@ constexpr LocPair nrange{-1,-1};
 class RulesWithLocs {
  public:
   ssize_t ssize() const { return rules_.size(); }
-  Rule& operator[](ssize_t i);
   const Rule& operator[](ssize_t i) const;
 
   /* Searches for ident in rules[].nameOrNull().
