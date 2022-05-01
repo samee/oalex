@@ -288,10 +288,6 @@ class StringRule final : public Rule {
 
   std::string specifics_typename() const override { return "StringRule"; }
   std::string val;
-
-  template <class X> friend bool holds_alternative(const Rule& rule);
-  template <class X> friend X* get_if(Rule* rule);
-  template <class X> friend const X* get_if(const Rule* rule);
 };
 
 // TODO this needs a debug() printer.
