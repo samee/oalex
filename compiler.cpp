@@ -926,4 +926,13 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   }
 }
 
+void
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
+               ssize_t ruleIndex) {
+  if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
+    return assignLiteralOrError(rl, ruleIndex, sq->s);
+  std::ignore = ctx;
+  Unimplemented("{} for type {}", __func__, typeid(rxpr).name());
+}
+
 }  // namespace oalex

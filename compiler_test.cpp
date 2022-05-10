@@ -14,10 +14,12 @@
 
 #include "compiler.h"
 #include <string_view>
+#include "codegen_test_util.h"
 #include "ident.h"
 #include "frontend_pieces.h"
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
+using fmt::format;
 using oalex::assertEmptyDiags;
 using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
@@ -27,12 +29,20 @@ using oalex::DefinitionInProgress;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::makeVectorUnique;
+using oalex::MatchOrError;
 using oalex::Rule;
+using oalex::RuleExpr;
+using oalex::RuleExprSquoted;
 using oalex::RulesWithLocs;
+using oalex::ssize;
+using oalex::StringRule;
 using oalex::UnassignedRule;
+using oalex::test::nmRule;
 using std::pair;
 using std::string;
 using std::string_view;
+using std::unique_ptr;
 using std::vector;
 
 namespace {
@@ -46,6 +56,82 @@ void assertDefinitionInProgress(string_view msg, const Rule& rule) {
   if(dynamic_cast<const DefinitionInProgress*>(&rule)) return;
   Bug("{}. Expected DefinitionInProgress, found {}", msg,
       rule.specifics_typename());
+}
+
+void assertNoDuplicateNames(
+    string_view msg, const vector<unique_ptr<Rule>>& rules) {
+  for(ssize_t i=0; i<ssize(rules); ++i)
+    if(const Ident* nm_i = rules[i]->nameOrNull())
+      for(ssize_t j=i+1; j<ssize(rules); ++j)
+        if(const Ident* nm_j = rules[j]->nameOrNull())
+          if(*nm_i == *nm_j)
+            Bug("{}. Name '{}' was defined twice", msg, nm_i->preserveCase());
+}
+
+// Computes the "easy" mappings between a[i] and some b[j]. Easy meaning, the
+// ones that are explicitly named.
+// Returns rv such that: a[rv[i].first] maps to b[rv[i].second],
+vector<pair<ssize_t,ssize_t>>
+namedRuleMappings(string_view msg, const vector<unique_ptr<Rule>>& a,
+                                   const vector<unique_ptr<Rule>>& b) {
+  assertNoDuplicateNames(msg, a);
+  assertNoDuplicateNames(msg, b);
+  ssize_t i, j;
+  vector<pair<ssize_t,ssize_t>> rv;
+  vector<bool> used_j(ssize(b), false);
+  for(i=0; i<ssize(a); ++i) if(const Ident* nm_a = a[i]->nameOrNull()) {
+    for(j=0; j<ssize(b); ++j) if(const Ident* nm_b = b[j]->nameOrNull())
+      if(*nm_a == *nm_b) {
+        used_j[j] = true;
+        rv.push_back({i,j});
+        break;
+      }
+    if(j==ssize(b))
+      Bug("{}. No match was found for rule '{}'", msg, nm_a->preserveCase());
+  }
+  for(j=0; j<ssize(b); ++j) if(const Ident* nm_b = b[j]->nameOrNull())
+    if(!used_j[j]) {
+      Bug("{}. No match was found for rule '{}'", msg, nm_b->preserveCase());
+    }
+  return rv;
+}
+
+void assertValidAndEqualRuleList(string_view msg,
+    const vector<unique_ptr<Rule>>& a, const vector<unique_ptr<Rule>>& b) {
+  if(ssize(a) != ssize(b))
+    Bug("{}. Rule vectors have different sizes: {} != {}",
+        msg, ssize(a), ssize(b));
+
+  ssize_t i, j;
+  vector<pair<ssize_t,ssize_t>> stk = namedRuleMappings(msg, a, b);
+  vector<ssize_t> mapping_a2b(ssize(a), -1);
+
+  while(!stk.empty()) {
+    std::tie(i,j) = stk.back();
+    stk.pop_back();
+    if((i==-1) != (j==-1)) Bug("{}. Rule component is missing", msg);
+    else if(i==-1 && j==-1) continue;
+    else if(mapping_a2b[i] == j) continue;
+    else if(mapping_a2b[i] == -1) mapping_a2b[i] = j;
+    else Bug("{}. Rule vector mismatch", msg);
+
+    const Rule *ar = a[i].get(), *br = b[j].get();
+    if(typeid(*ar) != typeid(*br))
+      Bug("{}. Rules are of different types: {} != {}", msg,
+          typeid(*ar).name(), typeid(*br).name());
+
+    // Type-specific comparison
+    if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
+      auto* bmoe = static_cast<const MatchOrError*>(br);
+      assertEqual(msg, amoe->errmsg, bmoe->errmsg);
+      stk.push_back({amoe->compidx, bmoe->compidx});
+    }else if(auto* as = dynamic_cast<const StringRule*>(ar)) {
+      auto* bs = static_cast<const StringRule*>(br);
+      assertEqual(msg, as->val, bs->val);
+    }else {
+      Bug("{}: unknown Rule type {}", __func__, ar->specifics_typename());
+    }
+  }
 }
 
 void testFindOrAppendNormalOperations() {
@@ -247,6 +333,36 @@ void testDestructureErrors() {
   }
 }
 
+void testRuleExprCompilation() {
+  const char* keyword_fn_name = "keyword_fn";
+  RuleExprSquoted keyword_fn_rule{"fn"};
+  auto keyword_fn_expected = makeVectorUnique<Rule>(
+    StringRule{"fn"},
+    nmRule(MatchOrError{0, "Expected 'fn'"}, "keyword_fn")
+  );
+  struct TestCase {
+    vector<pair<const char*, const RuleExpr*>> rxprs;
+    const vector<unique_ptr<Rule>>* expected;
+  };
+  TestCase cases[] = {
+    {.rxprs{{keyword_fn_name, &keyword_fn_rule}},
+     .expected = &keyword_fn_expected },
+    // TODO: Add more test cases
+  };
+  ssize_t casei = 0;
+  for(const TestCase& testcase : cases) {
+    InputDiags ctx{Input{""}};
+    RulesWithLocs rl;
+    for(auto& [name, rxpr] : testcase.rxprs) {
+      ssize_t identi = rl.defineIdent(ctx, Ident::parseGenerated(name));
+      assignRuleExpr(ctx, *rxpr, rl, identi);
+    }
+    assertValidAndEqualRuleList(
+      format("{}: cases[{}]", __func__, ++casei),
+      rl.releaseRules(), *testcase.expected);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -260,4 +376,5 @@ int main() {
   testReserveLocalName();
   testDefineAndReserveProducesError();
   testDestructureErrors();
+  testRuleExprCompilation();
 }

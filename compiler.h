@@ -119,6 +119,19 @@ struct PatternToRuleBinding {
   Ident ruleName;
 };
 
+// We generalize the ruleName in PatternToRuleBinding to the more general
+// concept of "rule expressions".
+// TODO: Actually change ruleName to ruleExpr in PatternToRuleBinding.
+class RuleExpr {
+  protected: RuleExpr() {}
+  public: virtual ~RuleExpr() {}
+};
+class RuleExprSquoted final : public RuleExpr {
+ public:
+  explicit RuleExprSquoted(std::string s) : s{std::move(s)} {}
+  std::string s;
+};
+
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 		     std::string_view literal);
@@ -138,7 +151,6 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    std::vector<PatternToRuleBinding> pattToRule,
                    JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
 
-
 // This overload takes no explicit JsonTmpl parameter. Instead, the inner
 // ConcatFlatRule result is passed directly onto the output with no change.
 void
@@ -149,6 +161,11 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
 
 void
 appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
+
+void
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
+               RulesWithLocs& rl, ssize_t ruleIndex);
+
 
 // Internal functions, exposed for testing only
 // Dev-note: consider a separate compiler_testables.h
