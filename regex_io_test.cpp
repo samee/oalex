@@ -250,6 +250,8 @@ void testRegexMatches() {
       BugMe("consumeGreedily(\"{}\", {}) fails even though "
             "startsWithRegex() passes", inputstr, pattern);
     assertEqual("Regex comsumption length", i, matchLen);
+    assertEqual("Regex clone equals itself", prettyPrint(*regex),
+                prettyPrint(*regex->clone()));
   }
   const vector<pair<string,string>> failVectors{
     {"/(ab?c)+|.[xyz]+/", "!abcacacabcfoo"},

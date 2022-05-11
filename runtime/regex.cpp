@@ -421,4 +421,44 @@ bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
   else return false;
 }
 
+unique_ptr<const Regex> Regex::clone() const {
+  switch(this->nodeType) {
+    case RegexNodeType::charSet: {
+      auto& charset = static_cast<const RegexCharSet&>(*this);
+      return make_unique<RegexCharSet>(charset.ranges, charset.negated);
+    }
+    case RegexNodeType::string: {
+      auto& s = static_cast<const RegexString&>(*this);
+      return make_unique<RegexString>(s.value);
+    }
+    case RegexNodeType::anchor: {
+      auto& anc = static_cast<const RegexAnchor&>(*this);
+      return make_unique<RegexAnchor>(anc.anchorType);
+    }
+    case RegexNodeType::concat: {
+      auto& cat = static_cast<const RegexConcat&>(*this);
+      vector<unique_ptr<const Regex>> parts;
+      for(auto& p : cat.parts) parts.push_back(p->clone());
+      return make_unique<RegexConcat>(std::move(parts));
+    }
+    case RegexNodeType::repeat: {
+      auto& rep = static_cast<const RegexRepeat&>(*this);
+      return make_unique<RegexRepeat>(rep.part->clone());
+    }
+    case RegexNodeType::optional: {
+      auto& opt = static_cast<const RegexOptional&>(*this);
+      return make_unique<RegexOptional>(opt.part->clone());
+    }
+    case RegexNodeType::orList: {
+      auto& ors = static_cast<const RegexOrList&>(*this);
+      vector<unique_ptr<const Regex>> parts;
+      for(auto& p : ors.parts) parts.push_back(p->clone());
+      return make_unique<RegexOrList>(std::move(parts));
+    }
+    default:
+      Bug("Regex::clone() doesn't have a case for Regex type {}",
+          int(this->nodeType));
+  }
+}
+
 }  // namespace oalex

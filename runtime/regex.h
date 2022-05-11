@@ -31,6 +31,7 @@ class Regex {
  public:
   RegexNodeType nodeType;
   explicit Regex(RegexNodeType t) : nodeType(t) {}
+  std::unique_ptr<const Regex> clone() const;
   virtual ~Regex() {}
 };
 
