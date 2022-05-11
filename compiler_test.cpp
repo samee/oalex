@@ -17,6 +17,7 @@
 #include "codegen_test_util.h"
 #include "ident.h"
 #include "frontend_pieces.h"
+#include "regex_io.h"
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
 using fmt::format;
@@ -31,14 +32,19 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
+using oalex::prettyPrint;
+using oalex::Regex;
+using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleExpr;
+using oalex::RuleExprRegex;
 using oalex::RuleExprSquoted;
 using oalex::RulesWithLocs;
 using oalex::ssize;
 using oalex::StringRule;
 using oalex::UnassignedRule;
 using oalex::test::nmRule;
+using oalex::test::parseRegex;
 using std::pair;
 using std::string;
 using std::string_view;
@@ -125,6 +131,9 @@ void assertValidAndEqualRuleList(string_view msg,
       auto* bmoe = static_cast<const MatchOrError*>(br);
       assertEqual(msg, amoe->errmsg, bmoe->errmsg);
       stk.push_back({amoe->compidx, bmoe->compidx});
+    }else if(auto* aregex = dynamic_cast<const RegexRule*>(ar)) {
+      auto* bregex = static_cast<const RegexRule*>(br);
+      assertEqual(msg, prettyPrint(*aregex->patt), prettyPrint(*bregex->patt));
     }else if(auto* as = dynamic_cast<const StringRule*>(ar)) {
       auto* bs = static_cast<const StringRule*>(br);
       assertEqual(msg, as->val, bs->val);
@@ -340,6 +349,17 @@ void testRuleExprCompilation() {
     StringRule{"fn"},
     nmRule(MatchOrError{0, "Expected 'fn'"}, "keyword_fn")
   );
+
+  const char* string_literal_name = "string_literal";
+  unique_ptr<const Regex> string_literal_regex
+    = parseRegex(R"(/"([^"\\]|\\.)*"/)");
+  RuleExprRegex string_literal_rule{string_literal_regex->clone()};
+  auto string_literal_expected = makeVectorUnique<Rule>(
+    RegexRule(string_literal_regex->clone()),
+    nmRule(MatchOrError{0, "Does not match expected pattern"},
+           "string_literal")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -347,6 +367,8 @@ void testRuleExprCompilation() {
   TestCase cases[] = {
     {.rxprs{{keyword_fn_name, &keyword_fn_rule}},
      .expected = &keyword_fn_expected },
+    {.rxprs{{string_literal_name, &string_literal_rule}},
+     .expected = &string_literal_expected },
     // TODO: Add more test cases
   };
   ssize_t casei = 0;

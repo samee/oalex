@@ -131,6 +131,12 @@ class RuleExprSquoted final : public RuleExpr {
   explicit RuleExprSquoted(std::string s) : s{std::move(s)} {}
   std::string s;
 };
+class RuleExprRegex final : public RuleExpr {
+ public:
+  explicit RuleExprRegex(std::unique_ptr<const Regex> r)
+    : regex{std::move(r)} {}
+  std::unique_ptr<const Regex> regex;
+};
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
