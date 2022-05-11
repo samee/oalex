@@ -55,7 +55,7 @@ using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
 using oalex::test::nmRule;
-using oalex::test::parseRegex;
+using oalex::test::parseRegexRule;
 using oalex::test::regexOpts;
 using oalex::test::singletonRuleSet;
 using std::bind;
@@ -143,7 +143,7 @@ void generateSingleRegexTest(const OutputStream& cppos,
   };
   for(auto& [pat, fname] : inputs) {
     cppos("\n");
-    RuleSet rs = singletonRuleSet(nmRule(parseRegex(pat), fname));
+    RuleSet rs = singletonRuleSet(nmRule(parseRegexRule(pat), fname));
     codegen(rs, 0, cppos, hos);
   }
 }
@@ -161,9 +161,9 @@ void generateConcatFlatTest(const OutputStream& cppos,
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                WordPreserving{"var"},
-               nmRule(parseRegex("/[a-zA-Z]+/"), "FlatIdent"),
+               nmRule(parseRegexRule("/[a-zA-Z]+/"), "FlatIdent"),
                StringRule{":"}, StringRule{"="},
-               nmRule(parseRegex("/[0-9]+/"), "FlatNumber"),
+               nmRule(parseRegexRule("/[0-9]+/"), "FlatNumber"),
                StringRule{";"},
                nmRule(SkipPoint{false, &cskip}, "FlatSpace"),
                nmRule(ConcatFlatRule{{
@@ -197,9 +197,9 @@ void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVectorUnique<Rule>(
     nmRule(WordPreserving{"int"}, "Type"),
-    nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "Identifier"),
+    nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "Identifier"),
     StringRule{"="},
-    nmRule(parseRegex("/-?[0-9]+\\b/"), "IntegerLiteral"),
+    nmRule(parseRegexRule("/-?[0-9]+\\b/"), "IntegerLiteral"),
     StringRule{";"},
     nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
     nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
@@ -217,7 +217,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
   const Skipper shskip{ {{"#", "\n"}}, {} };
   RuleSet rs { oalex::makeVectorUnique<Rule>(
       WordPreserving{"let"},
-      nmRule(parseRegex("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
+      nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
       nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
@@ -231,7 +231,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
 void generateExternParserParams(const OutputStream& cppos,
                                 const OutputStream& hos) {
   RuleSet rs { oalex::makeVectorUnique<Rule>(
-      nmRule(parseRegex("/[a-zA-Z_]+\\b/"), "ParamId"),
+      nmRule(parseRegexRule("/[a-zA-Z_]+\\b/"), "ParamId"),
       nmRule(ExternParser{"oalexPluginBulletedList", {0}}, "BulletListIds")
     ), regexOpts
   };
@@ -246,7 +246,7 @@ void generateIndentedListBuiltin(const OutputStream& cppos,
       StringRule{":"},
       nmRule(ConcatFlatRule{{ {0, ""}, {1, ""}, {2, ""} }}, "ListLeader"),
       nmRule(StringRule{"item"}, "ListItemKeyword"),
-      nmRule(parseRegex("/[0-9]+/"), "ListItemNumber"),
+      nmRule(parseRegexRule("/[0-9]+/"), "ListItemNumber"),
       nmRule(ConcatFlatRule{{ {4, ""}, {1, ""}, {5, "num"} }}, "ListItem"),
       nmRule(ExternParser{"oalexBuiltinIndentedList", {3,6}},
              "SimpleIndentedList")
@@ -259,7 +259,7 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"if"}, StringRule{"while"},
-        nmRule(parseRegex("/[0-9]+/"), "OrCompNumber"),
+        nmRule(parseRegexRule("/[0-9]+/"), "OrCompNumber"),
         nmRule(OrRule{{
           {-1, 0, JsonTmpl{"if"}}, {-1, 1, JsonTmpl{"while"}},
           {-1, 2, *parseJsonTmpl("{number: child}")},
@@ -304,7 +304,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
   }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        StringRule{"let"}, nmRule(parseRegex("/[0-9]+/"), "FlattenNumber"),
+        StringRule{"let"}, nmRule(parseRegexRule("/[0-9]+/"), "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ false},
@@ -324,7 +324,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
     .rules = makeVectorUnique<Rule>(
         nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
         WordPreserving{"var"},
-        nmRule(parseRegex("/[a-z]+/"), "lookahead_ident"),
+        nmRule(parseRegexRule("/[a-z]+/"), "lookahead_ident"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
@@ -335,7 +335,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         }}, "asgn"),
         StringRule{"."},
         nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
-        nmRule(parseRegex("/[0-9]+/"), "lookahead_line_number_regex"),
+        nmRule(parseRegexRule("/[0-9]+/"), "lookahead_line_number_regex"),
         StringRule{":"},
         nmRule(ConcatFlatRule{{ {9, "line_number"}, {10, ""} }},
                "lookahead_line_num"),
@@ -398,7 +398,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .lookidx = -1,
           .skipidx = 2,
         }}, "LoopSum"),
-        nmRule(parseRegex("/[a-z]+/"), "LoopIdentRegex"),
+        nmRule(parseRegexRule("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
 
         // Test glueidx == -1
@@ -416,7 +416,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         }}, "ListPrefix"),
 
         // Flattenable child.
-        nmRule(parseRegex("/[-+]/"), "LoopPlusOrMinus"),
+        nmRule(parseRegexRule("/[-+]/"), "LoopPlusOrMinus"),
         nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"} }}, "LoopFlatElt"),
         nmRule(LoopRule{{
           .partidx = 10,
@@ -440,7 +440,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"-"},
-        nmRule(parseRegex("/[a-z]+/"), "GpSwappedIdent"),
+        nmRule(parseRegexRule("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
         nmRule(LoopRule{{ .partidx = 0, .partname = "",
                           .glueidx = 2, .gluename = "",

@@ -63,7 +63,7 @@ using oalex::test::assertLocPairEqual;
 using oalex::test::cskip;
 using oalex::test::nmRule;
 using oalex::test::regexOpts;
-using oalex::test::parseRegex;
+using oalex::test::parseRegexRule;
 using oalex::test::singletonRuleSet;
 
 namespace {
@@ -171,7 +171,7 @@ void testSingleWordPreserving() {
 }
 
 void testRegexMatch() {
-  RuleSet rs = singletonRuleSet(parseRegex("/[a-z]+/"));
+  RuleSet rs = singletonRuleSet(parseRegexRule("/[a-z]+/"));
   ssize_t spos = 0;
   InputDiags ctx{Input{"hello world"}};
   JsonLoc jsloc = eval(ctx, spos, rs, 0);
@@ -186,8 +186,8 @@ void testRegexMatch() {
 void testConcatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               parseRegex("/[a-zA-Z]+/"), StringRule{"="},
-               parseRegex("/[0-9]+/"), StringRule{";"},
+               parseRegexRule("/[a-zA-Z]+/"), StringRule{"="},
+               parseRegexRule("/[0-9]+/"), StringRule{";"},
                SkipPoint{false, &cskip},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
@@ -216,9 +216,9 @@ void testConcatFlatMatch() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                StringRule{"var"},
-               parseRegex("/[a-zA-Z]+/"),
+               parseRegexRule("/[a-zA-Z]+/"),
                StringRule{":"}, StringRule{"="},
-               parseRegex("/[0-9]+/"),
+               parseRegexRule("/[0-9]+/"),
                StringRule{";"}, SkipPoint{false, &cskip}),
     .regexOpts = regexOpts,
   };
@@ -266,7 +266,7 @@ void testKeywordsOrNumber() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                StringRule{"if"}, StringRule{"while"},
-               parseRegex("/[0-9]+/")),
+               parseRegexRule("/[0-9]+/")),
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(move_to_unique(OrRule{{
@@ -300,7 +300,7 @@ void testFlattenOnDemand() {
   // frontend is dumb (ahem!)
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        StringRule{"let"}, parseRegex("/[0-9]+/"),
+        StringRule{"let"}, parseRegexRule("/[0-9]+/"),
         ConcatFlatRule{{ {0, "keyword"} }},
         MatchOrError{2, "Expected keyword 'let'"},
         OrRule{{
@@ -335,7 +335,7 @@ void testLookaheads() {
     .rules = makeVectorUnique<Rule>(
         SkipPoint{false, &cskip},
         WordPreserving{"var"},
-        parseRegex("/[a-z]+/"),
+        parseRegexRule("/[a-z]+/"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
           {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
@@ -440,7 +440,7 @@ void testLoopRule() {
           .lookidx = -1,
           .skipidx = 2,
         }}, "sum"),
-        parseRegex("/[a-z]+/"),
+        parseRegexRule("/[a-z]+/"),
         MatchOrError{1, "Expected operator '+'"},
 
         // Cases for glueidx == -1
@@ -506,8 +506,8 @@ void testLoopRule() {
 void testLoopFlattening() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        parseRegex("/[-+]/"),
-        parseRegex("/[a-z]+/"),
+        parseRegexRule("/[-+]/"),
+        parseRegexRule("/[a-z]+/"),
         MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         SkipPoint{false, &cskip},
@@ -541,7 +541,7 @@ void testGluePartSwapped() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"-"},
-        parseRegex("/[a-z]+/"),
+        parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
         LoopRule{{.partidx = 0, .partname = "",
                   .glueidx = 2, .gluename = "",

@@ -23,7 +23,8 @@ namespace oalex::test {
 inline const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
 extern const RegexOptions regexOpts;
 
-RegexRule parseRegex(std::string_view s);
+std::unique_ptr<const Regex> parseRegex(std::string_view s);
+RegexRule parseRegexRule(std::string_view s);
 
 inline StringRule nmRule(const char* s, std::string name) {
   return {s, Ident::parseGenerated(name)};

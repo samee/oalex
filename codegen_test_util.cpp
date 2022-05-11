@@ -40,12 +40,16 @@ void assertJsonLocIsString(string_view testName, const JsonLoc& jsloc,
   else Bug("{}: eval produced a {}", testName, jsloc.tagName());
 }
 
-RegexRule parseRegex(string_view s) {
+unique_ptr<const Regex> parseRegex(string_view s) {
   size_t i = 0;
   InputDiags ctx{Input{s}};
   unique_ptr<const Regex> rv = parseRegex(ctx, i);
   if(!rv) Bug("{} is not a valid regex", s);
-  else return RegexRule{std::move(rv)};
+  return rv;
+}
+
+RegexRule parseRegexRule(string_view s) {
+  return RegexRule{parseRegex(s)};
 }
 
 void
