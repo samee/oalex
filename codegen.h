@@ -313,9 +313,9 @@ Return types are either an ErrorValue or:
   * OutputTmpl: Returns Map, not flattenable.
   * LoopRule: Returns Map, flattenable.
   * OrRule: Depends on flattenOnDemand. If set, we require all children
-    to be makesFlattenableMap() too.
-  * ErrorRule: ErrorValue only. Satisfies makesFlattenableMap().
-    Maybe rename to makesFlattenableMapOrError().
+    to be resultFlattenableOrError() too.
+  * ErrorRule: ErrorValue only. Satisfies resultFlattenableOrError().
+    Maybe rename to resultFlattenableOrErrorOrError().
   * QuietMatch: Same as its child.
   * MatchOrError: Same as child.
 */
