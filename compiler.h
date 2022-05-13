@@ -137,6 +137,13 @@ class RuleExprRegex final : public RuleExpr {
     : regex{std::move(r)} {}
   std::unique_ptr<const Regex> regex;
 };
+class RuleExprMappedIdent final : public RuleExpr {
+ public:
+  RuleExprMappedIdent(Ident l, std::unique_ptr<const RuleExpr> r)
+    : lhs{std::move(l)}, rhs{std::move(r)} {}
+  Ident lhs;
+  std::unique_ptr<const RuleExpr> rhs;  // Only allow Ident and Regex
+};
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,

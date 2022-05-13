@@ -926,6 +926,57 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
   }
 }
 
+class RuleExprCompiler {
+ public:
+  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx)
+    : rl_{&rl}, ctx_{ctx} {}
+  RuleExprCompiler(const RuleExprCompiler&) = delete;
+  RuleExprCompiler(RuleExprCompiler&&) = default;
+  ssize_t process(const RuleExpr& rxpr);
+ private:
+  RulesWithLocs* rl_;
+  DiagsDest ctx_;
+  ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
+  ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
+};
+ssize_t
+RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
+  return rl_->appendAnonRule(ConcatFlatRule{{
+       {ruleIndex, ident.preserveCase()}
+  }});
+}
+ssize_t
+RuleExprCompiler::process(const RuleExpr& rxpr) {
+  if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
+    return appendRegexOrError(*rl_, regex->regex->clone());
+  }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
+    return this->processMappedIdent(*mid);
+  }else {
+    Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
+  }
+}
+ssize_t
+RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
+  if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get())) {
+    ssize_t newIndex = this->process(*midxpr.rhs);
+    return this->appendFlatIdent(midxpr.lhs, newIndex);
+  }else
+    Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
+}
+
+static JsonTmpl
+ruleExprMakeOutputTmpl(const RuleExpr& rxpr) {
+  JsonTmpl::Map rv;
+  if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
+    string s = mid->lhs.preserveCase();
+    rv.push_back({s, JsonTmpl::Placeholder{s}});
+    if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()))
+      Bug("Mapped idents must have simple rhs. Found {}",
+         typeid(*mid->rhs).name());
+  }
+  return rv;
+}
+
 void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
                ssize_t ruleIndex) {
@@ -935,8 +986,14 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
         regxpr->regex->clone());
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return assignLiteralOrError(rl, ruleIndex, sq->s);
-  std::ignore = ctx;
-  Unimplemented("{} for type {}", __func__, typeid(rxpr).name());
+
+  RuleExprCompiler comp{rl, ctx};
+  ssize_t flatRule = comp.process(rxpr);
+  rl.deferred_assign(ruleIndex, OutputTmpl{
+      flatRule,  // childidx
+      {},        // childName, ignored for map-returning childidx
+      ruleExprMakeOutputTmpl(rxpr)  // outputTmpl
+  });
 }
 
 }  // namespace oalex

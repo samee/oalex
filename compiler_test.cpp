@@ -26,17 +26,21 @@ using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
 using oalex::assertWhatHasSubstr;
 using oalex::Bug;
+using oalex::ConcatFlatRule;
 using oalex::DefinitionInProgress;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::JsonTmpl;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
+using oalex::OutputTmpl;
 using oalex::prettyPrint;
 using oalex::Regex;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleExpr;
+using oalex::RuleExprMappedIdent;
 using oalex::RuleExprRegex;
 using oalex::RuleExprSquoted;
 using oalex::RulesWithLocs;
@@ -72,6 +76,24 @@ void assertNoDuplicateNames(
         if(const Ident* nm_j = rules[j]->nameOrNull())
           if(*nm_i == *nm_j)
             Bug("{}. Name '{}' was defined twice", msg, nm_i->preserveCase());
+}
+
+void assertEqualJsonTmpl(
+  string_view msg, const JsonTmpl& a, const JsonTmpl& b) {
+  if(a.tag() != b.tag())
+    Bug("{}. OutputTmpl tag mismatch. {} != {}", msg, a.tagName(), b.tagName());
+  if(auto* ma = a.getIfMap()) {
+    auto* mb = b.getIfMap();
+    assertEqual(format("{}. Map sizes", msg), ssize(*ma), ssize(*mb));
+    for(auto& [ka,va] : *ma)
+      assertEqualJsonTmpl(msg, va, *JsonTmpl::mapScanForValue(*mb, ka));
+  }else if(auto* pa = a.getIfPlaceholder()) {
+    auto* pb = b.getIfPlaceholder();
+    assertEqual(msg, pa->key, pb->key);
+  // Add more JsonTmpl variants if we ever use them.
+  }else {
+    Bug("Unknown tag {} in {}", a.tagName(), __func__);
+  }
 }
 
 // Computes the "easy" mappings between a[i] and some b[j]. Easy meaning, the
@@ -127,7 +149,22 @@ void assertValidAndEqualRuleList(string_view msg,
           typeid(*ar).name(), typeid(*br).name());
 
     // Type-specific comparison
-    if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
+    if(auto* acat = dynamic_cast<const ConcatFlatRule*>(ar)) {
+      auto* bcat = static_cast<const ConcatFlatRule*>(br);
+      if(ssize(acat->comps) != ssize(bcat->comps))
+        Bug("{}. ConcatFlatRule has unequal component count: {} != {}",
+            msg, ssize(acat->comps), ssize(bcat->comps));
+      for(ssize_t k=0; k<ssize(acat->comps); ++k) {
+        assertEqual(msg, acat->comps[k].outputPlaceholder,
+                         bcat->comps[k].outputPlaceholder);
+        stk.push_back({acat->comps[k].idx, bcat->comps[k].idx});
+      }
+    }else if(auto* aout = dynamic_cast<const OutputTmpl*>(ar)) {
+      auto* bout = static_cast<const OutputTmpl*>(br);
+      assertEqual(msg, aout->childName, bout->childName);
+      stk.push_back({aout->childidx, bout->childidx});
+      assertEqualJsonTmpl(msg, aout->outputTmpl, bout->outputTmpl);
+    }else if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
       auto* bmoe = static_cast<const MatchOrError*>(br);
       assertEqual(msg, amoe->errmsg, bmoe->errmsg);
       stk.push_back({amoe->compidx, bmoe->compidx});
@@ -360,6 +397,22 @@ void testRuleExprCompilation() {
            "string_literal")
   );
 
+  const char* newvar_name = "new_var_name";
+  unique_ptr<const Regex> ident_regex
+    = parseRegex(R"(/[a-zA-Z_][a-zA-Z0-9_]*/)");
+  RuleExprMappedIdent newvar_rule{
+    Ident::parseGenerated("new_name"),
+    move_to_unique(RuleExprRegex{ident_regex->clone()}),
+  };
+  auto newvar_expected = makeVectorUnique<Rule>(
+    RegexRule{ident_regex->clone()},
+    MatchOrError{0, "Does not match expected pattern"},
+    ConcatFlatRule{{ {1, "new_name"} }},
+    nmRule(OutputTmpl{2, {}, JsonTmpl{JsonTmpl::Map{
+      {"new_name", JsonTmpl::Placeholder{"new_name"}}
+    }}}, "new_var_name")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -369,6 +422,8 @@ void testRuleExprCompilation() {
      .expected = &keyword_fn_expected },
     {.rxprs{{string_literal_name, &string_literal_rule}},
      .expected = &string_literal_expected },
+    {.rxprs{{newvar_name, &newvar_rule}},
+     .expected = &newvar_expected },
     // TODO: Add more test cases
   };
   ssize_t casei = 0;
