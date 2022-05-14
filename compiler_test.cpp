@@ -41,6 +41,7 @@ using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleExpr;
 using oalex::RuleExprConcat;
+using oalex::RuleExprIdent;
 using oalex::RuleExprMappedIdent;
 using oalex::RuleExprRegex;
 using oalex::RuleExprSquoted;
@@ -123,6 +124,29 @@ namedRuleMappings(string_view msg, const vector<unique_ptr<Rule>>& a,
       Bug("{}. No match was found for rule '{}'", msg, nm_b->preserveCase());
     }
   return rv;
+}
+
+[[maybe_unused]] void
+ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
+  ssize_t i = 0;
+  for(auto& rule_ptr: rl) {
+    const Ident* nm_id = rule_ptr->nameOrNull();
+    string nm = nm_id ? nm_id->preserveCase() : "";
+    string extra;
+    if(auto* moe = dynamic_cast<const MatchOrError*>(rule_ptr.get())) {
+      extra = format("{{{}}}", moe->compidx);
+    }else if(auto* regex = dynamic_cast<const RegexRule*>(rule_ptr.get())) {
+      extra = format("{{{}}}", prettyPrint(*regex->patt));
+    }else if(auto* tmpl = dynamic_cast<const OutputTmpl*>(rule_ptr.get())) {
+      extra = format("{{{}, \"{}\"}}", tmpl->childidx, tmpl->childName);
+    }else if(auto* cat = dynamic_cast<const ConcatFlatRule*>(rule_ptr.get())) {
+      extra = "{ ";
+      for(auto& [id,p] : cat->comps) extra += format("{{{}, \"{}\"}}, ", id, p);
+      extra += "}";
+    }
+    oalex::Debug("  {: 3d}| {}: {}{}", i++, nm,
+                 typeid(*rule_ptr).name(), extra);
+  }
 }
 
 void assertValidAndEqualRuleList(string_view msg,
@@ -440,6 +464,42 @@ void testRuleExprCompilation() {
            }} }, "string_body_only")
   );
 
+  // prefixed_string_literal ~ (literal_prefix quoted_part)
+  // literal_prefix ~ /L|u8?|U/
+  // quoted_part ~ /"([^"\\]|\\.)*"/
+  const char* prefixed_string_prefix_name = "literal_prefix";
+  unique_ptr<const Regex> prefixed_string_prefix_regex
+    = parseRegex(R"(/L|u8?|U/)");
+  RuleExprRegex prefixed_string_prefix_rule{
+    prefixed_string_prefix_regex->clone()
+  };
+  const char* prefixed_string_quoted_part_name = "quoted_part";
+  unique_ptr<const Regex> prefixed_string_quoted_part_regex
+    = parseRegex(R"(/"([^"\\]|\\.)*"/)");
+  RuleExprRegex prefixed_string_quoted_part_rule{
+    prefixed_string_quoted_part_regex->clone()
+  };
+  const char* prefixed_string_name = "prefixed_string_literal";
+  RuleExprConcat prefixed_string_rule{makeVectorUnique<const RuleExpr>(
+    RuleExprIdent{Ident::parseGenerated(prefixed_string_prefix_name)},
+    RuleExprIdent{Ident::parseGenerated(prefixed_string_quoted_part_name)}
+  )};
+  auto prefixed_string_expected = makeVectorUnique<Rule>(
+    RegexRule{prefixed_string_prefix_regex->clone()},
+    nmRule(MatchOrError{0, "Does not match expected pattern"},
+           "literal_prefix"),
+    ConcatFlatRule{{{1, "literal_prefix"}}},
+    RegexRule{prefixed_string_quoted_part_regex->clone()},
+    nmRule(MatchOrError{3, "Does not match expected pattern"},
+           "quoted_part"),
+    ConcatFlatRule{{{4, "quoted_part"}}},
+    ConcatFlatRule{{ {2, {}}, {5, {}} }},
+    nmRule(OutputTmpl{6, {}, JsonTmpl{JsonTmpl::Map{
+             {"literal_prefix", JsonTmpl::Placeholder{"literal_prefix"}},
+             {"quoted_part", JsonTmpl::Placeholder{"quoted_part"}},
+      }} }, "prefixed_string_literal")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -453,7 +513,11 @@ void testRuleExprCompilation() {
      .expected = &newvar_expected },
     {.rxprs{{string_body_name, &string_body_rule}},
      .expected = &string_body_expected },
-    // TODO: Add more test cases
+    {.rxprs{{prefixed_string_prefix_name, &prefixed_string_prefix_rule},
+            {prefixed_string_quoted_part_name,
+             &prefixed_string_quoted_part_rule},
+            {prefixed_string_name, &prefixed_string_rule}},
+     .expected = &prefixed_string_expected },
   };
   ssize_t casei = 0;
   for(const TestCase& testcase : cases) {

@@ -126,6 +126,11 @@ class RuleExpr {
   protected: RuleExpr() {}
   public: virtual ~RuleExpr() {}
 };
+class RuleExprIdent final : public RuleExpr {
+ public:
+  explicit RuleExprIdent(Ident id) : ident{std::move(id)} {}
+  Ident ident;
+};
 class RuleExprSquoted final : public RuleExpr {
  public:
   explicit RuleExprSquoted(std::string s) : s{std::move(s)} {}

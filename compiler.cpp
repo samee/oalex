@@ -948,7 +948,9 @@ RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
 }
 ssize_t
 RuleExprCompiler::process(const RuleExpr& rxpr) {
-  if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
+  if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
+    return appendFlatIdent(id->ident, rl_->findOrAppendIdent(ctx_, id->ident));
+  }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return appendLiteralOrError(*rl_, s->s);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
     return appendRegexOrError(*rl_, regex->regex->clone());
@@ -979,8 +981,10 @@ RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
 
 static void
 ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
-  if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
-     dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
+  if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr))
+    output.push_back(id->ident);
+  else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
+          dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     output.push_back(mid->lhs);
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()))
