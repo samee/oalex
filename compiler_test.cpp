@@ -469,6 +469,28 @@ void testRuleExprCompilation() {
   }
 }
 
+void testRuleExprDuplicateIdent() {
+  unique_ptr<const Regex> ident_regex = parseRegex(R"(/[a-z_]+/)");
+  RuleExprConcat asgn_rule{makeVectorUnique<const RuleExpr>(
+    RuleExprMappedIdent{
+      Ident::parseGenerated("varname"),
+      move_to_unique(RuleExprRegex{ident_regex->clone()})
+    },
+    RuleExprSquoted{"="},
+    RuleExprMappedIdent{
+      Ident::parseGenerated("varname"),
+      move_to_unique(RuleExprRegex{ident_regex->clone()})
+    }
+  )};
+
+  InputDiags ctx{Input{""}};
+  RulesWithLocs rl;
+  assignRuleExpr(ctx, asgn_rule, rl,
+                 rl.defineIdent(ctx, Ident::parseGenerated("asgn")));
+  assertHasDiagWithSubstr(__func__, ctx.diags,
+                          "Duplicate identifier 'varname'");
+}
+
 }  // namespace
 
 int main() {
@@ -483,4 +505,5 @@ int main() {
   testDefineAndReserveProducesError();
   testDestructureErrors();
   testRuleExprCompilation();
+  testRuleExprDuplicateIdent();
 }

@@ -996,13 +996,21 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
 }
 
 static JsonTmpl
-ruleExprMakeOutputTmpl(const RuleExpr& rxpr) {
+ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
   vector<Ident> ids;
   ruleExprCollectIdent(rxpr, ids);
+  sort(ids.begin(), ids.end());  // to skip over duplicates later
 
   JsonTmpl::Map rv;
-  for(const Ident& id : ids) {
-    string s = id.preserveCase();
+  for(ssize_t i=0; i<ssize(ids); ++i) {
+    if(i>0 && ids[i] == ids[i-1]) {
+      Error(ctx, ids[i].stPos(), ids[i].enPos(),
+            format("Duplicate identifier '{}' will be impossible "
+                   "to distinguish in the output.", ids[i].preserveCase()));
+      Note(ctx, ids[i-1].stPos(), ids[i-1].enPos(), "Previously found here");
+      continue;
+    }
+    string s = ids[i].preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
@@ -1023,7 +1031,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
-      ruleExprMakeOutputTmpl(rxpr)  // outputTmpl
+      ruleExprMakeOutputTmpl(ctx, rxpr)  // outputTmpl
   });
 }
 
