@@ -40,6 +40,7 @@ using oalex::Regex;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleExpr;
+using oalex::RuleExprConcat;
 using oalex::RuleExprMappedIdent;
 using oalex::RuleExprRegex;
 using oalex::RuleExprSquoted;
@@ -413,6 +414,32 @@ void testRuleExprCompilation() {
     }}}, "new_var_name")
   );
 
+  // string_body_only ~ '"' (body ~ /([^"\\]|\\.)*/) '"'
+  const char* string_body_name = "string_body_only";
+  unique_ptr<const Regex> string_body_regex
+    = parseRegex(R"(/([^"\\]|\\.)*/)");
+  RuleExprConcat string_body_rule{makeVectorUnique<const RuleExpr>(
+    RuleExprSquoted{"\""},
+    RuleExprMappedIdent{
+      Ident::parseGenerated("body"),
+      move_to_unique(RuleExprRegex{string_body_regex->clone()})
+    },
+    RuleExprSquoted{"\""}
+  )};
+  auto string_body_expected = makeVectorUnique<Rule>(
+    RegexRule{string_body_regex->clone()},
+    MatchOrError{0, "Does not match expected pattern"},
+    ConcatFlatRule{{{1, "body"}}},
+    StringRule{"\""},
+    MatchOrError{3, "Expected '\"'"},
+    StringRule{"\""},
+    MatchOrError{5, "Expected '\"'"},
+    ConcatFlatRule{{ {4, {}}, {2, {}}, {6, {}} }},
+    nmRule(OutputTmpl{7, {}, JsonTmpl{JsonTmpl::Map{
+             {"body", JsonTmpl::Placeholder{"body"}}
+           }} }, "string_body_only")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -424,6 +451,8 @@ void testRuleExprCompilation() {
      .expected = &string_literal_expected },
     {.rxprs{{newvar_name, &newvar_rule}},
      .expected = &newvar_expected },
+    {.rxprs{{string_body_name, &string_body_rule}},
+     .expected = &string_body_expected },
     // TODO: Add more test cases
   };
   ssize_t casei = 0;

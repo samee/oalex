@@ -144,6 +144,17 @@ class RuleExprMappedIdent final : public RuleExpr {
   Ident lhs;
   std::unique_ptr<const RuleExpr> rhs;  // Only allow Ident and Regex
 };
+class RuleExprConcat final : public RuleExpr {
+ // TODO: have a way to discard a component. Perhaps, with
+ // a blank mapped ident, like so:  X ( _ ~ partA ) Y
+ // Can be represented with a blank Ident in RuleExprMappedIdent.
+ public:
+  explicit RuleExprConcat(std::vector<std::unique_ptr<const RuleExpr>> p)
+    : parts{std::move(p)} {}
+  // Used both for (...) and [...],
+  // wrapped in RuleExprOptional in the second case.
+  std::vector<std::unique_ptr<const RuleExpr>> parts;
+};
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,

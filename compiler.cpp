@@ -938,6 +938,7 @@ class RuleExprCompiler {
   DiagsDest ctx_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
+  ssize_t processConcat(const RuleExprConcat& catxpr);
 };
 ssize_t
 RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -947,10 +948,14 @@ RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
 }
 ssize_t
 RuleExprCompiler::process(const RuleExpr& rxpr) {
-  if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
+  if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
+    return appendLiteralOrError(*rl_, s->s);
+  }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
     return appendRegexOrError(*rl_, regex->regex->clone());
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     return this->processMappedIdent(*mid);
+  }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
+    return this->processConcat(*cat);
   }else {
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
   }
@@ -963,6 +968,14 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
   }else
     Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
 }
+ssize_t
+RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
+  vector<ConcatFlatRule::Component> comps;
+  for(const unique_ptr<const RuleExpr>& c : catxpr.parts) {
+    comps.push_back({process(*c), {}});
+  }
+  return rl_->appendAnonRule(ConcatFlatRule{{std::move(comps)}});
+}
 
 static void
 ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
@@ -973,6 +986,10 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()))
       Bug("Mapped idents must have simple rhs. Found {}",
           typeid(*mid->rhs).name());
+  }
+  else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
+    for(const unique_ptr<const RuleExpr>& part : cat->parts)
+      ruleExprCollectIdent(*part, output);
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
