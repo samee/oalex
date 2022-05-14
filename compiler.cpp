@@ -964,15 +964,29 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
 }
 
-static JsonTmpl
-ruleExprMakeOutputTmpl(const RuleExpr& rxpr) {
-  JsonTmpl::Map rv;
-  if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
-    string s = mid->lhs.preserveCase();
-    rv.push_back({s, JsonTmpl::Placeholder{s}});
+static void
+ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
+  if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
+     dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
+  else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
+    output.push_back(mid->lhs);
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()))
       Bug("Mapped idents must have simple rhs. Found {}",
-         typeid(*mid->rhs).name());
+          typeid(*mid->rhs).name());
+  }
+  else
+    Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
+}
+
+static JsonTmpl
+ruleExprMakeOutputTmpl(const RuleExpr& rxpr) {
+  vector<Ident> ids;
+  ruleExprCollectIdent(rxpr, ids);
+
+  JsonTmpl::Map rv;
+  for(const Ident& id : ids) {
+    string s = id.preserveCase();
+    rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
 }
