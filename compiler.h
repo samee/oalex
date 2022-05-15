@@ -183,6 +183,9 @@ assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
 ssize_t
 appendRegexOrError(RulesWithLocs& rl, std::unique_ptr<const Regex> regex);
 
+ssize_t
+appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
+
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
                    lex::GluedString patt_string, const LexDirective& lexOpts,

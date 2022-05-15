@@ -134,18 +134,7 @@ PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
 
 ssize_t
 PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
-  ssize_t i;
-  OrRule orRule{{}, /* flattenOnDemand */ true};
-
-  i = this->process(optPatt.part);
-  i = rl_->appendAnonRule(QuietMatch{i});
-  orRule.comps.push_back({-1, i, passthroughTmpl});
-
-  // This branch always produces a Map on success.
-  i = rl_->appendAnonRule(StringRule{{}});
-  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
-
-  return rl_->appendAnonRule(std::move(orRule));
+  return appendOptionalRule(*rl_, this->process(optPatt.part));
 }
 
 // TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
@@ -882,6 +871,20 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
       /* outputTmpl */ std::move(jstmpl)
   });
   //rl.deferred_assign(newIndex2, ConcatFlatRule{{ {newIndex, ""} }});
+}
+
+ssize_t
+appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
+  OrRule orRule{{}, /* flattenOnDemand */ true};
+
+  ssize_t i = rl.appendAnonRule(QuietMatch{ruleIndex});
+  orRule.comps.push_back({-1, i, passthroughTmpl});
+
+  // This branch always produces a Map on success.
+  i = rl.appendAnonRule(StringRule{{}});
+  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
+
+  return rl.appendAnonRule(std::move(orRule));
 }
 
 static Ident
