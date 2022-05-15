@@ -159,6 +159,16 @@ class RuleExprConcat final : public RuleExpr {
   // wrapped in RuleExprOptional in the second case.
   std::vector<std::unique_ptr<const RuleExpr>> parts;
 };
+class RuleExprRepeat final : public RuleExpr {
+ public:
+  /* Must be RuleExprIdent or RuleExprSquoted, or RuleExprConcat containing only
+     those types. The frontend is expected to disallow any further nesting or
+     other types. */
+  RuleExprRepeat(std::unique_ptr<const RuleExpr> part,
+                 std::unique_ptr<const RuleExpr> glue)
+    : part{std::move(part)}, glue{std::move(glue)} {}
+  std::unique_ptr<const RuleExpr> part, glue;
+};
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,

@@ -934,6 +934,7 @@ class RuleExprCompiler {
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
+  ssize_t processRepeat(const RuleExprRepeat& repxpr);
 };
 ssize_t
 RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -953,6 +954,8 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
     return this->processMappedIdent(*mid);
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     return this->processConcat(*cat);
+  }else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
+    return this->processRepeat(*rep);
   }else {
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
   }
@@ -976,6 +979,14 @@ RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
   }
   return rl_->appendAnonRule(ConcatFlatRule{{std::move(comps)}});
 }
+ssize_t
+RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
+  ssize_t i = this->process(*repxpr.part);
+  ssize_t j = repxpr.glue ? this->process(*repxpr.glue) : -1;
+  return rl_->appendAnonRule(LoopRule{{
+      .partidx = i, .partname = "", .glueidx = j, .gluename = "",
+      .lookidx = -1, .skipidx = -1}});
+}
 
 static void
 ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
@@ -993,6 +1004,10 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
   else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     for(const unique_ptr<const RuleExpr>& part : cat->parts)
       ruleExprCollectIdent(*part, output);
+  }
+  else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
+    ruleExprCollectIdent(*rep->part, output);
+    ruleExprCollectIdent(*rep->glue, output);
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());

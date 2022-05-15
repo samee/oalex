@@ -16,6 +16,7 @@
 #include <string_view>
 #include "codegen_test_util.h"
 #include "ident.h"
+#include "jsontmpl_parsers.h"
 #include "frontend_pieces.h"
 #include "regex_io.h"
 #include "runtime/diags.h"
@@ -31,12 +32,17 @@ using oalex::DefinitionInProgress;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::JsonLoc;
 using oalex::JsonTmpl;
+using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
 using oalex::OutputTmpl;
+using oalex::parseJsonLoc;
+using oalex::parseRegexCharSet;
 using oalex::prettyPrint;
 using oalex::Regex;
+using oalex::RegexOptions;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleExpr;
@@ -44,7 +50,9 @@ using oalex::RuleExprConcat;
 using oalex::RuleExprIdent;
 using oalex::RuleExprMappedIdent;
 using oalex::RuleExprRegex;
+using oalex::RuleExprRepeat;
 using oalex::RuleExprSquoted;
+using oalex::RuleSet;
 using oalex::RulesWithLocs;
 using oalex::ssize;
 using oalex::StringRule;
@@ -149,6 +157,17 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
   }
 }
 
+void assertEqualLoopRule(string_view msg,
+    vector<pair<ssize_t,ssize_t>>& stk,
+    const LoopRule& arep, const LoopRule& brep) {
+  assertEqual(msg, arep.partname, brep.partname);
+  assertEqual(msg, arep.gluename, brep.gluename);
+  stk.push_back({arep.partidx, brep.partidx});
+  stk.push_back({arep.glueidx, brep.glueidx});
+  stk.push_back({arep.lookidx, brep.lookidx});
+  stk.push_back({arep.skipidx, brep.skipidx});
+}
+
 void assertValidAndEqualRuleList(string_view msg,
     const vector<unique_ptr<Rule>>& a, const vector<unique_ptr<Rule>>& b) {
   if(ssize(a) != ssize(b))
@@ -189,6 +208,9 @@ void assertValidAndEqualRuleList(string_view msg,
       assertEqual(msg, aout->childName, bout->childName);
       stk.push_back({aout->childidx, bout->childidx});
       assertEqualJsonTmpl(msg, aout->outputTmpl, bout->outputTmpl);
+    }else if(auto* arep = dynamic_cast<const LoopRule*>(ar)) {
+      auto* brep = static_cast<const LoopRule*>(br);
+      assertEqualLoopRule(msg, stk, *arep, *brep);
     }else if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
       auto* bmoe = static_cast<const MatchOrError*>(br);
       assertEqual(msg, amoe->errmsg, bmoe->errmsg);
@@ -529,6 +551,32 @@ void testRuleExprCompilation() {
       }} }, "signed_int_value")
   );
 
+  // hyphen_ident ~ (ident '-' ... '-' ident)
+  const char* hyphen_ident_part_name = "ident";
+  unique_ptr<const Regex> hyphen_ident_part_regex
+    = parseRegex("/[a-zA-Z]+/");
+  RuleExprRegex hyphen_ident_part_rule{hyphen_ident_part_regex->clone()};
+  const char* hyphen_ident_name = "hyphen_ident";
+  RuleExprRepeat hyphen_ident_rule{
+    move_to_unique(RuleExprIdent{
+      Ident::parseGenerated(hyphen_ident_part_name)
+    }),
+    move_to_unique(RuleExprSquoted{"-"})
+  };
+  auto hyphen_ident_expected = makeVectorUnique<Rule>(
+    RegexRule{hyphen_ident_part_regex->clone()},
+    nmRule(MatchOrError{0, "Does not match expected pattern"},
+           "ident"),
+    ConcatFlatRule{{{1, "ident"}}},
+    StringRule{"-"},
+    MatchOrError{3, "Expected '-'"},
+    LoopRule{{.partidx=2, .partname{},
+              .glueidx=4, .gluename{}, .lookidx=-1, .skipidx=-1}},
+    nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
+            {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
+          }}}, "hyphen_ident")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -550,6 +598,9 @@ void testRuleExprCompilation() {
     {.rxprs{{signed_int_int_name, &signed_int_int_rule},
             {signed_int_value_name, &signed_int_value_rule}},
      .expected = &signed_int_value_expected },
+    {.rxprs{{hyphen_ident_part_name, &hyphen_ident_part_rule},
+            {hyphen_ident_name, &hyphen_ident_rule}},
+     .expected = &hyphen_ident_expected },
   };
   ssize_t casei = 0;
   for(const TestCase& testcase : cases) {
@@ -587,6 +638,61 @@ void testRuleExprDuplicateIdent() {
                           "Duplicate identifier 'varname'");
 }
 
+// Dev-note: we _might_ delete this test once
+// we have full testing of rule-list in testdata/.
+// But for that, we first need to implement the frontend.
+void testRuleExprCompilationAndParsing() {
+  string_view ident_part_regex = "/[a-zA-Z]+/";
+  InputDiags ctx{Input{""}};
+  RulesWithLocs rl;
+
+  RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
+  auto ident_part_name = Ident::parseGenerated("ident");
+  ssize_t identi = rl.defineIdent(ctx, ident_part_name);
+  assignRuleExpr(ctx, rxpr_ident, rl, identi);
+
+  RuleExprRepeat rxpr_main{
+    move_to_unique(RuleExprIdent{ident_part_name}),
+    move_to_unique(RuleExprSquoted{"-"})
+  };
+
+  ssize_t maini = rl.defineIdent(ctx, Ident::parseGenerated("hyphen_ident"));
+  assignRuleExpr(ctx, rxpr_main, rl, maini);
+
+  RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
+  RuleSet rs{rl.releaseRules(), regopts};
+  auto expected_ruleset = makeVectorUnique<Rule>(
+      RegexRule{parseRegex(ident_part_regex)},
+      nmRule(MatchOrError{0, "Does not match expected pattern"},
+             "ident"),
+      ConcatFlatRule{{{1, "ident"}}},
+      StringRule{"-"},
+      MatchOrError{3, "Expected '-'"},
+      LoopRule{{.partidx=2, .partname{},
+                .glueidx=4, .gluename{}, .lookidx=-1, .skipidx=-1}},
+      nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
+              {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
+            }}}, "hyphen_ident")
+  );
+  assertValidAndEqualRuleList(__func__, rs.rules, expected_ruleset);
+
+  for(maini=0; maini<ssize(rs.rules); ++maini) {
+    const Ident* nm = rs.rules[maini]->nameOrNull();
+    if(nm && nm->preserveCase() == "hyphen_ident")
+      break;
+  }
+  if(maini == ssize(rs.rules)) Bug("Rule name didn't persist");
+  InputDiags ctx_user{Input{"abc-def-ghi"}};
+  ssize_t spos = 0;
+  JsonLoc jsloc = eval(ctx_user, spos, rs, maini);
+  JsonLoc expected
+    = *parseJsonLoc("{ ident: ['abc', 'def', 'ghi'] }");
+  if(jsloc != expected) {
+    BugMe("Couldn't parse hyphenated identifier: {} != {}",
+          jsloc.prettyPrint(0), expected.prettyPrint(0));
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -602,4 +708,5 @@ int main() {
   testDestructureErrors();
   testRuleExprCompilation();
   testRuleExprDuplicateIdent();
+  testRuleExprCompilationAndParsing();
 }
