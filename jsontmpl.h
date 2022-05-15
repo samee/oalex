@@ -47,7 +47,9 @@ class JsonTmpl {
   JsonTmpl(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
   JsonTmpl(Ellipsis) : tag_{Tag::Ellipsis} {}
   JsonTmpl(Vector v) : tag_{Tag::Vector}, vectorValue_(std::move(v)) {}
-  JsonTmpl(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {}
+  JsonTmpl(Map m) : tag_{Tag::Map}, mapValue_(std::move(m)) {
+    mapSort(mapValue_);
+  }
 
   JsonTmpl(JsonTmpl&& that);
   JsonTmpl(const JsonTmpl& that);
