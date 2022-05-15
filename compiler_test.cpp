@@ -500,6 +500,35 @@ void testRuleExprCompilation() {
       }} }, "prefixed_string_literal")
   );
 
+  // int_value ~ /[0-9]+/
+  // signed_int_value ~ ((sign ~ /-|+/) (value ~ int_value))
+  const char* signed_int_int_name = "int_value";
+  unique_ptr<const Regex> signed_int_int_regex = parseRegex("/[0-9]+/");
+  RuleExprRegex signed_int_int_rule{signed_int_int_regex->clone()};
+  const char* signed_int_value_name = "signed_int_value";
+  unique_ptr<const Regex> signed_int_value_regex = parseRegex("/-|\\+/");
+  RuleExprConcat signed_int_value_rule{makeVectorUnique<const RuleExpr>(
+      RuleExprMappedIdent{
+        Ident::parseGenerated("sign"),
+        move_to_unique(RuleExprRegex{signed_int_value_regex->clone()})},
+      RuleExprMappedIdent{
+        Ident::parseGenerated("value"),
+        move_to_unique(RuleExprIdent{Ident::parseGenerated("int_value")})}
+  )};
+  auto signed_int_value_expected = makeVectorUnique<Rule>(
+    RegexRule{signed_int_int_regex->clone()},
+    nmRule(MatchOrError{0, "Does not match expected pattern"}, "int_value"),
+    ConcatFlatRule{{{1, "value"}}},
+    RegexRule{signed_int_value_regex->clone()},
+    MatchOrError{3, "Does not match expected pattern"},
+    ConcatFlatRule{{{4, "sign"}}},
+    ConcatFlatRule{{ {5, {}}, {2, {}} }},
+    nmRule(OutputTmpl{6, {}, JsonTmpl{JsonTmpl::Map{
+        {"sign", JsonTmpl::Placeholder{"sign"}},
+        {"value", JsonTmpl::Placeholder{"value"}},
+      }} }, "signed_int_value")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -518,6 +547,9 @@ void testRuleExprCompilation() {
              &prefixed_string_quoted_part_rule},
             {prefixed_string_name, &prefixed_string_rule}},
      .expected = &prefixed_string_expected },
+    {.rxprs{{signed_int_int_name, &signed_int_int_rule},
+            {signed_int_value_name, &signed_int_value_rule}},
+     .expected = &signed_int_value_expected },
   };
   ssize_t casei = 0;
   for(const TestCase& testcase : cases) {

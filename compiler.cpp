@@ -964,7 +964,10 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
 }
 ssize_t
 RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
-  if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get())) {
+  if(auto* rhsid = dynamic_cast<const RuleExprIdent*>(midxpr.rhs.get())) {
+    ssize_t targetIndex = rl_->findOrAppendIdent(ctx_, rhsid->ident);
+    return this->appendFlatIdent(midxpr.lhs, targetIndex);
+  }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->process(*midxpr.rhs);
     return this->appendFlatIdent(midxpr.lhs, newIndex);
   }else
@@ -987,7 +990,8 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     output.push_back(mid->lhs);
-    if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()))
+    if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
+       !dynamic_cast<const RuleExprIdent*>(mid->rhs.get()))
       Bug("Mapped idents must have simple rhs. Found {}",
           typeid(*mid->rhs).name());
   }
