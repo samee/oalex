@@ -957,6 +957,8 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
     return this->processMappedIdent(*mid);
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     return this->processConcat(*cat);
+  }else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr)) {
+    return appendOptionalRule(*rl_, this->process(*opt->part));
   }else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
     return this->processRepeat(*rep);
   }else {
@@ -968,7 +970,8 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
   if(auto* rhsid = dynamic_cast<const RuleExprIdent*>(midxpr.rhs.get())) {
     ssize_t targetIndex = rl_->findOrAppendIdent(ctx_, rhsid->ident);
     return this->appendFlatIdent(midxpr.lhs, targetIndex);
-  }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get())) {
+  }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
+           dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->process(*midxpr.rhs);
     return this->appendFlatIdent(midxpr.lhs, newIndex);
   }else
@@ -1000,6 +1003,7 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     output.push_back(mid->lhs);
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
+       !dynamic_cast<const RuleExprSquoted*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprIdent*>(mid->rhs.get()))
       Bug("Mapped idents must have simple rhs. Found {}",
           typeid(*mid->rhs).name());
@@ -1008,6 +1012,8 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
     for(const unique_ptr<const RuleExpr>& part : cat->parts)
       ruleExprCollectIdent(*part, output);
   }
+  else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr))
+    ruleExprCollectIdent(*opt->part, output);
   else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
     ruleExprCollectIdent(*rep->part, output);
     ruleExprCollectIdent(*rep->glue, output);

@@ -184,7 +184,7 @@ class OrRule final : public Rule {
   struct Component { ssize_t lookidx, parseidx; JsonTmpl tmpl; };
   explicit OrRule(std::vector<Component> comps, bool fod)
     : comps{std::move(comps)}, flattenOnDemand{fod} {}
-  std::string specifics_typename() const override { return "LoopRule"; }
+  std::string specifics_typename() const override { return "OrRule"; }
   std::vector<Component> comps;
   bool flattenOnDemand;
 };

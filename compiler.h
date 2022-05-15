@@ -146,7 +146,7 @@ class RuleExprMappedIdent final : public RuleExpr {
   RuleExprMappedIdent(Ident l, std::unique_ptr<const RuleExpr> r)
     : lhs{std::move(l)}, rhs{std::move(r)} {}
   Ident lhs;
-  std::unique_ptr<const RuleExpr> rhs;  // Only allow Ident and Regex
+  std::unique_ptr<const RuleExpr> rhs;  // Only allow Ident, Regex, and Squoted
 };
 class RuleExprConcat final : public RuleExpr {
  // TODO: have a way to discard a component. Perhaps, with
@@ -168,6 +168,12 @@ class RuleExprRepeat final : public RuleExpr {
                  std::unique_ptr<const RuleExpr> glue)
     : part{std::move(part)}, glue{std::move(glue)} {}
   std::unique_ptr<const RuleExpr> part, glue;
+};
+class RuleExprOptional final : public RuleExpr {
+ public:
+  explicit RuleExprOptional(std::unique_ptr<const RuleExpr> p)
+    : part{std::move(p)} {}
+  std::unique_ptr<const RuleExpr> part;
 };
 
 void

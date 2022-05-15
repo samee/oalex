@@ -37,10 +37,12 @@ using oalex::JsonTmpl;
 using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
+using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::parseRegexCharSet;
 using oalex::prettyPrint;
+using oalex::QuietMatch;
 using oalex::Regex;
 using oalex::RegexOptions;
 using oalex::RegexRule;
@@ -49,6 +51,7 @@ using oalex::RuleExpr;
 using oalex::RuleExprConcat;
 using oalex::RuleExprIdent;
 using oalex::RuleExprMappedIdent;
+using oalex::RuleExprOptional;
 using oalex::RuleExprRegex;
 using oalex::RuleExprRepeat;
 using oalex::RuleExprSquoted;
@@ -167,6 +170,19 @@ void assertEqualLoopRule(string_view msg,
   stk.push_back({arep.lookidx, brep.lookidx});
   stk.push_back({arep.skipidx, brep.skipidx});
 }
+void assertEqualOrRule(string_view msg, vector<pair<ssize_t,ssize_t>>& stk,
+                       const OrRule& aors, const OrRule& bors) {
+   assertEqual(format("{}. flattenOnDemand mismatch", msg),
+               aors.flattenOnDemand, bors.flattenOnDemand);
+   if(ssize(aors.comps) != ssize(bors.comps))
+     Bug("{}. OrRule has unequal component count: {} != {}",
+         msg, ssize(aors.comps), ssize(bors.comps));
+   for(ssize_t k=0; k<ssize(aors.comps); ++k) {
+     stk.push_back({aors.comps[k].lookidx, bors.comps[k].lookidx});
+     stk.push_back({aors.comps[k].parseidx, bors.comps[k].parseidx});
+     assertEqualJsonTmpl(msg, aors.comps[k].tmpl, bors.comps[k].tmpl);
+   }
+}
 
 void assertValidAndEqualRuleList(string_view msg,
     const vector<unique_ptr<Rule>>& a, const vector<unique_ptr<Rule>>& b) {
@@ -211,6 +227,12 @@ void assertValidAndEqualRuleList(string_view msg,
     }else if(auto* arep = dynamic_cast<const LoopRule*>(ar)) {
       auto* brep = static_cast<const LoopRule*>(br);
       assertEqualLoopRule(msg, stk, *arep, *brep);
+    }else if(auto* aors = dynamic_cast<const OrRule*>(ar)) {
+      auto* bors = static_cast<const OrRule*>(br);
+      assertEqualOrRule(msg, stk, *aors, *bors);
+    }else if(auto* aq = dynamic_cast<const QuietMatch*>(ar)) {
+      auto* bq = static_cast<const QuietMatch*>(br);
+      stk.push_back({aq->compidx, bq->compidx});
     }else if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
       auto* bmoe = static_cast<const MatchOrError*>(br);
       assertEqual(msg, amoe->errmsg, bmoe->errmsg);
@@ -577,6 +599,38 @@ void testRuleExprCompilation() {
           }}}, "hyphen_ident")
   );
 
+  // term ~ ([keyword_indicator ~ ':'] (word ~ /[a-zA-Z]+/))
+  const char* keyword_or_ident_name = "term";
+  unique_ptr<const Regex> keyword_or_ident_regex
+    = parseRegex("/[a-zA-Z]+/");
+  RuleExprConcat keyword_or_ident_rule{makeVectorUnique<const RuleExpr>(
+    RuleExprOptional{move_to_unique(
+      RuleExprMappedIdent{Ident::parseGenerated("keyword_indicator"),
+                          move_to_unique(RuleExprSquoted{":"})}
+    )},
+    RuleExprMappedIdent{Ident::parseGenerated("word"),
+                        move_to_unique(
+                            RuleExprRegex{keyword_or_ident_regex->clone()}
+                        )}
+  )};
+  auto keyword_or_ident_expected = makeVectorUnique<Rule>(
+    StringRule{":"},
+    MatchOrError{0, "Expected ':'"},
+    RegexRule{keyword_or_ident_regex->clone()},
+    MatchOrError{2, "Does not match expected pattern"},
+    ConcatFlatRule{{{1, "keyword_indicator"}}},
+    ConcatFlatRule{{{3, "word"}}},
+    QuietMatch{4},
+    StringRule{{}},
+    OrRule{{ {-1, 6, oalex::passthroughTmpl}, {-1, 7, JsonTmpl::Map{}} }, true},
+    ConcatFlatRule{{ {8, {}}, {5, {}} }},
+    nmRule(OutputTmpl{9, {}, JsonTmpl{JsonTmpl::Map{
+            {"keyword_indicator",
+              JsonTmpl{JsonTmpl::Placeholder{"keyword_indicator"}}},
+            {"word", JsonTmpl{JsonTmpl::Placeholder{"word"}}},
+          }}}, "term")
+  );
+
   struct TestCase {
     vector<pair<const char*, const RuleExpr*>> rxprs;
     const vector<unique_ptr<Rule>>* expected;
@@ -601,6 +655,8 @@ void testRuleExprCompilation() {
     {.rxprs{{hyphen_ident_part_name, &hyphen_ident_part_rule},
             {hyphen_ident_name, &hyphen_ident_rule}},
      .expected = &hyphen_ident_expected },
+    {.rxprs{{keyword_or_ident_name, &keyword_or_ident_rule}},
+     .expected = &keyword_or_ident_expected },
   };
   ssize_t casei = 0;
   for(const TestCase& testcase : cases) {
