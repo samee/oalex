@@ -1046,6 +1046,13 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
 void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
                ssize_t ruleIndex) {
+  // TODO: Add more special-cases:
+  //  - If rxpr has no idents anywhere, ie. if ruleExprCollectIdent()
+  //    produces an empty vector. But that requires a new codegen Rule that
+  //    collects and concatenates strings. Or it requires some strange
+  //    regex surgery.
+  //  - If rxpr is a single Ident. Maybe make it an alias, instead of wrapping
+  //    it in another layer of a singleton OutputTmpl.
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
     return assignRegexOrError(
         rl, ruleIndex, "Does not match expected pattern",
