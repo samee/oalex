@@ -732,20 +732,6 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   return rv;
 }
 
-// This is for when we have `where:` but no `output:`
-static vector<pair<Ident, ssize_t>>
-mapToRule(DiagsDest ctx, RulesWithLocs& rl,
-          const vector<PatternToRuleBinding>& pattToRule) {
-  vector<pair<Ident, ssize_t>> rv;
-  vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
-  for(auto& binding : pattToRule) {
-    reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
-    rv.emplace_back(binding.outTmplKey,
-                    rl.findOrAppendIdent(ctx, binding.ruleName));
-  }
-  return rv;
-}
-
 /* Input: the JsonLoc from the output of error_stanza in frontend_pieces.oalex.
    Argument errors.items should be a JsonLoc::Vector that looks like this: [
      { ident: "id1", error_msg: "msg1" },
@@ -820,6 +806,31 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
+// Note: JsonTmpl::Ellipsis is used as a special value to indicate that the
+// template should be automatically deduced. Sorry!
+static void
+compilePattern(DiagsDest ctx, const Ident& ident,
+               const Pattern& patt,
+               const vector<PatternToRuleBinding>& pattToRule,
+               JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl) {
+  vector<pair<Ident, ssize_t>> pl2ruleMap
+    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
+  vector<pair<Ident, string>> errmsg
+    = destructureErrors(ctx, std::move(errors));
+  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
+
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
+  ssize_t newIndex = comp.process(patt);
+  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
+  if(newIndex2 == -1) return;
+  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pl2ruleMap);
+  rl.deferred_assign(newIndex2, OutputTmpl{
+      /* childidx */ newIndex,
+      /* childName */ "",
+      /* outputTmpl */ std::move(jstmpl)
+  });
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -836,21 +847,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
-  vector<pair<Ident, ssize_t>> pl2ruleMap
-    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  vector<pair<Ident, string>> errmsg
-    = destructureErrors(ctx, std::move(errors));
-  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
-
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
-  ssize_t newIndex = comp.process(*patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
-  if(newIndex2 == -1) return;
-  rl.deferred_assign(newIndex2, OutputTmpl{
-      /* childidx */ newIndex,
-      /* childName */ "",
-      /* outputTmpl */ std::move(jstmpl)
-  });
+  compilePattern(ctx, ident, *patt, pattToRule, std::move(jstmpl), errors, rl);
 }
 
 // Dev-note: keeping this function separate from its overload for now. Might
@@ -864,23 +861,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
     parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
                             pattToRule, JsonTmpl::Map{});
   if(!patt.has_value()) return;
-  vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
-  JsonTmpl jstmpl = deduceOutputTmpl(pl2ruleMap);
-  vector<pair<Ident, string>> errmsg
-    = destructureErrors(ctx, std::move(errors));
-  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
-
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
-  ssize_t newIndex = comp.process(*patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
-  if(newIndex2 == -1) return;
-  // TODO: Optimize this indirection.
-  rl.deferred_assign(newIndex2, OutputTmpl{
-      /* childidx */ newIndex,
-      /* childName */ "",
-      /* outputTmpl */ std::move(jstmpl)
-  });
-  //rl.deferred_assign(newIndex2, ConcatFlatRule{{ {newIndex, ""} }});
+  compilePattern(ctx, ident, *patt, pattToRule, JsonTmpl::Ellipsis{},
+                 errors, rl);
 }
 
 ssize_t
