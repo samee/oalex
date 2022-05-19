@@ -806,6 +806,20 @@ deduceOutputTmpl(const vector<pair<Ident,ssize_t>>& p2rule) {
   return rv;
 }
 
+// parses a pattern, but deduces placeholders and tokenization from
+// various local definitions.
+static optional<Pattern>
+parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
+    const LexDirective& lexOpts, const vector<PatternToRuleBinding>& pattToRule,
+    const JsonTmpl& jstmpl) {
+  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
+  partPatterns.merge(makePartPatterns(ctx, jstmpl));
+
+  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
+  if(!patt_string.empty() && toks.empty()) return std::nullopt;
+  return parsePattern(ctx, std::move(toks));
+}
+
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -815,14 +829,11 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                    JsonLoc errors, RulesWithLocs& rl) {
-  vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
-  partPatterns.merge(makePartPatterns(ctx, jstmpl));
-
-  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
-  if(!patt_string.empty() && toks.empty()) return;
-  optional<Pattern> patt = parsePattern(ctx, std::move(toks));
+  optional<Pattern> patt =
+    parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
+                            pattToRule, jstmpl);
   if(!patt.has_value()) return;
+  vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap
@@ -849,10 +860,9 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonLoc errors,
                    RulesWithLocs& rl) {
-  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
-  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
-  if(!patt_string.empty() && toks.empty()) return;
-  optional<Pattern> patt = parsePattern(ctx, std::move(toks));
+  optional<Pattern> patt =
+    parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
+                            pattToRule, JsonTmpl::Map{});
   if(!patt.has_value()) return;
   vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule);
   JsonTmpl jstmpl = deduceOutputTmpl(pl2ruleMap);
