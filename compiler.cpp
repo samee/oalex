@@ -278,7 +278,7 @@ template <> StringLoc
 MapFields::get_copy<StringLoc>(string_view field_name) const {
   const JsonLoc& jsloc = this->get<JsonLoc>(field_name);
   StringLoc s = jsloc.getIfStringLoc();
-  if(!s) Bug("Expected {} in {} to be a string", rule_name_, field_name);
+  if(!s) Bug("Expected {} in {} to be a string", field_name, rule_name_);
   return s;
 }
 
@@ -287,7 +287,7 @@ MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
   const JsonLoc* jsloc = JsonLoc::mapScanForValue(*jmap_, field_name);
   if(!jsloc || isEmptyMap(*jsloc)) return nullptr;
   const JsonLoc::Vector* vec = jsloc->getIfVector();
-  if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
+  if(!vec) Bug("Expected {} in {} to be a vector", field_name, rule_name_);
   return vec;
 }
 
