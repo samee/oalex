@@ -233,6 +233,12 @@ logLocalNamesakeError(DiagsDest ctx, const Ident& local, const Ident& global) {
                  local.preserveCase()));
 }
 
+bool
+isEmptyMap(const JsonLoc& jsloc) {
+  const JsonLoc::Map* m = jsloc.getIfMap();
+  return m && m->empty();
+}
+
 // MapFields takes a JsonLoc::Map from some bootstrapped rule, and
 // extracts named fields. Most errors here result in Bug() rather than a
 // user-reported Error().
@@ -279,7 +285,7 @@ MapFields::get_copy<StringLoc>(string_view field_name) const {
 template <> const JsonLoc::Vector*
 MapFields::get<JsonLoc::Vector*>(string_view field_name) const {
   const JsonLoc* jsloc = JsonLoc::mapScanForValue(*jmap_, field_name);
-  if(!jsloc) return nullptr;
+  if(!jsloc || isEmptyMap(*jsloc)) return nullptr;
   const JsonLoc::Vector* vec = jsloc->getIfVector();
   if(!vec) Bug("Expected {} in {} to be a vector", rule_name_, field_name);
   return vec;

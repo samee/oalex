@@ -508,18 +508,20 @@ oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::assertNotNull;
   using oalex::JsonLoc;
-  ssize_t j = i;
-
-  JsonLoc::Map m;
-  JsonLoc res = JsonLoc::ErrorValue{};
-
-  res = parseRule30(ctx, j);
-  if(res.holdsErrorValue()) return res;
-  oalex::mapAppend(m, std::move(*res.getIfMap()));
-  JsonLoc rv{std::move(m)};
-  rv.stPos = i; rv.enPos = j;
-  i = j;
+  using oalex::moveEltOrEmpty;
+  ssize_t oldi = i;
+  JsonLoc outfields = parseRule30(ctx, i);
+  if(outfields.holdsErrorValue()) return outfields;
+  auto* m = outfields.getIfMap();
+  assertNotNull(m, __func__, "needs a map");
+  JsonLoc rv = JsonLoc::Map{
+    {"external_name", moveEltOrEmpty(*m, "external_name")},
+    {"param", moveEltOrEmpty(*m, "param")},
+    {"rule_name", moveEltOrEmpty(*m, "rule_name")},
+  };
+  rv.stPos = oldi; rv.enPos = i;
   return rv;
 }
 
@@ -627,18 +629,19 @@ oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::assertNotNull;
   using oalex::JsonLoc;
-  ssize_t j = i;
-
-  JsonLoc::Map m;
-  JsonLoc res = JsonLoc::ErrorValue{};
-
-  res = parseRule36(ctx, j);
-  if(res.holdsErrorValue()) return res;
-  oalex::mapAppend(m, std::move(*res.getIfMap()));
-  JsonLoc rv{std::move(m)};
-  rv.stPos = i; rv.enPos = j;
-  i = j;
+  using oalex::moveEltOrEmpty;
+  ssize_t oldi = i;
+  JsonLoc outfields = parseRule36(ctx, i);
+  if(outfields.holdsErrorValue()) return outfields;
+  auto* m = outfields.getIfMap();
+  assertNotNull(m, __func__, "needs a map");
+  JsonLoc rv = JsonLoc::Map{
+    {"error_msg", moveEltOrEmpty(*m, "error_msg")},
+    {"ident", moveEltOrEmpty(*m, "ident")},
+  };
+  rv.stPos = oldi; rv.enPos = i;
   return rv;
 }
 
