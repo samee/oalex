@@ -21,7 +21,7 @@ oalex::JsonLoc parseWord(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
   JsonLoc  res = parseRule1(ctx, i);
   if(res.holdsErrorValue())
-    Error(ctx, i, "Expected word");
+    Error(ctx, i, "Does not match expected pattern");
   return res;
 }
 
@@ -54,7 +54,7 @@ oalex::JsonLoc parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
   JsonLoc  res = parseRule2(ctx, i);
   if(res.holdsErrorValue())
-    Error(ctx, i, "Expected double_quoted_literal");
+    Error(ctx, i, "Does not match expected pattern");
   return res;
 }
 

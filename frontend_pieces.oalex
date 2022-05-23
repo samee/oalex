@@ -4,8 +4,8 @@
 # TODO add tests that compare the output of building this file with the versions
 # already checked in.
 
-word := /[a-zA-Z_0-9]+/
-double_quoted_literal := /"([^"\\]|\\.)*"/
+rule word: /[a-zA-Z_0-9]+/
+rule double_quoted_literal: /"([^"\\]|\\.)*"/
 
 example double_quoted_literal:
   "hello world"
@@ -15,7 +15,7 @@ example double_quoted_literal:
 outputs success
 example double_quoted_literal:
   "Unfinished escape \
-outputs error with 'Expected double_quoted_literal'
+outputs error with 'Does not match expected pattern'
 
 
 # TODO wrap this up in a haskell-like indentation-checker, that ensures that
