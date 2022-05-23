@@ -7,4 +7,4 @@ rule my_function_declaration:
 where:
   fname, type, param ~ ident and more
 
-ident := /[a-zA-Z_]+/
+rule ident: /[a-zA-Z_]+/

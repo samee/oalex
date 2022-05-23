@@ -1,7 +1,7 @@
 # expected-error: 'rhs' case-conflicts with 'RHS'
 
-ident := /[_a-zA-Z]+/
-int_value := /-?[0-9]+/
+rule ident: /[_a-zA-Z]+/
+rule int_value: /-?[0-9]+/
 
 rule decl:
   var ident = RHS;

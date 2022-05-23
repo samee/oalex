@@ -1,4 +1,4 @@
-num := /[0-9]+/
+rule num: /[0-9]+/
 plus := "+"
 minus := "-"
 
@@ -16,7 +16,7 @@ outputs: { sum_operands: [ "3", "9", "22" ] }
 
 example sum_expr:
   3 + 9 + x
-outputs error with 'Expected num'
+outputs error with 'Does not match expected pattern'
 
 rule sum_level_expr:
   num oper ... oper num

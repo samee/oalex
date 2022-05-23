@@ -7,7 +7,7 @@ where:
   lhs ~ ident
   rhs ~ ident
 
-ident := /[a-zA-Z_]+/
+rule ident: /[a-zA-Z_]+/
 
 rule rhs:
   -->

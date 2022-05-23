@@ -2,4 +2,4 @@
 
 extern rule hello = oalexBuiltinIndentedList(ident);
 
-ident := /[a-z_]+/
+rule ident: /[a-z_]+/

@@ -1,6 +1,6 @@
 # expected-error: Duplicate definition for placeholder 'a'
 
-int_value := /[0-9]+/
+rule int_value: /[0-9]+/
 
 rule simple_sum:
   a + b

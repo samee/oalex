@@ -1,7 +1,7 @@
 # expected-error: custom errors specified more than once
 
-ident := /[a-zA-Z_]+/
-int := /[0-9]+/
+rule ident: /[a-zA-Z_]+/
+rule int: /[0-9]+/
 
 rule decl:
 

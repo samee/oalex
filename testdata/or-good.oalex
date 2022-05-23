@@ -17,8 +17,8 @@ outputs: {
   init_value: int_value,
 }
 
-ident_regex := /[_a-zA-Z]+/
-int_value := /-?[0-9]+/
+rule ident_regex: /[_a-zA-Z]+/
+rule int_value: /-?[0-9]+/
 
 # TODO non-word inline lookaheads
 rule ident choices:

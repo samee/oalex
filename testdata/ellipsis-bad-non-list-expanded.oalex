@@ -1,7 +1,7 @@
 # expected-error: `var` is a single element
 
-var := /[a-z]+/
-num := /[0-9]+/
+rule var: /[a-z]+/
+rule num: /[0-9]+/
 
 rule asgn:
   var = num;

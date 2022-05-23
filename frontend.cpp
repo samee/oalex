@@ -736,6 +736,33 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+unique_ptr<const RuleExpr>
+makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
+  if(auto* regex = get_if<RegexPattern>(&tok)) {
+    return make_unique<RuleExprRegex>(regex->patt->clone());
+  }
+  std::ignore = ctx;
+  return nullptr;
+}
+
+// Assumes linetoks.size() >= 4
+void
+parseSingleLineRule(const Ident& ruleName, vector<ExprToken> linetoks,
+                    DiagsDest ctx, RulesWithLocs& rl) {
+  requireEol(linetoks, 4, ctx);
+  unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
+  if(!rxpr) return;
+  ssize_t newIndex = rl.defineIdent(ctx, ruleName);
+  if(newIndex != -1) assignRuleExpr(ctx, *rxpr, rl, newIndex);
+}
+
+bool
+requireColon(const vector<ExprToken>& linetoks, size_t pos, DiagsDest ctx) {
+  if(linetoks.size() > pos && isToken(linetoks[pos], ":")) return true;
+  Error(ctx, enPos(linetoks[pos]), "Was expecting a ':' after this");
+  return false;
+}
+
 // Checks second token just so it is not a BNF rule of the form
 // `rule :=`. We want to avoid requiring too many reserved keywords
 // if possible.
@@ -749,12 +776,16 @@ resemblesRule(const vector<ExprToken>& linetoks) {
 void
 parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
           RulesWithLocs& rl) {
-  if(!requireColonEol(linetoks, 2, ctx)) return;
+  if(!requireColon(linetoks, 2, ctx)) return;
+  const Ident ident = requireIdent(linetoks[1], ctx);
+  if(linetoks.size() > 3) {
+    if(ident) parseSingleLineRule(ident, std::move(linetoks), ctx, rl);
+    return;
+  }
   optional<GluedString> patt =
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
                          "pattern");
   if(!patt.has_value()) return;
-  const Ident ident = requireIdent(linetoks[1], ctx);
   bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
   optional<JsonTmpl> jstmpl;
   vector<PatternToRuleBinding> local_decls;

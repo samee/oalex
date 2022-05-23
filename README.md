@@ -20,7 +20,7 @@ For example, this could be a syntax in your own custom language:
     }
 
     # Finally, define what `ident` is, since we used it
-    ident := /[a-zA-Z_]+/
+    rule ident: /[a-zA-Z_]+/
 
 The grammar above can now be saved in a file (say, `example.oalex`) and be used
 to parse an example input as follows:

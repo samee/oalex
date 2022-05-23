@@ -1,6 +1,6 @@
 # expected-error: Only one `where` stanza allowed per rule
 
-int_value := /[0-9]+/
+rule int_value: /[0-9]+/
 
 rule simple_sum:
   a + b

@@ -11,8 +11,8 @@ outputs: {
   init_value: int_value,
 }
 
-ident := /[_a-zA-Z]+/
-int_value := /-?[0-9]+/
+rule ident: /[_a-zA-Z]+/
+rule int_value: /-?[0-9]+/
 
 rule asgn:
   ident = int_value

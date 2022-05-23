@@ -11,10 +11,10 @@ example hello_world:
     world
 outputs success
 
-
-ident := /[_a-zA-Z]+/
-int_value := /-?[0-9]+/
-binop := /[-+*\/]/
+# TODO: custom errors even for these simple cases
+rule ident: /[_a-zA-Z]+/
+rule int_value: /-?[0-9]+/
+rule binop: /[-+*\/]/
 
 rule decl:
   var ident = rhs;
@@ -30,7 +30,7 @@ outputs: { ident: "x", rhs: "5" }
 
 example decl:
   var x = y;
-outputs error with 'Expected int_value'
+outputs error with 'Does not match expected pattern'
 
 rule global_vars:
 

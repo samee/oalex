@@ -16,7 +16,7 @@ outputs: {
 }
 
 # Finally, define what `ident` is, since we used it
-ident := /[a-zA-Z_]+/
+rule ident: /[a-zA-Z_]+/
 
 
 # Examples like these are tested with `oalex test readme-example-good.oalex`.

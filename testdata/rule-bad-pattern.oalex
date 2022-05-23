@@ -1,6 +1,6 @@
 # expected-error: Empty '|' branch is not supported
 
-word := /[a-z]+/
+rule word: /[a-z]+/
 
 rule test:
   opt1 | | opt2

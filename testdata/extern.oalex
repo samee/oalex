@@ -9,7 +9,7 @@ example hello:
   goodbye
 outputs error with 'Expected \'hello\''
 
-ident := /[a-z_]+/
+rule ident: /[a-z_]+/
 
 # TODO more compact syntax for these rules.
 rule list_leader:
