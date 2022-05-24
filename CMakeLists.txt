@@ -93,5 +93,7 @@ add_test(NAME oalex_main_test
                  --build-path ${CMAKE_BINARY_DIR})
 
 add_test(NAME frontend_pieces_test
-         COMMAND $<TARGET_FILE:oalex-bin> test
-           ${CMAKE_SOURCE_DIR}/frontend_pieces.oalex)
+         COMMAND ${CMAKE_SOURCE_DIR}/frontend_pieces_test.py
+         --bin $<TARGET_FILE:oalex-bin>
+         --source-path ${CMAKE_SOURCE_DIR}
+         --build-path ${CMAKE_BINARY_DIR})
