@@ -1,6 +1,6 @@
 # expected-error: The expected error should be 'single-quoted'
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello:
   Hello!

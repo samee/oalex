@@ -1,5 +1,5 @@
 # expected-error: Expected end of line
 
-x := "Hello!" and more
+rule x: 'Hello!' and more
 
 

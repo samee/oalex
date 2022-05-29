@@ -1,6 +1,6 @@
 # expected-error: Expected end of line
 
-hello := "Hello"
+rule hello: "Hello"
 
 example hello:
   Hello

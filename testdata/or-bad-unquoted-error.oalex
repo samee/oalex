@@ -1,6 +1,6 @@
 # expected-error: Expected a quoted error message
 
-some_string := "Use 'var' instead"
+rule some_string: 'Use \'var\' instead'
 
 rule stmt choices:
 | "let" -> error some_string

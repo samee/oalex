@@ -1,5 +1,5 @@
 # expected-error: Was expecting a ':' after this
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example required_hello not provided

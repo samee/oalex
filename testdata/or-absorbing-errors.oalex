@@ -2,8 +2,8 @@
 # We need to test if a success-returning but error-making peekMatch()
 # is considered a successful peek or failed peek.
 
-acceptTestWord := "TestWord"
-rejectTestWord := "BadWord"
+rule acceptTestWord: 'TestWord'
+rule rejectTestWord: 'BadWord'
 
 # TODO: change this keyword `lookahead` to `any_of` or `one_of`.
 # Or without underscores: like `any of` or `one of`.

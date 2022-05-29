@@ -740,8 +740,14 @@ unique_ptr<const RuleExpr>
 makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
   if(auto* regex = get_if<RegexPattern>(&tok)) {
     return make_unique<RuleExprRegex>(regex->patt->clone());
+  }else if(auto* gs = get_if<GluedString>(&tok)) {
+    if(gs->ctor() != GluedString::Ctor::squoted) {
+      if(gs->ctor() == GluedString::Ctor::dquoted)
+        Error(ctx, *gs, "Double-quoted patterns not yet implemented");
+      else
+        Error(ctx, *gs, "Strings need to be 'quoted'");
+    }else return make_unique<RuleExprSquoted>(string(*gs));
   }
-  std::ignore = ctx;
   return nullptr;
 }
 

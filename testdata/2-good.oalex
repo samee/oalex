@@ -1,5 +1,5 @@
 
-byebye := "Goodbye"
+rule byebye: 'Goodbye'
 
 example byebye:
   Goodbye

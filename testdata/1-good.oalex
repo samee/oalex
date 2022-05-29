@@ -1,7 +1,7 @@
 # Some comment
 
-hello := "Hello!"
-another_string := "something else"
+rule hello: 'Hello!'
+rule another_string: 'something else'
 
 example hello:
   Hello!

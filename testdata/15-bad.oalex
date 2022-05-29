@@ -1,6 +1,6 @@
 # expected-error: Was expecting 'outputs'
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello:
   Hello!

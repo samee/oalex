@@ -1,6 +1,6 @@
 # expected-error: Input block needs to be on the following line
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello: "Hello!"
 

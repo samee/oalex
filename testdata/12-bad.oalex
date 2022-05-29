@@ -1,6 +1,6 @@
 # expected-error: The expected error should be on this line
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello:
   Hello!

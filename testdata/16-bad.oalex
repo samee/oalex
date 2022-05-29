@@ -1,6 +1,6 @@
 # expected-error: Was expecting ': {', 'success', or 'error with'
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello:
   Hello!

@@ -1,5 +1,5 @@
-long_word := "aVeryLongWordIndeedDontShortenIt"
-short_word := "shortWord"
+rule long_word: 'aVeryLongWordIndeedDontShortenIt'
+rule short_word: 'shortWord'
 
 rule long_look choices:
 | long_word -> error "too long"

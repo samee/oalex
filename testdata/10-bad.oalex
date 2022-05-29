@@ -1,6 +1,6 @@
 # expected-error: No indented example input follows
 
-hello := "Hello!"
+rule hello: 'Hello!'
 
 example hello:
 
