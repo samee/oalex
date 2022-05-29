@@ -1,0 +1,6 @@
+# expected-error: Identifier expected
+
+rule 0stmt choices:
+| hello
+
+rule hello: 'hello'

@@ -119,9 +119,18 @@ resemblesIdent(const ExprToken& x) {
   auto* seg = get_if<WholeSegment>(&x);
   if(!seg) return false;
   const string& s = **seg;
-  if(s.empty() || isdigit(s[0])) return false;
   for(char ch : s) if(!isalnum(ch) && ch != '_') return false;
   return true;
+}
+
+Ident
+requireIdent(const ExprToken& x, DiagsDest ctx) {
+  const WholeSegment* seg = get_if<WholeSegment>(&x);
+  if(!seg || (*seg)->empty() || isdigit((*seg)->at(0)) || !resemblesIdent(x)) {
+    Error(ctx, x, "Identifier expected");
+    return Ident{};
+  }
+  return Ident::parse(ctx, std::get<WholeSegment>(x));
 }
 
 bool
@@ -745,8 +754,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
                          "pattern");
   if(!patt.has_value()) return;
-  // Guaranteed to succeed by resemblesRule().
-  const auto ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
+  const Ident ident = requireIdent(linetoks[1], ctx);
   bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
   optional<JsonTmpl> jstmpl;
   vector<PatternToRuleBinding> local_decls;
@@ -778,6 +786,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
   if(errors.holdsErrorValue()) errors = JsonLoc::Map{};
 
+  if(!ident) return;
   if(!sawOutputsKw) {
     if(sawWhereKw)
       appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
@@ -911,7 +920,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
           "Expected choice branches after this");
     return;
   }
-  const Ident ruleName = Ident::parse(ctx, std::get<WholeSegment>(linetoks[1]));
+  const Ident ruleName = requireIdent(linetoks[1], ctx);
   OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
@@ -926,6 +935,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
     if(!parseBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))
       continue;
   }
+  if(!ruleName) return;
   ssize_t orIndex = rl.defineIdent(ctx, ruleName);
   if(orIndex != -1) rl.deferred_assign(orIndex, std::move(orRule));
 }
@@ -946,7 +956,7 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   Example rv;
   // Guaranteed to succeed by resemblesExample().
   rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
-  rv.ruleName = Ident::parse(ctx, *get_if<WholeSegment>(&linetoks[1]));
+  rv.ruleName = requireIdent(linetoks[1], ctx);
   if(!rv.ruleName) return nullopt;
 
   if(auto sampleInput =
