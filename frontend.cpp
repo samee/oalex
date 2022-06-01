@@ -829,6 +829,54 @@ makeRuleExprConcat(const BracketGroup& bg, DiagsDest ctx) {
   else return make_unique<RuleExprConcat>(std::move(rv));
 }
 
+bool
+repeatCompEqual(const ExprToken& a, const ExprToken& b) {
+  if(exprType(a) != exprType(b)) return false;
+  if(auto* seg = get_if<WholeSegment>(&a))
+    return **seg == *std::get<WholeSegment>(b);
+  else if(auto* s = get_if<GluedString>(&a))
+    return string_view(*s) == string_view(std::get<GluedString>(b));
+  else Bug("repeatCompEqual() called with invalid tokens: {}",
+           exprTagName(a));
+}
+
+unique_ptr<const RuleExpr>
+makeRuleExprAtomVector(const vector<ExprToken>& toks, size_t st, size_t en,
+                       DiagsDest ctx) {
+  if(st == en) return nullptr;
+  if(st+1 == en) return makeRuleExprAtom(ctx, toks[st]);
+  vector<unique_ptr<const RuleExpr>> concat_parts;
+  for(size_t i=st; i<en; ++i)
+    concat_parts.push_back(makeRuleExprAtom(ctx, toks[i]));
+  return make_unique<RuleExprConcat>(std::move(concat_parts));
+}
+
+unique_ptr<const RuleExpr>
+makeRuleExprRepeat(const vector<ExprToken>& toks, size_t ellPos,
+                   DiagsDest ctx) {
+  size_t validSizeCount = 0, validGlueSize = toks.size();
+  for(size_t glueSize=0; glueSize<toks.size(); ++glueSize) {
+    bool partEqual = equal(toks.begin(), toks.begin()+ellPos-glueSize,
+                           toks.end()-ellPos+glueSize, repeatCompEqual);
+    bool glueEqual = equal(toks.begin()+ellPos-glueSize, toks.begin()+ellPos,
+                           toks.end()-ellPos, repeatCompEqual);
+    if(partEqual && glueEqual) {
+      validGlueSize = glueSize;
+      ++validSizeCount;
+    }
+  }
+  if(validSizeCount == 0)
+    Error(ctx, toks[ellPos], "No obvious repeating component around ellipsis");
+  else if(validSizeCount > 1)  // TODO: be more forgiving, like pattern.cpp
+    Error(ctx, toks[ellPos], "Ambiguous ellipsis. Try reducing repeats");
+  else {
+    return make_unique<RuleExprRepeat>(
+        makeRuleExprAtomVector(toks, 0, ellPos-validGlueSize, ctx),
+        makeRuleExprAtomVector(toks, ellPos-validGlueSize, ellPos, ctx) );
+  }
+  return nullptr;
+}
+
 unique_ptr<const RuleExpr>
 makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
   if(bg.type != BracketType::paren && bg.type != BracketType::square) {
@@ -853,7 +901,7 @@ makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
           "Ellipsis expressions can only have simple components");
     return nullptr;
   }else if(ellPos < n) {
-    Error(ctx, bg.children[ellPos], "Repeats unimplemented");
+    result = makeRuleExprRepeat(bg.children, ellPos, ctx);
   }else {
     result = makeRuleExprConcat(bg, ctx);
   }
