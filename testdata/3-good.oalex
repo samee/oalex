@@ -35,3 +35,9 @@ outputs error with 'Expected \'Hello!\''
 example hello_single_quoted:
   GoodBye
 outputs error with 'Expected \'Hello!\''
+
+rule nested_rule: (nested_field ~ hello_single_quoted)
+
+example nested_rule:
+  Hello!
+outputs: {nested_field: {msg: "Hello!"}}
