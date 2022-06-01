@@ -736,6 +736,28 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+size_t
+findComplexComponent(const vector<ExprToken>& toks) {
+  for(size_t i=0; i<toks.size(); ++i) {
+    // continue on "simple" tokens, return on everything else.
+    if(holds_alternative<WholeSegment>(toks[i])) {
+      if(isToken(toks[i], "...") || resemblesIdent(toks[i])) continue;
+    }else if(const auto* gs = get_if<GluedString>(&toks[i])) {
+      if(gs->ctor() == GluedString::Ctor::squoted) continue;
+    }
+    return i;
+  }
+  return toks.size();  // Nothing complex found.
+}
+tuple<size_t,size_t>
+findAndCountEllipsis(const vector<ExprToken>& toks) {
+  size_t count=0, pos = toks.size();
+  for(size_t i=0; i<toks.size(); ++i) if(isToken(toks[i], "...")) {
+    ++count; pos=i;
+  }
+  return tuple{count, pos};
+}
+
 bool
 hasAnyTlide(const vector<ExprToken>& toks) {
   for(auto& tok:toks) if(isToken(tok, "~")) return true;
@@ -788,6 +810,25 @@ makeMappedIdentRuleExpr(DiagsDest ctx, const vector<ExprToken>& toks) {
   return make_unique<RuleExprMappedIdent>(std::move(lhs), std::move(rhs));
 }
 
+// Forward decl
+unique_ptr<const RuleExpr>
+makeRuleExpr(const ExprToken& tok, DiagsDest ctx);
+
+unique_ptr<const RuleExpr>
+makeRuleExprConcat(const BracketGroup& bg, DiagsDest ctx) {
+  const vector<ExprToken>& toks = bg.children;
+  if(toks.empty()) {
+    Error(ctx, bg, "This cannot be empty");
+    return nullptr;
+  }
+  vector<unique_ptr<const RuleExpr>> rv;
+  for(auto& tok: toks) if(auto part = makeRuleExpr(tok, ctx))
+    rv.push_back(std::move(part));
+  if(rv.empty()) return nullptr;
+  else if(rv.size() == 1) return std::move(rv[0]);
+  else return make_unique<RuleExprConcat>(std::move(rv));
+}
+
 unique_ptr<const RuleExpr>
 makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
   if(bg.type != BracketType::paren && bg.type != BracketType::square) {
@@ -795,8 +836,26 @@ makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
     return nullptr;
   }
   unique_ptr<const RuleExpr> result = nullptr;
+  const size_t n = bg.children.size();
+  size_t complexChild = findComplexComponent(bg.children);
+  auto [ellCount, ellPos] = findAndCountEllipsis(bg.children);
+
   if(hasAnyTlide(bg.children)) {
     result = makeMappedIdentRuleExpr(ctx, bg.children);
+  }
+  else if(ellCount > 1) {
+    Error(ctx, bg.children[ellPos],
+          "Multiple ellipses. Separate them using parenthesis");
+    return nullptr;
+  }
+  else if(ellCount == 1 && complexChild < n) {
+    Error(ctx, bg.children[complexChild],
+          "Ellipsis expressions can only have simple components");
+    return nullptr;
+  }else if(ellPos < n) {
+    Error(ctx, bg.children[ellPos], "Repeats unimplemented");
+  }else {
+    result = makeRuleExprConcat(bg, ctx);
   }
 
   if(!result) return nullptr;

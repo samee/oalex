@@ -1,0 +1,3 @@
+# expected-error: Multiple ellipses
+
+rule foo: ('a' ... 'a' ... 'a')

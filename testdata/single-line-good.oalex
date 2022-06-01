@@ -1,0 +1,11 @@
+rule string_body_only: ('"' (body ~ /([^"\\]|\\.)*/) '"')
+
+example string_body_only:
+  "hello world"
+outputs: { body: "hello world" }
+
+rule single_component: (string_body_only)
+
+example single_component:
+  "hello world"
+outputs: { string_body_only: { body: "hello world" } }

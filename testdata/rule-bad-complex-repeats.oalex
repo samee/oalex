@@ -1,0 +1,3 @@
+# expected-error: Ellipsis expressions can only have simple components
+
+rule foo: ('a' ... (more stuff))

@@ -1,0 +1,3 @@
+# expected-error: cannot be empty
+
+rule foo: ()

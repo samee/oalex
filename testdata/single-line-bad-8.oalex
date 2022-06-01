@@ -1,0 +1,3 @@
+# expected-error: can only have simple components
+
+rule regex_repeats: (/abc/ ... /abc/)
