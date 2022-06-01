@@ -736,8 +736,12 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+// Returns non-null if successful. Produces no diags if token is a
+// BracketGroup, just returns null. On other token types, returns null and
+// produces error.
+// Top-level caller TODO: requireEol and RuleExprIdent
 unique_ptr<const RuleExpr>
-makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
+makeRuleExprAtom(DiagsDest ctx, const ExprToken& tok) {
   if(auto* regex = get_if<RegexPattern>(&tok)) {
     return make_unique<RuleExprRegex>(regex->patt->clone());
   }else if(auto* gs = get_if<GluedString>(&tok)) {
@@ -749,6 +753,16 @@ makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
     }else return make_unique<RuleExprSquoted>(string(*gs));
   }
   return nullptr;
+}
+
+unique_ptr<const RuleExpr>
+makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
+  unique_ptr<const RuleExpr> rv = makeRuleExprAtom(ctx, tok);
+  if(!rv) {
+    if(auto* bg = get_if<BracketGroup>(&tok))
+      Error(ctx, *bg, "Grouping unimplemented");
+  }
+  return rv;
 }
 
 // Assumes linetoks.size() >= 4
