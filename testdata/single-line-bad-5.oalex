@@ -1,0 +1,3 @@
+# expected-error: The right-hand side is missing
+
+rule foo: (bar ~)

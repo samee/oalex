@@ -736,6 +736,12 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+bool
+hasAnyTlide(const vector<ExprToken>& toks) {
+  for(auto& tok:toks) if(isToken(tok, "~")) return true;
+  return false;
+}
+
 // Returns non-null if successful. Produces no diags if token is a
 // BracketGroup, just returns null. On other token types, returns null and
 // produces error.
@@ -751,8 +757,47 @@ makeRuleExprAtom(DiagsDest ctx, const ExprToken& tok) {
       else
         Error(ctx, *gs, "Strings need to be 'quoted'");
     }else return make_unique<RuleExprSquoted>(string(*gs));
-  }
+  }else if(!holds_alternative<BracketGroup>(tok))
+    Error(ctx, tok, "Not a valid rule definition");
   return nullptr;
+}
+
+unique_ptr<const RuleExpr>
+makeMappedIdentRuleExpr(DiagsDest ctx, const vector<ExprToken>& toks) {
+  if(toks.size() == 0) Bug("hasAnyTlide() returned false on empty vector");
+  Ident lhs = requireIdent(toks[0], ctx);
+  if(!matchesTokens(toks, 1, {"~"})) {
+    Error(ctx, enPos(toks[0]), "Expected '~'");
+    return nullptr;
+  }
+  if(toks.size() <= 2) {
+    Error(ctx, enPos(toks[1]), "The right-hand side is missing");
+    return nullptr;
+  }
+  unique_ptr<const RuleExpr> rhs = makeRuleExprAtom(ctx, toks[2]);
+  if(!rhs) return nullptr;
+  if(toks.size() != 3) {
+    Error(ctx, enPos(toks[2]), "Expected ')' after this");
+    return nullptr;
+  }
+  return make_unique<RuleExprMappedIdent>(std::move(lhs), std::move(rhs));
+}
+
+unique_ptr<const RuleExpr>
+makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
+  if(bg.type != BracketType::paren && bg.type != BracketType::square) {
+    Error(ctx, bg, "Not a valid rule definition");
+    return nullptr;
+  }
+  unique_ptr<const RuleExpr> result = nullptr;
+  if(hasAnyTlide(bg.children)) {
+    result = makeMappedIdentRuleExpr(ctx, bg.children);
+  }
+
+  if(!result) return nullptr;
+  if(bg.type == BracketType::square)
+    return make_unique<RuleExprOptional>(std::move(result));
+  else return result;
 }
 
 unique_ptr<const RuleExpr>
@@ -760,7 +805,7 @@ makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
   unique_ptr<const RuleExpr> rv = makeRuleExprAtom(ctx, tok);
   if(!rv) {
     if(auto* bg = get_if<BracketGroup>(&tok))
-      Error(ctx, *bg, "Grouping unimplemented");
+      rv = makeBracketRuleExpr(*bg, ctx);
   }
   return rv;
 }

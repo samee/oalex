@@ -12,6 +12,26 @@ example hello_in_json:
   Hello!
 outputs success
 
+# Tolerates space!
+example hello_in_json:
+  Hello !
+outputs success
+
 example hello_in_json:
   GoodBye
 outputs error with 'Expected \'Hello\''
+
+rule hello_single_quoted: (msg ~ 'Hello!')
+
+example hello_single_quoted:
+  Hello!
+outputs success
+
+# Tolerates no space
+example hello_single_quoted:
+  Hello !
+outputs error with 'Expected \'Hello!\''
+
+example hello_single_quoted:
+  GoodBye
+outputs error with 'Expected \'Hello!\''

@@ -1,0 +1,3 @@
+# expected-error: Expected '~'
+
+rule foo: (bar baz ~)

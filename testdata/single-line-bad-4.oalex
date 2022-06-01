@@ -1,0 +1,2 @@
+# expected-error: Not a valid rule definition
+rule foo: (bar ~ ~)

@@ -1,0 +1,3 @@
+# expected-error: Not a valid rule definition
+
+rule foo: { something }
