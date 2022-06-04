@@ -1,2 +1,0 @@
-# expected-error: Was expecting '['
-greetings := Concat { 'Hello', 'World' }

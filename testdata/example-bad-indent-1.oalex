@@ -1,7 +1,8 @@
 # expected-error: Code block needs more indentation
 
-greetings := Concat ['Hello', space, 'World']
-space := SkipPoint withinLine
+rule greetings:
+  Hello World
+outputs: {}
 
 example greetings:
 Hello World

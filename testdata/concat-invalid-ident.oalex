@@ -1,5 +1,0 @@
-# expected-error: Identifiers cannot start with a digit
-
-rule int_value: /[0-9]+/
-
-num_pairs := Concat[int_value, 42]

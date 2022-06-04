@@ -1,4 +1,0 @@
-# expected-error: Expected braces after this
-
-decl := Concat[word 'var', space, /[a-z]+/, space, ';'] -> arg3
-space := SkipPoint acrossLines

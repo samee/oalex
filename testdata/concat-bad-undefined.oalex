@@ -1,2 +1,6 @@
-# expected-error: 2:32-42: error: Rule 'not_defined' was used but never defined
-greetings := Concat [ 'Hello', not_defined ]
+# expected-error: 6:11-21: error: Rule 'not_defined' was used but never defined
+
+rule greetings:
+  Hello world
+where:
+  world ~ not_defined

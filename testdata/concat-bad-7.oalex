@@ -1,2 +1,0 @@
-# expected-error: Was expecting a string or an identifier
-greetings := Concat [ 'Hello', 'World', [] ]

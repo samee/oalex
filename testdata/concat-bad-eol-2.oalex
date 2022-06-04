@@ -1,2 +1,0 @@
-# expected-error: Expected end of line
-greetings := Concat [ 'Hello', 'World' ] -> {v1: arg1, v2: arg2} and more

@@ -14,7 +14,6 @@
 
 #include "frontend.h"
 
-#include <algorithm>
 #include <memory>
 #include <optional>
 #include <string_view>
@@ -40,12 +39,10 @@ using oalex::LexDirective;
 using oalex::Note;
 using oalex::OutputTmpl;
 using oalex::parseJsonTmplFromBracketGroup;
-using oalex::parsePattern;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
 using oalex::passthroughTmpl;
 using oalex::Pattern;
-using oalex::tokenizePattern;
 using oalex::WholeSegment;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
@@ -53,14 +50,12 @@ using oalex::lex::BracketType;
 using oalex::lex::ExprToken;
 using oalex::lex::fromSegment;
 using oalex::lex::GluedString;
-using oalex::lex::inputSegment;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
 using oalex::lex::lexListEntries;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookahead;
 using oalex::lex::lookaheadParIndent;
-using oalex::lex::NewlineChar;
 using oalex::lex::oalexSkip;
 using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
@@ -71,11 +66,9 @@ using std::holds_alternative;
 using std::make_unique;
 using std::nullopt;
 using std::optional;
-using std::sort;
 using std::string;
 using std::string_view;
 using std::tuple;
-using std::unique;
 using std::unique_ptr;
 using std::vector;
 
@@ -144,24 +137,6 @@ requireEol(const vector<ExprToken>& linetoks, size_t eolPos, DiagsDest ctx) {
   return true;
 }
 
-char
-bracketStart(BracketType bt) {
-  switch(bt) {
-    case BracketType::square: return '[';
-    case BracketType::brace: return '{';
-    case BracketType::paren: return '(';
-    default: Bug("Unknown BracketType {}", int(bt));
-  }
-}
-
-bool
-requireBracketType(const BracketGroup& bg, BracketType bt, DiagsDest ctx) {
-  if(bg.type != bt) {
-    Error(ctx, bg.stPos, format("Was expecting '{}'", bracketStart(bt)));
-    return false;
-  }else return true;
-}
-
 template <class T> T*
 get_if_in_bound(vector<ExprToken>& toks, size_t i, DiagsDest ctx) {
   if(toks.empty()) Bug("get_if_in_bound expects non-empty input");
@@ -193,154 +168,11 @@ resemblesX() vs parseX().
     of making forward progress.
 */
 bool
-resemblesBnfRule(const vector<ExprToken>& linetoks) {
-  return linetoks.size() >= 2 && isToken(linetoks[1], ":=");
-}
-
-/* This function is called when linetoks is of the form
-   {someVar, ":=", "Concat", ...}. It ignores these first 3 tokens, then
-   parses the part after "Concat". On success, it returns a ConcatRule that
-   should be inserted into findOrAppendIdent(someVar). On failure, it returns
-   nullopt.
-*/
-optional<ConcatRule>
-parseConcatRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
-  auto* bg = get_if_in_bound<BracketGroup>(linetoks, 3, ctx);
-  if(!bg) return nullopt;
-  if(!requireBracketType(*bg, BracketType::square, ctx)) return nullopt;
-  vector<vector<ExprToken>> comps =
-    splitCommaNoEmpty(ctx, std::move(bg->children));
-  if(comps.empty()) return Error(ctx, *bg, "Concat rule cannot be empty");
-
-  BracketGroup* tmpl = nullptr;
-  if(linetoks.size() > 4) {
-    if(!isToken(linetoks[4], "->")) {
-      return Error(ctx, linetoks[4], "Was expecting end of line or an '->'");
-    }
-    tmpl = get_if_in_bound<BracketGroup>(linetoks, 5, ctx);
-    if(!tmpl)
-      return Error(ctx, enPos(linetoks[4]), "Expected braces after this");
-    if(!requireBracketType(*tmpl, BracketType::brace, ctx))
-      return nullopt;
-  }
-
-  ConcatRule concat{ {}, JsonTmpl::Map() };
-  size_t argc = 0;
-  for(auto&& comp : comps) {
-    string argname = "arg" + itos(++argc);
-    if(comp.size() >= 2 && isToken(comp[0], "word")) {
-      const auto* s = get_if<GluedString>(&comp[1]);
-      if(s == nullptr || s->ctor() != GluedString::Ctor::squoted) {
-        Error(ctx, comp[1], "Expected quoted string");
-        continue;
-      }
-      ssize_t newIndex = appendWordOrError(rl, *s);
-      concat.comps.push_back({newIndex, argname});
-      if(comp.size() > 2) {
-        Error(ctx, comp[2], "Was expecting a comma");
-        continue;
-      }
-      continue;
-    }
-    if(comp.size() > 1) {
-      Error(ctx, comp[1], "Expected ','");
-      continue;
-    }
-    if(const auto* tok = get_if<WholeSegment>(&comp[0])) {
-      if(Ident id = Ident::parse(ctx, *tok))
-        concat.comps.push_back({rl.findOrAppendIdent(ctx, id), argname});
-      else return nullopt;
-    }else if(const auto* s = get_if<GluedString>(&comp[0])) {
-      if(s->ctor() != GluedString::Ctor::squoted) {
-        Error(ctx, *s, "Expected strings to be single-quoted");
-        continue;
-      }
-      ssize_t newIndex = rl.ssize();
-      appendLiteralOrError(rl, *s);
-      concat.comps.push_back({newIndex, argname});
-    }else if(auto* regex = get_if<RegexPattern>(&comp[0])) {
-      ssize_t newIndex = appendRegexOrError(rl, std::move(regex->patt));
-      concat.comps.push_back({newIndex, argname});
-    }else {
-      Error(ctx, comp[0], "Was expecting a string or an identifier");
-      continue;
-    }
-  }
-  if(tmpl != nullptr) {
-    if(auto opt = parseJsonTmplFromBracketGroup(ctx, std::move(*tmpl)))
-      concat.outputTmpl = std::move(*opt);
-    if(!requireEol(linetoks, 6, ctx)) return nullopt;
-  }
-  return concat;
-}
-
-bool
 resemblesExternRule(InputDiags& ctx, size_t i) {
   const Input& input = ctx.input;
   if(input.bol(i) != i) return false;
   optional<WholeSegment> tokopt = lookahead(ctx, i);
   return tokopt && **tokopt == "extern";
-}
-
-optional<SkipPoint>
-parseSkipPoint(const vector<ExprToken>& linetoks, DiagsDest ctx) {
-  auto* seg = get_if_in_bound<WholeSegment>(linetoks, 3, ctx);
-  if(!seg) return nullopt;
-  bool withinLine;
-  if(**seg == "withinLine") withinLine = true;
-  else if(**seg == "acrossLines") withinLine = false;
-  else return Error(ctx, *seg, "Expected either 'withinLine' or 'acrossLines'");
-  if(!requireEol(linetoks, 4, ctx)) return nullopt;
-  return SkipPoint{ /* stayWithinLine */ withinLine, &oalexSkip};
-}
-
-// Dev-note: technically speaking, we could have cached this index found here
-// and reused it later for defineIdent(). In practice, if that really becomes
-// an issue, I'd be much better off using a hashmap in RulesWithLocs.
-bool
-requireUndefined(DiagsDest ctx, const RulesWithLocs& rl, const Ident& ident) {
-  ssize_t i = rl.findIdent(ctx, ident);
-  if(i == -1) return true;
-  if(dynamic_cast<const UnassignedRule*>(&rl[i])) return true;
-  Error(ctx, ident.stPos(), ident.enPos(),
-        format("'{}' has multiple definitions", ident.preserveCase()));
-  return false;
-}
-
-void
-parseBnfRule(vector<ExprToken> linetoks, DiagsDest ctx, RulesWithLocs& rl) {
-  const Ident ident = Ident::parse(ctx, std::get<WholeSegment>(linetoks[0]));
-  if(!ident) {
-    Error(ctx, linetoks[0], "Identifier expected");
-    return;
-  }
-  if(!requireUndefined(ctx, rl, ident)) return;
-  ssize_t orig_size = rl.ssize();
-  if(linetoks.size() < 3) {
-    Error(ctx, linetoks[1], "Rule's right-hand side missing");
-  }else if(const auto* literal = get_if<GluedString>(&linetoks[2])) {
-    if(!requireEol(linetoks, 3, ctx)) return;
-    const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
-    assignLiteralOrError(rl, ruleIndex, *literal);
-  }else if(auto* regex = get_if<RegexPattern>(&linetoks[2])) {
-    if(!requireEol(linetoks, 3, ctx)) return;
-    const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
-    string errmsg = format("Expected {}", ident.preserveCase());
-    assignRegexOrError(rl, ruleIndex, std::move(errmsg),
-                       std::move(regex->patt));
-  }else if(isToken(linetoks[2], "Concat")) {
-    if(optional<ConcatRule> c = parseConcatRule(std::move(linetoks),ctx,rl)) {
-      const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
-      rl.deferred_assign(ruleIndex, std::move(*c));
-    }else rl.resize_down(orig_size);
-  }else if(isToken(linetoks[2], "SkipPoint")) {
-    if(optional<SkipPoint> sp = parseSkipPoint(linetoks, ctx)) {
-      const ssize_t ruleIndex = rl.defineIdent(ctx, ident);
-      rl.deferred_assign(ruleIndex, std::move(*sp));
-    }else rl.resize_down(orig_size);
-  }else {
-    Error(ctx, linetoks[2], "Expected string literal");
-  }
 }
 
 // Returns true iff tokens is a sequence of WholeSegments matching
@@ -1314,9 +1146,7 @@ parseOalexSource(InputDiags& ctx) {
     }
     if(parse_error) continue;
 
-    if(resemblesBnfRule(linetoks)) {
-      parseBnfRule(std::move(linetoks), ctx, rl);
-    }else if(resemblesExample(linetoks)) {
+    if(resemblesExample(linetoks)) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
     }else if(resemblesMultiMatchRule(linetoks)) {

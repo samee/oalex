@@ -1,3 +1,0 @@
-# expected-error: Expected string literal
-
-x := y

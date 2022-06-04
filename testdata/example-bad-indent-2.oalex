@@ -1,7 +1,8 @@
 # expected-error: Bad mix of spaces and tabs
 
-greetings := Concat ['Hello', space, 'World']
-space := SkipPoint withinLine
+rule greetings:
+  Hello World
+outputs {}
 
   example greetings:
 	Hello World

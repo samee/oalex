@@ -1,2 +1,0 @@
-# expected-error: Unexpected comma
-greetings := Concat ['Hello',, 'World']
