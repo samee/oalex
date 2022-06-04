@@ -49,7 +49,7 @@ namespace oalex {
 // ident_test.cpp with regex_io.cpp.
 struct WholeSegment;
 struct InputDiags;
-struct StringLoc;
+class StringLoc;
 class DiagsDest;
 
 // This class is meant to represent an identifier in the _generated_ code, not
