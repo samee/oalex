@@ -709,7 +709,8 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
   }
 }
 
-// This is when `output:` is specified.
+// This function looks up rule names, and resolves them to rule indices.
+// It combines variables used in an `output:` template and in a `where` stanza.
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,

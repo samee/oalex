@@ -1,0 +1,8 @@
+# expected-error: Reusing rule name is allowed only if its use is unique
+
+rule asgn:
+  let var = lhs;
+where:
+  var, lhs ~ var
+
+rule var: /[a-zA-Z_]+/
