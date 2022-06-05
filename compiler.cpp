@@ -681,10 +681,18 @@ findRuleLocalBinding(DiagsDest ctx, const Ident& outputIdent,
   return nullptr;
 }
 
+static const Ident*
+getIfIdent(const RuleExpr& rxpr) {
+  if(auto* idxpr = dynamic_cast<const RuleExprIdent*>(&rxpr))
+    return &idxpr->ident;
+  else return nullptr;
+}
+
 static vector<Ident>
 filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
   vector<Ident> rv;
-  for(auto& b : pattToRule) rv.push_back(b.ruleName);
+  for(auto& b : pattToRule) if(auto* ruleName = getIfIdent(*b.ruleExpr))
+    rv.push_back(*ruleName);
   sort(rv.begin(), rv.end());
   size_t i=0, j=0;
   for(i=j=0; j<rv.size(); ++j) {
@@ -695,11 +703,13 @@ filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
   rv.erase(rv.begin()+i, rv.end());
   return rv;
 }
+
 static void
 reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
                        const PatternToRuleBinding& binding,
                        const vector<Ident>& unq_lhs) {
-  if(binding.outTmplKey != binding.ruleName)
+  const Ident* rname = getIfIdent(*binding.ruleExpr);
+  if(!rname || binding.outTmplKey != *rname)
     rl.reserveLocalName(ctx, binding.outTmplKey);
   else if(!std::binary_search(unq_lhs.begin(), unq_lhs.end(),
                               binding.outTmplKey)) {
@@ -708,6 +718,9 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
           "its use is unique in this definition");
   }
 }
+
+static ssize_t
+appendRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl);
 
 // This function looks up rule names, and resolves them to rule indices.
 // It combines variables used in an `output:` template and in a `where` stanza.
@@ -719,22 +732,21 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
-    Ident ruleIdent;
 
     const PatternToRuleBinding* local
       = findRuleLocalBinding(ctx, outputIdent, pattToRule);
+    ssize_t ruleIndex = -1;
     if(local != nullptr) {
       reserveLocalNameInRule(ctx, rl, *local, unq_lhs);
-      ruleIdent = local->ruleName;
-    }else ruleIdent = outputIdent;
-    ssize_t ruleIndex = rl.findOrAppendIdent(ctx, ruleIdent);
+      ruleIndex = appendRuleExpr(ctx, *local->ruleExpr, rl);
+    }else ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
   // Duplicates a few entries, but seems mostly harmless for now.
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     rv.emplace_back(binding.outTmplKey,
-                    rl.findOrAppendIdent(ctx, binding.ruleName));
+                    appendRuleExpr(ctx, *binding.ruleExpr, rl));
   }
   return rv;
 }
@@ -1040,6 +1052,17 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
+}
+
+// Dev-note: this currently does a better job of handling `left ~ right`,
+// where the right-hand side is just a single identifier. assignRuleExpr()
+// needs to fix this by resoving the todo there.
+ssize_t
+appendRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl) {
+  if(auto* id = getIfIdent(rxpr)) return rl.findOrAppendIdent(ctx, *id);
+  ssize_t newIndex = rl.appendAnonRule(DefinitionInProgress{});
+  assignRuleExpr(ctx, rxpr, rl, newIndex);
+  return newIndex;
 }
 
 void

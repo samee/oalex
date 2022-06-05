@@ -491,7 +491,7 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
   if(!rulename) return;
   p2rule.push_back(PatternToRuleBinding{
     .pp{std::move(*patt)}, .outTmplKey{std::move(outkey)},
-    .ruleName{std::move(rulename)}
+    .ruleExpr{make_unique<RuleExprIdent>(std::move(rulename))},
   });
   requireEol(line, 5, ctx);
 }
@@ -510,12 +510,14 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
     Error(ctx, enPos(line[0]), "Expected rule name after this");
   else {
     for(const auto& elt : lhs) {
+      Ident ruleName = Ident::parse(ctx, *rhs);
+      if(!ruleName) continue;
       PatternToRuleBinding binding{
         .pp{GluedString{
           WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
         }},
         .outTmplKey{elt},
-        .ruleName{Ident::parse(ctx, *rhs)},
+        .ruleExpr{make_unique<RuleExprIdent>(std::move(ruleName))},
       };
       if(requireUniqueBinding(p2rule, binding, ctx))
         p2rule.push_back(std::move(binding));

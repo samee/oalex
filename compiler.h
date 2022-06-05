@@ -107,17 +107,6 @@ class RulesWithLocs {
   std::vector<Ident> reservedLocalNames_;
 };
 
-// These are the usual entries in a `where:` stanza of a rule. An entry:
-//
-//   "patt" as var ~ lhs
-//
-// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
-struct PatternToRuleBinding {
-  PartPattern pp;
-  Ident outTmplKey;
-  Ident ruleName;
-};
-
 // We generalize the ruleName in PatternToRuleBinding to the more general
 // concept of "rule expressions".
 // TODO: Actually change ruleName to ruleExpr in PatternToRuleBinding.
@@ -174,6 +163,17 @@ class RuleExprOptional final : public RuleExpr {
   explicit RuleExprOptional(std::unique_ptr<const RuleExpr> p)
     : part{std::move(p)} {}
   std::unique_ptr<const RuleExpr> part;
+};
+
+// These are the usual entries in a `where:` stanza of a rule. An entry:
+//
+//   "patt" as var ~ lhs
+//
+// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
+struct PatternToRuleBinding {
+  PartPattern pp;
+  Ident outTmplKey;
+  std::unique_ptr<const RuleExpr> ruleExpr;
 };
 
 void
