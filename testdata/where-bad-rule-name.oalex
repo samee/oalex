@@ -1,4 +1,4 @@
-# expected-error: Expected rule name
+# expected-error: Not a valid rule definition
 
 rule test:
   Hello

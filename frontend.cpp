@@ -99,6 +99,10 @@ Expectation::matches(const JsonLoc& jsloc,
 
 namespace {
 
+// Forward decl
+unique_ptr<const RuleExpr>
+makeRuleExpr(const ExprToken& tok, DiagsDest ctx);
+
 string
 debug(const ExprToken& x) {
   if(auto* tok = get_if<WholeSegment>(&x)) return **tok;
@@ -484,15 +488,15 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
     Error(ctx, line[2], "Expected '~' after this");
     return;
   }
-  ws = line.size() >= 5 ? get_if<WholeSegment>(&line[4]) : nullptr;
-  Ident rulename;
-  if(ws) rulename = Ident::parse(ctx, *ws);
-  else Error(ctx, line[4], "Expected rule name");
-  if(!rulename) return;
-  p2rule.push_back(PatternToRuleBinding{
-    .pp{std::move(*patt)}, .outTmplKey{std::move(outkey)},
-    .ruleExpr{make_unique<RuleExprIdent>(std::move(rulename))},
-  });
+  if(line.size() < 5)
+    Error(ctx, enPos(line.back()), "Expected a rule expression");
+  else {
+    unique_ptr<const RuleExpr> rxpr = makeRuleExpr(line[4], ctx);
+    if(rxpr) p2rule.push_back(PatternToRuleBinding{
+        .pp{std::move(*patt)}, .outTmplKey{std::move(outkey)},
+        .ruleExpr{std::move(rxpr)},
+      });
+  }
   requireEol(line, 5, ctx);
 }
 
@@ -501,23 +505,21 @@ void
 parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
                             vector<PatternToRuleBinding>& p2rule) {
   vector<Ident> lhs = consumeIdentList(ctx, line, "pattern name");
-  const WholeSegment* rhs
-    = (line.size() >= 2 ? get_if<WholeSegment>(&line[1]) : nullptr);
   if(lhs.empty()) { /* do nothing, consumeIdentList already emitted errors */ }
   else if(!matchesTokens(line, 0, {"~"}))
     Error(ctx, lhs.back().enPos(), "Expected '~' after this");
-  else if(rhs == nullptr)
-    Error(ctx, enPos(line[0]), "Expected rule name after this");
+  else if(line.size() < 2)
+    Error(ctx, enPos(line.back()), "Expected rule expression after this");
   else {
     for(const auto& elt : lhs) {
-      Ident ruleName = Ident::parse(ctx, *rhs);
-      if(!ruleName) continue;
+      unique_ptr<const RuleExpr> rxpr = makeRuleExpr(line[1], ctx);
+      if(!rxpr) continue;
       PatternToRuleBinding binding{
         .pp{GluedString{
           WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
         }},
         .outTmplKey{elt},
-        .ruleExpr{make_unique<RuleExprIdent>(std::move(ruleName))},
+        .ruleExpr{std::move(rxpr)},
       };
       if(requireUniqueBinding(p2rule, binding, ctx))
         p2rule.push_back(std::move(binding));
@@ -643,10 +645,6 @@ makeMappedIdentRuleExpr(DiagsDest ctx, const vector<ExprToken>& toks) {
   }
   return make_unique<RuleExprMappedIdent>(std::move(lhs), std::move(rhs));
 }
-
-// Forward decl
-unique_ptr<const RuleExpr>
-makeRuleExpr(const ExprToken& tok, DiagsDest ctx);
 
 unique_ptr<const RuleExpr>
 makeRuleExprConcat(const BracketGroup& bg, DiagsDest ctx) {

@@ -14,7 +14,6 @@ outputs success
 # TODO: custom errors even for these simple cases
 rule ident: /[_a-zA-Z]+/
 rule int_value: /-?[0-9]+/
-rule binop: /[-+*\/]/
 
 rule decl:
   var ident = rhs;
@@ -97,8 +96,8 @@ outputs success
 rule binop_expr:
   lhs + rhs
 where:
-  lhs, rhs ~ ident
-  "+" as binop ~ binop
+  lhs, rhs ~ /[a-zA-Z_]/  # Avoid `ident` to test inline regex
+  "+" as binop ~ /[-+*\/]/
 
 example binop_expr:
   a * b

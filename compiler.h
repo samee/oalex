@@ -109,7 +109,6 @@ class RulesWithLocs {
 
 // We generalize the ruleName in PatternToRuleBinding to the more general
 // concept of "rule expressions".
-// TODO: Actually change ruleName to ruleExpr in PatternToRuleBinding.
 class RuleExpr {
   protected: RuleExpr() {}
   public: virtual ~RuleExpr() {}

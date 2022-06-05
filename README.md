@@ -2,25 +2,15 @@
 -------
 
 `oalex` is a parser generator for rapidly prototyping new language syntax.
-For example, this could be a syntax in your own custom language:
+For example, this could be defining the syntax for your own custom language:
 
     rule my_function_declaration:
 
-      fn fname(type param, type param, ... , type param)
+      fn name(type param, type param, ... , type param)
 
-    # Identify various parts of the pattern above
+    # Identify various parts of the pattern above.
     where:
-      fname, type, param ~ ident
-
-    # Lay out the output fields as desired
-    outputs: {
-      name      : fname,
-      type_list : [type, ...],
-      param_list: [param, ...],
-    }
-
-    # Finally, define what `ident` is, since we used it
-    rule ident: /[a-zA-Z_]+/
+      name, type, param ~ /[a-zA-Z_]+/
 
 The grammar above can now be saved in a file (say, `example.oalex`) and be used
 to parse an example input as follows:
@@ -28,11 +18,11 @@ to parse an example input as follows:
     $ echo 'fn connect(int x, string s)' | oalex eval example.oalex
     {
       "name": "connect",
-      "param_list": [
+      "param": [
         "x",
         "s"
       ],
-      "type_list": [
+      "type": [
         "int",
         "string"
       ]
