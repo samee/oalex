@@ -13,9 +13,8 @@ where:
 # The command is quiet on success, but if you tweak the expected
 # output below it will complain of a mismatch.
 
-example my_function_declaration:
+example my_function_declaration:  # An example function
 
-  // An example function
   fn connect(int x, string s)
 
 outputs: {

@@ -55,6 +55,8 @@ rule global_vars:
     var y = 7;  //   mess up repeat-detection.
     ...
   )
+lexical:
+  // comment
 
 where:
   "var...;" as decls ~ decl

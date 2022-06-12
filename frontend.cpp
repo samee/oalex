@@ -273,8 +273,8 @@ trimNewlines(GluedString gs) {
 const LexDirective&
 defaultLexopts() {
   static const auto* var = new LexDirective{
-    parseRegexCharSet("[_a-zA-Z]"),
-    Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+    parseRegexCharSet("[_a-zA-Z0-9]"),
+    Skipper{ {}, {} },
     false
   };
   return *var;
