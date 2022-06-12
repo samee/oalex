@@ -416,10 +416,12 @@ RulesWithLocs::resize_down(ssize_t n) noexcept {
   firstUseLocs_.resize(n);
 }
 
-vector<unique_ptr<Rule>>
-RulesWithLocs::releaseRules() {
+RuleSet
+RulesWithLocs::releaseRulesWith(RegexOptions regexOpts) {
   firstUseLocs_.clear();
-  return std::move(rules_);  // This is guaranteed to clear rules_.
+  reservedLocalNames_.clear();
+  // std::move() is guaranteed to clear vectors.
+  return RuleSet{std::move(rules_), std::move(regexOpts)};
 }
 
 // Bypasses Rule::nameOrNull() protections. Use with care!

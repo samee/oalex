@@ -668,7 +668,7 @@ void testRuleExprCompilation() {
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
-      rl.releaseRules(), *testcase.expected);
+      rl.releaseRulesWith({}).rules, *testcase.expected);
   }
 }
 
@@ -716,7 +716,7 @@ void testRuleExprCompilationAndParsing() {
   assignRuleExpr(ctx, rxpr_main, rl, maini);
 
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
-  RuleSet rs{rl.releaseRules(), regopts};
+  RuleSet rs = rl.releaseRulesWith(regopts);
   auto expected_ruleset = makeVectorUnique<Rule>(
       RegexRule{parseRegex(ident_part_regex)},
       nmRule(MatchOrError{0, "Does not match expected pattern"},

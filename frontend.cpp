@@ -1160,7 +1160,7 @@ parseOalexSource(InputDiags& ctx) {
   }
   if(rl.ssize() == 0) return Error(ctx, 0, "File doesn't define any rule");
   if(rl.hasUndefinedRules(ctx)) return nullopt;
-  RuleSet rs{rl.releaseRules(), *userRegexOpts};
+  RuleSet rs = rl.releaseRulesWith(*userRegexOpts);
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||
      hasError(ctx.diags)) return nullopt;
   fillInNames(rs.rules);

@@ -97,7 +97,7 @@ class RulesWithLocs {
   /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
   void resize_down(ssize_t n) noexcept;
 
-  std::vector<std::unique_ptr<Rule>> releaseRules();
+  RuleSet releaseRulesWith(RegexOptions regexOpts);
 
  private:
   // Invariant: these two must have equal sizes at all times.
