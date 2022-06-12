@@ -1,4 +1,4 @@
-/*  Copyright 2019-2020 The oalex authors.
+/*  Copyright 2019-2022 The oalex authors.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -287,6 +287,22 @@ void testValid() {
       Skipper{{{"---", "\n"}}, {{"--", "->"}}}, "cannot be prefixes");
 }
 
+void testEquality() {
+  Skipper a{{{"/*","*/"}, {"//", "\n"}}, {}, false}, b;
+  if(a != a) BugMe("Every Skipper should be equal to itself");
+  if(a == b) BugMe("C skipper should not be the same as the default skipper");
+  b = a;
+  if(a != b) BugMe("Assignment should have produced a perfect copy");
+  b.nestedComment = std::pair{"(*", "*)"};
+  if(a == b) BugMe("nestedComment was ignored in comparison");
+  b = a;
+  b.indicateBlankLines = true;
+  if(a == b) BugMe("indicateBlankLines was ignored in comparison");
+  b = a;
+  b.unnestedComments.pop_back();
+  if(a == b) BugMe("unnestedComments was ignored in comparison");
+}
+
 }  // namespace
 
 int main() {
@@ -299,4 +315,5 @@ int main() {
   testValid();
   testMultilineSuccess();
   testBlankLinesMatter();
+  testEquality();
 }

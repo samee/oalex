@@ -43,6 +43,13 @@ static optional<string> validPair(string_view st, string_view en) {
     return nullopt;
 }
 
+// Switch to `= default` in C++20, so we don't forget any new members.
+bool operator==(const Skipper& a, const Skipper& b) {
+  return a.unnestedComments == b.unnestedComments &&
+         a.nestedComment == b.nestedComment &&
+         a.indicateBlankLines == b.indicateBlankLines;
+}
+
 optional<string> Skipper::valid() const {
   for(const auto& [st,en] : unnestedComments)
     if(auto err = validPair(st,en)) return err;

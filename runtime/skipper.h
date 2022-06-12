@@ -164,6 +164,9 @@ struct Skipper {
   size_t whitespace(const InputPiece& input, size_t pos) const;
 };
 
+bool operator==(const Skipper& a, const Skipper& b);
+inline bool operator!=(const Skipper& a, const Skipper& b) { return !(a==b); }
+
 // Returns true iff ch is found in s.
 inline bool is_in(char ch, std::string_view s) {
   return s.find(ch) != std::string_view::npos;
