@@ -175,6 +175,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
                nmRule(OutputTmpl{declIndex, {},
                  *parseJsonTmpl("{var_name, init_value: {type, value: rhs}}")
                }, "FlatThenAssembled")),
+    .skips = {cskip},
     .regexOpts = regexOpts,
   };
   codegenNamedRules(rs, cppos, hos);
@@ -188,6 +189,7 @@ void generateSingleWordTemplate(const OutputStream& cppos,
     .rules = makeVectorUnique<Rule>(
         StringRule{"word"},
         nmRule(OutputTmpl{0, "the_word", jstmpl}, "WordTmpl")),
+    .skips = {},
     .regexOpts = regexOpts,
   };
   codegen(rs, 1, cppos, hos);
@@ -207,7 +209,7 @@ void generateConcatTest(const OutputStream& cppos,
                       *parseJsonTmpl("{id, value}")}, "Definition"),
     nmRule(ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
                        {4,""}}, *parseJsonTmpl("{rhs, lhs}")}, "Assignment")
-    ), regexOpts
+    ), {cskip}, regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
 }
@@ -223,7 +225,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
-    ), regexOpts
+    ), {shskip}, regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
 }
@@ -233,7 +235,7 @@ void generateExternParserParams(const OutputStream& cppos,
   RuleSet rs { oalex::makeVectorUnique<Rule>(
       nmRule(parseRegexRule("/[a-zA-Z_]+\\b/"), "ParamId"),
       nmRule(ExternParser{"oalexPluginBulletedList", {0}}, "BulletListIds")
-    ), regexOpts
+    ), {}, regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
 }
@@ -250,7 +252,7 @@ void generateIndentedListBuiltin(const OutputStream& cppos,
       nmRule(ConcatFlatRule{{ {4, ""}, {1, ""}, {5, "num"} }}, "ListItem"),
       nmRule(ExternParser{"oalexBuiltinIndentedList", {3,6}},
              "SimpleIndentedList")
-    ), regexOpts
+    ), {cskip}, regexOpts
   };
   codegenNamedRules(rs, cppos, hos);
 }
@@ -264,6 +266,7 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
           {-1, 0, JsonTmpl{"if"}}, {-1, 1, JsonTmpl{"while"}},
           {-1, 2, *parseJsonTmpl("{number: child}")},
         }, /* flattenOnDemand */ false}, "OneWordOrList")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   codegenNamedRules(rs, cppos, hos);
@@ -276,6 +279,7 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
         StringRule{"hello-world"},
         nmRule(MatchOrError{0, "Was expecting a greeting"},
                "HelloWorldOrError")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   codegen(rs, 1, cppos, hos);
@@ -291,6 +295,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
           {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::String{"ignored"}}},
           /* flattenOnDemand */ false,
         }, "ErrorRuleHelloWorld")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   codegen(rs, 2, cppos, hos);
@@ -313,7 +318,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ true},
                "FlattenKeywordOrNumber"),
         nmRule(ConcatFlatRule{{{6, ""}}}, "FlattenSingleConcat")
-      ), .regexOpts{regexOpts},
+      ), .skips{}, .regexOpts{regexOpts},
   };
 
   codegenNamedRules(rs, cppos, hos);
@@ -344,6 +349,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
                         {9, 11, passthroughTmpl},
                         {-1, 6, passthroughTmpl} },
                       /* flattenOnDemand */ true}, "lookahead_simple_stmt")),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
 
@@ -358,6 +364,7 @@ void generateQuietTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(QuietMatch{2}, "string1_quiet"),
         nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
                       /* flattenOnDemand */ false}, "quiet_match_test")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   codegenNamedRules(rs, cppos, hos);
@@ -379,6 +386,7 @@ void generateMiscFlatteningTest(const OutputStream& cppos,
           "flat_match_or_error_dropped_by_concat_flat"),
         nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "flat_hello_flat4")
      ),
+    .skips{},
     .regexOpts{regexOpts},
   };
   codegenNamedRules(rs, cppos, hos);
@@ -429,6 +437,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         StringRule{"["}, StringRule{"]"},
         nmRule(ConcatFlatRule{{ {12, ""}, {11, ""}, {13, ""} }}, "SignedList")
     ),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
 
@@ -450,6 +459,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
                           .lookidx = -1, .skipidx = -1 }},
                "GpSwappedInlineString")
     ),
+    .skips{},
     .regexOpts{regexOpts},
   };
 
@@ -486,7 +496,7 @@ int main(int argc, char* argv[]) {
   auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
   // TODO first-class support for multiple RuleSets in a file.
-  codegenDefaultRegexOptions(RuleSet{{}, regexOpts}, cppos);
+  codegenDefaultRegexOptions(RuleSet{{}, {}, regexOpts}, cppos);
   linebreaks(); generateSingleStringTest(cppos, hos);
   linebreaks();
   linebreaks();

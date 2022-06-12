@@ -293,6 +293,7 @@ class StringRule final : public Rule {
 // TODO this needs a debug() printer.
 struct RuleSet {
   std::vector<std::unique_ptr<Rule>> rules;
+  std::vector<Skipper> skips;
   RegexOptions regexOpts;
 };
 

@@ -421,7 +421,7 @@ RulesWithLocs::releaseRulesWith(RegexOptions regexOpts) {
   firstUseLocs_.clear();
   reservedLocalNames_.clear();
   // std::move() is guaranteed to clear vectors.
-  return RuleSet{std::move(rules_), std::move(regexOpts)};
+  return RuleSet{std::move(rules_), std::move(skips_), std::move(regexOpts)};
 }
 
 // Bypasses Rule::nameOrNull() protections. Use with care!
@@ -448,6 +448,19 @@ template void RulesWithLocs::deferred_assign(ssize_t idx, ConcatRule);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OutputTmpl);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OrRule);
 template void RulesWithLocs::deferred_assign(ssize_t idx, MatchOrError);
+
+// Does very simple deduplication.
+ssize_t
+RulesWithLocs::addSkipper(Skipper skip) {
+  if(!skips_.empty()) {
+    // In case it's the default skip.
+    if(skips_[0] == skip) return 0;
+    // In case it's the most recent skip.
+    if(skips_.back() == skip) return oalex::ssize(skips_)-1;
+  }
+  skips_.push_back(std::move(skip));
+  return oalex::ssize(skips_)-1;
+}
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
@@ -840,6 +853,7 @@ compilePattern(DiagsDest ctx, const Ident& ident,
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
+  rl.addSkipper(oalexSkip);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);

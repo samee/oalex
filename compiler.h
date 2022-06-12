@@ -91,6 +91,9 @@ class RulesWithLocs {
   /* For assigning to a rule after they have already been named */
   template <class X> void deferred_assign(ssize_t idx, X x);
 
+  /* These Skipper objects are indexed to by SkipPoint{} */
+  ssize_t addSkipper(Skipper skip);
+
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
 
@@ -105,6 +108,7 @@ class RulesWithLocs {
   std::vector<LocPair> firstUseLocs_;
 
   std::vector<Ident> reservedLocalNames_;
+  std::vector<Skipper> skips_;
 };
 
 // We generalize the ruleName in PatternToRuleBinding to the more general

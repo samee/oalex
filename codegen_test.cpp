@@ -56,6 +56,7 @@ using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::StringRule;
+using oalex::Skipper;
 using oalex::SkipPoint;
 using oalex::WordPreserving;
 using oalex::test::assertJsonLocIsString;
@@ -91,6 +92,7 @@ void testMatchOrError() {
     .rules = makeVectorUnique<Rule>(
         StringRule{"hello-world"},
         MatchOrError{0, "Was expecting a greeting"}),
+    .skips{},
     .regexOpts{regexOpts},
   };
 
@@ -118,6 +120,7 @@ void testErrorRule() {
           {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::String{"ignored"}}},
           /* flattenOnDemand */ false,
         }),
+    .skips{},
     .regexOpts{regexOpts},
   };
 
@@ -136,11 +139,17 @@ void testErrorRule() {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
+RuleSet skipPointRuleSet(const Skipper& skip) {
+  RuleSet rs{ {}, {skip}, regexOpts };
+  rs.rules.push_back(move_to_unique(SkipPoint{false, &skip}));
+  return rs;
+}
+
 void testSingleSkip() {
   const string msg = "  /* hello */ world";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
+  RuleSet rs = skipPointRuleSet(cskip);
   eval(ctx, pos, rs, 0);
   assertEmptyDiags(__func__, ctx.diags);
   assertEqual(me("eval() endpoint"), size_t(pos), msg.find("world"));
@@ -150,7 +159,7 @@ void testSkipFailsOnUnfinishedComment() {
   const string msg = "  /* hello world";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  RuleSet rs = singletonRuleSet(SkipPoint{false, &cskip});
+  RuleSet rs = skipPointRuleSet(cskip);
   eval(ctx, pos, rs, 0);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Unfinished comment", 2);
 }
@@ -193,6 +202,7 @@ void testConcatMatch() {
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
                  }, *parseJsonTmpl(R"({ stmt: 'asgn', lhs, rhs })")}, "asgn")),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
   ssize_t concatIndex = rs.rules.size()-1;
@@ -220,6 +230,7 @@ void testConcatFlatMatch() {
                StringRule{":"}, StringRule{"="},
                parseRegexRule("/[0-9]+/"),
                StringRule{";"}, SkipPoint{false, &cskip}),
+    .skips{cskip},
     .regexOpts = regexOpts,
   };
   rs.rules.push_back(move_to_unique(ConcatFlatRule{{
@@ -254,6 +265,7 @@ void testSingleWordTemplate() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
                StringRule{"word"}, OutputTmpl{0, {}, jstmpl}),
+    .skips{},
     .regexOpts = regexOpts,
   };
   ssize_t pos = 0;
@@ -267,6 +279,7 @@ void testKeywordsOrNumber() {
     .rules = makeVectorUnique<Rule>(
                StringRule{"if"}, StringRule{"while"},
                parseRegexRule("/[0-9]+/")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   rs.rules.push_back(move_to_unique(OrRule{{
@@ -308,7 +321,7 @@ void testFlattenOnDemand() {
           {-1, 1, *parseJsonTmpl("{number: child}")},
         }, /* flattenOnDemand */ false},
         ConcatFlatRule{{{4, "next_token"}}}
-      ), .regexOpts{regexOpts},
+      ), .skips{}, .regexOpts{regexOpts},
   };
   const ssize_t ruleidx = rs.rules.size()-1;
 
@@ -346,6 +359,7 @@ void testLookaheads() {
         }}, "asgn"),
         nmRule(OrRule{{{1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl}},
                       /* flattenOnDemand */ true}, "simple_stmt")),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
   const pair<string, JsonLoc> testdata[] = {
@@ -372,6 +386,7 @@ void testQuietMatch() {
         nmRule(QuietMatch{2}, "string1_quiet"),
         nmRule(OrRule{{{-1, 3, passthroughTmpl}, {-1, 1, passthroughTmpl}},
                       /* flattenOnDemand */ false}, "quiet_match_test")),
+    .skips{},
     .regexOpts{regexOpts},
   };
   InputDiags ctx{Input{"string2"}};
@@ -398,6 +413,7 @@ void testMiscFlattening() {
           "match_or_error_dropped_by_concat_flat"),
         nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "hello_flat3")
      ),
+    .skips{},
     .regexOpts{regexOpts},
   };
   string msg = "hellohello";
@@ -450,6 +466,7 @@ void testLoopRule() {
                           .glueidx = -1, .gluename = "",
                           .lookidx = -1, .skipidx = -1}}, "list_prefix")
     ),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
   // Some tests have extra trailing space to see if we are properly
@@ -523,6 +540,7 @@ void testLoopFlattening() {
         StringRule{"["}, StringRule{"]"},
         ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}
     ),
+    .skips{cskip},
     .regexOpts{regexOpts},
   };
   const string msg = "[+a, -b]";
@@ -550,6 +568,7 @@ void testGluePartSwapped() {
                   .glueidx = 1, .gluename = "words",
                   .lookidx = -1, .skipidx = -1 }}
     ),
+    .skips{},
     .regexOpts{regexOpts},
   };
   InputDiags ctx{Input{"-greetings-earth-"}};

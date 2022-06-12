@@ -36,16 +36,17 @@ template <class X> X nmRule(X x, std::string s) {
 }
 
 inline RuleSet singletonRuleSet(const char* s) {
-  RuleSet rs{{}, regexOpts};
+  RuleSet rs{{}, {}, regexOpts};
   rs.rules.push_back(move_to_unique(StringRule{s}));
   return rs;
 }
 
 template <class X> RuleSet singletonRuleSet(X x) {
-  RuleSet rs{{}, regexOpts};
+  RuleSet rs{{}, {}, regexOpts};
   rs.rules.push_back(move_to_unique(x));
   return rs;
 }
+template <> RuleSet singletonRuleSet<SkipPoint>(SkipPoint sp) = delete;
 
 void assertJsonLocIsString(std::string_view testName, const JsonLoc& jsloc,
                            std::string_view s, size_t stPos, size_t enPos);
