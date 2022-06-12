@@ -55,8 +55,6 @@ def compare_bootstrapped_files():
     if (files_different(tmp_cpp_path, src_cpp_path) or
         files_different(tmp_h_path, src_h_path)):
          bin_relpath = os.path.relpath(bin_path, start = sysargs.source_path)
-         print(f"[debug] bin_relpath = {bin_relpath}, " +
-               f"bin_path = {bin_path}, start = {sysargs.source_path}")
          newcmd = (f"{bin_relpath} build '{src}.oalex'")
          some_error = True
          print("Bootstrapped files are stale. "
