@@ -34,7 +34,6 @@
 using fmt::format;
 using oalex::DiagsDest;
 using oalex::IndentCmp;
-using oalex::indentCmp;
 using oalex::LexDirective;
 using oalex::Note;
 using oalex::OutputTmpl;
@@ -42,7 +41,6 @@ using oalex::parseJsonTmplFromBracketGroup;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
 using oalex::passthroughTmpl;
-using oalex::Pattern;
 using oalex::WholeSegment;
 using oalex::lex::enPos;
 using oalex::lex::BracketGroup;
