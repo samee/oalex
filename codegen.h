@@ -210,11 +210,11 @@ class QuietMatch final : public Rule {
 
 class SkipPoint final : public Rule {
  public:
-  SkipPoint(bool swl, const Skipper* skip)
-    : stayWithinLine{swl}, skip{skip} {}
+  SkipPoint(bool swl, ssize_t skipperIndex)
+    : stayWithinLine{swl}, skipperIndex{skipperIndex} {}
   std::string specifics_typename() const override { return "SkipPoint"; }
   bool stayWithinLine;  // If true, skip comments should end in '\n'
-  const Skipper* skip;  // usually &RuleSet::skip, but can be overridden.
+  ssize_t skipperIndex; // Index into RuleSet::skips.
 };
 
 // Wraps an std::string, for when we want a word-preserving match. That is a

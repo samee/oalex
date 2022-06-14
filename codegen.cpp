@@ -91,13 +91,14 @@ ExternParser::externalName() const {
 // ------
 
 static JsonLoc
-skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp) {
+skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
-  i = sp.stayWithinLine ? sp.skip->withinLine(input, i)
-                        : sp.skip->acrossLines(input, i);
+  const Skipper* skip = &rs.skips[sp.skipperIndex];
+  i = sp.stayWithinLine ? skip->withinLine(input, i)
+                        : skip->acrossLines(input, i);
   if(i == ssize_t(string::npos)) {
-    ssize_t com = sp.skip->whitespace(input, oldi);
+    ssize_t com = skip->whitespace(input, oldi);
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
     return JsonLoc::ErrorValue{};
@@ -258,7 +259,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       if(out.holdsErrorValue()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
       if(sp) {
-        out = skip(ctx, j, *sp);
+        out = skip(ctx, j, *sp, rs);
         if(out.holdsErrorValue()) return out;
       }
     }
@@ -395,7 +396,7 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
     return eval(ctx, i, *ext, ruleset);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
-    return skip(ctx, i, *sp);
+    return skip(ctx, i, *sp, ruleset);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
     return match(ctx, i, *regex->patt, ruleset.regexOpts);
   else if(auto* seq = dynamic_cast<const ConcatRule*>(&r))
@@ -957,22 +958,25 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
 }
 
 static void
-codegen(const SkipPoint& sp, const OutputStream& cppos) {
+codegen(const RuleSet& ruleset, const SkipPoint& sp,
+        const OutputStream& cppos) {
+  const Skipper* skip = &ruleset.skips[sp.skipperIndex];
+
   cppos("  using oalex::Skipper;\n");
   cppos("  static Skipper* skip = new Skipper{\n");
   cppos("    .unnestedComments{\n");
-  for(auto& [st,en] : sp.skip->unnestedComments)
+  for(auto& [st,en] : skip->unnestedComments)
     cppos(format("     {{ {}, {} }},\n", dquoted(st), dquoted(en)));
   cppos("    },\n");
-  if(sp.skip->nestedComment.has_value()) {
-    auto& [st,en] = *sp.skip->nestedComment;
+  if(skip->nestedComment.has_value()) {
+    auto& [st,en] = *skip->nestedComment;
     cppos(format("    .nestedComment{{ {{ {}, {} }} }},\n",
                  dquoted(st), dquoted(en)));
   }else {
     cppos("    .nestedComment{},\n");
   }
   cppos(format("    .indicateBlankLines = {},\n",
-               alphabool(sp.skip->indicateBlankLines)));
+               alphabool(skip->indicateBlankLines)));
   cppos("  };\n");
   if(sp.stayWithinLine)
     cppos("  ssize_t j = skip->withinLine(ctx.input, i);\n");
@@ -1060,7 +1064,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(auto* regex = dynamic_cast<const RegexRule*>(&r)) {
     codegen(*regex, cppos);
   }else if(auto* sp = dynamic_cast<const SkipPoint*>(&r)) {
-    codegen(*sp, cppos);
+    codegen(ruleset, *sp, cppos);
   }else if(auto* seq = dynamic_cast<const ConcatRule*>(&r)) {
     codegen(ruleset, *seq, cppos);
   }else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r)) {

@@ -85,6 +85,7 @@ class PatternToRulesCompiler {
   // with recovery rules and alternate branches. The Idents here are assumed
   // to be a subset of those in p2rule_ above.
   const vector<pair<Ident,string>>* errmsg_;
+  ssize_t skipIndex_;
   ssize_t processConcat(const PatternConcat& concatPatt);
   ssize_t processOrList(const PatternOrList& orPatt);
   ssize_t processOptional(const PatternOptional& optPatt);
@@ -94,8 +95,10 @@ class PatternToRulesCompiler {
  public:
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
                          const vector<pair<Ident,ssize_t>>& p2rule,
-                         const vector<pair<Ident,string>>& errmsg) :
-    ctx_(ctx), rl_(&rl), p2rule_(&p2rule), errmsg_(&errmsg) {}
+                         const vector<pair<Ident,string>>& errmsg,
+                         ssize_t skipIndex) :
+    ctx_(ctx), rl_(&rl), p2rule_(&p2rule),
+    errmsg_(&errmsg), skipIndex_(skipIndex) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
   ssize_t process(const Pattern& patt);
@@ -108,7 +111,7 @@ PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl_->ssize(), {}});
-      rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false, &oalexSkip});
+      rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false, skipIndex_});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = this->process(child);
@@ -164,7 +167,7 @@ ssize_t
 PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
   ssize_t i = this->process(repPatt.part);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                              &oalexSkip});
+                                              skipIndex_});
   return rl_->appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
@@ -175,7 +178,7 @@ PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
   ssize_t pi = this->process(foldPatt.part);
   ssize_t gi = this->process(foldPatt.glue);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                              &oalexSkip});
+                                              skipIndex_});
   return rl_->appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
@@ -853,8 +856,8 @@ compilePattern(DiagsDest ctx, const Ident& ident,
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
-  rl.addSkipper(oalexSkip);
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg};
+  ssize_t skipIndex = rl.addSkipper(oalexSkip);
+  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
   if(newIndex2 == -1) return;

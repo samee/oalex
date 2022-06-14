@@ -165,7 +165,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
                StringRule{":"}, StringRule{"="},
                nmRule(parseRegexRule("/[0-9]+/"), "FlatNumber"),
                StringRule{";"},
-               nmRule(SkipPoint{false, &cskip}, "FlatSpace"),
+               nmRule(SkipPoint{false, 0}, "FlatSpace"),
                nmRule(ConcatFlatRule{{
                    {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
                }}, "FlatVarAndType"),
@@ -203,7 +203,7 @@ void generateConcatTest(const OutputStream& cppos,
     StringRule{"="},
     nmRule(parseRegexRule("/-?[0-9]+\\b/"), "IntegerLiteral"),
     StringRule{";"},
-    nmRule(SkipPoint{false, &cskip}, "CommentsAndWhitespace"),
+    nmRule(SkipPoint{false, 0}, "CommentsAndWhitespace"),
     nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
                        {3,"value"}, {5,""}, {4,""}},
                       *parseJsonTmpl("{id, value}")}, "Definition"),
@@ -222,7 +222,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
       nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
-      nmRule(SkipPoint{ /* stayWithinLine */ true, &shskip}, "ExtSpace"),
+      nmRule(SkipPoint{ /* stayWithinLine */ true, 0}, "ExtSpace"),
       nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
                          {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
     ), {shskip}, regexOpts
@@ -244,7 +244,7 @@ void generateIndentedListBuiltin(const OutputStream& cppos,
                                  const OutputStream& hos) {
   RuleSet rs { oalex::makeVectorUnique<Rule>(
       StringRule{"my_list"},
-      nmRule(SkipPoint{false, &cskip}, "ListLeaderSkip"),
+      nmRule(SkipPoint{false, 0}, "ListLeaderSkip"),
       StringRule{":"},
       nmRule(ConcatFlatRule{{ {0, ""}, {1, ""}, {2, ""} }}, "ListLeader"),
       nmRule(StringRule{"item"}, "ListItemKeyword"),
@@ -327,7 +327,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
 void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        nmRule(SkipPoint{false, &cskip}, "lookahead_space"),
+        nmRule(SkipPoint{false, 0}, "lookahead_space"),
         WordPreserving{"var"},
         nmRule(parseRegexRule("/[a-z]+/"), "lookahead_ident"),
         StringRule{"="}, StringRule{";"},
@@ -397,7 +397,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
     .rules = makeVectorUnique<Rule>(
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
         nmRule("+", "LoopPlusOperator"),
-        nmRule(SkipPoint{false, &cskip}, "LoopSkip"),
+        nmRule(SkipPoint{false, 0}, "LoopSkip"),
         nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",

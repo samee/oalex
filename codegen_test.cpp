@@ -139,9 +139,9 @@ void testErrorRule() {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
-RuleSet skipPointRuleSet(const Skipper& skip) {
-  RuleSet rs{ {}, {skip}, regexOpts };
-  rs.rules.push_back(move_to_unique(SkipPoint{false, &skip}));
+RuleSet skipPointRuleSet(Skipper skip) {
+  RuleSet rs{ {}, {std::move(skip)}, regexOpts };
+  rs.rules.push_back(move_to_unique(SkipPoint{false, 0}));
   return rs;
 }
 
@@ -197,7 +197,7 @@ void testConcatMatch() {
     .rules = makeVectorUnique<Rule>(
                parseRegexRule("/[a-zA-Z]+/"), StringRule{"="},
                parseRegexRule("/[0-9]+/"), StringRule{";"},
-               SkipPoint{false, &cskip},
+               SkipPoint{false, 0},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
@@ -229,7 +229,7 @@ void testConcatFlatMatch() {
                parseRegexRule("/[a-zA-Z]+/"),
                StringRule{":"}, StringRule{"="},
                parseRegexRule("/[0-9]+/"),
-               StringRule{";"}, SkipPoint{false, &cskip}),
+               StringRule{";"}, SkipPoint{false, 0}),
     .skips{cskip},
     .regexOpts = regexOpts,
   };
@@ -346,7 +346,7 @@ void testFlattenOnDemand() {
 void testLookaheads() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        SkipPoint{false, &cskip},
+        SkipPoint{false, 0},
         WordPreserving{"var"},
         parseRegexRule("/[a-z]+/"),
         StringRule{"="}, StringRule{";"},
@@ -447,7 +447,7 @@ void testLoopRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         MatchOrError{4, "Expected an identifier"},
-        StringRule{"+"}, SkipPoint{false, &cskip},
+        StringRule{"+"}, SkipPoint{false, 0},
         nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
@@ -527,7 +527,7 @@ void testLoopFlattening() {
         parseRegexRule("/[a-z]+/"),
         MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
-        SkipPoint{false, &cskip},
+        SkipPoint{false, 0},
         StringRule{","},
         nmRule(LoopRule{{
           .partidx = 3,
