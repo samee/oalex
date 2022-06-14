@@ -66,6 +66,7 @@ using std::holds_alternative;
 using std::make_unique;
 using std::nullopt;
 using std::optional;
+using std::pair;
 using std::string;
 using std::string_view;
 using std::tuple;
@@ -572,6 +573,68 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   return rv;
 }
 
+vector<GluedString>
+splitLines(const GluedString& block) {
+  size_t i=0, j;
+  vector<GluedString> rv;
+  while((j=block.find('\n', i)) != string::npos) {
+    rv.push_back(block.subqstr(i, j-i));
+    i = j+1;
+  }
+  rv.push_back(block.subqstr(i, block.size()-i));
+  return rv;
+}
+GluedString
+trim(GluedString s) {
+  size_t i=0, j;
+  for(i=0; i<s.size(); ++i) if(s[i] != ' ' && s[i] != '\t') break;
+  for(j=s.size(); j>0; --j) if(s[j-1] != ' ' && s[j-1] != '\t') break;
+  return s.subqstr(i, j-i);
+}
+optional<pair<string,string>>
+commentDelims(DiagsDest ctx, const GluedString& line) {
+  string_view comment_kw = "comment";
+  size_t bodySt = line.find(comment_kw);
+  if(bodySt == string::npos)
+    return Error(ctx, line.stPos, line.enPos, "Not a valid comment specifier");
+  for(size_t i=0; i<comment_kw.size(); ++i)
+    if(isalnum(line[i]) && !(i>=bodySt && i<bodySt+comment_kw.size()))
+      return Error(ctx, line.inputPos(i),
+                   "Comment delimitter cannot be alpha-numeric");
+  GluedString begin = trim(line.subqstr(0, bodySt));
+  GluedString end = trim(line.subqstr(bodySt+comment_kw.size(), line.size()));
+  if(end.empty()) return pair{string(begin), "\n"};
+  else return pair{string(begin), string(end)};
+}
+
+// Assumes linetoks.size() >= 1
+optional<LexDirective>
+parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
+  if(!matchesTokens(linetoks, 1, {":"}))
+    Error(ctx, enPos(linetoks[0]), "Expected ':'"); // continue parsing
+  requireEol(linetoks, 2, ctx);  // continue parsing even on error
+  optional<GluedString> lexblock = parseIndentedBlock(ctx, i,
+      indent_of(ctx.input, linetoks[0]), "lexical block");
+  if(!lexblock) return nullopt;
+  LexDirective rv = LexDirective{
+    RegexCharSet{},
+    Skipper{ {}, {} },
+    false // keepAllNewlines
+  };
+  vector<GluedString> lines = splitLines(*lexblock);
+  for(auto& line : lines) {
+    line = trim(line);
+    optional<pair<string, string>> delims = commentDelims(ctx, line);
+    if(!delims) continue;
+    if(delims->second.back() == '\n')
+      rv.skip.unnestedComments.push_back(*delims);
+    else if(!rv.skip.nestedComment) rv.skip.nestedComment = *delims;
+    else Error(ctx, line, "We support only one type of block comments now");
+  }
+  if(optional<string> err = rv.skip.valid()) Error(ctx, linetoks[0], *err);
+  return rv;
+}
+
 size_t
 findComplexComponent(const vector<ExprToken>& toks) {
   for(size_t i=0; i<toks.size(); ++i) {
@@ -803,8 +866,10 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
                          "pattern");
   if(!patt.has_value()) return;
   bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
+  bool sawLexicalKw = false;
   optional<JsonTmpl> jstmpl;
   vector<PatternToRuleBinding> local_decls;
+  LexDirective lexopts = defaultLexopts();
   JsonLoc errors = JsonLoc::ErrorValue{};
 
   // Consume next line for the outputs stanza.
@@ -829,6 +894,10 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       errors = parseErrorStanza(ctx, is);
       if(errors.holdsErrorValue()) continue;
       i = oalexSkip.withinLine(ctx.input, is);
+    }else if(**leader == "lexical") {
+      if(skipStanzaIfSeen(sawLexicalKw, *leader, ctx, i)) continue;
+      if(auto opt = parseLexicalStanza(ctx, i, std::move(toks)))
+        lexopts = std::move(*opt);
     }else { i = oldi; break; }
   }
   if(errors.holdsErrorValue()) errors = JsonLoc::Map{};
@@ -836,7 +905,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(!ident) return;
   if(!sawOutputsKw) {
     if(sawWhereKw)
-      appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
+      appendPatternRules(ctx, ident, std::move(*patt), lexopts,
                          std::move(local_decls), std::move(errors), rl);
     else
       Error(ctx, i, format("outputs stanza missing in rule {}",
@@ -845,7 +914,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
 
   if(!jstmpl.has_value()) return;
-  appendPatternRules(ctx, ident, std::move(*patt), defaultLexopts(),
+  appendPatternRules(ctx, ident, std::move(*patt), lexopts,
                      std::move(local_decls), std::move(*jstmpl),
                      std::move(errors), rl);
 }
@@ -1107,6 +1176,7 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
 }  // namespace
 
+// TODO: make all uses of defaultLexopts and defaultSkip sensitive to overrides
 const Skipper&
 defaultSkip() { return defaultLexopts().skip; }
 

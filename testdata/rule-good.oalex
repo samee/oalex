@@ -11,6 +11,23 @@ example hello_world:
     world
 outputs success
 
+# TODO: Fix support for single-line comments here
+rule hello_world_haskell_comments:
+  Hello world  {- Just a simple grammar with two words -}
+outputs:{}
+lexical:
+  {- comment -}
+  -- comment
+
+example hello_world_haskell_comments:
+  Hello {- ignore this -} world
+outputs success
+
+example hello_world_haskell_comments:
+  Hello  -- ignore this
+  world
+outputs success
+
 # TODO: custom errors even for these simple cases
 rule ident: /[_a-zA-Z]+/
 rule int_value: /-?[0-9]+/
