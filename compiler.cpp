@@ -21,7 +21,6 @@
 #include "lexer.h"
 using fmt::format;
 using oalex::lex::GluedString;
-using oalex::lex::oalexSkip;
 using oalex::lex::NewlineChar;
 using oalex::lex::unquote;
 using std::make_unique;
@@ -846,17 +845,17 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
 // Note: JsonTmpl::Ellipsis is used as a special value to indicate that the
 // template should be automatically deduced. Sorry!
 static void
-compilePattern(DiagsDest ctx, const Ident& ident,
-               const Pattern& patt,
+compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
-               JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl) {
+               const LexDirective& lexopts, JsonTmpl jstmpl, JsonLoc errors,
+               RulesWithLocs& rl) {
   vector<pair<Ident, ssize_t>> pl2ruleMap
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
-  ssize_t skipIndex = rl.addSkipper(oalexSkip);
+  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident);
@@ -885,7 +884,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
-  compilePattern(ctx, ident, *patt, pattToRule, std::move(jstmpl), errors, rl);
+  compilePattern(ctx, ident, *patt, pattToRule, lexOpts, std::move(jstmpl),
+                 errors, rl);
 }
 
 // Dev-note: keeping this function separate from its overload for now. Might
@@ -899,7 +899,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
     parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
                             pattToRule, JsonTmpl::Map{});
   if(!patt.has_value()) return;
-  compilePattern(ctx, ident, *patt, pattToRule, JsonTmpl::Ellipsis{},
+  compilePattern(ctx, ident, *patt, pattToRule, lexOpts, JsonTmpl::Ellipsis{},
                  errors, rl);
 }
 

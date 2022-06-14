@@ -110,7 +110,8 @@ oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -138,7 +139,8 @@ oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -170,7 +172,8 @@ oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -194,7 +197,8 @@ oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -226,7 +230,8 @@ oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -250,7 +255,8 @@ oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -290,7 +296,8 @@ oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -356,7 +363,8 @@ oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -427,7 +435,8 @@ oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -545,7 +554,8 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -569,7 +579,8 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -661,7 +672,8 @@ oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -689,7 +701,8 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
@@ -717,7 +730,8 @@ oalex::JsonLoc parseRule45(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
-     { "#", "\n" },
+     { "/*", "*/" },
+     { "//", "\n" },
     },
     .nestedComment{},
     .indicateBlankLines = false,
