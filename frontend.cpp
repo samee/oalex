@@ -238,7 +238,7 @@ requireGoodIndent(DiagsDest ctx, string_view desc,
 // As a general rule, if newlines matter, the user should be encouraged to use
 // fenced inputs or quoted inputs.
 //
-// As a corollary, we shouldn't call trimNewlines() on fenced inputs.
+// As a corollary, we shouldn't call trimBlankLines() on fenced inputs.
 //
 // Option (a) Trim all surrounding newlines
 //        (b) Keep one single trailing newline, but trim the rest
@@ -259,12 +259,15 @@ requireGoodIndent(DiagsDest ctx, string_view desc,
 //
 // Preference: Maybe don't allow surprise matches that start or end mid-line.
 GluedString
-trimNewlines(GluedString gs) {
+trimBlankLines(GluedString gs) {
   size_t i, j;
   for(i=0; i<gs.size(); ++i) if(gs[i] != '\n') break;
   if(i == gs.size()) return gs.subqstr(i, 0);
-  for(j=gs.size()-1; i<j; --j) if(gs[j] != '\n') break;
-  return gs.subqstr(i, j-i+1);
+  if(gs[gs.size()-1] != '\n')
+    Bug("indented input should always end in newlines");
+  // Now we know that gs.size() >= i+2 holds
+  for(j=gs.size()-2; i+1<j; --j) if(gs[j] != '\n') break;
+  return gs.subqstr(i, j-i+2);
 }
 
 
@@ -310,7 +313,7 @@ parseIndentedBlock(InputDiags& ctx, size_t& i, const StringLoc& refIndent,
   }
   if(!rv.has_value())
     Error(ctx, i, format("No indented {} follows", blockName));
-  else rv = trimNewlines(std::move(*rv));
+  else rv = trimBlankLines(std::move(*rv));
   return rv;
 }
 
