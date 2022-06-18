@@ -346,9 +346,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   if(ruleIndex < 0)
     Bug("Rule {} not found. The frontend should have already "
         "detected this error", ex.ruleName.preserveCase());
-  pos = defaultSkip().acrossLines(ctx.input, pos);
   JsonLoc jsloc = eval(ctx, pos, rs, ruleIndex);
-  pos = defaultSkip().acrossLines(ctx.input, pos);
 
   if (ex.expectation.matches(jsloc, ctx.diags)) {
     if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos)) {
