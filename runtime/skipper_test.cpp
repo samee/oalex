@@ -74,7 +74,7 @@ const Skipper htmlskip{{{"<!--","-->"}}, {}};
 const char htmlinput[] = "hello <!-- comment --> world";
 
 const Skipper haskellskip{{{"--","\n"}}, {{"{-","-}"}}};
-const char haskellinput[] = "hello {- a {- b -} c -} world -- stuff";
+const char haskellinput[] = "{- pref -} hello {- a {- b -} c -} world -- stuff";
 
 const Skipper ltxskip{{{"%","\n"}}, {}, true};
 const char ltxinput[] = "hello world % comment";

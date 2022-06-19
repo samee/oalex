@@ -120,7 +120,7 @@ skipPastNext(const string& s, const InputPiece& input, size_t pos, size_t end) {
 static bool skipComments(const Skipper& skip, const InputPiece& input,
     size_t& st, size_t en) {
   if(skip.nestedComment &&
-     input.hasPrefix(st,st-en,skip.nestedComment->first)) {
+     input.hasPrefix(st,en-st,skip.nestedComment->first)) {
     st = skipPastNestedComment(*skip.nestedComment,input,st,en);
     return true;
   }
