@@ -64,8 +64,16 @@ class RulesWithLocs {
 
      In case this appends a new entry, the firstUseLocs_ remains
      nrange() so that it is later filled in by findOrAppendIdent.
+
+     This just so happens to also be a convenient place for us to record
+     context skippers, in case the new rule is ever used by itself. The
+     possible values can be any of Rule::ContextSkipper, or anything in
+     the range [ 0, skips_.size() ).
   */
-  ssize_t defineIdent(DiagsDest ctx, const Ident& ident);
+  ssize_t defineIdent(DiagsDest ctx, const Ident& ident,
+                      ssize_t context_skipper);
+  ssize_t defineIdentForTest(DiagsDest ctx, const Ident& ident)
+    { return defineIdent(ctx, ident, Rule::removedContext); }
 
   /* Tries to reserve a local name just so we can later detect a conflict
      with a global name later. If a global name is already defined, this

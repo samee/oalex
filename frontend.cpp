@@ -833,7 +833,10 @@ parseSingleLineRule(const Ident& ruleName, vector<ExprToken> linetoks,
             format("Aliasing unimplemented. Use `({})` instead", **seg) );
     return;
   }
-  ssize_t newIndex = rl.defineIdent(ctx, ruleName);
+  if(auto* gs = get_if<GluedString>(&linetoks[3]);
+     gs && gs->ctor() == GluedString::Ctor::dquoted)
+    Bug("Need to add context to defineIdent() in parseSingleLineRule()");
+  ssize_t newIndex = rl.defineIdent(ctx, ruleName, Rule::removedContext);
   if(newIndex != -1) assignRuleExpr(ctx, *rxpr, rl, newIndex);
 }
 
@@ -1054,7 +1057,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
       continue;
   }
   if(!ruleName) return;
-  ssize_t orIndex = rl.defineIdent(ctx, ruleName);
+  ssize_t orIndex = rl.defineIdent(ctx, ruleName, rl.defaultSkipper());
   if(orIndex != -1) rl.deferred_assign(orIndex, std::move(orRule));
 }
 

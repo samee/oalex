@@ -289,7 +289,7 @@ void testDefineIdentNormal() {
 
   Ident v1 = Ident::parse(ctx, pos);
   assertEqual("First ident end", pos, 3u);
-  ssize_t v1_index = rl.defineIdent(ctx, v1);
+  ssize_t v1_index = rl.defineIdentForTest(ctx, v1);
   assertEqual("Size after a define", rl.ssize(), 1);
   assertEqual("'foo' index in RulesWithLocs", v1_index, 0);
   assertEqual("Returned index name",
@@ -303,7 +303,7 @@ void testDefineIdentNormal() {
   ++pos;
   Ident v2 = Ident::parse(ctx, pos);
   assertEqual("Second ident", v1.preserveCase(), v2.preserveCase());
-  ssize_t v2_index = rl.defineIdent(ctx, v2);
+  ssize_t v2_index = rl.defineIdentForTest(ctx, v2);
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "'foo' has multiple definitions");
   assertEqual("Failure indicator", -1, v2_index);
@@ -313,7 +313,7 @@ void testDefineIdentEmptyIdentFails() {
   RulesWithLocs rl;
   try {
     InputDiags ctx{Input{"ignored input"}};
-    rl.defineIdent(ctx, Ident{});
+    rl.defineIdentForTest(ctx, Ident{});
     BugMe("Was expecting defineIdent() to fail on null parameter");
   }catch(const std::logic_error& ex) {
     assertWhatHasSubstr(__func__, ex,
@@ -337,7 +337,7 @@ void testFindThenDefine() {
   i = rl.findOrAppendIdent(ctx, baz);
   assertEqual("baz index", i, 2);
   assertUnassignedRule("bar should be unassigned before definition", rl[1]);
-  i = rl.defineIdent(ctx, bar_defn);
+  i = rl.defineIdentForTest(ctx, bar_defn);
   assertEqual(me("defineIdent() is different from earlier findOrAppendIdent()"),
               i, 1);
   assertDefinitionInProgress("bar definition didn't take", rl[1]);
@@ -356,7 +356,7 @@ void testCaseConflicts() {
   assertHasDiagWithSubstr(__func__, ctx.diags, "case-conflicts");
 
   ctx.diags.clear();
-  rl.defineIdent(ctx, v3);
+  rl.defineIdentForTest(ctx, v3);
   assertHasDiagWithSubstr(__func__, ctx.diags, "case-conflicts");
 }
 
@@ -400,7 +400,7 @@ void testDefineAndReserveProducesError() {
   {
     RulesWithLocs rl;
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
-    rl.defineIdent(ctx, foo);
+    rl.defineIdentForTest(ctx, foo);
     rl.reserveLocalName(ctx, foo);
     assertHasDiagWithSubstr(me("define-then-reserve"), ctx.diags,
         "Local variable name 'foo' conflicts with a global name");
@@ -409,7 +409,7 @@ void testDefineAndReserveProducesError() {
     RulesWithLocs rl;
     ctx.diags.clear();
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
-    rl.defineIdent(ctx, Ident::parseGenerated("Foo"));
+    rl.defineIdentForTest(ctx, Ident::parseGenerated("Foo"));
     rl.reserveLocalName(ctx, foo);
     assertHasDiagWithSubstr(me("define-then-reserve-case-conflict"), ctx.diags,
         "Local variable name 'foo' conflicts with the global name 'Foo'");
@@ -419,7 +419,7 @@ void testDefineAndReserveProducesError() {
     ctx.diags.clear();
     assertEmptyDiags(me("No initial diags expected"), ctx.diags);
     rl.reserveLocalName(ctx, foo);
-    rl.defineIdent(ctx, foo);
+    rl.defineIdentForTest(ctx, foo);
     assertHasDiagWithSubstr(me("reserve-then-define"), ctx.diags,
         "Local variable name 'foo' conflicts with a global name");
   }
@@ -663,7 +663,7 @@ void testRuleExprCompilation() {
     InputDiags ctx{Input{""}};
     RulesWithLocs rl;
     for(auto& [name, rxpr] : testcase.rxprs) {
-      ssize_t identi = rl.defineIdent(ctx, Ident::parseGenerated(name));
+      ssize_t identi = rl.defineIdentForTest(ctx, Ident::parseGenerated(name));
       assignRuleExpr(ctx, *rxpr, rl, identi);
     }
     assertValidAndEqualRuleList(
@@ -689,7 +689,7 @@ void testRuleExprDuplicateIdent() {
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
   assignRuleExpr(ctx, asgn_rule, rl,
-                 rl.defineIdent(ctx, Ident::parseGenerated("asgn")));
+                 rl.defineIdentForTest(ctx, Ident::parseGenerated("asgn")));
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "Duplicate identifier 'varname'");
 }
@@ -704,7 +704,7 @@ void testRuleExprCompilationAndParsing() {
 
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
-  ssize_t identi = rl.defineIdent(ctx, ident_part_name);
+  ssize_t identi = rl.defineIdentForTest(ctx, ident_part_name);
   assignRuleExpr(ctx, rxpr_ident, rl, identi);
 
   RuleExprRepeat rxpr_main{
@@ -712,7 +712,8 @@ void testRuleExprCompilationAndParsing() {
     move_to_unique(RuleExprSquoted{"-"})
   };
 
-  ssize_t maini = rl.defineIdent(ctx, Ident::parseGenerated("hyphen_ident"));
+  ssize_t maini =
+    rl.defineIdentForTest(ctx, Ident::parseGenerated("hyphen_ident"));
   assignRuleExpr(ctx, rxpr_main, rl, maini);
 
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};

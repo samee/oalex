@@ -333,7 +333,8 @@ RulesWithLocs::findReservedLocalIdent(const Ident& ident) const {
 }
 
 ssize_t
-RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
+RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident,
+                           ssize_t context_skipper) {
   if(!ident) Bug("defineIdent() invoked with empty Ident");
   Ident res_instance = findReservedLocalIdent(ident);
   if(res_instance) logLocalNamesakeError(ctx, res_instance, ident);
@@ -343,7 +344,7 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
     requireExactMatch(ctx, ident, *name);
 
     if(dynamic_cast<const UnassignedRule*>(rules_[i].get())) {
-      rules_[i] = make_unique<DefinitionInProgress>(ident);
+      rules_[i] = make_unique<DefinitionInProgress>(ident, context_skipper);
       return i;
     }else {
       Error(ctx, ident.stPos(), ident.enPos(),
@@ -351,7 +352,7 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident) {
       return -1;
     }
   }
-  rules_.push_back(make_unique<DefinitionInProgress>(ident));
+  rules_.push_back(make_unique<DefinitionInProgress>(ident, context_skipper));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
 }
@@ -442,6 +443,7 @@ RulesWithLocs::deferred_assign(ssize_t idx, X x) {
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
 
   x.deferred_name(ruleNameOrEmpty(rules_[idx].get()));  // preserve old name
+  x.context_skipper(rules_[idx]->context_skipper());    // and skipper
   rules_[idx] = move_to_unique(x);
 }
 
@@ -872,7 +874,7 @@ compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident);
+  ssize_t newIndex2 = rl.defineIdent(ctx, ident, skipIndex);
   if(newIndex2 == -1) return;
   if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pl2ruleMap);
   rl.deferred_assign(newIndex2, OutputTmpl{
@@ -956,7 +958,8 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
     if(param_ident)
       ruleIndices.push_back(rl.findOrAppendIdent(ctx, param_ident));
   }
-  ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx));
+  ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx),
+                                    rl.defaultSkipper());
   if(newIndex == -1) return;
 
   if(ExternParser::requireValidNameAndParamCount(ext_name, ruleIndices.size(),

@@ -72,7 +72,9 @@ class UnassignedRule final : public Rule {
 class DefinitionInProgress final : public Rule {
  public:
   DefinitionInProgress() = default;
-  explicit DefinitionInProgress(Ident name) : Rule(std::move(name)) {}
+  // For parameter context_skipper, see comment in RulesWithLocs::defineIdent().
+  explicit DefinitionInProgress(Ident name, ssize_t context_skipper)
+    : Rule(std::move(name)) { this->context_skipper(context_skipper); }
   std::string specifics_typename() const override
     { return "DefinitionInProgress"; }
 };
