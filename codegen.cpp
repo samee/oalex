@@ -999,6 +999,13 @@ Rule::deferred_name(Ident name) {
                 name_.preserveCase(), name.preserveCase());
   name_ = name;
 }
+void
+Rule::context_skipper(ssize_t skipper_index) {
+  if(contextSkipper_ != Rule::helperRuleNoContext)
+    Bug("We shouldn't have to assign context_skipper() to the same rule "
+        "multiple times.");
+  contextSkipper_ = skipper_index;
+}
 
 bool needsName(const Rule& rule, bool isTentativeTarget) {
   if(auto* rvar = dynamic_cast<const StringRule*>(&rule)) {

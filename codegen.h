@@ -41,12 +41,22 @@ class Rule {
     if(!name_) return nullptr; else return &name_;
   }
   void deferred_name(Ident name);
+  void context_skipper(ssize_t skipper_index);
+  ssize_t context_skipper() const { return contextSkipper_; }
 
   // Used for debugging/logging.
   virtual std::string specifics_typename() const = 0;
 
+  enum ContextSkipper : ssize_t {
+    helperRuleNoContext = -1,  // The vast majority of rules use this value.
+    removedContext = -2,       // This is typically used by single-line rules.
+  };
  private:
   Ident name_;
+
+  // This is index of the Skipper to use if this rule is used by itself,
+  // not as part of some other rule.
+  ssize_t contextSkipper_ = helperRuleNoContext;
 };
 
 // UnassignedRule really means used but not defined. It is used when we have
