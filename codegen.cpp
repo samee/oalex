@@ -90,6 +90,14 @@ ExternParser::externalName() const {
 // eval()
 // ------
 
+static JsonLoc::ErrorValue
+skipError(InputDiags& ctx, ssize_t preskip_i, const Skipper& skip) {
+  ssize_t com = skip.whitespace(ctx.input, preskip_i);
+  if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
+  Error(ctx, com, "Unfinished comment");
+  return {};
+}
+
 static JsonLoc
 skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   const Input& input = ctx.input;
@@ -97,12 +105,8 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   const Skipper* skip = &rs.skips[sp.skipperIndex];
   i = sp.stayWithinLine ? skip->withinLine(input, i)
                         : skip->acrossLines(input, i);
-  if(i == ssize_t(string::npos)) {
-    ssize_t com = skip->whitespace(input, oldi);
-    if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
-    Error(ctx, com, "Unfinished comment");
-    return JsonLoc::ErrorValue{};
-  } else return JsonLoc::Map();  // Just something non-error and flattenable.
+  if(i == ssize_t(string::npos)) return skipError(ctx, oldi, *skip);
+  else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
 
 // TODO use std::source_locatio when moving to C++20.
@@ -419,6 +423,29 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   Bug("Unknown rule type {} in eval", r.specifics_typename());
 }
 
+JsonLoc
+trimAndEval(InputDiags& ctx, ssize_t& i,
+            const RuleSet& ruleset, ssize_t ruleIndex) {
+  ssize_t ctxskip = ruleset.rules[ruleIndex]->context_skipper();
+  if(ctxskip == Rule::helperRuleNoContext)
+    Bug("Internal helper rules do not have a specified context");
+  if(ctxskip == Rule::removedContext)
+    return eval(ctx, i, ruleset, ruleIndex);
+  if(ctxskip < 0)
+    Bug("Unknown ContextSkipper value: {}", ctxskip);
+  if(ctxskip >= ssize(ruleset.rules))
+    Bug("trimAndEval(): Out of bounds: {}", ctxskip);
+  const Skipper& skip = ruleset.skips[ctxskip];
+  ssize_t oldi = i;
+  i = skip.acrossLines(ctx.input, i);
+  if(i == ssize_t(string::npos)) return skipError(ctx, oldi, skip);
+  JsonLoc rv = eval(ctx, i, ruleset, ruleIndex);
+  if(rv.holdsErrorValue()) return rv;
+  oldi = i;
+  i = skip.acrossLines(ctx.input, i);  // Don't discard rv even on error.
+  if(i == ssize_t(string::npos)) skipError(ctx, oldi, skip);
+  return rv;
+}
 
 // codegen()
 // ---------

@@ -13,7 +13,8 @@ outputs success
 
 # TODO: Fix support for single-line comments here
 rule hello_world_haskell_comments:
-  Hello world  {- Just a simple grammar with two words -}
+  {- Just a simple grammar with two words -}
+  Hello world  -- A redundant single-line comment to end the pattern
 outputs:{}
 lexical:
   {- comment -}
@@ -25,7 +26,7 @@ outputs success
 
 example hello_world_haskell_comments:
   Hello  -- ignore this
-  world
+  world  -- and this too
 outputs success
 
 # TODO: custom errors even for these simple cases

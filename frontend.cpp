@@ -1181,10 +1181,6 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
 }  // namespace
 
-// TODO: make all uses of defaultLexopts and defaultSkip sensitive to overrides
-const Skipper&
-defaultSkip() { return defaultLexopts().skip; }
-
 optional<ParsedSource>
 parseOalexSource(InputDiags& ctx) {
   static const auto* userRegexOpts = new RegexOptions{

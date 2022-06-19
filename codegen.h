@@ -305,7 +305,7 @@ class StringRule final : public Rule {
 // TODO this needs a debug() printer.
 struct RuleSet {
   std::vector<std::unique_ptr<Rule>> rules;
-  std::vector<Skipper> skips;
+  std::vector<Skipper> skips;  // TODO: Move stayWithinLine into this.
   RegexOptions regexOpts;
 };
 
@@ -339,5 +339,23 @@ void codegenDefaultRegexOptions(const RuleSet& ruleset,
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex);
+
+/* This is the same as eval, but is sandwiched between Skipper calls so as to
+   skip over comments and spaces. This only works if:
+
+     ruleset.rules[i].context_skipper() != Rule::helperRuleNoContext
+
+  Dev-note: Right now, there is no analog for this in codegen(). The user can
+  always manually call the appropriate skipper (if they know the name). Later,
+  we can provide some syntax for explicitly naming these:
+
+    derive rule bigfoo: trim(foo)
+    derive rule skipfoo: skip(foo)
+
+  TODO: implement support for skip.withinLine(). Right now, acrossLines() is
+  hardcoded, since that's all the frontend supports.
+*/
+JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
+                    const RuleSet& ruleset, ssize_t ruleIndex);
 
 }  // namespace oalex

@@ -36,7 +36,6 @@ using fmt::format;
 using oalex::Bug;
 using oalex::codegen;
 using oalex::codegenDefaultRegexOptions;
-using oalex::defaultSkip;
 using oalex::Diag;
 using oalex::Example;
 using oalex::Ident;
@@ -319,8 +318,7 @@ JsonLoc processStdin(const RuleSet& rs) {
     fprintf(stderr, "No rule defined");
     return JsonLoc::ErrorValue{};
   }
-  pos = defaultSkip().acrossLines(ctx.input, pos);
-  JsonLoc jsloc = eval(ctx, pos, rs, rule_i);
+  JsonLoc jsloc = trimAndEval(ctx, pos, rs, rule_i);
   if(!jsloc.holdsErrorValue()) return jsloc;
   for(const auto& d : ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
   return JsonLoc::ErrorValue{};
@@ -346,7 +344,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   if(ruleIndex < 0)
     Bug("Rule {} not found. The frontend should have already "
         "detected this error", ex.ruleName.preserveCase());
-  JsonLoc jsloc = eval(ctx, pos, rs, ruleIndex);
+  JsonLoc jsloc = trimAndEval(ctx, pos, rs, ruleIndex);
 
   if (ex.expectation.matches(jsloc, ctx.diags)) {
     if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos)) {

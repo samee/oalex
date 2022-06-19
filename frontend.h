@@ -100,7 +100,4 @@ std::string describeTestFailure(const Example& ex, bool succeeded);
 
 auto parseOalexSource(InputDiags& ctx) -> std::optional<ParsedSource>;
 
-// TODO replace this with user-specified lexopts
-const Skipper& defaultSkip();
-
 }  // namespace oalex
