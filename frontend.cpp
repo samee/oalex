@@ -618,7 +618,7 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
       indent_of(ctx.input, linetoks[0]), "lexical block");
   if(!lexblock) return nullopt;
   LexDirective rv = LexDirective{
-    RegexCharSet{},
+    parseRegexCharSet("[_a-zA-Z0-9]"),
     Skipper{ {}, {} },
     false // keepAllNewlines
   };
