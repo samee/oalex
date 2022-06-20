@@ -38,6 +38,10 @@ outputs: { ident, rhs }
 where:
   rhs ~ int_value
   ident ~ ident
+lexical:  # Intentionally leave a line blank in this, to see that it works.
+  // comment
+
+  # comment
 
 
 example decl:

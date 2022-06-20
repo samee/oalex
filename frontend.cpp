@@ -622,6 +622,7 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
   vector<GluedString> lines = splitLines(*lexblock);
   for(auto& line : lines) {
     line = trim(line);
+    if(line.empty()) continue;
     optional<pair<string, string>> delims = commentDelims(ctx, line);
     if(!delims) continue;
     if(delims->second.back() == '\n')
