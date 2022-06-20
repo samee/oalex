@@ -464,6 +464,20 @@ RulesWithLocs::addSkipper(Skipper skip) {
   return oalex::ssize(skips_)-1;
 }
 
+// For now, we can always return 0. If necessary, we can later switch into
+// saving the default index in a private member variable.
+ssize_t
+RulesWithLocs::defaultSkipper(Skipper skip) {
+  if(!skips_.empty()) Bug("Setting default skipper too late");
+  skips_.push_back(std::move(skip));
+  return 0;
+}
+ssize_t
+RulesWithLocs::defaultSkipper() const {
+  if(skips_.empty()) Bug("defaultSkipper was never set");
+  return 0;
+}
+
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   rl.deferred_assign(ruleIndex, MatchOrError{

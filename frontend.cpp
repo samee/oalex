@@ -1192,6 +1192,7 @@ parseOalexSource(InputDiags& ctx) {
   size_t i = 0;
   vector<Example> examples;
   RulesWithLocs rl;
+  rl.defaultSkipper(defaultLexopts().skip);
   while(ctx.input.sizeGt(i)) {
     i = skipBlankLines(ctx, i);
     if(i == string::npos) return nullopt;

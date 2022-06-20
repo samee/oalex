@@ -94,6 +94,11 @@ class RulesWithLocs {
   /* These Skipper objects are indexed to by SkipPoint{} */
   ssize_t addSkipper(Skipper skip);
 
+  /* Dev-note: This is not part of the constructor, since we want to allow the
+     user to set it somewhat late */
+  ssize_t defaultSkipper(Skipper skip);
+  ssize_t defaultSkipper() const;
+
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
 
