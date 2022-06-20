@@ -46,7 +46,10 @@ subcommand.
 If you want to try it out, just clone this repository and use the typical
 `cmake` steps:
 
-    cmake .
+    git clone --recurse-submodules https://github.com/samee/oalex.git
+    mkdir build
+    cd build
+    cmake ..
     make
     ./oalex --help
 
