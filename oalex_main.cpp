@@ -1,4 +1,4 @@
-/*  Copyright 2020-2021 The oalex authors.
+/*  Copyright 2020-2022 The oalex authors.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -11,12 +11,6 @@
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License. */
-
-/*
-13 Dec 2020: As I make this initial commit, this is supposed to be a fairly
-scrappy frontend. It will accept a language that represents codegen.h RuleSet
-fairly directly. Slowly, I'll evolve it into something more featureful.
-*/
 
 #include <cstdio>
 #include <cstring>
@@ -61,14 +55,15 @@ using std::vector;
 namespace {
 
 const char usage[] = R"(
-Usage:  oalex [eval] filename                    # Parses stdin
-        oalex [eval] test filename               # Runs all examples
+Usage:  oalex [eval] syntax_file.oalex           # Parses stdin
+        oalex [eval] --start-rule=rule_name      # Parses stdin as `rule_name`
+        oalex [eval] test syntax_file.oalex      # Runs all examples
         oalex build [--cpp-out=outname.cpp] [--h-out=outname.h] \
-              filename                           # Generate all parsers
+              syntax_file.oalex                  # Generate all parsers
         oalex build test [--cpp-out=outname.cpp] \
                          [--h-out=outname.h] \
                          [--test-cpp-out=outname_test.cpp] \
-                         filename                # Generate test drivers
+                         syntax_file.oalex       # Generate test drivers
 
         oalex --help                             # This message
         oalex help                               #
