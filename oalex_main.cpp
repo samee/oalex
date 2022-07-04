@@ -82,6 +82,7 @@ struct CmdlineOptions {
   string cppOutFilename;
   string hOutFilename;
   string testOutFilename;
+  string startRuleName;
 };
 
 struct CmdModeTableEntry {
@@ -165,6 +166,34 @@ getInputOutputFilenames(int argc, char *argv[], int start) {
 }
 
 optional<CmdlineOptions>
+getEvalOptions(int argc, char *argv[], int start) {
+  enum : int { startRuleFlag };
+  const struct option opts[] = {
+    {"start-rule", required_argument, nullptr, startRuleFlag},
+    {0, 0, 0, 0},
+  };
+  optind = start;
+  CmdlineOptions rv{};
+  if(hasUnknownArg(argc, argv, start, opts)) return nullopt;
+  while(1) {
+    int c = getopt_long(argc, argv, "", opts, nullptr);
+    switch(c) {
+      case -1: {
+        optional<CmdlineOptions> in = getRulesetFilename(argc, argv, optind);
+        if(!in.has_value()) return nullopt;
+        rv.inFilename = std::move(in->inFilename);
+        return rv;
+      }
+      case startRuleFlag:
+        rv.startRuleName = optarg;
+        break;
+      default:
+        return nullopt;
+    }
+  }
+}
+
+optional<CmdlineOptions>
 showUsageAndAbort(int, char**, int) {
   fprintf(stderr, "%s\n", usage);
   return nullopt;
@@ -175,7 +204,7 @@ showUsageAndAbort(int, char**, int) {
 const CmdModeTableEntry
 cmdModeTable[] = {
   { {"oalex"}, CmdMode::eval, getRulesetFilename },
-  { {"oalex", "eval"}, CmdMode::eval, getRulesetFilename },
+  { {"oalex", "eval"}, CmdMode::eval, getEvalOptions },
   { {"oalex", "test"}, CmdMode::evalTest, getRulesetFilename },
   { {"oalex", "eval", "test"}, CmdMode::evalTest, getRulesetFilename },
   { {"oalex", "build"}, CmdMode::build, getInputOutputFilenames },
@@ -217,6 +246,10 @@ bool validate(const CmdlineOptions& opts) {
                       "specified, or none of them should be.\n");
       return false;
     }
+  }
+  if(opts.mode != CmdMode::eval && !opts.startRuleName.empty()) {
+    fprintf(stderr, "--start-rule only works with 'oalex eval'\n");
+    return false;
   }
   return true;
 }
@@ -302,6 +335,13 @@ ssize_t firstRule(const RuleSet& rs) {
   }
   return rv;
 }
+ssize_t findRule(const RuleSet& rs, string_view ruleName) {
+  for(size_t i=0; i<rs.rules.size(); ++i) {
+    const Ident* name = rs.rules[i]->nameOrNull();
+    if(name && name->preserveCase() == ruleName) return i;
+  }
+  return -1;
+}
 
 class StdinStream : public oalex::InputStream {
  public:
@@ -309,13 +349,16 @@ class StdinStream : public oalex::InputStream {
     { int ch = getchar(); return ch == EOF ? -1 : ch; }
 };
 
-JsonLoc processStdin(const RuleSet& rs) {
+JsonLoc processStdin(const RuleSet& rs, string startRuleName) {
   StdinStream ss;
   InputDiags ctx(Input{&ss});
   ssize_t pos = 0;
-  ssize_t rule_i = firstRule(rs);
+  ssize_t rule_i = startRuleName.empty()
+                 ? firstRule(rs)
+                 : findRule(rs, startRuleName);
   if(rule_i == -1) {
-    fprintf(stderr, "No rule defined");
+    if(startRuleName.empty()) fprintf(stderr, "No rule defined\n");
+    else fprintf(stderr, "Undefined start rule '%s'\n", startRuleName.c_str());
     return JsonLoc::ErrorValue{};
   }
   JsonLoc jsloc = trimAndEval(ctx, pos, rs, rule_i);
@@ -456,7 +499,7 @@ int main(int argc, char *argv[]) {
   if(cmdlineOpts->mode == CmdMode::eval) {
     optional<ParsedSource> src = parseOalexFile(cmdlineOpts->inFilename);
     if(!src.has_value()) return 1;
-    JsonLoc res = processStdin(src->ruleSet);
+    JsonLoc res = processStdin(src->ruleSet, cmdlineOpts->startRuleName);
     printf("%s\n", res.prettyPrintJson().c_str());
     return res.holdsErrorValue() ? 1 : 0;
   }else if(cmdlineOpts->mode == CmdMode::evalTest) {
