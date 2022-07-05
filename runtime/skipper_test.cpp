@@ -21,6 +21,7 @@ using std::optional;
 using std::vector;
 using std::string;
 using std::string_view;
+using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Input;
 using oalex::Skipper;
@@ -104,6 +105,15 @@ vector<string> getLineWords(const Input& input, const Skipper& skip) {
     if(input[i] == '\n') break;
     rv.push_back(parseWord(input, i));
   }
+  vector<string> rv2;
+  Skipper skip2 = skip;
+  skip2.newlines = Skipper::Newlines::ignore_blank;
+  for(size_t i = skip2.acrossLines(input,0);
+      input[i] != '\n'; i = skip2.acrossLines(input, i)) {
+    if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
+    rv2.push_back(parseWord(input, i));
+  }
+  assertEqual("The acrossLines() producing bad outputs", rv, rv2);
   return rv;
 }
 
@@ -154,6 +164,13 @@ void testBlankLinesMatter() {
   if(words != expected)
     BugMe("Markdown parsing problem: {} != {}", words, expected);
 
+  const Skipper blkquote{{{"%", "\n"}}, {}, Skipper::Newlines::keep_all};
+  words = getAllWords(input, blkquote);
+  vector<string> expected_blk = {"hello", "world", "\n", "\n", "\n",
+                                 "goodbye", "world", "\n"};
+  if(words != expected_blk)
+    BugMe("Blockquote parsing problem: {} != {}", words, expected_blk);
+
   const char ltxinput1[] = R"(hello
     % comment
     world
@@ -167,12 +184,33 @@ void testBlankLinesMatter() {
   words = getAllWords(input, ltxskip);
   if(words != expected)
     BugMe("LaTeX parsing problem: {} != {}", words, expected);
+  expected_blk = {"hello", "\n", "\n", "world", "\n", "\n", "\n", "\n",
+                  "\n", "\n", "\n", "goodbye", "world"};
+  words = getAllWords(input, blkquote);
 
   const char ltxinput2[] = "hello\n%\nworld";
   input = unixifiedTestInput(ltxinput2);
   words = getAllWords(input, ltxskip);
   if(words != vector<string>{"hello", "world"})
     BugMe("LaTeX parsing problem: {} != {{hello, world}}", words);
+}
+
+void testBlankLinesIgnored() {
+  Skipper pyskip2 = pyskip;
+  pyskip2.newlines = Skipper::Newlines::ignore_blank;
+  const char msg[] = R"(  # First line comment
+
+    stmtA   # comment with content
+
+    # comment by itself
+    stmtB arg
+    stmtC)";
+  Input input = unixifiedTestInput(msg);
+  vector<string> expected{"stmtA", "\n", "stmtB", "arg", "\n", "stmtC", "\n"};
+  vector<string> words = getAllWords(input, pyskip2);
+  if(words != expected)
+    BugMe("Couldn't parse python comments: {} != {}",
+          words, expected);
 }
 
 void testLineEndsAtNewline() {
@@ -195,8 +233,8 @@ void testCommentEndsAtNewline() {
   foo)";
   Input input = unixifiedTestInput(msg);
   size_t pos = ltxskip.acrossLines(input, 0);
-  if(!input.sizeGt(pos)) BugMe("Was expecting to stop before eos");
-  if(msg[pos] != '\n')
+  if(pos >= msg.size()) BugMe("Was expecting to stop before eos");
+  if(msg.substr(pos) != "\n  foo")
     BugMe("Was expecting to stop at blank line. Stopped at '{}' instead",
           msg.substr(pos));
 }
@@ -243,6 +281,12 @@ void testCommentNeverEnds() {
 
   input = unixifiedTestInput(msg + " {- {- \n  -} ");
   pos = haskellskip.acrossLines(input, msg.size());
+  if(pos != Input::npos)
+    BugMe("Unfinished comment should have produced npos, not {}", pos);
+  if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
+
+  input = Input{msg + " //"};  // explicitly not unixified, because single-line.
+  pos = cskip.acrossLines(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
@@ -315,5 +359,6 @@ int main() {
   testValid();
   testMultilineSuccess();
   testBlankLinesMatter();
+  testBlankLinesIgnored();
   testEquality();
 }

@@ -137,6 +137,8 @@ static bool skipComments(const Skipper& skip, const InputPiece& input,
   for(const auto& [cst,cen] : skip.unnestedComments)
     if(input.hasPrefix(st,cst)) {
       st = skipPastNext(cen,input,st+cst.size(),en);
+      // Special handling. Leaving this unconsumed for acrossLines() to process.
+      if(st != Input::npos && cen.back() == '\n') --st;
       return true;
     }
   return false;
@@ -157,7 +159,8 @@ size_t Skipper::withinLine(const InputPiece& input, size_t pos) const {
 
 size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
   size_t i = pos;
-  bool lineBlank = (pos == input.bol(pos)), anyLineBlank = false;
+  const bool bolstart = (pos == input.bol(pos));
+  bool lineBlank = bolstart, anyLineBlank = false;
   while(true) {
     if(!input.sizeGt(i)) return i;
     else if(is_in(input[i], " \t")) ++i;
@@ -166,12 +169,11 @@ size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
       lineBlank = (i == input.bol(i));
     }else if(input[i] == '\n') {
       if(lineBlank) anyLineBlank = true;
+      if((this->newlines == Skipper::Newlines::ignore_blank && !bolstart) ||
+         (this->newlines == Skipper::Newlines::keep_all)) return i;
       lineBlank = true;
       ++i;
     }else {
-      if(this->newlines != Skipper::Newlines::ignore_all &&
-         this->newlines != Skipper::Newlines::keep_para)
-        Bug("Unimplemented newline handling: {}", to_string(this->newlines));
       // subtracting 1 is guaranteed safe, because the preceding char is '\n'.
       if(anyLineBlank && this->newlines == Skipper::Newlines::keep_para)
         return input.bol(i)-1;

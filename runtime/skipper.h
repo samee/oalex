@@ -1,4 +1,4 @@
-/*  Copyright 2019-2020 The oalex authors.
+/*  Copyright 2019-2022 The oalex authors.
 
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
@@ -33,8 +33,6 @@ namespace oalex {
 //   of the next one. It does not decide what a token is, since we don't want
 //   it to understand string quote escaping. It can't find the end of a token,
 //   only the start.
-//
-// TODO figure out how parameters here affect template-to-grammar conversion.
 struct Skipper {
   // Begin and end pairs.
   // Single-line comments use "\n" as the end marker, unnested.
@@ -90,7 +88,18 @@ struct Skipper {
   The example loop above will produce a single '\n' to indicate a sequence of
   comment-free blank lines.
 
-  keep_all and ignore_blank are not yet implemented.
+  If newlines == ignore_blank, acrossLines() will ignore blank lines or lines
+  with only comments. For other lines (i.e. ones with non-comment text), it
+  will stop at the next '\n' character. This is the most common setting for
+  newline-sensitive programming languages.
+
+  If newlines == keep_all, all newlines are significant, and none are discarded.
+
+  Both ignore_blank and keep_all consider the first line to be non-blank if we
+  start skipping in the middle of the line. The assumption is that we must have
+  just finished processing some token. Every value other than ignore_all also
+  special-cases the last '\n' of an end delimitter, in that the skippers may
+  stop there as instructed instead of skipping over it.
 
   If and only if unfinished comments are found, it returns Input::npos.
 
