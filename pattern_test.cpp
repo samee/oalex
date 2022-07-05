@@ -468,7 +468,7 @@ GluedString assertSuccessfulParse(string_view testName, InputDiags& ctx,
 
 void testParaBreaks() {
   LexDirective paralexopts = lexopts;
-  paralexopts.skip.indicateBlankLines = true;
+  paralexopts.skip.newlines = Skipper::Newlines::keep_para;
 
   char input[] = R"(
   let:     # This 'let' is actually ignored.

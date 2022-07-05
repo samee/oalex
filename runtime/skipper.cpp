@@ -43,11 +43,21 @@ static optional<string> validPair(string_view st, string_view en) {
     return nullopt;
 }
 
+string_view to_string(Skipper::Newlines newlines) {
+  switch(newlines) {
+    case Skipper::Newlines::ignore_all: return "ignore_all";
+    case Skipper::Newlines::keep_all: return "keep_all";
+    case Skipper::Newlines::ignore_blank: return "ignore_blank";
+    case Skipper::Newlines::keep_para: return "keep_para";
+    default: Bug("Unknown Newlines value {}", int(newlines));
+  }
+}
+
 // Switch to `= default` in C++20, so we don't forget any new members.
 bool operator==(const Skipper& a, const Skipper& b) {
   return a.unnestedComments == b.unnestedComments &&
          a.nestedComment == b.nestedComment &&
-         a.indicateBlankLines == b.indicateBlankLines;
+         a.newlines == b.newlines;
 }
 
 optional<string> Skipper::valid() const {
@@ -159,8 +169,12 @@ size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
       lineBlank = true;
       ++i;
     }else {
+      if(this->newlines != Skipper::Newlines::ignore_all &&
+         this->newlines != Skipper::Newlines::keep_para)
+        Bug("Unimplemented newline handling: {}", to_string(this->newlines));
       // subtracting 1 is guaranteed safe, because the preceding char is '\n'.
-      if(anyLineBlank && this->indicateBlankLines) return input.bol(i)-1;
+      if(anyLineBlank && this->newlines == Skipper::Newlines::keep_para)
+        return input.bol(i)-1;
       else return i;
     }
   }

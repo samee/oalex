@@ -66,8 +66,9 @@ oalexBuiltinIndentedList(
   // In the normal case, when this skipper is provided, skip over spaces in
   // unexpectedly deep indentation below.
   const Skipper skip{{{"#", "\n"}}, {}};
-  if(skip.indicateBlankLines)
-    oalex::Unimplemented("indicateBlankLines in oalexBuiltinIndentedList");
+  if(skip.newlines != Skipper::Newlines::ignore_all)
+    oalex::Unimplemented("Skipper::Newlines::{} in oalexBuiltinIndentedList",
+                         to_string(skip.newlines));
 
   JsonLoc::Vector lines;
   j = skipToNextLine(ctx, j, skip);

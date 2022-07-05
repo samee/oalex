@@ -112,7 +112,7 @@ oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -139,7 +139,7 @@ oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -170,7 +170,7 @@ oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -193,7 +193,7 @@ oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -224,7 +224,7 @@ oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -247,7 +247,7 @@ oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -286,7 +286,7 @@ oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -351,7 +351,7 @@ oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -421,7 +421,7 @@ oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -538,7 +538,7 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -561,7 +561,7 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -652,7 +652,7 @@ oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -679,7 +679,7 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
@@ -706,7 +706,7 @@ oalex::JsonLoc parseRule45(oalex::InputDiags& ctx, ssize_t& i) {
     .unnestedComments{
     },
     .nestedComment{},
-    .indicateBlankLines = false,
+    .newlines = Skipper::Newlines::ignore_all,
   };
   ssize_t j = skip->acrossLines(ctx.input, i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {

@@ -1002,8 +1002,8 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   }else {
     cppos("    .nestedComment{},\n");
   }
-  cppos(format("    .indicateBlankLines = {},\n",
-               alphabool(skip->indicateBlankLines)));
+  cppos(format("    .newlines = Skipper::Newlines::{},\n",
+               to_string(skip->newlines)));
   cppos("  };\n");
   if(sp.stayWithinLine)
     cppos("  ssize_t j = skip->withinLine(ctx.input, i);\n");

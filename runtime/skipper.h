@@ -81,15 +81,16 @@ struct Skipper {
       i = tok.enPos;
     }
 
-  If indicateBlankLines == true, this will also stop at some arbitrary '\n'
+  If newlines == ignore_all, acrossLines() never stops at any whitespace.
+
+  If newlines == keep_para, acrossLines() will also stop at some arbitrary '\n'
   character to indicate the presence of blank lines *without* any comments.
   This mostly for languages like LaTeX or Markdown that treats uncommented
   blank lines as paragraph breaks, but collapses multiple lines into one.
   The example loop above will produce a single '\n' to indicate a sequence of
-  comment-free blank lines, if indicateBlankLines is set to true. Otherwise,
-  it will never produce a '\n'.
+  comment-free blank lines.
 
-  If indicateBlankLines = false, it never stops at any whitespace.
+  keep_all and ignore_blank are not yet implemented.
 
   If and only if unfinished comments are found, it returns Input::npos.
 
@@ -103,7 +104,8 @@ struct Skipper {
   Dev notes: If a crlf translation layer becomes important, move Unixify from
     skipper_test.cpp to this header.
   */
-  bool indicateBlankLines = false;
+  enum class Newlines { ignore_all, keep_all, ignore_blank, keep_para };
+  Newlines newlines = Newlines::ignore_all;
   size_t acrossLines(const InputPiece& input, size_t pos) const;
 
   /*
@@ -171,5 +173,8 @@ inline bool operator!=(const Skipper& a, const Skipper& b) { return !(a==b); }
 inline bool is_in(char ch, std::string_view s) {
   return s.find(ch) != std::string_view::npos;
 }
+
+// Converts to string, for codegen and for debugging.
+std::string_view to_string(Skipper::Newlines newlines);
 
 }  // namespace oalex

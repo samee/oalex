@@ -270,8 +270,9 @@ static auto tokenizeLabelledPattern(
   vector<TokenOrPart> rv;
   auto tokenizer = (lexopts.keepAllNewlines ? tokenizePatternKeepNewlines
                                             : tokenizePatternWithoutLabels);
-  if(lexopts.keepAllNewlines && lexopts.skip.indicateBlankLines)
-    Bug("skip.indicateBlankLines and keepAllNewlines cannot both be set");
+  if(lexopts.keepAllNewlines &&
+     lexopts.skip.newlines == Skipper::Newlines::keep_para)
+    Bug("Skipper::Newlines::keep_para and keepAllNewlines cannot both be set");
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
     else if(auto* qs = get_if<GluedString>(&lorp)) {

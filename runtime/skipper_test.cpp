@@ -76,7 +76,7 @@ const char htmlinput[] = "hello <!-- comment --> world";
 const Skipper haskellskip{{{"--","\n"}}, {{"{-","-}"}}};
 const char haskellinput[] = "{- pref -} hello {- a {- b -} c -} world -- stuff";
 
-const Skipper ltxskip{{{"%","\n"}}, {}, true};
+const Skipper ltxskip{{{"%","\n"}}, {}, Skipper::Newlines::keep_para};
 const char ltxinput[] = "hello world % comment";
 
 const Skipper *langskip[] = {&cskip,&pyskip,&ocamlskip,
@@ -143,7 +143,7 @@ void testMultilineSuccess() {
 }
 
 void testBlankLinesMatter() {
-  const Skipper mdskipper{{}, {}, true};
+  const Skipper mdskipper{{}, {}, Skipper::Newlines::keep_para};
   const char mdinput[] = R"( hello world
 
 
@@ -288,7 +288,7 @@ void testValid() {
 }
 
 void testEquality() {
-  Skipper a{{{"/*","*/"}, {"//", "\n"}}, {}, false}, b;
+  Skipper a{{{"/*","*/"}, {"//", "\n"}}, {}, Skipper::Newlines::ignore_all}, b;
   if(a != a) BugMe("Every Skipper should be equal to itself");
   if(a == b) BugMe("C skipper should not be the same as the default skipper");
   b = a;
@@ -296,8 +296,8 @@ void testEquality() {
   b.nestedComment = std::pair{"(*", "*)"};
   if(a == b) BugMe("nestedComment was ignored in comparison");
   b = a;
-  b.indicateBlankLines = true;
-  if(a == b) BugMe("indicateBlankLines was ignored in comparison");
+  b.newlines = Skipper::Newlines::keep_para;
+  if(a == b) BugMe("newlines was ignored in comparison");
   b = a;
   b.unnestedComments.pop_back();
   if(a == b) BugMe("unnestedComments was ignored in comparison");
