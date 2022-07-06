@@ -247,10 +247,10 @@ returns on failure. Here we assume they are provided by the subprocedure calls.
 It is also evident how we would handle changing skippers between various
 contexts. The `Skipper` object does not remember any `input` or `pos` from one
 `skip.acrossLines()` call to another.  So in a Python-like language, for
-instance, we can switch over between `skip.acrossLines()` and
-`skip.withinLine()` depending on whether we are in a bracketed context or not.
-Or even switch to a different `Skipper` object altogether if we are switching
-into parsing Javascript inside HTML.
+instance, we can switch over between `Newlines::ignore_blank` and
+`Newlines::ignore_all` depending on whether we are in a bracketed context or
+not. Or even switch to a different `Skipper` object altogether if we are
+switching into parsing Javascript inside HTML.
 
 As for indentation-tracking, `Input` already keeps track of all newlines, so
 indentation of any token can be computed by examining the sequence of tabs and

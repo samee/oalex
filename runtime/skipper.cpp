@@ -37,9 +37,6 @@ static optional<string> validPair(string_view st, string_view en) {
     if(st.empty() || en.empty()) return "Comment delimiters cannot be empty";
     if(is_in(st[0], " \t\n"))
       return "Whitespace at the start of comments will be skipped over";
-    if(st.find("\n") != string_view::npos ||
-       en.substr(0,en.size()-1).find("\n") != string_view::npos)
-      return "skip.withinLine() works poorly with delimiters requiring newline";
     return nullopt;
 }
 
@@ -81,12 +78,6 @@ optional<string> Skipper::valid() const {
         return format("Comment delimiters cannot be prefixes of each other: "
                       "{}, {}", starts[i], starts[j]);
   return nullopt;
-}
-
-static size_t skipEnd(const InputPiece& input, size_t pos) {
-  size_t end = input.find('\n',pos);
-  if(end != Input::npos) ++end;  // Careful not to overflow npos.
-  return end;
 }
 
 // Assumes ctx.input.hasPrefix(pos, end-pos, delims.first).
@@ -142,19 +133,6 @@ static bool skipComments(const Skipper& skip, const InputPiece& input,
       return true;
     }
   return false;
-}
-
-size_t Skipper::withinLine(const InputPiece& input, size_t pos) const {
-  const size_t end = skipEnd(input,pos);
-  size_t i = pos;
-  while(true) {
-    // Check if we still have room to skip.
-    if(!input.sizeGt(i) || i>=end) return i;
-    else if(is_in(input[i], " \t\n")) ++i;
-    else if(skipComments(*this, input, i, end)) {
-      if(i == Input::npos) return i;
-    }else return i;
-  }
 }
 
 size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {

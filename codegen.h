@@ -349,9 +349,6 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 
     derive rule bigfoo: trim(foo)
     derive rule skipfoo: skip(foo)
-
-  TODO: implement support for skip.withinLine(). Right now, acrossLines() is
-  hardcoded, since that's all the frontend supports.
 */
 JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);

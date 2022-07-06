@@ -99,21 +99,13 @@ string parseWord(const Input& input, size_t& i) {
 
 vector<string> getLineWords(const Input& input, const Skipper& skip) {
   vector<string> rv;
-  for(size_t i = skip.withinLine(input,0);
-      input.bol(i) == 0; i = skip.withinLine(input,i)) {
+  Skipper skip2nl = skip;
+  skip2nl.newlines = Skipper::Newlines::ignore_blank;
+  for(size_t i = skip2nl.acrossLines(input,0);
+      input[i] != '\n'; i = skip2nl.acrossLines(input, i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
-    if(input[i] == '\n') break;
     rv.push_back(parseWord(input, i));
   }
-  vector<string> rv2;
-  Skipper skip2 = skip;
-  skip2.newlines = Skipper::Newlines::ignore_blank;
-  for(size_t i = skip2.acrossLines(input,0);
-      input[i] != '\n'; i = skip2.acrossLines(input, i)) {
-    if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
-    rv2.push_back(parseWord(input, i));
-  }
-  assertEqual("The acrossLines() producing bad outputs", rv, rv2);
   return rv;
 }
 
@@ -214,17 +206,19 @@ void testBlankLinesIgnored() {
 }
 
 void testLineEndsAtNewline() {
+  Skipper pyskip2 = pyskip;
+  pyskip2.newlines = Skipper::Newlines::ignore_blank;
   const string msg = "hello world";
   Input input = unixifiedTestInput(msg + "  \n  ");
   size_t pos1 = msg.size();
-  size_t pos2 = cskip.withinLine(input, pos1);
+  size_t pos2 = pyskip2.acrossLines(input, pos1);
   if(pos2 <= pos1)
-    BugMe("Skipper::withinLine() is not moving to the next line. pos = {}",
+    BugMe("Skipper::acrossLines() is not moving to the newline. pos = {}",
           pos2);
   if(!input.sizeGt(pos2))
     BugMe("We kept on skippin on the following line. pos = {}", pos2);
-  if(input[pos2-1] != '\n')
-    BugMe("We did not stop right after a newline. pos = {}", pos2);
+  if(input[pos2] != '\n')
+    BugMe("We did not stop at the newline. pos = {}", pos2);
 }
 
 void testCommentEndsAtNewline() {
@@ -250,7 +244,7 @@ void testTabsSkipped() {
 void testCommentNeverEnds() {
   const string msg = "hello world";
   Input input = unixifiedTestInput(msg + " /* ");
-  size_t pos = cskip.withinLine(input, msg.size());
+  size_t pos = cskip.acrossLines(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   // This check is typically used as a loop termination condition.
@@ -258,12 +252,12 @@ void testCommentNeverEnds() {
 
   // Test that we are not accidentally nesting it.
   input = unixifiedTestInput(msg + " /* /* */");
-  pos = cskip.withinLine(input, msg.size());
+  pos = cskip.acrossLines(input, msg.size());
   if(input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Test again for nested comments.
   input = unixifiedTestInput(msg + " {- {- -} ");
-  pos = haskellskip.withinLine(input, msg.size());
+  pos = haskellskip.acrossLines(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
@@ -317,10 +311,6 @@ void testValid() {
       Skipper{{}, {{"/*", ""}}}, "delimiters cannot be empty");
   assertValidCallReturnsSubstring("delims start with space",
       Skipper{{{" /*", "*/"}}, {}}, "Whitespace at the start");
-  assertValidCallReturnsSubstring("start delim with newline",
-      Skipper{{{"/*\n", "*/"}}, {}}, "delimiters requiring newline");
-  assertValidCallReturnsSubstring("end delim with newline",
-      Skipper{{{"/*", "\n*/"}}, {}}, "delimiters requiring newline");
   assertValidCallReturnsSubstring("prefixed nested delim forward",
       Skipper{{}, {{"''", "'''"}}}, "can be confused for each other");
   assertValidCallReturnsSubstring("prefixed nested delim forward",

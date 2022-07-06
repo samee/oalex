@@ -117,64 +117,14 @@ struct Skipper {
   Newlines newlines = Newlines::ignore_all;
   size_t acrossLines(const InputPiece& input, size_t pos) const;
 
-  /*
-  DEPRECATED: use acrossLines() with newlines == keep_all instead.
-
-  size_t withinLine(input, pos):
-
-  It finds the next non-space, non-comment character in input, within a
-  single line. A "line" is defined as the substring in range the substring
-  [pos,end), where end is the position of the next '\n' or end-of-string,
-  whichever comes first.
-
-  The caller may want to append an extra '\n' to the input,
-  especially if it is important to detect unterminated comments. In particular,
-  this can allow eof to match a '\n' in an end delimitter of an unnestedComment.
-  This will allow uniform detection of end-of-line using bol() as shown below.
-
-  If it's all spaces and comments, it returns the beginning of the next line
-  (i.e. the next value i such that input.bol(i) > input.bol(pos). If
-  this is the last line, it returns some value larger than input size (i.e.
-  some x that makes input.sizeGt(x) false).
-
-  Example:
-
-    Skipper skip{...};
-    Input input(...);
-    for(size_t i=skip.withinLine(input,lineStart);
-        input.bol(i) == lineStart;
-        i=skip.withinLine(input,i)) {
-      // It doesn't matter what type 'tok' is, just that it somehow indicates
-      // an end position just beyond what is parsed.
-      auto tok = processTokenAt(i);
-      i = tok.enPos;
-     }
-     // We assume Input::getch() terminates input with a newline.
-     if(input.sizeGt(i)) nextLineStart = i;
-     else foundEof = true;
-
-  If and only if comments don't end within the line, it returns Input::npos.
-
-  If a crlf translation layer becomes important, move Unixify from
-  skipper_test.cpp to this header.
-
-  Dev notes: it is possible that this method is never useful, since input.bol()
-    always has enough information to provide the same facilities even with
-    acrossLines(). I will keep writing this anyway, since it's just easier to
-    implement without having to think about blank line exceptions.
-
-  DEPRECATED: use acrossLines() with newlines == keep_all instead.
-  */
-  size_t withinLine(const InputPiece& input, size_t pos) const;
-
   // Tests if we can start skipping from pos.
   bool canStart(const InputPiece& input, size_t pos) const;
 
   /*
   Skips only over ' ', '\n', and '\t'. This is often used to find the start
-  of an incomplete comment for error-reporting, in case acrossLines() or
-  withinLines() returns Input::npos. If it's all whitespace till eof, it returns
-  some x that makes input.sizeGt(x) false.
+  of an incomplete comment for error-reporting, in case acrossLines() returns
+  Input::npos. If it's all whitespace till eof, it returns some x that makes
+  input.sizeGt(x) false.
   */
   size_t whitespace(const InputPiece& input, size_t pos) const;
 };
