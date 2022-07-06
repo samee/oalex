@@ -896,7 +896,9 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
       errors = parseErrorStanza(ctx, is);
       if(errors.holdsErrorValue()) continue;
-      i = oalexSkip.withinLine(ctx.input, is);
+      i = oalexSkip.acrossLines(ctx.input, is);
+      if(ctx.input.bol(i) == ctx.input.bol(is))
+        Error(ctx, i, "Expected end of line");
     }else if(**leader == "lexical") {
       if(skipStanzaIfSeen(sawLexicalKw, *leader, ctx, i)) continue;
       if(auto opt = parseLexicalStanza(ctx, i, std::move(toks)))
