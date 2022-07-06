@@ -177,7 +177,7 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
 
 // Note: right now, we don't worry about unterminated comments in lexer.cpp.
 // We will need to change that if we add more comment delimitters here later.
-inline Skipper oalexSkip{{{"#","\n"}}, {}};
+inline Skipper oalexSkip{{{"#","\n"}}, {}, Skipper::Newlines::ignore_blank};
 inline Skipper oalexWSkip{};
 extern RegexOptions oalexRegexOpts;
 

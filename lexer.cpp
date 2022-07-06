@@ -144,7 +144,6 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
 //   * We know enough to raise an error. Note: not all diags are errors.
 //     But errors should prevent lexing from proceeding to parsing.
 //     Fatal errors are just exceptions.
-// Never invokes forgetBefore() or oalexSkip.acrossLines().
 //
 // From the above, we can now settle on two different kinds of parsing
 // functions:
@@ -170,14 +169,15 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx, i);
   vector<WholeSegment> rv;
   // TODO reduce bsearch overhead.
-  for(i = oalexSkip.withinLine(input, i);
+  for(i = oalexSkip.acrossLines(input, i);
       input.bol(i) == input.bol(rst.start());
-      i = oalexSkip.withinLine(input, i)) {
+      i = oalexSkip.acrossLines(input, i)) {
     if(isSectionHeaderNonSpace(input[i])) {
       if(optional<WholeSegment> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
       else return {};
-    }else return {};
+    }else if(input[i] == '\n') break;
+    else return {};
   }
   rst.markUsed(i);
   return rv;
@@ -191,13 +191,10 @@ optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   Resetter rst(ctx, i);
-  i = oalexSkip.withinLine(ctx.input, i);
-  if(input.bol(i) != input.bol(rst.start()) || input[i]!='-') return nullopt;
   size_t dashStart = i;
   while(input.sizeGt(i) && input[i]=='-') ++i;
-  i = oalexSkip.withinLine(input, i);
-  if(input.bol(i) == input.bol(rst.start())) return nullopt;
-  else { rst.markUsed(i); return dashStart; }
+  rst.markUsed(i);
+  return dashStart;
 }
 
 // For a backslash code, this function assumes `i` is already at the character
@@ -247,12 +244,13 @@ constexpr char badIndentMsg[] = "Indentation mixes tabs and spaces differently "
 // source block on nullopt), while not returning any potential garbage.
 optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
+  static const auto* wskip = new Skipper{{}, {}, Skipper::Newlines::keep_all};
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
-  size_t j = oalexWSkip.withinLine(input, i);
+  size_t j = wskip->acrossLines(input, i);
 
   // Whitespaces don't matter for blank lines.
-  if(input.bol(j) != input.bol(i)) { i = j; return ""; }
+  if(input.sizeGt(j) && input[j] == '\n') { i = j+1; return ""; }
 
   IndentCmp cmp = indentCmp(input.substr(i,j-i), parindent);
 
@@ -324,7 +322,8 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
 // TODO think more about how acrossLines() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  size_t j = oalexSkip.acrossLines(input, i);
+  Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::ignore_all;
+  size_t j = skip.acrossLines(input, i);
   if(!input.sizeGt(j)) return false;
   else if(isident(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
           isregex(input[j]) || isoperch(input[j])) { i=j; return true; }
@@ -384,6 +383,8 @@ size_t
 skipBlankLines(InputDiags& ctx, size_t pos) {
   const Input& input = ctx.input;
   size_t rv = oalexSkip.acrossLines(input, pos);
+  if(input.sizeGt(rv) && input[rv] == '\n')
+    rv = oalexSkip.acrossLines(input, rv+1);
   if(rv == string::npos) {
     Error(ctx, oalexSkip.whitespace(input, pos), "Unfinished comment");
     return rv;
@@ -832,8 +833,17 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   if(size_t j = skipBlankLines(ctx,i); j != string::npos) i = ctx.input.bol(j);
   optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
   if(!rv) return {};
+  Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::keep_all;
+  i = skip.acrossLines(ctx.input, i);
+  if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
+  ++i;
+  i = skip.acrossLines(ctx.input, i);
+  if(!ctx.input.sizeGt(i) || ctx.input[i]!='-') return {};
   optional<size_t> stDash=lexDashLine(ctx,i);
   if(!stDash) return {};
+  i = skip.acrossLines(ctx.input, i);
+  if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
+  ++i;
   rst.markUsed(i);
 
   size_t stCont=rv->at(0).stPos;
@@ -859,9 +869,10 @@ vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
 
   vector<ExprToken> rv;
   size_t prevBol = i;
-  for(i=oalexSkip.withinLine(ctx.input, prevBol);
-      ctx.input.sizeGt(i) && ctx.input.bol(i) == prevBol;
-      i=oalexSkip.withinLine(ctx.input,i)) {
+  for(i=oalexSkip.acrossLines(ctx.input, prevBol);
+      ctx.input.sizeGt(i);
+      i=oalexSkip.acrossLines(ctx.input,i)) {
+    if(ctx.input[i] == '\n') { ++i; break; }
     optional<ExprToken> tok = lexBracketGroup(ctx, i);
     if(!tok.has_value()) {
       tok = lexSingleToken(ctx, i);

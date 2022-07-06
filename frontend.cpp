@@ -54,7 +54,6 @@ using oalex::lex::lexListEntries;
 using oalex::lex::lexNextLine;
 using oalex::lex::lookahead;
 using oalex::lex::lookaheadParIndent;
-using oalex::lex::oalexSkip;
 using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::skipBlankLines;
@@ -896,9 +895,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
       errors = parseErrorStanza(ctx, is);
       if(errors.holdsErrorValue()) continue;
-      i = oalexSkip.acrossLines(ctx.input, is);
-      if(ctx.input.bol(i) == ctx.input.bol(is))
-        Error(ctx, i, "Expected end of line");
+      i = skipBlankLines(ctx, is);
     }else if(**leader == "lexical") {
       if(skipStanzaIfSeen(sawLexicalKw, *leader, ctx, i)) continue;
       if(auto opt = parseLexicalStanza(ctx, i, std::move(toks)))
