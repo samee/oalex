@@ -344,11 +344,11 @@ bool isWord(string_view testName, const TokenOrPart& tok) {
 }
 
 LexDirective mkLineLexOpts(LexDirective lexopts) {
-  lexopts.keepAllNewlines = true;
+  lexopts.skip.newlines = Skipper::Newlines::keep_all;
   return lexopts;
 }
 const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
-                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }, false};
+                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
 const LexDirective linelexopts = mkLineLexOpts(lexopts);
 
 void testTokenizeNoLabel() {

@@ -245,40 +245,18 @@ auto tokenizePatternWithoutLabels(DiagsDest ctx, const GluedString& s,
   return rv;
 }
 
-static auto tokenizePatternKeepNewlines(DiagsDest ctx, const GluedString& s,
-    const LexDirective& opts, string_view comment_end_error)
-    -> vector<TokenOrPart> {
-  size_t i=0, lastBol=0;
-  vector<TokenOrPart> rv;
-  while(true) {
-    i = opts.skip.withinLine(s, i);
-    if(s.bol(i) != lastBol) {
-      rv.push_back(NewlineChar(s, i-1));
-      lastBol = i;
-    }else if(!s.sizeGt(i)) break;
-    else rv.push_back(lexPatternToken(s, i, opts));
-  }
-  if(i == Input::npos)
-    Error(ctx, std::max(1ul, s.enPos)-1, string(comment_end_error));
-  return rv;
-}
-
 static auto tokenizeLabelledPattern(
     DiagsDest ctx,
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
   vector<TokenOrPart> rv;
-  auto tokenizer = (lexopts.keepAllNewlines ? tokenizePatternKeepNewlines
-                                            : tokenizePatternWithoutLabels);
-  if(lexopts.keepAllNewlines &&
-     lexopts.skip.newlines == Skipper::Newlines::keep_para)
-    Bug("Skipper::Newlines::keep_para and keepAllNewlines cannot both be set");
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
     else if(auto* qs = get_if<GluedString>(&lorp)) {
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
-      vector<TokenOrPart> toks = tokenizer(ctx, *qs, lexopts, err);
+      vector<TokenOrPart> toks =
+        tokenizePatternWithoutLabels(ctx, *qs, lexopts, err);
       move(toks.begin(), toks.end(), back_inserter(rv));
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
