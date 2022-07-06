@@ -118,6 +118,8 @@ struct Skipper {
   size_t acrossLines(const InputPiece& input, size_t pos) const;
 
   /*
+  DEPRECATED: use acrossLines() with newlines == keep_all instead.
+
   size_t withinLine(input, pos):
 
   It finds the next non-space, non-comment character in input, within a
@@ -160,6 +162,8 @@ struct Skipper {
     always has enough information to provide the same facilities even with
     acrossLines(). I will keep writing this anyway, since it's just easier to
     implement without having to think about blank line exceptions.
+
+  DEPRECATED: use acrossLines() with newlines == keep_all instead.
   */
   size_t withinLine(const InputPiece& input, size_t pos) const;
 
