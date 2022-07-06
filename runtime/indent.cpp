@@ -34,9 +34,10 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
 StringLoc
 indent_of(const Input& input, size_t i) {
   // TODO remove uses of oalexWSkip elsewhere.
-  const static Skipper* wskip = new Skipper{};
+  const static Skipper* wskip =
+    new Skipper{{}, {}, Skipper::Newlines::keep_all};
   size_t bol = input.bol(i);
-  size_t indent_end = wskip->withinLine(input, bol);
+  size_t indent_end = wskip->acrossLines(input, bol);
   return {input.substr_range(bol, indent_end), bol};
 }
 
