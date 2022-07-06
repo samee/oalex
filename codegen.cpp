@@ -103,8 +103,7 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
   const Skipper* skip = &rs.skips[sp.skipperIndex];
-  i = sp.stayWithinLine ? skip->withinLine(input, i)
-                        : skip->acrossLines(input, i);
+  i = skip->acrossLines(input, i);
   if(i == ssize_t(string::npos)) return skipError(ctx, oldi, *skip);
   else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
@@ -1005,9 +1004,7 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos(format("    .newlines = Skipper::Newlines::{},\n",
                to_string(skip->newlines)));
   cppos("  };\n");
-  if(sp.stayWithinLine)
-    cppos("  ssize_t j = skip->withinLine(ctx.input, i);\n");
-  else cppos("  ssize_t j = skip->acrossLines(ctx.input, i);\n");
+  cppos("  ssize_t j = skip->acrossLines(ctx.input, i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
   cppos("    return oalex::JsonLoc::Map();  // dummy non-error value\n");

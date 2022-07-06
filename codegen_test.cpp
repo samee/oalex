@@ -141,7 +141,7 @@ void testErrorRule() {
 
 RuleSet skipPointRuleSet(Skipper skip) {
   RuleSet rs{ {}, {std::move(skip)}, regexOpts };
-  rs.rules.push_back(move_to_unique(SkipPoint{false, 0}));
+  rs.rules.push_back(move_to_unique(SkipPoint{0}));
   return rs;
 }
 
@@ -197,7 +197,7 @@ void testConcatMatch() {
     .rules = makeVectorUnique<Rule>(
                parseRegexRule("/[a-zA-Z]+/"), StringRule{"="},
                parseRegexRule("/[0-9]+/"), StringRule{";"},
-               SkipPoint{false, 0},
+               SkipPoint{0},
                nmRule(ConcatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
@@ -229,7 +229,7 @@ void testConcatFlatMatch() {
                parseRegexRule("/[a-zA-Z]+/"),
                StringRule{":"}, StringRule{"="},
                parseRegexRule("/[0-9]+/"),
-               StringRule{";"}, SkipPoint{false, 0}),
+               StringRule{";"}, SkipPoint{0}),
     .skips{cskip},
     .regexOpts = regexOpts,
   };
@@ -346,7 +346,7 @@ void testFlattenOnDemand() {
 void testLookaheads() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-        SkipPoint{false, 0},
+        SkipPoint{0},
         WordPreserving{"var"},
         parseRegexRule("/[a-z]+/"),
         StringRule{"="}, StringRule{";"},
@@ -447,7 +447,7 @@ void testLoopRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         MatchOrError{4, "Expected an identifier"},
-        StringRule{"+"}, SkipPoint{false, 0},
+        StringRule{"+"}, SkipPoint{0},
         nmRule(LoopRule{{
           .partidx = 0,
           .partname = "operand",
@@ -527,7 +527,7 @@ void testLoopFlattening() {
         parseRegexRule("/[a-z]+/"),
         MatchOrError{1, "Expected an identifier"},
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
-        SkipPoint{false, 0},
+        SkipPoint{0},
         StringRule{","},
         nmRule(LoopRule{{
           .partidx = 3,

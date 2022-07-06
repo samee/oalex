@@ -110,7 +110,7 @@ PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
       concatRule.comps.push_back({rl_->ssize(), {}});
-      rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false, skipIndex_});
+      rl_->appendAnonRule(SkipPoint{skipIndex_});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = this->process(child);
@@ -165,8 +165,7 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
 ssize_t
 PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
   ssize_t i = this->process(repPatt.part);
-  ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                              skipIndex_});
+  ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return rl_->appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
@@ -176,8 +175,7 @@ ssize_t
 PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
   ssize_t pi = this->process(foldPatt.part);
   ssize_t gi = this->process(foldPatt.glue);
-  ssize_t ski = rl_->appendAnonRule(SkipPoint{/* stayWithinLine */ false,
-                                              skipIndex_});
+  ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return rl_->appendAnonRule(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski}});

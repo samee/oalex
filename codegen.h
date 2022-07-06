@@ -222,10 +222,8 @@ class QuietMatch final : public Rule {
 
 class SkipPoint final : public Rule {
  public:
-  SkipPoint(bool swl, ssize_t skipperIndex)
-    : stayWithinLine{swl}, skipperIndex{skipperIndex} {}
+  SkipPoint(ssize_t skipperIndex) : skipperIndex{skipperIndex} {}
   std::string specifics_typename() const override { return "SkipPoint"; }
-  bool stayWithinLine;  // If true, skip comments should end in '\n'
   ssize_t skipperIndex; // Index into RuleSet::skips.
 };
 
@@ -305,7 +303,7 @@ class StringRule final : public Rule {
 // TODO this needs a debug() printer.
 struct RuleSet {
   std::vector<std::unique_ptr<Rule>> rules;
-  std::vector<Skipper> skips;  // TODO: Move stayWithinLine into this.
+  std::vector<Skipper> skips;
   RegexOptions regexOpts;
 };
 
