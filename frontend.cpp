@@ -356,7 +356,7 @@ skipToIndentLe(InputDiags& ctx, size_t i, string_view refIndent) {
   const Input& input = ctx.input;
   while(true) {
     while(input.sizeGt(i) && input.bol(i) != i) ++i;
-    i = oalexWSkip.acrossLines(input, i);
+    i = oalexWSkip.next(input, i);
     if(!input.sizeGt(i)) return i;
     size_t bol = input.bol(i);
     IndentCmp cmpres = indentCmp(input.substr(bol, i-bol), refIndent);

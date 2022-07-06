@@ -235,7 +235,7 @@ auto tokenizePatternWithoutLabels(DiagsDest ctx, const GluedString& s,
   size_t i=0;
   vector<TokenOrPart> rv;
   while(true) {
-    i = opts.skip.acrossLines(s, i);
+    i = opts.skip.next(s, i);
     if(!s.sizeGt(i)) break;
     else if(s[i] == '\n') rv.push_back(NewlineChar(s, i++));
     else rv.push_back(lexPatternToken(s, i, opts));

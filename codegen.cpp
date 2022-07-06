@@ -103,7 +103,7 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   const Input& input = ctx.input;
   const ssize_t oldi = i;
   const Skipper* skip = &rs.skips[sp.skipperIndex];
-  i = skip->acrossLines(input, i);
+  i = skip->next(input, i);
   if(i == ssize_t(string::npos)) return skipError(ctx, oldi, *skip);
   else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
@@ -436,12 +436,12 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
     Bug("trimAndEval(): Out of bounds: {}", ctxskip);
   const Skipper& skip = ruleset.skips[ctxskip];
   ssize_t oldi = i;
-  i = skip.acrossLines(ctx.input, i);
+  i = skip.next(ctx.input, i);
   if(i == ssize_t(string::npos)) return skipError(ctx, oldi, skip);
   JsonLoc rv = eval(ctx, i, ruleset, ruleIndex);
   if(rv.holdsErrorValue()) return rv;
   oldi = i;
-  i = skip.acrossLines(ctx.input, i);  // Don't discard rv even on error.
+  i = skip.next(ctx.input, i);  // Don't discard rv even on error.
   if(i == ssize_t(string::npos)) skipError(ctx, oldi, skip);
   return rv;
 }
@@ -1004,7 +1004,7 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos(format("    .newlines = Skipper::Newlines::{},\n",
                to_string(skip->newlines)));
   cppos("  };\n");
-  cppos("  ssize_t j = skip->acrossLines(ctx.input, i);\n");
+  cppos("  ssize_t j = skip->next(ctx.input, i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
   cppos("    return oalex::JsonLoc::Map();  // dummy non-error value\n");

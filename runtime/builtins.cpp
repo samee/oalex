@@ -30,7 +30,7 @@ using oalex::StringLoc;
 static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
   // TODO: refactor with eval(SkipPoint).
   const Input& input = ctx.input;
-  size_t j = skip.acrossLines(input, i);
+  size_t j = skip.next(input, i);
   if(j == Input::npos && i != Input::npos) {
     // TODO replace oalexWSkip with whitespace().
     ssize_t com = skip.whitespace(input, i);

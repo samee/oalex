@@ -37,7 +37,7 @@ indent_of(const Input& input, size_t i) {
   const static Skipper* wskip =
     new Skipper{{}, {}, Skipper::Newlines::keep_all};
   size_t bol = input.bol(i);
-  size_t indent_end = wskip->acrossLines(input, bol);
+  size_t indent_end = wskip->next(input, bol);
   return {input.substr_range(bol, indent_end), bol};
 }
 

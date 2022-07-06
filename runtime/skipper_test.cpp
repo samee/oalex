@@ -101,8 +101,8 @@ vector<string> getLineWords(const Input& input, const Skipper& skip) {
   vector<string> rv;
   Skipper skip2nl = skip;
   skip2nl.newlines = Skipper::Newlines::ignore_blank;
-  for(size_t i = skip2nl.acrossLines(input,0);
-      input[i] != '\n'; i = skip2nl.acrossLines(input, i)) {
+  for(size_t i = skip2nl.next(input,0);
+      input[i] != '\n'; i = skip2nl.next(input, i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     rv.push_back(parseWord(input, i));
   }
@@ -111,8 +111,8 @@ vector<string> getLineWords(const Input& input, const Skipper& skip) {
 
 vector<string> getAllWords(const Input& input, const Skipper& skip) {
   vector<string> rv;
-  for(size_t i = skip.acrossLines(input,0);
-      input.sizeGt(i); i = skip.acrossLines(input,i)) {
+  for(size_t i = skip.next(input,0);
+      input.sizeGt(i); i = skip.next(input,i)) {
     if(!input.sizeGt(i)) Bug("Input isn't producing a trailing newline");
     rv.push_back(parseWord(input, i));
   }
@@ -128,7 +128,7 @@ void testSingleLineSuccess() {
                 langnames[i], words);
     words = getAllWords(input, *langskip[i]);
     if(words != vector<string>{"hello", "world"})
-      BugMe("skip.acrossLines() failed parsing {}. {} != {{hello, world}}",
+      BugMe("skip.next() failed parsing {}. {} != {{hello, world}}",
                langnames[i], words);
   }
 }
@@ -211,9 +211,9 @@ void testLineEndsAtNewline() {
   const string msg = "hello world";
   Input input = unixifiedTestInput(msg + "  \n  ");
   size_t pos1 = msg.size();
-  size_t pos2 = pyskip2.acrossLines(input, pos1);
+  size_t pos2 = pyskip2.next(input, pos1);
   if(pos2 <= pos1)
-    BugMe("Skipper::acrossLines() is not moving to the newline. pos = {}",
+    BugMe("Skipper::next() is not moving to the newline. pos = {}",
           pos2);
   if(!input.sizeGt(pos2))
     BugMe("We kept on skippin on the following line. pos = {}", pos2);
@@ -226,7 +226,7 @@ void testCommentEndsAtNewline() {
 
   foo)";
   Input input = unixifiedTestInput(msg);
-  size_t pos = ltxskip.acrossLines(input, 0);
+  size_t pos = ltxskip.next(input, 0);
   if(pos >= msg.size()) BugMe("Was expecting to stop before eos");
   if(msg.substr(pos) != "\n  foo")
     BugMe("Was expecting to stop at blank line. Stopped at '{}' instead",
@@ -244,7 +244,7 @@ void testTabsSkipped() {
 void testCommentNeverEnds() {
   const string msg = "hello world";
   Input input = unixifiedTestInput(msg + " /* ");
-  size_t pos = cskip.acrossLines(input, msg.size());
+  size_t pos = cskip.next(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   // This check is typically used as a loop termination condition.
@@ -252,35 +252,35 @@ void testCommentNeverEnds() {
 
   // Test that we are not accidentally nesting it.
   input = unixifiedTestInput(msg + " /* /* */");
-  pos = cskip.acrossLines(input, msg.size());
+  pos = cskip.next(input, msg.size());
   if(input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Test again for nested comments.
   input = unixifiedTestInput(msg + " {- {- -} ");
-  pos = haskellskip.acrossLines(input, msg.size());
+  pos = haskellskip.next(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.bol(pos) == 0) BugMe("Leaves characters unconsumed");
 
   // Multiline tests.
   input = unixifiedTestInput(msg + "\n /*");
-  pos = cskip.acrossLines(input, msg.size());
+  pos = cskip.next(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   input = unixifiedTestInput(msg + " /* \n /* */");
-  pos = cskip.acrossLines(input, msg.size());
+  pos = cskip.next(input, msg.size());
   if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   input = unixifiedTestInput(msg + " {- {- \n  -} ");
-  pos = haskellskip.acrossLines(input, msg.size());
+  pos = haskellskip.next(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");
 
   input = Input{msg + " //"};  // explicitly not unixified, because single-line.
-  pos = cskip.acrossLines(input, msg.size());
+  pos = cskip.next(input, msg.size());
   if(pos != Input::npos)
     BugMe("Unfinished comment should have produced npos, not {}", pos);
   if(input.sizeGt(pos)) BugMe("Leaves characters unconsumed");

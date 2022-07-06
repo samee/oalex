@@ -128,14 +128,14 @@ static bool skipComments(const Skipper& skip, const InputPiece& input,
   for(const auto& [cst,cen] : skip.unnestedComments)
     if(input.hasPrefix(st,cst)) {
       st = skipPastNext(cen,input,st+cst.size(),en);
-      // Special handling. Leaving this unconsumed for acrossLines() to process.
+      // Special handling. Leaving this unconsumed for next() to process.
       if(st != Input::npos && cen.back() == '\n') --st;
       return true;
     }
   return false;
 }
 
-size_t Skipper::acrossLines(const InputPiece& input, size_t pos) const {
+size_t Skipper::next(const InputPiece& input, size_t pos) const {
   size_t i = pos;
   const bool bolstart = (pos == input.bol(pos));
   bool lineBlank = bolstart, anyLineBlank = false;

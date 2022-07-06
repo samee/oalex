@@ -62,7 +62,7 @@ struct Skipper {
   std::optional<std::string> valid() const;
 
   /*
-  size_t acrossLines(input, pos):
+  size_t next(input, pos):
 
   It finds the next non-space, non-comment character in input, within the
   substring [pos,eof). If not found, it returns some value larger than input
@@ -72,23 +72,23 @@ struct Skipper {
 
     Skipper skip{...};
     Input input(...);
-    for(size_t i=0; input.sizeGt(i); i=skip.acrossLines(input,i)) {
+    for(size_t i=0; input.sizeGt(i); i=skip.next(input,i)) {
       // It doesn't matter what type 'tok' is, just that it somehow indicates
       // an end position just beyond what is parsed.
       auto tok = processTokenAt(i);
       i = tok.enPos;
     }
 
-  If newlines == ignore_all, acrossLines() never stops at any whitespace.
+  If newlines == ignore_all, next() never stops at any whitespace.
 
-  If newlines == keep_para, acrossLines() will also stop at some arbitrary '\n'
+  If newlines == keep_para, next() will also stop at some arbitrary '\n'
   character to indicate the presence of blank lines *without* any comments.
   This mostly for languages like LaTeX or Markdown that treats uncommented
   blank lines as paragraph breaks, but collapses multiple lines into one.
   The example loop above will produce a single '\n' to indicate a sequence of
   comment-free blank lines.
 
-  If newlines == ignore_blank, acrossLines() will ignore blank lines or lines
+  If newlines == ignore_blank, next() will ignore blank lines or lines
   with only comments. For other lines (i.e. ones with non-comment text), it
   will stop at the next '\n' character. This is the most common setting for
   newline-sensitive programming languages.
@@ -115,14 +115,14 @@ struct Skipper {
   */
   enum class Newlines { ignore_all, keep_all, ignore_blank, keep_para };
   Newlines newlines = Newlines::ignore_all;
-  size_t acrossLines(const InputPiece& input, size_t pos) const;
+  size_t next(const InputPiece& input, size_t pos) const;
 
   // Tests if we can start skipping from pos.
   bool canStart(const InputPiece& input, size_t pos) const;
 
   /*
   Skips only over ' ', '\n', and '\t'. This is often used to find the start
-  of an incomplete comment for error-reporting, in case acrossLines() returns
+  of an incomplete comment for error-reporting, in case next() returns
   Input::npos. If it's all whitespace till eof, it returns some x that makes
   input.sizeGt(x) false.
   */

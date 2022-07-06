@@ -169,9 +169,9 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   Resetter rst(ctx, i);
   vector<WholeSegment> rv;
   // TODO reduce bsearch overhead.
-  for(i = oalexSkip.acrossLines(input, i);
+  for(i = oalexSkip.next(input, i);
       input.bol(i) == input.bol(rst.start());
-      i = oalexSkip.acrossLines(input, i)) {
+      i = oalexSkip.next(input, i)) {
     if(isSectionHeaderNonSpace(input[i])) {
       if(optional<WholeSegment> token = lexHeaderWord(ctx,i))
         rv.push_back(*token);
@@ -247,7 +247,7 @@ optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
   static const auto* wskip = new Skipper{{}, {}, Skipper::Newlines::keep_all};
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
-  size_t j = wskip->acrossLines(input, i);
+  size_t j = wskip->next(input, i);
 
   // Whitespaces don't matter for blank lines.
   if(input.sizeGt(j) && input[j] == '\n') { i = j+1; return ""; }
@@ -319,11 +319,11 @@ string debugChar(char ch) {
 bool isident(char ch) { return isalnum(ch) || ch == '_'; }
 
 // Returns false on eof. Throws on invalid language character.
-// TODO think more about how acrossLines() can forget.
+// TODO think more about how next() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::ignore_all;
-  size_t j = skip.acrossLines(input, i);
+  size_t j = skip.next(input, i);
   if(!input.sizeGt(j)) return false;
   else if(isident(input[j]) || isquote(input[j]) || isbracket(input[j]) ||
           isregex(input[j]) || isoperch(input[j])) { i=j; return true; }
@@ -382,13 +382,13 @@ char closeBracket(BracketType bt) {
 size_t
 skipBlankLines(InputDiags& ctx, size_t pos) {
   const Input& input = ctx.input;
-  size_t rv = oalexSkip.acrossLines(input, pos);
+  size_t rv = oalexSkip.next(input, pos);
   if(input.sizeGt(rv) && input[rv] == '\n')
-    rv = oalexSkip.acrossLines(input, rv+1);
+    rv = oalexSkip.next(input, rv+1);
   if(rv == string::npos) {
     Error(ctx, oalexSkip.whitespace(input, pos), "Unfinished comment");
     return rv;
-  }else if(rv == oalexSkip.acrossLines(input, input.bol(rv))) return rv;
+  }else if(rv == oalexSkip.next(input, input.bol(rv))) return rv;
   else {
     Error(ctx, rv, "Expected end of line");
     return string::npos;
@@ -804,7 +804,7 @@ lookaheadParIndent(InputDiags& ctx, size_t i) {
   Input& input = ctx.input;
   if(i != input.bol(i))
     FatalBug(ctx, i, "ParIndent computation cannot start mid-line");
-  i = oalexWSkip.acrossLines(input, i);
+  i = oalexWSkip.next(input, i);
   if(!input.sizeGt(i)) return nullopt;
   return inputSegment(input.bol(i), i, input);
 }
@@ -834,14 +834,14 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
   if(!rv) return {};
   Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::keep_all;
-  i = skip.acrossLines(ctx.input, i);
+  i = skip.next(ctx.input, i);
   if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
   ++i;
-  i = skip.acrossLines(ctx.input, i);
+  i = skip.next(ctx.input, i);
   if(!ctx.input.sizeGt(i) || ctx.input[i]!='-') return {};
   optional<size_t> stDash=lexDashLine(ctx,i);
   if(!stDash) return {};
-  i = skip.acrossLines(ctx.input, i);
+  i = skip.next(ctx.input, i);
   if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
   ++i;
   rst.markUsed(i);
@@ -869,9 +869,9 @@ vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
 
   vector<ExprToken> rv;
   size_t prevBol = i;
-  for(i=oalexSkip.acrossLines(ctx.input, prevBol);
+  for(i=oalexSkip.next(ctx.input, prevBol);
       ctx.input.sizeGt(i);
-      i=oalexSkip.acrossLines(ctx.input,i)) {
+      i=oalexSkip.next(ctx.input,i)) {
     if(ctx.input[i] == '\n') { ++i; break; }
     optional<ExprToken> tok = lexBracketGroup(ctx, i);
     if(!tok.has_value()) {
