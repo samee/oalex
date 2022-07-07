@@ -47,4 +47,4 @@ example global_vars:
 
   globals(var a = 5)
 
-outputs error with 'Expected \'\n\''
+outputs error with 'Expected a newline'

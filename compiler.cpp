@@ -480,9 +480,9 @@ RulesWithLocs::defaultSkipper() const {
 
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
-  rl.deferred_assign(ruleIndex, MatchOrError{
-      rl.ssize(), format("Expected '{}'", literal)
-  });
+  string expectation = format("Expected '{}'", literal);
+  if(literal == "\n") expectation = "Expected a newline";
+  rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), expectation});
   rl.appendAnonRule(StringRule(string(literal)));
 }
 ssize_t
