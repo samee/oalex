@@ -606,6 +606,18 @@ commentDelims(DiagsDest ctx, const GluedString& line) {
   else return pair{string(begin), string(end)};
 }
 
+optional<Skipper::Newlines>
+parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
+  GluedString rhs = trim(s.subqstr(sizeof("newlines:")-1, s.size()));
+  string_view rhsv = rhs;
+  if(rhsv == "ignore_all") return Skipper::Newlines::ignore_all;
+  else if(rhsv == "keep_all") return Skipper::Newlines::keep_all;
+  else if(rhsv == "ignore_blank") return Skipper::Newlines::ignore_blank;
+  else if(rhsv == "keep_para") return Skipper::Newlines::keep_para;
+  Error(ctx, rhs, "Unknown 'newlines:' directive");
+  return nullopt;
+}
+
 // Assumes linetoks.size() >= 1
 optional<LexDirective>
 parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
@@ -623,6 +635,10 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
   for(auto& line : lines) {
     line = trim(line);
     if(line.empty()) continue;
+    if(line.hasPrefix(0, "newlines:")) {// TODO: tolerate wspace between tokens
+      if(auto nl = parseNewlinesDirective(ctx, line)) rv.skip.newlines = *nl;
+      continue;
+    }
     optional<pair<string, string>> delims = commentDelims(ctx, line);
     if(!delims) continue;
     if(delims->second.back() == '\n')

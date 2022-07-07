@@ -1,0 +1,50 @@
+
+rule decl:
+  var ident = rhs
+outputs: { ident, rhs }
+where:
+  rhs ~ /-?[0-9]+/
+  ident ~ /[_a-zA-Z]+/
+lexical:
+  // comment
+
+rule global_vars:
+
+   globals (
+     vars x = 25
+
+     // blank lines shouldn't matter
+
+     vars y = 15
+     ...
+   )
+
+lexical:
+  // comment
+  newlines: ignore_blank
+
+where:
+  "var...5" as decls ~ decl
+
+
+example global_vars:
+
+  globals(
+    var a = 2
+    var b = 4
+    var c = 6
+  )
+
+outputs: {
+  decls: [
+    { ident: "a", rhs: "2" },
+    { ident: "b", rhs: "4" },
+    { ident: "c", rhs: "6" },
+  ]
+}
+
+example global_vars:
+
+  globals(var a = 5)
+
+outputs error with 'Expected \'\n\''
