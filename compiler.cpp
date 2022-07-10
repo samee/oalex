@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "compiler.h"
+#include <algorithm>
 #include <map>
 #include <utility>
 #include "fmt/core.h"
@@ -27,6 +28,7 @@ using std::make_unique;
 using std::map;
 using std::optional;
 using std::pair;
+using std::sort;
 using std::string;
 using std::string_view;
 using std::unique_ptr;

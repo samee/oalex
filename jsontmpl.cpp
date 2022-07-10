@@ -13,6 +13,9 @@
     limitations under the License. */
 
 #include "jsontmpl.h"
+
+#include <algorithm>
+#include <iterator>
 #include "fmt/format.h"
 #include "runtime/jsonloc.h"
 #include "runtime/jsonloc_fmt.h"
@@ -20,9 +23,11 @@
 using fmt::format_to;
 using fmt::memory_buffer;
 using oalex::Bug;
+using std::back_inserter;
 using std::get;
 using std::make_pair;
 using std::pair;
+using std::sort;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -197,35 +202,37 @@ bool JsonTmpl::substitutionsNeeded() const {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonTmpl& json,
                         bool quoteMapKeys) {
+  auto buf_app = back_inserter(buf);
   if(auto* p = json.getIfPlaceholder())
-    format_to(buf, "{}", assertJsonLocKey(__func__, p->key));
-  else if(json.holdsEllipsis()) format_to(buf, "...");
+    format_to(buf_app, "{}", assertJsonLocKey(__func__, p->key));
+  else if(json.holdsEllipsis()) format_to(buf_app, "...");
   else if(auto* s = json.getIfString()) printJsonLocString(buf, *s);
   else if(auto* v = json.getIfVector()) {
-    format_to(buf, "[\n");
+    format_to(buf_app, "[\n");
     bool first = true;
     for(const JsonTmpl& elt : *v) {
-      if(!first) format_to(buf, ",\n");
+      if(!first) format_to(buf_app, ",\n");
       first = false;
-      format_to(buf, "{:{}}", "", indent+2);
+      format_to(buf_app, "{:{}}", "", indent+2);
       prettyPrint(buf, indent+2, elt, quoteMapKeys);
     }
-    format_to(buf, "\n{:{}}]", "", indent);
+    format_to(buf_app, "\n{:{}}]", "", indent);
   }else if(auto* m = json.getIfMap()) {
-    format_to(buf, "{{\n");
+    format_to(buf_app, "{{\n");
     bool first = true;
     for(auto& [k,v] : *m) {
-      if(!first) format_to(buf, ",\n");
+      if(!first) format_to(buf_app, ",\n");
       first = false;
       if(quoteMapKeys) {
-        format_to(buf, "{:{}}\"{}\": ", "", indent+2,
+        format_to(buf_app, "{:{}}\"{}\": ", "", indent+2,
                   assertJsonLocKey(__func__,k));
       }else {
-        format_to(buf, "{:{}}{}: ", "", indent+2, assertJsonLocKey(__func__,k));
+        format_to(buf_app, "{:{}}{}: ", "", indent+2,
+                  assertJsonLocKey(__func__,k));
       }
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
-    format_to(buf, "\n{:{}}}}", "", indent);
+    format_to(buf_app, "\n{:{}}}}", "", indent);
   }else BugUnknownJsonType(json.tag());
 }
 

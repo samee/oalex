@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "skipper.h"
+#include <algorithm>
 #include <string_view>
 #include <vector>
 #include "input_view.h"

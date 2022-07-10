@@ -15,6 +15,7 @@
 #include "lexer.h"
 #include "lexer_matcher.h"
 
+#include <iterator>
 #include <string>
 #include <string_view>
 #include <tuple>
@@ -26,6 +27,7 @@
 #include "runtime/util.h"
 using fmt::format;
 using fmt::print;
+using std::back_inserter;
 using std::get;
 using std::get_if;
 using std::nullopt;
@@ -67,6 +69,20 @@ using oalex::lex::matcher::parens;
 using oalex::lex::matcher::RegexPatternMatcher;
 using oalex::lex::matcher::squareBrackets;
 namespace matcher = oalex::lex::matcher;
+
+template <> struct fmt::formatter<IndentCmp>: formatter<string_view> {
+  template <typename FormatContext>
+  auto format(IndentCmp res, FormatContext& ctx) {
+    string_view name = "unknown";
+    switch (res) {
+      case IndentCmp::lt: name = "IndentCmp::lt"; break;
+      case IndentCmp::eq: name = "IndentCmp::eq"; break;
+      case IndentCmp::gt: name = "IndentCmp::gt"; break;
+      case IndentCmp::bad: name = "IndentCmp::bad"; break;
+    }
+    return formatter<string_view>::format(name, ctx);
+  }
+};
 
 namespace {
 
@@ -445,22 +461,24 @@ string debugMatcher(BracketType bt) {
 void debug(fmt::memory_buffer& buf, const BracketGroup& bg);
 
 void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
+  auto buf_app = back_inserter(buf);
   if(const auto* tok = get_if<WholeSegment>(&expr)) {
-    format_to(buf, "{}", tok->data);
+    format_to(buf_app, "{}", tok->data);
     return;
   }
   if(const auto* qs = get_if<GluedString>(&expr)) {
-    format_to(buf, "glued({})", string_view(*qs));
+    format_to(buf_app, "glued({})", string_view(*qs));
     return;
   }
   debug(buf, get<BracketGroup>(expr));
 }
 
 void debug(fmt::memory_buffer& buf, const BracketGroup& bg) {
-  format_to(buf, "{}(", debugMatcher(bg.type));
+  auto buf_app = back_inserter(buf);
+  format_to(buf_app, "{}(", debugMatcher(bg.type));
   bool first_child = true;
   for(const ExprToken& x : bg.children) {
-    if(!first_child) format_to(buf, ", ");
+    if(!first_child) format_to(buf_app, ", ");
     first_child = false;
     debug(buf, x);
   }

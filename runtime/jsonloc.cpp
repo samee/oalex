@@ -15,14 +15,18 @@
 #include "jsonloc.h"
 #include "jsonloc_fmt.h"
 
+#include <algorithm>
+#include <iterator>
 #include "fmt/format.h"
 #include "util.h"
 using fmt::format_to;
 using fmt::memory_buffer;
 using oalex::Bug;
+using std::back_inserter;
 using std::get;
 using std::make_pair;
 using std::pair;
+using std::sort;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -154,34 +158,36 @@ bool JsonLoc::substitutionsOk() const {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonLoc& json,
                         bool quoteMapKeys) {
+  auto buf_app = back_inserter(buf);
   if(auto* s = json.getIfString()) printJsonLocString(buf, *s);
   else if(auto* v = json.getIfVector()) {
-    format_to(buf, "[\n");
+    format_to(buf_app, "[\n");
     bool first = true;
     for(const JsonLoc& elt : *v) {
-      if(!first) format_to(buf, ",\n");
+      if(!first) format_to(buf_app, ",\n");
       first = false;
-      format_to(buf, "{:{}}", "", indent+2);
+      format_to(buf_app, "{:{}}", "", indent+2);
       prettyPrint(buf, indent+2, elt, quoteMapKeys);
     }
-    format_to(buf, "\n{:{}}]", "", indent);
+    format_to(buf_app, "\n{:{}}]", "", indent);
   }else if(auto* m = json.getIfMap()) {
-    format_to(buf, "{{\n");
+    format_to(buf_app, "{{\n");
     bool first = true;
     for(auto& [k,v] : *m) {
-      if(!first) format_to(buf, ",\n");
+      if(!first) format_to(buf_app, ",\n");
       first = false;
       if(quoteMapKeys) {
-        format_to(buf, "{:{}}\"{}\": ", "", indent+2,
+        format_to(buf_app, "{:{}}\"{}\": ", "", indent+2,
                   assertJsonLocKey(__func__,k));
       }else {
-        format_to(buf, "{:{}}{}: ", "", indent+2, assertJsonLocKey(__func__,k));
+        format_to(buf_app, "{:{}}{}: ", "", indent+2,
+                  assertJsonLocKey(__func__, k));
       }
       prettyPrint(buf, indent+2, v, quoteMapKeys);
     }
-    format_to(buf, "\n{:{}}}}", "", indent);
+    format_to(buf_app, "\n{:{}}}}", "", indent);
   }else if(json.holdsErrorValue()) {
-    format_to(buf, "(error_value)");
+    format_to(buf_app, "(error_value)");
   }else BugUnknownJsonType(json.tag());
 }
 

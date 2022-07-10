@@ -16,11 +16,13 @@
 #include <cctype>
 #include <cstring>
 #include <initializer_list>
+#include <iterator>
 #include <vector>
 #include "fmt/format.h"
 #include "oalex.h"
 #include "util.h"
 using std::array;
+using std::back_inserter;
 using std::get_if;
 using std::initializer_list;
 using std::isprint;
@@ -129,21 +131,22 @@ string prettyPrintSet(const RegexCharSet& set) {
   if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
   fmt::memory_buffer buf;
+  auto buf_app = back_inserter(buf);
 
-  if(set.negated) format_to(buf, "[^");
-  else format_to(buf, "[");
+  if(set.negated) format_to(buf_app, "[^");
+  else format_to(buf_app, "[");
 
   for(size_t i=0; i<n; ++i) {
     auto& r = set.ranges[i];
     if(r.from > r.to) Bug("Invalid regex range: {} > {}", r.from, r.to);
     else if(r.from == r.to) {
-      if(r.from == '^' && i == 0 && !set.negated) format_to(buf, "\\^");
-      else format_to(buf, "{}", escapedForSet(r.from, i, n));
+      if(r.from == '^' && i == 0 && !set.negated) format_to(buf_app, "\\^");
+      else format_to(buf_app, "{}", escapedForSet(r.from, i, n));
     }else if(isPlainRange(r.from, r.to))
-      format_to(buf, "{}-{}", char(r.from), char(r.to));
+      format_to(buf_app, "{}-{}", char(r.from), char(r.to));
     else Bug("Complicated range found: {} to {}", r.from, r.to);
   }
-  format_to(buf, "]");
+  format_to(buf_app, "]");
   return fmt::to_string(buf);
 }
 
@@ -178,17 +181,19 @@ bool printsToNull(const Regex& regex) {
 
 void surroundUnless(const initializer_list<RegexNodeType>& baretypes,
                     fmt::memory_buffer& buf, const Regex& regex) {
+  auto buf_app = back_inserter(buf);
   for(RegexNodeType t : baretypes) if(t == regex.nodeType) {
-    format_to(buf, "{}", prettyPrintRec(regex));
+    format_to(buf_app, "{}", prettyPrintRec(regex));
     return;
   }
-  format_to(buf, "({})", prettyPrintRec(regex));
+  format_to(buf_app, "({})", prettyPrintRec(regex));
 }
 
 string prettyPrintSeq(const RegexConcat& seq) {
   fmt::memory_buffer buf;
+  auto buf_app = back_inserter(buf);
   for(auto& part : seq.parts) {
-    if(printsToNull(*part)) format_to(buf, "()");
+    if(printsToNull(*part)) format_to(buf_app, "()");
     else surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
                          RegexNodeType::anchor, RegexNodeType::repeat,
                          RegexNodeType::optional}, buf, *part);
@@ -199,13 +204,14 @@ string prettyPrintSeq(const RegexConcat& seq) {
 string prettyPrintOrs(const RegexOrList& ors) {
   if(ors.parts.empty()) return "";
   fmt::memory_buffer buf;
+  auto buf_app = back_inserter(buf);
 
   surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
                   RegexNodeType::anchor, RegexNodeType::concat,
                   RegexNodeType::repeat, RegexNodeType::optional},
                  buf, *ors.parts[0]);
   for(size_t i=1; i<ors.parts.size(); ++i) {
-    format_to(buf, "|");
+    format_to(buf_app, "|");
     surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
                     RegexNodeType::anchor, RegexNodeType::concat,
                     RegexNodeType::repeat, RegexNodeType::optional},

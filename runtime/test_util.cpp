@@ -28,6 +28,7 @@ using fmt::format_to;
 using fmt::memory_buffer;
 using fmt::print;
 using fmt::to_string;
+using std::back_inserter;
 using std::string;
 using std::string_view;
 using std::vector;
@@ -45,8 +46,9 @@ namespace oalex{
 
 void showDiags(const vector<Diag>& diags) {
   memory_buffer buf;
-  format_to(buf, "diags:\n");
-  for(const auto& d : diags) format_to(buf, "  {}\n", string(d));
+  auto buf_app = back_inserter(buf);
+  format_to(buf_app, "diags:\n");
+  for(const auto& d : diags) format_to(buf_app, "  {}\n", string(d));
   BugWarn("{}", to_string(buf));
 }
 
