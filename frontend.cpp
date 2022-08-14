@@ -757,8 +757,8 @@ makeRuleExprAtomVector(const vector<ExprToken>& toks, size_t st, size_t en,
   if(st == en) return nullptr;
   if(st+1 == en) return makeRuleExprAtom(ctx, toks[st]);
   vector<unique_ptr<const RuleExpr>> concat_parts;
-  for(size_t i=st; i<en; ++i)
-    concat_parts.push_back(makeRuleExprAtom(ctx, toks[i]));
+  for(size_t i=st; i<en; ++i) if(auto rxpr = makeRuleExprAtom(ctx, toks[i]))
+    concat_parts.push_back(std::move(rxpr));
   return make_unique<RuleExprConcat>(std::move(concat_parts));
 }
 
@@ -782,9 +782,12 @@ makeRuleExprRepeat(const vector<ExprToken>& toks, size_t ellPos,
   else if(validSizeCount > 1)  // TODO: be more forgiving, like pattern.cpp
     Error(ctx, toks[ellPos], "Ambiguous ellipsis. Try reducing repeats");
   else {
-    return make_unique<RuleExprRepeat>(
-        makeRuleExprAtomVector(toks, 0, ellPos-validGlueSize, ctx),
-        makeRuleExprAtomVector(toks, ellPos-validGlueSize, ellPos, ctx) );
+    auto partxpr = makeRuleExprAtomVector(toks, 0, ellPos-validGlueSize, ctx);
+    auto gluexpr = makeRuleExprAtomVector(toks, ellPos-validGlueSize,
+                                          ellPos, ctx);
+    if(partxpr && (validGlueSize == 0 || gluexpr))
+      return make_unique<RuleExprRepeat>(std::move(partxpr),
+                                         std::move(gluexpr));
   }
   return nullptr;
 }

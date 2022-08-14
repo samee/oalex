@@ -1,0 +1,3 @@
+# expected-error: Identifier expected
+
+rule foo: (0 ... 0)
