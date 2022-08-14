@@ -61,6 +61,7 @@ using oalex::lex::stPos;
 using std::get_if;
 using std::holds_alternative;
 using std::make_unique;
+using std::min;
 using std::nullopt;
 using std::optional;
 using std::pair;
@@ -765,7 +766,8 @@ unique_ptr<const RuleExpr>
 makeRuleExprRepeat(const vector<ExprToken>& toks, size_t ellPos,
                    DiagsDest ctx) {
   size_t validSizeCount = 0, validGlueSize = toks.size();
-  for(size_t glueSize=0; glueSize<toks.size(); ++glueSize) {
+  size_t glueLimit = min(ellPos, toks.size()-ellPos-1);
+  for(size_t glueSize=0; glueSize<glueLimit; ++glueSize) {
     bool partEqual = equal(toks.begin(), toks.begin()+ellPos-glueSize,
                            toks.end()-ellPos+glueSize, repeatCompEqual);
     bool glueEqual = equal(toks.begin()+ellPos-glueSize, toks.begin()+ellPos,
