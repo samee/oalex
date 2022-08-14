@@ -137,3 +137,8 @@ outputs: { leveled_var: var }  # A rule that doesn't use all its inputs.
 example ignored_levels:
   msg level: 500
 outputs: { leveled_var: "msg" }
+
+rule no_glue_repeat: ('a' ... 'a')
+example no_glue_repeat:
+  aaa
+outputs success

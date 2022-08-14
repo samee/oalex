@@ -1063,7 +1063,7 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
     ruleExprCollectIdent(*opt->part, output);
   else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
     ruleExprCollectIdent(*rep->part, output);
-    ruleExprCollectIdent(*rep->glue, output);
+    if(rep->glue) ruleExprCollectIdent(*rep->glue, output);
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
