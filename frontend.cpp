@@ -90,7 +90,7 @@ Expectation::matches(const JsonLoc& jsloc,
     case Expectation::failedWithErrorSubstr:
       for(const auto& d: diags) if(isSubstr(errorSubstr_, d.msg)) return true;
       return false;
-    default: Bug("Unknown Expectation type {}", matchType_);
+    default: Bug("Unknown Expectation type {}", int{matchType_});
   }
   return false;
 }
