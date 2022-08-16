@@ -1,0 +1,4 @@
+rule simple_sum:
+  a + b
+where:
+  a, b ~ /[0-9]+/

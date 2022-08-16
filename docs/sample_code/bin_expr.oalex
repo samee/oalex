@@ -1,0 +1,5 @@
+rule bin_expr:
+  a op b
+where:
+  a, b ~ /[0-9]+/
+  op ~ /[-+*\/]/
