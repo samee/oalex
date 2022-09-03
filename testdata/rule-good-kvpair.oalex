@@ -1,0 +1,37 @@
+example key_value_pairs:
+
+  # A person
+  name = "John Smith"
+  occupation = "Baker"
+
+outputs: {
+  key: [ "name", "occupation" ],
+  value: [ {quoted: "John Smith"},
+           {quoted: "Baker"} ],
+}
+
+
+rule key_value_pairs:
+
+  key = value
+  key = value
+  ...
+
+where:
+  key ~ /[a-z]+/
+  value ~ ('"' (quoted ~ /[^"]*/) '"')
+lexical:
+  newlines: ignore_blank
+  # comment
+
+
+example key_value_pairs:
+  name = "John Smith" occupation = "Baker"
+outputs error with 'Expected a newline'
+
+example key_value_pairs:
+  tag = "#content"
+outputs: {
+  key: ["tag"],
+  value: [{quoted: "#content"}],
+}

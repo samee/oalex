@@ -27,6 +27,11 @@ add_executable(input_view_test input_view_test.cpp
 target_link_libraries(input_view_test oalex)
 add_test(input_view_test input_view_test)
 
+add_executable(parser_helpers_test parser_helpers_test.cpp
+               $<TARGET_OBJECTS:test_util>)
+target_link_libraries(parser_helpers_test oalex)
+add_test(parser_helpers_test parser_helpers_test)
+
 add_executable(skipper_test skipper_test.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(skipper_test oalex)

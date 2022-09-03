@@ -17,6 +17,7 @@ rule global_vars:
 
      vars y = 15
      ...
+     vars z = 35
    )
 
 lexical:

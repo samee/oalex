@@ -111,11 +111,13 @@ JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
   We shouldn't have them either.
   </rant>
   */
-  unique_ptr<InputStream> sp = substrProxy(input, i);
+  // Offset from input.bol(i) instead of i to help ignore_blank properly
+  // detect a non-blank line.
+  unique_ptr<InputStream> sp = substrProxy(input, input.bol(i));
   InputDiags proxy{Input{sp.get()}};
-  ssize_t pos = 0;
+  ssize_t pos = i-input.bol(i);
   JsonLoc rv = parser(proxy, pos);
-  if(!rv.holdsErrorValue()) i += pos;
+  if(!rv.holdsErrorValue()) i = input.bol(i) + pos;
   return rv;
 }
 

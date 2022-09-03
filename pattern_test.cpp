@@ -353,8 +353,9 @@ const LexDirective linelexopts = mkLineLexOpts(lexopts);
 
 void testTokenizeNoLabel() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
+  GluedString patt = fquote("def foo(args): //\\n");
   vector<TokenOrPart> observed = tokenizePatternWithoutLabels(*ctx,
-      fquote("def foo(args): //\\n"), lexopts, "");
+      patt, {0,patt.size()}, lexopts, "");
   vector<string> expected{"def", "foo", "(", "args", "):"};
   vector<string> observed_strings;
   for(const auto& tok : observed)
@@ -375,7 +376,8 @@ void testTokenizeNoLabelRunoffComment() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("def foo(args): //\n")");
   GluedString qs = fquote("def foo(args): //\\n");
   qs = qs.subqstr(0, qs.size()-1);  // Remove the last newline
-  tokenizePatternWithoutLabels(*ctx, qs, lexopts, "Missing newline");
+  tokenizePatternWithoutLabels(*ctx, qs, {0, qs.size()}, lexopts,
+                               "Missing newline");
   assertHasDiagWithSubstr(__func__, ctx->diags, "Missing newline");
 }
 

@@ -279,11 +279,11 @@ unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i);
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
 static JsonLoc evalQuiet(const Input& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex) {
-  unique_ptr<InputStream> sp = substrProxy(input, i);
+  unique_ptr<InputStream> sp = substrProxy(input, input.bol(i));
   InputDiags proxy{Input{sp.get()}};
-  ssize_t pos = 0;
+  ssize_t pos = i-input.bol(i);
   JsonLoc res = eval(proxy, pos, rs, ruleIndex);
-  if(!res.holdsErrorValue()) i += pos;
+  if(!res.holdsErrorValue()) i = input.bol(i) + pos;
   return res;
 }
 

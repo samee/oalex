@@ -79,9 +79,9 @@ using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // Return value elements contain either WordToken or OperToken, never Ident.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizePatternWithoutLabels(
-    DiagsDest ctx,
-    const lex::GluedString& s, const LexDirective& opts,
-    std::string_view comment_end_error)
+    DiagsDest ctx, const lex::GluedString& s,
+    const std::pair<size_t,size_t>& locpair,
+    const LexDirective& opts, std::string_view comment_end_error)
     -> std::vector<TokenOrPart>;
 
 // This function doesn't make sense if we are keeping all spaces.

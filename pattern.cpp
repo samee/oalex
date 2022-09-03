@@ -229,14 +229,15 @@ static TokenOrPart lexPatternToken(const GluedString& s, size_t& i,
 }
 
 auto tokenizePatternWithoutLabels(DiagsDest ctx, const GluedString& s,
+                                  const pair<size_t,size_t>& locpair,
                                   const LexDirective& opts,
                                   string_view comment_end_error)
                                   -> vector<TokenOrPart> {
-  size_t i=0;
+  size_t i=locpair.first;
   vector<TokenOrPart> rv;
   while(true) {
     i = opts.skip.next(s, i);
-    if(!s.sizeGt(i)) break;
+    if(!s.sizeGt(i) || i >= locpair.second) break;
     else if(s[i] == '\n') rv.push_back(NewlineChar(s, i++));
     else rv.push_back(lexPatternToken(s, i, opts));
   }
@@ -249,9 +250,6 @@ static auto tokenizeLabelledPattern(
     DiagsDest ctx, const GluedString& s,
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
-  auto substr = [](const GluedString& t, const pair<size_t,size_t>& locpair) {
-    return t.subqstr(locpair.first, locpair.second-locpair.first);
-  };
   vector<TokenOrPart> rv;
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
@@ -259,7 +257,7 @@ static auto tokenizeLabelledPattern(
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
       vector<TokenOrPart> toks =
-        tokenizePatternWithoutLabels(ctx, substr(s, *locpair), lexopts, err);
+        tokenizePatternWithoutLabels(ctx, s, *locpair, lexopts, err);
       move(toks.begin(), toks.end(), back_inserter(rv));
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
