@@ -230,9 +230,10 @@ auto setupLabelTest(string testName, string fileBody) {
   return make_tuple(std::move(ctx), fquote, fid);
 }
 
-string debug(const variant<GluedString,Ident>& lp) {
+string debug(const LabelOrPart& lp) {
   if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
-  if(auto* q = get_if<GluedString>(&lp)) return string(*q);
+  if(auto* q = get_if<pair<size_t,size_t>>(&lp))
+    return fmt::format("{{{}, {}}}", q->first, q->second);
   Bug("LabelOrPart variant with unknown index {}", lp.index());
 }
 
@@ -244,11 +245,11 @@ void testLabelParts() {
   map<Ident,PartPattern> partspec{
     {fid("condexpr"), fquote("cond")},
     {fid("stmt"), DelimPair{fquote("{"), fquote("}")}}};
-  vector<variant<GluedString,Ident>> observed
+  vector<LabelOrPart> observed
     = labelParts(*ctx, patt, partspec, {});
-  vector<variant<GluedString,Ident>> expected{
-    patt.subqstr(0,4), fid("condexpr"), patt.subqstr(8,2),
-    fid("stmt"), patt.subqstr(17,6), fid("stmt"),
+  vector<LabelOrPart> expected{
+    pair{0,4}, fid("condexpr"), pair{8,10},
+    fid("stmt"), pair{17,23}, fid("stmt"),
   };
   if(observed.size() != expected.size())
     BugMe("Expected {} parts, found {}", expected.size(), observed.size());
@@ -266,7 +267,7 @@ void testCrossLabelOverlapFails() {
     {findIdent(__func__, *ctx, "index"), DelimPair{fquote("["), fquote("]")}},
     {findIdent(__func__, *ctx, "index2"), DelimPair{fquote("]"), fquote("[")}},
   };
-  vector<variant<GluedString,Ident>> observed
+  vector<LabelOrPart> observed
     = labelParts(*ctx, patt, partspec, {});
   if(!observed.empty()) BugMe("Was expecting an empty vector on error");
   assertHasDiagWithSubstr(__func__, ctx->diags,
@@ -279,9 +280,8 @@ void testNoMatchWarns() {
   map<Ident,PartPattern> partspec{
     {findIdent(__func__, *ctx, "foo"), fquote("foo")},
   };
-  vector<variant<GluedString,Ident>> observed
-    = labelParts(*ctx, patt, partspec, {});
-  vector<variant<GluedString,Ident>> expected{patt};
+  vector<LabelOrPart> observed = labelParts(*ctx, patt, partspec, {});
+  vector<LabelOrPart> expected{pair{0,1}};
   if(observed != expected) BugMe("Didn't get the unsplit string");
   assertHasDiagWithSubstr(__func__, ctx->diags,
                           "No match found for pattern 'foo'");
@@ -294,7 +294,7 @@ void testEmptySuccess() {
   if(observed.size() != 1)
     BugMe("Split empty string to get {} pieces, was expecting 1",
           observed.size());
-  if(debug(observed[0]) != "")
+  if(observed[0] != LabelOrPart{pair{0, 0}})
     BugMe("Split empty string to obtain non-empty output: {}",
           debug(observed[0]));
 }

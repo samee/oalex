@@ -206,12 +206,12 @@ auto labelParts(DiagsDest ctx, const GluedString& s,
           " starts before ending another interval at {}",
           ctx.locationString(s.inputPos(st), s.inputPos(en)),
           ctx.locationString(s.inputPos(lastEn), s.inputPos(lastEn+1)));
-    if(st > lastEn) rv.push_back(s.subqstr(lastEn, st-lastEn));
+    if(st > lastEn) rv.push_back(pair{lastEn, st});
     rv.push_back(id);
     lastEn = en;
   }
   if(lastEn < s.size() || rv.empty())
-    rv.push_back(s.subqstr(lastEn, s.size()-lastEn));
+    rv.push_back(pair{lastEn, s.size()});
   return rv;
 }
 
@@ -246,17 +246,20 @@ auto tokenizePatternWithoutLabels(DiagsDest ctx, const GluedString& s,
 }
 
 static auto tokenizeLabelledPattern(
-    DiagsDest ctx,
+    DiagsDest ctx, const GluedString& s,
     const vector<LabelOrPart>& lblParts,
     const LexDirective& lexopts) -> vector<TokenOrPart> {
+  auto substr = [](const GluedString& t, const pair<size_t,size_t>& locpair) {
+    return t.subqstr(locpair.first, locpair.second-locpair.first);
+  };
   vector<TokenOrPart> rv;
   for(const LabelOrPart& lorp : lblParts) {
     if(auto* id = get_if<Ident>(&lorp)) rv.push_back(*id);
-    else if(auto* qs = get_if<GluedString>(&lorp)) {
+    else if(auto* locpair = get_if<pair<size_t,size_t>>(&lorp)) {
       const char* err = &lorp == &lblParts.back() ?
         "Comment never ends" : "Placeholders not allowed in comments";
       vector<TokenOrPart> toks =
-        tokenizePatternWithoutLabels(ctx, *qs, lexopts, err);
+        tokenizePatternWithoutLabels(ctx, substr(s, *locpair), lexopts, err);
       move(toks.begin(), toks.end(), back_inserter(rv));
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
@@ -267,7 +270,7 @@ static auto tokenizeLabelledPattern(
 auto tokenizePattern(DiagsDest ctx, const GluedString& s,
                      const map<Ident,PartPattern>& partPatterns,
                      const LexDirective& lexopts) -> vector<TokenOrPart> {
-  return tokenizeLabelledPattern(ctx,
+  return tokenizeLabelledPattern(ctx, s,
       labelParts(ctx, s, partPatterns, lexopts.wordChars), lexopts);
 }
 

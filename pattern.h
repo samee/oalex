@@ -54,7 +54,7 @@ auto matchAllParts(DiagsDest ctx,
 // vector with a single empty GluedString.
 // Note: this function can be used either on patterns that skip over
 // whitespaces, or those who do not.
-using LabelOrPart = std::variant<lex::GluedString, Ident>;
+using LabelOrPart = std::variant<std::pair<size_t,size_t>, Ident>;
 auto labelParts(
     DiagsDest ctx,
     const lex::GluedString& s,
