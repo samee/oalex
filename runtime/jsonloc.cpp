@@ -22,7 +22,7 @@
 using fmt::format_to;
 using fmt::memory_buffer;
 using oalex::Bug;
-using std::back_inserter;
+using std::back_insert_iterator;
 using std::get;
 using std::make_pair;
 using std::pair;
@@ -158,7 +158,7 @@ bool JsonLoc::substitutionsOk() const {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonLoc& json,
                         bool quoteMapKeys) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   if(auto* s = json.getIfString()) printJsonLocString(buf, *s);
   else if(auto* v = json.getIfVector()) {
     format_to(buf_app, "[\n");

@@ -15,13 +15,13 @@
 #include <iterator>
 #include <string_view>
 #include "util.h"
-using std::back_inserter;
+using std::back_insert_iterator;
 using std::string_view;
 
 namespace oalex {
 
 void printJsonLocString(fmt::memory_buffer& buf, string_view s) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   format_to(buf_app, "\"");
   // If this changes, please change lexQuotedEscape as well.
   // TODO write test.

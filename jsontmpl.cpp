@@ -23,7 +23,7 @@
 using fmt::format_to;
 using fmt::memory_buffer;
 using oalex::Bug;
-using std::back_inserter;
+using std::back_insert_iterator;
 using std::get;
 using std::make_pair;
 using std::pair;
@@ -202,7 +202,7 @@ bool JsonTmpl::substitutionsNeeded() const {
 static void prettyPrint(fmt::memory_buffer& buf,
                         size_t indent, const JsonTmpl& json,
                         bool quoteMapKeys) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   if(auto* p = json.getIfPlaceholder())
     format_to(buf_app, "{}", assertJsonLocKey(__func__, p->key));
   else if(json.holdsEllipsis()) format_to(buf_app, "...");

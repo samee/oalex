@@ -22,7 +22,7 @@
 #include "oalex.h"
 #include "util.h"
 using std::array;
-using std::back_inserter;
+using std::back_insert_iterator;
 using std::get_if;
 using std::initializer_list;
 using std::isprint;
@@ -131,7 +131,7 @@ string prettyPrintSet(const RegexCharSet& set) {
   if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
   fmt::memory_buffer buf;
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
 
   if(set.negated) format_to(buf_app, "[^");
   else format_to(buf_app, "[");
@@ -181,7 +181,7 @@ bool printsToNull(const Regex& regex) {
 
 void surroundUnless(const initializer_list<RegexNodeType>& baretypes,
                     fmt::memory_buffer& buf, const Regex& regex) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   for(RegexNodeType t : baretypes) if(t == regex.nodeType) {
     format_to(buf_app, "{}", prettyPrintRec(regex));
     return;
@@ -191,7 +191,7 @@ void surroundUnless(const initializer_list<RegexNodeType>& baretypes,
 
 string prettyPrintSeq(const RegexConcat& seq) {
   fmt::memory_buffer buf;
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   for(auto& part : seq.parts) {
     if(printsToNull(*part)) format_to(buf_app, "()");
     else surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
@@ -204,7 +204,7 @@ string prettyPrintSeq(const RegexConcat& seq) {
 string prettyPrintOrs(const RegexOrList& ors) {
   if(ors.parts.empty()) return "";
   fmt::memory_buffer buf;
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
 
   surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
                   RegexNodeType::anchor, RegexNodeType::concat,

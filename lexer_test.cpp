@@ -27,7 +27,7 @@
 #include "runtime/util.h"
 using fmt::format;
 using fmt::print;
-using std::back_inserter;
+using std::back_insert_iterator;
 using std::get;
 using std::get_if;
 using std::nullopt;
@@ -461,7 +461,7 @@ string debugMatcher(BracketType bt) {
 void debug(fmt::memory_buffer& buf, const BracketGroup& bg);
 
 void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   if(const auto* tok = get_if<WholeSegment>(&expr)) {
     format_to(buf_app, "{}", tok->data);
     return;
@@ -474,7 +474,7 @@ void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
 }
 
 void debug(fmt::memory_buffer& buf, const BracketGroup& bg) {
-  auto buf_app = back_inserter(buf);
+  back_insert_iterator buf_app{buf};
   format_to(buf_app, "{}(", debugMatcher(bg.type));
   bool first_child = true;
   for(const ExprToken& x : bg.children) {
