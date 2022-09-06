@@ -1,0 +1,10 @@
+# expected-error: 5:3: error: Part 'a' ends a run-on word
+
+rule bad_math:
+
+  a-b
+
+where:
+  a,b ~ /[a-z]+/
+lexical:
+  word: /[a-z-]+/

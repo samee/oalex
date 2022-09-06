@@ -36,10 +36,13 @@ class DiagsDest {
  public:
   DiagsDest(struct InputDiags& ctx);  // implicit
 
+  void push_back(Diag d) { diags_->push_back(std::move(d)); }
+
   // Typically, we don't expect this to be called directly. This is merely a
   // helper for the more convenient Error(), Warning(), and Note().
   std::nullopt_t pushDiagReturnNullOpt(size_t st, size_t en,
                                        Diag::Severity sev, std::string msg);
+
   Diag makeDiag(size_t st, size_t en,
                 Diag::Severity sev, std::string msg) const;
   std::pair<size_t,size_t> rowCol(size_t i) const { return rcmap_->rowCol(i); }
@@ -64,6 +67,8 @@ struct InputDiags {
   std::vector<Diag> diags;
 
   explicit InputDiags(Input input) : input_(new Input{std::move(input)}) {}
+  explicit InputDiags(std::unique_ptr<InputPiece> input)
+    : input_(std::move(input)) {}
   InputDiags(InputDiags&&) = default;
   InputDiags& operator=(InputDiags&& that) = default;
   InputDiags(const InputDiags&) = delete;

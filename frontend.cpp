@@ -620,6 +620,29 @@ parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
   return nullopt;
 }
 
+InputDiags gluedCtx(GluedString s) { return InputDiags{move_to_unique(s)}; }
+
+const RegexCharSet*
+extractCharSet(const Regex* regex) {
+  auto* rep = dynamic_cast<const RegexRepeat*>(regex);
+  if(!rep) return nullptr;
+  return dynamic_cast<const RegexCharSet*>(rep->part.get());
+}
+
+optional<RegexCharSet>
+parseWordCharsDirective(DiagsDest ctx, const GluedString& s) {
+  GluedString rhs = trim(s.subqstr(sizeof("words:")-1, s.size()));
+  InputDiags rhsctx = gluedCtx(rhs);
+  size_t pos = 0;
+  unique_ptr<const Regex> rv = parseRegex(rhsctx, pos);
+  // No comment support yet. TODO skipper
+  if(rhsctx.input().sizeGt(pos)) Error(rhsctx, pos, "Expected end of line");
+  for(auto& d : rhsctx.diags) ctx.push_back(std::move(d));
+  if(!rv) return nullopt;
+  else if(auto* cset = extractCharSet(rv.get())) return *cset;
+  else return Error(ctx, rhs, "'words:' can only use /[some set]+/");
+}
+
 // Assumes linetoks.size() >= 1
 optional<LexDirective>
 parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
@@ -639,6 +662,9 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
     if(line.empty()) continue;
     if(line.hasPrefix(0, "newlines:")) {// TODO: tolerate wspace between tokens
       if(auto nl = parseNewlinesDirective(ctx, line)) rv.skip.newlines = *nl;
+      continue;
+    }else if(line.hasPrefix(0, "word:")) {
+      if(auto cs = parseWordCharsDirective(ctx, line)) rv.wordChars = *cs;
       continue;
     }
     optional<pair<string, string>> delims = commentDelims(ctx, line);
