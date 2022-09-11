@@ -20,9 +20,6 @@
 
 namespace oalex {
 
-// This pure virtual class is only used by the class Skipper now,
-// just so it can work both on processed (e.g. indented patterns) and
-// unprocessed inputs.
 class InputPiece {
  public:
   static constexpr auto npos = size_t(-1);

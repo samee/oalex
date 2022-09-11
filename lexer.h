@@ -53,7 +53,7 @@ struct NewlineChar : Segment {
 };
 
 inline WholeSegment
-inputSegment(size_t st, size_t en, const Input& input) {
+inputSegment(size_t st, size_t en, const InputPiece& input) {
   return WholeSegment{st, en, input.substr(st, en-st)};
 }
 

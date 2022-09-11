@@ -281,11 +281,11 @@ auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth)
 
 // Regex and string literals are among the few places that don't ignore spaces
 // before checking for a specific character.
-bool hasChar(const Input& input, size_t pos, char ch) {
+bool hasChar(const InputPiece& input, size_t pos, char ch) {
   return input.sizeGt(pos) && input[pos]==ch;
 }
 
-bool parseCharSetNegation(const Input& input, size_t& i) {
+bool parseCharSetNegation(const InputPiece& input, size_t& i) {
   if(!hasChar(input,i,'^')) return false;
   ++i;
   return true;
@@ -307,7 +307,7 @@ auto parseHexCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 
 auto parseEscapeCode(InputDiags& ctx, size_t& i, const char meta[]) ->
 optional<unsigned char> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!hasChar(input,i,'\\')) return nullopt;
   if(!input.sizeGt(i+1)) return Error(ctx, i, i+1, "Incomplete escape code");
   if(input[i+1] == 'x') return parseHexCode(ctx, i);
@@ -316,7 +316,7 @@ optional<unsigned char> {
 }
 
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '/') {
     Error(ctx, i, i+1, "Expected closing ']'");
@@ -333,7 +333,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 }
 
 auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<RegexCharSet> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!hasChar(input,i,'['))
     Bug("parseCharSetUnq called at invalid location {}", i);
   RegexCharSet cset;
@@ -387,7 +387,7 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth)
     Error(ctx, i, i+1, "Parentheses nested too deep");
     return nullptr;
   }
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   if(!hasChar(input,i,'('))
     FatalBug(ctx, i, i+1, "parseGroup() must start with '('");
@@ -476,7 +476,7 @@ auto unpackSingleton(T t) -> unique_ptr<const Regex> {
 
 auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth)
   -> unique_ptr<const Regex> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   size_t repdepth = 0;
   RegexConcat concat;
@@ -511,7 +511,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth)
 
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth)
   -> unique_ptr<const Regex> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   RegexOrList ors;
   unique_ptr<const Regex> subres;
@@ -550,7 +550,7 @@ RegexCharSet parseRegexCharSet(string input) {
 }
 
 auto parseRegex(InputDiags& ctx, size_t& i) -> unique_ptr<const Regex> {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!hasChar(input,i,'/')) return nullptr;
   size_t j = i+1;
   auto rv = parseRec(ctx, j, 0);

@@ -20,8 +20,8 @@ using oalex::Bug;
 using oalex::indent_of;
 using oalex::IndentCmp;
 using oalex::indentCmp;
-using oalex::Input;
 using oalex::InputDiags;
+using oalex::InputPiece;
 using oalex::JsonLoc;
 using oalex::Parser;
 using oalex::Skipper;
@@ -29,9 +29,9 @@ using oalex::StringLoc;
 
 static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
   // TODO: refactor with eval(SkipPoint).
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = skip.next(input, i);
-  if(j == Input::npos && i != Input::npos) {
+  if(j == input.npos && i != input.npos) {
     // TODO replace oalexWSkip with whitespace().
     ssize_t com = skip.whitespace(input, i);
     if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
@@ -42,7 +42,7 @@ static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
   size_t bi = input.bol(i), bj = input.bol(j);
   if(bi == bj) {
     Error(ctx, j, "Expected end of line");
-    return Input::npos;
+    return input.npos;
   }else if(bi > bj) Bug("skipper shouldn't move backwards");
   return j;
 }
@@ -54,7 +54,7 @@ JsonLoc
 oalexBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
     const Parser& leader, const Parser& lineItem) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   ssize_t j = i;
   JsonLoc jsloc_h = leader(ctx, j);
   if(jsloc_h.holdsErrorValue()) return jsloc_h;

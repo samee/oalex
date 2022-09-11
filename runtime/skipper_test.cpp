@@ -25,6 +25,7 @@ using std::string_view;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Input;
+using oalex::InputPiece;
 using oalex::Skipper;
 
 namespace {
@@ -89,7 +90,7 @@ const char langnames[][8] = {"c","python","ocaml","html","haskell","latex"};
 const size_t lang_n = sizeof(langskip)/sizeof(langskip[0]);
 
 // Assumes i is a valid index. "\n" is a word. Increments i to end of word.
-string parseWord(const Input& input, size_t& i) {
+string parseWord(const InputPiece& input, size_t& i) {
   if(input[i] != '\n' && !isalpha(input[i]))
     Bug("Found unexpected test character at input[{}]", i);
   if(input[i] == '\n') { ++i; return input.substr(i-1,1); }
@@ -98,7 +99,7 @@ string parseWord(const Input& input, size_t& i) {
   return input.substr(j, i-j);
 }
 
-vector<string> getLineWords(const Input& input, const Skipper& skip) {
+vector<string> getLineWords(const InputPiece& input, const Skipper& skip) {
   vector<string> rv;
   Skipper skip2nl = skip;
   skip2nl.newlines = Skipper::Newlines::ignore_blank;
@@ -110,7 +111,7 @@ vector<string> getLineWords(const Input& input, const Skipper& skip) {
   return rv;
 }
 
-vector<string> getAllWords(const Input& input, const Skipper& skip) {
+vector<string> getAllWords(const InputPiece& input, const Skipper& skip) {
   vector<string> rv;
   for(size_t i = skip.next(input,0);
       input.sizeGt(i); i = skip.next(input,i)) {

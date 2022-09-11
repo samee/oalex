@@ -22,8 +22,8 @@ namespace oalex {
 enum class IndentCmp { bad, lt, eq, gt };
 IndentCmp indentCmp(std::string_view indent1, std::string_view indent2);
 
-class Input;
+class InputPiece;
 class StringLoc;
-StringLoc indent_of(const Input& input, size_t i);
+StringLoc indent_of(const InputPiece& input, size_t i);
 
 }  // namespace oalex

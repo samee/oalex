@@ -32,7 +32,7 @@ IndentCmp indentCmp(string_view indent1, string_view indent2) {
 }
 
 StringLoc
-indent_of(const Input& input, size_t i) {
+indent_of(const InputPiece& input, size_t i) {
   // TODO remove uses of oalexWSkip elsewhere.
   const static Skipper* wskip =
     new Skipper{{}, {}, Skipper::Newlines::keep_all};

@@ -38,8 +38,8 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
 
 // Converts a parser into a resemblance-checker.
 using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
-bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser);
-JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser);
+bool peekMatch(const InputPiece& input, ssize_t i, GeneratedParser parser);
+JsonLoc quietMatch(const InputPiece& input, ssize_t& i, GeneratedParser parser);
 
 
 void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2);

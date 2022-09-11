@@ -211,7 +211,7 @@ like this:
 
     // Use skip.acrossLines() to indicate we don't care about newlines.
     // Use it before every term in the grammar above.
-    optional<PlusExpr> parsePlusExpr(const Input& input, size_t pos) {
+    optional<PlusExpr> parsePlusExpr(const InputPiece& input, size_t pos) {
 
       pos = skip.acrossLines(input, pos);
       optional<Expr> expr1 = parseExpr(input, pos);  // expr

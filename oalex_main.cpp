@@ -35,6 +35,7 @@ using oalex::Example;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::InputPiece;
 using oalex::is_in;
 using oalex::JsonLoc;
 using oalex::ParsedSource;
@@ -369,7 +370,7 @@ ssize_t findRule(const RuleSet& ruleSet, const Ident& ruleName) {
   return -1;
 }
 
-bool atInputEnd(const Input& input, size_t pos) {
+bool atInputEnd(const InputPiece& input, size_t pos) {
   return !input.sizeGt(pos) ||
          (!input.sizeGt(pos+1) && input[pos] == '\n');
 }

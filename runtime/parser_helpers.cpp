@@ -68,10 +68,10 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
 }
 
 class InputWrapper : public InputStream {
-  const Input* input;
+  const InputPiece* input;
   ssize_t i;
  public:
-  InputWrapper(const Input& input, ssize_t i) : input{&input}, i{i} {}
+  InputWrapper(const InputPiece& input, ssize_t i) : input{&input}, i{i} {}
   int16_t getch() override
     { return input->sizeGt(i) ? (*input)[i++] : -1; }
 };
@@ -80,17 +80,18 @@ class InputWrapper : public InputStream {
 // the long run.
 // This proxy object both discards diags and defends against
 // overly enthusiastic forgetBefore().
-unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i) {
+unique_ptr<InputStream> substrProxy(const InputPiece& input, ssize_t i) {
   return make_unique<InputWrapper>(input, i);
 }
 
-bool peekMatch(const Input& input, ssize_t i, GeneratedParser parser) {
+bool peekMatch(const InputPiece& input, ssize_t i, GeneratedParser parser) {
   // The only difference between this and quietMatch() is that
   // peekMatch() accepts `i` by value.
   return !quietMatch(input, i, parser).holdsErrorValue();
 }
 
-JsonLoc quietMatch(const Input& input, ssize_t& i, GeneratedParser parser) {
+JsonLoc quietMatch(const InputPiece& input, ssize_t& i,
+                   GeneratedParser parser) {
   /* TODO codegen proper resemblance checkers.
      TODO while this is here, add a flag to InputDiags to disable errors
      with an RAII-controlled flag. Although, I'd have to then think about how

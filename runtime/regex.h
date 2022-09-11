@@ -97,11 +97,11 @@ struct RegexOptions {
 bool matchesRegexCharSet(char ch, const RegexCharSet& cset);
 
 // Used for lookaheads
-bool startsWithRegex(const Input& input, size_t i,
+bool startsWithRegex(const InputPiece& input, size_t i,
                      const Regex& regex, const RegexOptions& opts);
 
 // Not used for lookaheads.
-bool consumeGreedily(const Input& input, size_t& i,
+bool consumeGreedily(const InputPiece& input, size_t& i,
                      const Regex& regex, const RegexOptions& opts);
 
 }  // namespace oalex

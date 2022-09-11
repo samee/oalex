@@ -46,6 +46,7 @@ using oalex::get_if_unique;
 using oalex::Ident;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::InputPiece;
 using oalex::isSubstr;
 using oalex::LabelOrPart;
 using oalex::labelParts;
@@ -86,7 +87,7 @@ void assertHasSubstr(string_view testName, string_view s,
 }
 
 // Maybe move this to runtime/input_view.h if this becomes useful.
-size_t findSubstr(const Input& input, string_view s) {
+size_t findSubstr(const InputPiece& input, string_view s) {
   for(size_t i = 0; input.sizeGt(i); ++i) if(input.hasPrefix(i, s)) return i;
   return string::npos;
 }
@@ -448,7 +449,7 @@ void testTokenizeRunoffComment() {
   assertHasDiagWithSubstr(__func__, ctx->diags, "Comment never ends");
 }
 
-size_t lineStart(size_t lineno, const Input& input) {
+size_t lineStart(size_t lineno, const InputPiece& input) {
   size_t i=0;
   while(lineno--) {
     i = input.find('\n', i);

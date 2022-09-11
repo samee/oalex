@@ -100,7 +100,7 @@ skipError(InputDiags& ctx, ssize_t preskip_i, const Skipper& skip) {
 
 static JsonLoc
 skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   const ssize_t oldi = i;
   const Skipper* skip = &rs.skips[sp.skipperIndex];
   i = skip->next(input, i);
@@ -141,7 +141,7 @@ ruleDebugId(const RuleSet& rs, ssize_t i) {
   else return format("rule {}", i);
 }
 
-static JsonLoc evalQuiet(const Input& input, ssize_t& i,
+static JsonLoc evalQuiet(const InputPiece& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex);
 
 static JsonLoc
@@ -274,10 +274,10 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
 }
 
 // Defined in parser_helpers.cpp, but intentionally not exposed in header.
-unique_ptr<InputStream> substrProxy(const Input& input, ssize_t i);
+unique_ptr<InputStream> substrProxy(const InputPiece& input, ssize_t i);
 
 // TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
-static JsonLoc evalQuiet(const Input& input, ssize_t& i,
+static JsonLoc evalQuiet(const InputPiece& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex) {
   unique_ptr<InputStream> sp = substrProxy(input, input.bol(i));
   InputDiags proxy{Input{sp.get()}};
@@ -288,7 +288,8 @@ static JsonLoc evalQuiet(const Input& input, ssize_t& i,
 }
 
 static bool
-evalPeek(const Input& input, ssize_t i, const RuleSet& rs, ssize_t ruleIndex) {
+evalPeek(const InputPiece& input, ssize_t i,
+         const RuleSet& rs, ssize_t ruleIndex) {
   return !evalQuiet(input, i, rs, ruleIndex).holdsErrorValue();
 }
 

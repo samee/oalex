@@ -172,7 +172,7 @@ resemblesX() vs parseX().
 */
 bool
 resemblesExternRule(InputDiags& ctx, size_t i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(input.bol(i) != i) return false;
   optional<WholeSegment> tokopt = lookahead(ctx, i);
   return tokopt && **tokopt == "extern";
@@ -200,7 +200,7 @@ matchesTokens(const vector<ExprToken>& tokens,
 }
 
 StringLoc
-indent_of(const Input& input, const ExprToken& tok) {
+indent_of(const InputPiece& input, const ExprToken& tok) {
   return indent_of(input, stPos(tok));
 }
 
@@ -354,7 +354,7 @@ hasEllipsis(const JsonTmpl& jstmpl) {
 // Like all skippers, can return npos if comment is unfinished.
 size_t
 skipToIndentLe(InputDiags& ctx, size_t i, string_view refIndent) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   while(true) {
     while(input.sizeGt(i) && input.bol(i) != i) ++i;
     i = oalexWSkip.next(input, i);

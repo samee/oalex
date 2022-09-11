@@ -378,7 +378,7 @@ bool matchesRegexCharSet(char ch, const RegexCharSet& cset) {
   return cset.negated;
 }
 
-bool startsWithRegex(const Input& input, size_t i, const Regex& regex,
+bool startsWithRegex(const InputPiece& input, size_t i, const Regex& regex,
                      const RegexOptions& opts) {
   unique_ptr<MatchState> state = init(regex);
   char prev = '\n';
@@ -394,7 +394,7 @@ bool startsWithRegex(const Input& input, size_t i, const Regex& regex,
   return matched(regex, *state);
 }
 
-bool consumeGreedily(const Input& input, size_t& i, const Regex& regex,
+bool consumeGreedily(const InputPiece& input, size_t& i, const Regex& regex,
                      const RegexOptions& opts) {
   unique_ptr<MatchState> state = init(regex);
   char prev = '\n';

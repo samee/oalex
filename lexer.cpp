@@ -129,7 +129,7 @@ bool isSectionHeaderNonSpace(char ch) {
 
 // TODO use generic word-lexer based on a char set.
 optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   while(input.sizeGt(j) && isSectionHeaderNonSpace(input[j])) ++j;
   if(j == i) return nullopt;
@@ -147,7 +147,7 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
 // functions:
 //   * Ones that are simple: words, tokens, comments.
 //       - They will never update diagnostics: they have insufficient context.
-//       - Their signature will be: foo(const Input& input,size_t& i);
+//       - Their signature will be: foo(const InputPiece& input,size_t& i);
 //       - Return value either optional or bool.
 //       - On failure, caller will try parsing it as something else.
 //   * Others are invoked from the top-ish level.
@@ -163,7 +163,7 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
 
 vector<WholeSegment>
 lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   vector<WholeSegment> rv;
   // TODO reduce bsearch overhead.
@@ -186,7 +186,7 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
 //   Returns the *start* of dashes so caller can in fact check indentation.
 //   Modifies i to the beginning of the next line.
 optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
   size_t j = i;
   size_t dashStart = j;
@@ -243,7 +243,7 @@ constexpr char badIndentMsg[] = "Indentation mixes tabs and spaces differently "
 optional<string> lexSourceLine(InputDiags& ctx, size_t& i,
                                string_view parindent) {
   static const auto* wskip = new Skipper{{}, {}, Skipper::Newlines::keep_all};
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i)) return nullopt;
   size_t j = wskip->next(input, i);
 
@@ -280,7 +280,7 @@ auto toCtor(char ch) -> GluedString::Ctor {
   }
 }
 
-optional<BracketType> lexOpenBracket(const Input& input, size_t& i) {
+optional<BracketType> lexOpenBracket(const InputPiece& input, size_t& i) {
   switch(input[i]) {
     case '[': ++i; return BracketType::square;
     case '{': ++i; return BracketType::brace;
@@ -288,7 +288,7 @@ optional<BracketType> lexOpenBracket(const Input& input, size_t& i) {
     default: return nullopt;
   }
 }
-optional<BracketType> lexCloseBracket(const Input& input, size_t& i) {
+optional<BracketType> lexCloseBracket(const InputPiece& input, size_t& i) {
   switch(input[i]) {
     case ']': ++i; return BracketType::square;
     case '}': ++i; return BracketType::brace;
@@ -319,7 +319,7 @@ bool isident(char ch) { return isalnum(ch) || ch == '_'; }
 // Returns false on eof. Throws on invalid language character.
 // TODO think more about how next() can forget.
 [[nodiscard]] bool lookaheadStart(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::ignore_all;
   size_t j = skip.next(input, i);
   if(!input.sizeGt(j)) return false;
@@ -336,7 +336,7 @@ static bool isWordChar(char ch) {
 //   ["-","12", ".", "34e", "+", "56"]
 // But that's okay, we won't support floating-point or signed numerals.
 // TODO use generic word-lexing features.
-optional<WholeSegment> lexWord(const Input& input, size_t& i) {
+optional<WholeSegment> lexWord(const InputPiece& input, size_t& i) {
   if(!input.sizeGt(i) || !isWordChar(input[i])) return nullopt;
   size_t oldi = i;
   while(input.sizeGt(i) && isWordChar(input[i])) ++i;
@@ -344,7 +344,7 @@ optional<WholeSegment> lexWord(const Input& input, size_t& i) {
 }
 
 // TODO throw Fatal on .... or ::=.
-optional<WholeSegment> lexOperator(const Input& input, size_t& i) {
+optional<WholeSegment> lexOperator(const InputPiece& input, size_t& i) {
   if(!input.sizeGt(i) || !isoperch(input[i])) return nullopt;
 
   // Now we know it is a valid input character, see if it is multichar.
@@ -379,7 +379,7 @@ char closeBracket(BracketType bt) {
 
 size_t
 skipBlankLines(InputDiags& ctx, size_t pos) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t rv = oalexSkip.next(input, pos);
   if(input.sizeGt(rv) && input[rv] == '\n')
     rv = oalexSkip.next(input, rv+1);
@@ -481,7 +481,7 @@ optional<WholeSegment> GluedString::getSegment() const {
 // problem.  If such diags are added, it consumes input until the next
 // unescaped '/'.
 static optional<RegexPattern> lexRegexPattern(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i) || !isregex(input[i])) return nullopt;
   size_t j = i;
   unique_ptr<const Regex> rv = parseRegex(ctx, j);  // TODO: improve naming.
@@ -520,7 +520,7 @@ static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
    * Any failure after this produces diags.
  */
 optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   size_t j = i;
   if(!lookaheadStart(ctx,j)) return nullopt;
 
@@ -561,13 +561,13 @@ optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   }
 }
 
-static string substrFromBol(const Input& input, size_t i) {
+static string substrFromBol(const InputPiece& input, size_t i) {
   size_t bol = input.bol(i);
   return input.substr(bol, i-bol);
 }
 
 static size_t
-findOffsideToken(const Input& input, string_view refindent,
+findOffsideToken(const InputPiece& input, string_view refindent,
                  vector<ExprToken>::const_iterator begin,
                  vector<ExprToken>::const_iterator end) {
   for(auto it = begin; it != end; ++it) {
@@ -591,7 +591,7 @@ findOffsideToken(const Input& input, string_view refindent,
 
 // Assumes line is non-empty.
 static IndentCmp
-firstCharIndent(const Input& input, const vector<ExprToken>& line,
+firstCharIndent(const InputPiece& input, const vector<ExprToken>& line,
                 string_view refindent) {
   return indentCmp(substrFromBol(input, stPos(line[0])), refindent);
 }
@@ -641,7 +641,7 @@ mergeListLines(InputDiags& ctx, vector<vector<ExprToken>>& lines,
 
 vector<vector<ExprToken>>
 lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(i != input.bol(i))
     FatalBug(ctx, i,
         format("lexListEntries() must start at bol(), got string '{}'",
@@ -707,7 +707,7 @@ optional<GluedString> unquote(const StringLoc& literal, DiagsDest ctx) {
 // Returns Input::npos if and only if the line ends
 // before the end quote is found.
 size_t findMatchingQuote(InputDiags& ctx, size_t i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i))
     Bug("{}: Position {} is past the end of string", __func__, i);
   const char quote = input[i];
@@ -731,7 +731,7 @@ size_t findMatchingQuote(InputDiags& ctx, size_t i) {
 // this case, increment `i` beyond the end of the next unescaped '"', or in case
 // of an unexpected end of line, beyond the next newline.
 optional<GluedString> lexQuotedString(InputDiags& ctx, size_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(!input.sizeGt(i) || !isquote(input[i])) return nullopt;
 
   size_t j = findMatchingQuote(ctx, i);
@@ -750,7 +750,7 @@ static bool isSourceFence(string_view fence) {
 }
 
 optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
-  Input& input = ctx.input;
+  InputPiece& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
   size_t j = i;
@@ -783,7 +783,7 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
 // source line, strictly less indented than parindent.
 optional<GluedString>
 lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
-  Input& input = ctx.input;
+  InputPiece& input = ctx.input;
   string rv;
   size_t j = i, start = i;
   vector<IndexRelation> imap;
@@ -815,7 +815,7 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
 // at the end of the previous line.
 optional<WholeSegment>
 lookaheadParIndent(InputDiags& ctx, size_t i) {
-  Input& input = ctx.input;
+  InputPiece& input = ctx.input;
   if(i != input.bol(i))
     FatalBug(ctx, i, "ParIndent computation cannot start mid-line");
   i = oalexWSkip.next(input, i);
@@ -860,7 +860,7 @@ vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   i = ++j;
 
   size_t stCont=rv->at(0).stPos;
-  const Input& input=ctx.input;
+  const InputPiece& input=ctx.input;
   if(input.bol(stCont) != stCont)
     Error(ctx, input.bol(stCont), stCont-1,
           "Section headers must not be indented");

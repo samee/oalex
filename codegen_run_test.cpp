@@ -33,6 +33,7 @@ using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::InputPiece;
 using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::Parser;
@@ -175,7 +176,7 @@ void runConcatTest() {
 // This one needs to be extern for linking to generated code.
 JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   static const Skipper *shskip = new Skipper{ {{"#", "\n"}}, {} };
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   ssize_t j = shskip->whitespace(ctx.input, i);
   size_t bol = input.bol(j);
   if(bol == input.bol(i)) return JsonLoc::ErrorValue{};
@@ -187,7 +188,7 @@ JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
 }
 
 bool skipPluginBullet(InputDiags& ctx, ssize_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   if(ssize_t(input.bol(i)) != i) {
     Error(ctx, i, "Expected the beginning of a new line");
     return false;
@@ -205,7 +206,7 @@ bool skipPluginBullet(InputDiags& ctx, ssize_t& i) {
   return true;
 }
 bool pluginBulletedListSkipToBolOrEof(InputDiags& ctx, ssize_t& i) {
-  const Input& input = ctx.input;
+  const InputPiece& input = ctx.input;
   while(input.sizeGt(i) && i != ssize_t(input.bol(i))) {
     if(!oalex::is_in(input[i], " \n\t")) {
       Error(ctx, i, "Expected end of line");
