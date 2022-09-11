@@ -41,6 +41,7 @@ class DiagsDest {
                                        Diag::Severity sev, std::string msg);
   Diag makeDiag(size_t st, size_t en,
                 Diag::Severity sev, std::string msg) const;
+  std::pair<size_t,size_t> rowCol(size_t i) const { return rcmap_->rowCol(i); }
   std::string locationString(size_t st, size_t en) const;
 };
 
