@@ -27,6 +27,7 @@ class InputPiece {
  public:
   virtual char operator[](size_t sz) const = 0;
   virtual bool sizeGt(size_t sz) const = 0;
+  virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
   virtual bool hasPrefix(size_t pos, std::string_view s) const = 0;
   bool hasPrefix(size_t pos, size_t count, std::string_view s) const
     { return count >= s.size() && hasPrefix(pos,s); }
@@ -87,7 +88,7 @@ class Input final : public InputPiece {
   // Returns 1-based positions: line number, and offset in that line.
   // Everything else in this lass is 0-based.
   // O(log k), where k is the working window size.
-  std::pair<size_t,size_t> rowCol(size_t i) const;
+  std::pair<size_t,size_t> rowCol(size_t i) const override;
 
   // Like std::string::substr, except:
   //   * Throws an out of bound exception if pos has already been forgotten.

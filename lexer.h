@@ -91,6 +91,7 @@ class GluedString final : public Segment, public InputPiece {
 
   char operator[](size_t pos) const final { return s_[pos]; }
   bool sizeGt(size_t pos) const final { return s_.size() > pos; }
+  std::pair<size_t,size_t> rowCol(size_t pos) const override;
   size_t inputPos(size_t pos) const;
   operator std::string_view() const { return s_; }
   operator std::string() const { return s_; }

@@ -205,21 +205,17 @@ void compareSubqstrIndexPos(const GluedString& a, size_t pos, size_t len) {
            string_view(b), i+pos, a.inputPos(i+pos), i, b.inputPos(i));
 }
 
-auto rowCol(const InputDiags& ctx, const GluedString& s, size_t i) {
-  return ctx.input.rowCol(s.inputPos(i));
-}
-
 void stringPosMap() {
   const char testInput[] = R"("foo\nbar")";
   InputDiags ctx{Input{testInput}};
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res) Bug("Parsing {} failed in {}", testInput, __func__);
-  assertEq(__func__ + " rowCol mismatch"s, rowCol(ctx, *res, 0),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(0),
            pair<size_t,size_t>(1, 2));
-  assertEq(__func__ + " rowCol mismatch"s, rowCol(ctx, *res, 4),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(4),
            pair<size_t,size_t>(1, 7));
-  assertEq(__func__ + " rowCol mismatch"s, rowCol(ctx, *res, 7),
+  assertEq(__func__ + " rowCol mismatch"s, res->rowCol(7),
            pair<size_t,size_t>(1, 10));
 
   compareSubqstrIndexPos(*res, 0, string::npos);
@@ -278,25 +274,24 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
 
   size_t lastLineNumber = ctx.input.rowCol(i).first;
 
-  if(rowCol(ctx, *res, 0).first != 2)
+  if(res->rowCol(0).first != 2)
     Bug("{}: Was expecting fenced string body to start on "
         "the second line. Found it on {}. Input:\n{}",
-        testName, rowCol(ctx, *res, 0).first, testInput);
-  for(size_t i=0; i<res->size(); ++i) if(rowCol(ctx, *res, i+1).second == 1) {
-    if(rowCol(ctx, *res, i).first+1 != rowCol(ctx, *res, i+1).first)
+        testName, res->rowCol(0).first, testInput);
+  for(size_t i=0; i<res->size(); ++i) if(res->rowCol(i+1).second == 1) {
+    if(res->rowCol(i).first+1 != res->rowCol(i+1).first)
       Bug("{}: Line numbers are not sequential "
           " at the start of line {}. Input:\n{}",
-          testName, rowCol(ctx, *res, i+1).first, testInput);
+          testName, res->rowCol(i+1).first, testInput);
     auto expected = ctx.input.rowCol(i + 1 + dsize);
-    if(rowCol(ctx, *res, i) != expected)
+    if(res->rowCol(i) != expected)
       Bug("{}: Location info changed after parsing: "
-          "{} became {}", testName, debug(expected),
-          debug(rowCol(ctx, *res, i)));
+          "{} became {}", testName, debug(expected), debug(res->rowCol(i)));
   }
-  if(rowCol(ctx, *res, res->size()) != pair(lastLineNumber, size_t(1)))
+  if(res->rowCol(res->size()) != pair(lastLineNumber, size_t(1)))
     Bug("{}: Was expecting the input to end on {}:1, instead found {}. "
-        "Input\n", testName, lastLineNumber,
-        debug(rowCol(ctx, *res, res->size())), testInput);
+        "Input\n", testName, lastLineNumber, debug(res->rowCol(res->size())),
+        testInput);
 }
 
 void fencedSourceBlockFailureImpl(const char testInput[], const char testName[],
@@ -339,25 +334,24 @@ void indentedSourceBlockSuccessImpl(
     Bug("{}: indented block parsing stopped too early", testName);
 
   size_t lc = lineCount(testInput.substr(0, i));
-  if(rowCol(ctx, *res, 0).first != 1)
+  if(res->rowCol(0).first != 1)
     Bug("{}: Parsed value does not start at row 1", testName);
 
-  if(rowCol(ctx, *res, res->size()).first != lc)
+  if(res->rowCol(res->size()).first != lc)
     Bug("{}: Parsed value does not end on line {}, input:\n{}",
         testName, lc, testInput);
 
   string_view testOutput  = *res;
   for(size_t i = 0; i < res->size(); ++i)
-    if(rowCol(ctx, *res, i).first != rowCol(ctx, *res, i+1).first) {
-      size_t r1 = rowCol(ctx, *res, i).first,
-             r2 = rowCol(ctx, *res, i+1).first;
+    if(res->rowCol(i).first != res->rowCol(i+1).first) {
+      size_t r1 = res->rowCol(i).first, r2 = res->rowCol(i+1).first;
       if(r1+1 != r2)
         Bug("{}: line numbers are not sequential after {}: found {}",
             testName, r1, r2);
       if(testOutput[i] != '\n')
         Bug("{} starts a new line without a newline char at {}",
-            testName, debug(rowCol(ctx, *res, i+1)));
-      size_t c2 = rowCol(ctx, *res, i+1).second;
+            testName, debug(res->rowCol(i+1)));
+      size_t c2 = res->rowCol(i+1).second;
       char next = (res->sizeGt(i+1) ? testOutput[i+1] : '\n');
       if(c2 == 1) {
         if(next != '\n')
@@ -372,7 +366,7 @@ void indentedSourceBlockSuccessImpl(
             "was expecting column 1 or 3.", testName, r2, c2);
     }else if(testOutput[i] == '\n')
       Bug("{} doesn't start a new line in spite of a \\n char at {}",
-          testName, debug(rowCol(ctx, *res, i)));
+          testName, debug(res->rowCol(i)));
 
   for(size_t i=0; res->sizeGt(i); ++i) {
     if(i == 0 || testOutput[i-1] == '\n') {
