@@ -213,7 +213,7 @@ void testConcatMatch() {
   })");
   JsonLoc observed = eval(ctx, pos, rs, concatIndex);
   assertEqual(__func__, expected, observed);
-  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
+  assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1, observed);
 
   pos = 0;
   ctx = InputDiags{Input{"orangeCount = 5 missing-semicolon;"}};
@@ -252,7 +252,7 @@ void testConcatFlatMatch() {
       "{var_name: 'x', init_value: {type: 'int', value: '5'}}");
   JsonLoc observed = eval(ctx, pos, rs, outIndex);
   assertEqual(__func__, expected, observed);
-  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
+  assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1, observed);
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
   observed = eval(ctx, pos, rs, outIndex);

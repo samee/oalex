@@ -108,7 +108,7 @@ void testLineTooLong() {
   string s(Input::maxLineLength+1,'-');
   assertProducesDiag(__func__, s, "Line 1 is too long",
                      +[](oalex::InputDiags& ctx, size_t&)
-                       { ctx.input[ctx.input.maxLineLength]; });
+                       { ctx.input()[Input::maxLineLength]; });
   string t(Input::maxLineLength, '-');
   Input input2{"\n" + t};
   input2[input2.maxLineLength];  // No exceptions.

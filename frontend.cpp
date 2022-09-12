@@ -172,7 +172,7 @@ resemblesX() vs parseX().
 */
 bool
 resemblesExternRule(InputDiags& ctx, size_t i) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(input.bol(i) != i) return false;
   optional<WholeSegment> tokopt = lookahead(ctx, i);
   return tokopt && **tokopt == "extern";
@@ -354,7 +354,7 @@ hasEllipsis(const JsonTmpl& jstmpl) {
 // Like all skippers, can return npos if comment is unfinished.
 size_t
 skipToIndentLe(InputDiags& ctx, size_t i, string_view refIndent) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   while(true) {
     while(input.sizeGt(i) && input.bol(i) != i) ++i;
     i = oalexWSkip.next(input, i);
@@ -369,7 +369,7 @@ bool
 skipStanzaIfSeen(bool& done_indicator, const WholeSegment& stanzaLeader,
                  InputDiags& ctx, size_t& i) {
   if(done_indicator) {
-    StringLoc leaderIndent = indent_of(ctx.input, stanzaLeader);
+    StringLoc leaderIndent = indent_of(ctx.input(), stanzaLeader);
     i = skipToIndentLe(ctx, stanzaLeader.enPos, *leaderIndent);
     Error(ctx, stanzaLeader,
         format("Only one `{}` stanza allowed per rule", *stanzaLeader));
@@ -540,7 +540,7 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
 
   vector<ExprToken> line = lexNextLine(ctx, j);
   if(line.empty()) return rv;
-  StringLoc lineIndent = indent_of(ctx.input, line[0]);
+  StringLoc lineIndent = indent_of(ctx.input(), line[0]);
   if(!requireGoodIndent(ctx, "Local declaration", leaderIndent, lineIndent))
     return rv;
   StringLoc refIndent = lineIndent;
@@ -564,7 +564,7 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
 
     line = lexNextLine(ctx, j);
     if(line.empty()) break;
-    lineIndent = indent_of(ctx.input, line[0]);
+    lineIndent = indent_of(ctx.input(), line[0]);
     cmpres = indentCmp(*refIndent, *lineIndent);
     if(cmpres == IndentCmp::lt)
       Error(ctx, stPos(line[0]), "This line is indented too deep");
@@ -627,7 +627,7 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
     Error(ctx, enPos(linetoks[0]), "Expected ':'"); // continue parsing
   requireEol(linetoks, 2, ctx);  // continue parsing even on error
   optional<GluedString> lexblock = parseIndentedBlock(ctx, i,
-      indent_of(ctx.input, linetoks[0]), "lexical block");
+      indent_of(ctx.input(), linetoks[0]), "lexical block");
   if(!lexblock) return nullopt;
   LexDirective rv = LexDirective{
     parseRegexCharSet("[_a-zA-Z0-9]"),
@@ -875,7 +875,7 @@ resemblesRule(const vector<ExprToken>& linetoks) {
          && resemblesIdent(linetoks[1]);
 }
 
-// Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
+// Assumes i == ctx.input().bol(i), as we just finished lexNextLine().
 void
 parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
           RulesWithLocs& rl) {
@@ -886,7 +886,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     return;
   }
   optional<GluedString> patt =
-      parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
+      parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
                          "pattern");
   if(!patt.has_value()) return;
   bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
@@ -908,7 +908,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       jstmpl = parseRuleOutput(std::move(toks), ctx);
     }else if(**leader == "where") {
       if(skipStanzaIfSeen(sawWhereKw, *leader, ctx, i)) continue;
-      StringLoc leaderIndent = indent_of(ctx.input, toks[0]);
+      StringLoc leaderIndent = indent_of(ctx.input(), toks[0]);
       auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
       if(!new_local_decls.empty()) local_decls = std::move(new_local_decls);
       else i = skipToIndentLe(ctx, i, *leaderIndent);
@@ -1089,18 +1089,18 @@ resemblesExample(const vector<ExprToken>& linetoks) {
          && resemblesIdent(linetoks[1]);
 }
 
-// Assumes i == ctx.input.bol(i), as we just finished lexNextLine().
+// Assumes i == ctx.input().bol(i), as we just finished lexNextLine().
 optional<Example>
 parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   if(!requireColonEol(linetoks, 2, ctx)) return nullopt;
   Example rv;
   // Guaranteed to succeed by resemblesExample().
-  rv.mappedPos = {.line = ctx.input.rowCol(stPos(linetoks[0])).first};
+  rv.mappedPos = {.line = ctx.input().rowCol(stPos(linetoks[0])).first};
   rv.ruleName = requireIdent(linetoks[1], ctx);
   if(!rv.ruleName) return nullopt;
 
   if(auto sampleInput =
-      parseIndentedBlock(ctx, i, indent_of(ctx.input, linetoks[0]),
+      parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
                          "example input")) {
     rv.sampleInput = std::move(*sampleInput);
   }else return nullopt;
@@ -1211,10 +1211,10 @@ parseOalexSource(InputDiags& ctx) {
   vector<Example> examples;
   RulesWithLocs rl;
   rl.defaultSkipper(defaultLexopts().skip);
-  while(ctx.input.sizeGt(i)) {
+  while(ctx.input().sizeGt(i)) {
     i = skipBlankLines(ctx, i);
     if(i == string::npos) return nullopt;
-    i = ctx.input.bol(i);
+    i = ctx.input().bol(i);
 
     // First try bootstrapped pieces. They don't need linetoks.
     // But they do use ssize_t.
@@ -1232,7 +1232,7 @@ parseOalexSource(InputDiags& ctx) {
     if(!parse_error && !tok_needed) continue;
     vector<ExprToken> linetoks = lexNextLine(ctx, i);
     if(linetoks.empty()) {
-      if(ctx.input.sizeGt(i)) return nullopt;  // Error case
+      if(ctx.input().sizeGt(i)) return nullopt;  // Error case
       else break;
     }
     if(parse_error) continue;

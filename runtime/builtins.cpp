@@ -29,12 +29,12 @@ using oalex::StringLoc;
 
 static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
   // TODO: refactor with eval(SkipPoint).
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   size_t j = skip.next(input, i);
   if(j == input.npos && i != input.npos) {
     // TODO replace oalexWSkip with whitespace().
     ssize_t com = skip.whitespace(input, i);
-    if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
+    if(!ctx.input().sizeGt(com)) Bug("skipper returned npos without a comment");
     Error(ctx, com, "Unfinished comment");
     return j;
   }else if(!input.sizeGt(j)) return j;  // EOF: Let the next parser add errors.
@@ -54,7 +54,7 @@ JsonLoc
 oalexBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
     const Parser& leader, const Parser& lineItem) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   ssize_t j = i;
   JsonLoc jsloc_h = leader(ctx, j);
   if(jsloc_h.holdsErrorValue()) return jsloc_h;

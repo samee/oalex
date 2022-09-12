@@ -386,10 +386,10 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   JsonLoc jsloc = trimAndEval(ctx, pos, rs, ruleIndex);
 
   if (ex.expectation.matches(jsloc, ctx.diags)) {
-    if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input, pos)) {
+    if (ex.expectation.isForSuccess() && !atInputEnd(ctx.input(), pos)) {
       fprintf(stderr, "Did not consume the entire input at success. "
                       "Stopped parsing at position %ld '%s'", pos,
-                      debugPrefix(ctx.input, pos).c_str());
+                      debugPrefix(ctx.input(), pos).c_str());
       return false;
     }else return true;
   }

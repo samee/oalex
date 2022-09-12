@@ -272,7 +272,7 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
     }
   }
 
-  size_t lastLineNumber = ctx.input.rowCol(i).first;
+  size_t lastLineNumber = ctx.input().rowCol(i).first;
 
   if(res->rowCol(0).first != 2)
     Bug("{}: Was expecting fenced string body to start on "
@@ -283,7 +283,7 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
       Bug("{}: Line numbers are not sequential "
           " at the start of line {}. Input:\n{}",
           testName, res->rowCol(i+1).first, testInput);
-    auto expected = ctx.input.rowCol(i + 1 + dsize);
+    auto expected = ctx.input().rowCol(i + 1 + dsize);
     if(res->rowCol(i) != expected)
       Bug("{}: Location info changed after parsing: "
           "{} became {}", testName, debug(expected), debug(res->rowCol(i)));
@@ -507,7 +507,7 @@ void newlinePositionIsCorrect() {
   InputDiags ctx{Input{R"(12345"foo\n")"}};
   size_t i = string_view("12345").size();
   size_t j = string_view("12345\"foo").size();
-  if(ctx.input.substr(j,2) != "\\n")
+  if(ctx.input().substr(j,2) != "\\n")
     BugMe("Input doesn't have '\\n' where expected");
 
   size_t temp = i;
@@ -577,7 +577,7 @@ void nextLineSuccessImpl(
   if(observedResult.size() != expectedResult.size())
     Bug("{} failed: output size unexpected: {} != {}", testName,
         observedResult.size(), expectedResult.size());
-  assertEqual(__func__, pos, ctx.input.bol(pos));
+  assertEqual(__func__, pos, ctx.input().bol(pos));
   for(size_t i=0; i<observedResult.size(); ++i) {
     if(auto err = matcher::match(expectedResult[i], observedResult.at(i)))
       Bug("{} failed at result index {}: {}", testName, i, *err);
@@ -609,7 +609,7 @@ void lexListEntriesSuccess() {
     matchvec("|", "g", "h", "i"),
   };
   InputDiags ctx{Input{input}};
-  size_t i = ctx.input.find('\n', 0) + 1;
+  size_t i = ctx.input().find('\n', 0) + 1;
   vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
   if(observed.empty() || !ctx.diags.empty()) {
     showDiags(ctx.diags);
@@ -629,7 +629,7 @@ void lexListEntriesSuccess() {
 void lexListEntriesFailure(string_view testName, string input,
                            string_view expectedDiag) {
   InputDiags ctx{Input{input}};
-  size_t i = ctx.input.find('\n', 0) + 1;
+  size_t i = ctx.input().find('\n', 0) + 1;
   vector<vector<ExprToken>> observed = lexListEntries(ctx, i, '|');
   if(expectedDiag.empty()) {
     if(!observed.empty()) BugMe("Was expecting empty result");

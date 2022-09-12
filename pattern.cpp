@@ -215,7 +215,7 @@ auto labelParts(DiagsDest ctx, const GluedString& s,
   return rv;
 }
 
-// This function assumes we are starting with ctx.input.sizeGt(i).
+// This function assumes we are starting with ctx.input().sizeGt(i).
 static TokenOrPart lexPatternToken(const GluedString& s, size_t& i,
                              const LexDirective& opts) {
   const size_t st = i;

@@ -93,7 +93,7 @@ Ident Ident::parseFromString(DiagsDest ctx, string s, size_t stPos) {
 static bool isIdentChar(char ch) { return ch=='_' || isalnum(ch); }
 
 Ident Ident::parse(InputDiags& ctx, size_t& i) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   size_t l;
   for(l=0; input.sizeGt(i+l); ++l) {
     if(l >= kMaxIdentLen) Fatal(ctx, i, i+l, "Identifier too long");

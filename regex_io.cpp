@@ -48,7 +48,7 @@ optional<char> lexHexCode(string_view s, size_t& i,
 
 optional<char> lexHexCode(InputDiags& ctx, size_t& i) {
   size_t j=0;
-  auto rv = lexHexCode(ctx.input.substr(i,2), j, ctx, i);
+  auto rv = lexHexCode(ctx.input().substr(i,2), j, ctx, i);
   i += j;
   return rv;
 }
@@ -307,7 +307,7 @@ auto parseHexCode(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 
 auto parseEscapeCode(InputDiags& ctx, size_t& i, const char meta[]) ->
 optional<unsigned char> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(!hasChar(input,i,'\\')) return nullopt;
   if(!input.sizeGt(i+1)) return Error(ctx, i, i+1, "Incomplete escape code");
   if(input[i+1] == 'x') return parseHexCode(ctx, i);
@@ -316,7 +316,7 @@ optional<unsigned char> {
 }
 
 auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(!input.sizeGt(i)) return nullopt;
   if(input[i] == '/') {
     Error(ctx, i, i+1, "Expected closing ']'");
@@ -333,7 +333,7 @@ auto parseCharSetElt(InputDiags& ctx, size_t& i) -> optional<unsigned char> {
 }
 
 auto parseCharSetUnq(InputDiags& ctx, size_t& i) -> unique_ptr<RegexCharSet> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(!hasChar(input,i,'['))
     Bug("parseCharSetUnq called at invalid location {}", i);
   RegexCharSet cset;
@@ -387,7 +387,7 @@ auto parseGroup(InputDiags& ctx, size_t& i, uint8_t depth)
     Error(ctx, i, i+1, "Parentheses nested too deep");
     return nullptr;
   }
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   size_t j = i;
   if(!hasChar(input,i,'('))
     FatalBug(ctx, i, i+1, "parseGroup() must start with '('");
@@ -410,16 +410,16 @@ auto parseSingleChar(InputDiags& ctx, size_t& i) -> unique_ptr<const Regex> {
     i += off;
     return make_unique<RegexAnchor>(a);
   };
-  char ch = ctx.input[i];
+  char ch = ctx.input()[i];
   if(ch == '\\') {
-    if(hasChar(ctx.input,i+1,'b')) return reta(RegexAnchor::wordEdge, 2);
+    if(hasChar(ctx.input(),i+1,'b')) return reta(RegexAnchor::wordEdge, 2);
     else if(auto opt = parseEscapeCode(ctx, i, stringMeta))
       return make_unique<RegexString>(string(1, *opt));
     else return nullptr;
   }
   else if(ch == '^') return reta(RegexAnchor::bol, 1);
   else if(ch == '$') return reta(RegexAnchor::eol, 1);
-  else return make_unique<RegexString>(string(1, ctx.input[i++]));
+  else return make_unique<RegexString>(string(1, ctx.input()[i++]));
 }
 
 // Consequtive string parts get joined into a single string.
@@ -453,9 +453,9 @@ unique_ptr<const Regex> repeatWith(unique_ptr<const Regex> regex, char op) {
   }
 }
 
-// Assumes startsRepeat(ctx.input[i]) == true.
+// Assumes startsRepeat(ctx.input()[i]) == true.
 bool repeatBack(InputDiags& ctx, size_t& i, RegexConcat& concat) {
-  char ch = ctx.input[i];
+  char ch = ctx.input()[i];
   ++i;
   if(ch == '{') Unimplemented("'{{}}'");
   if(concat.parts.empty()) {
@@ -476,7 +476,7 @@ auto unpackSingleton(T t) -> unique_ptr<const Regex> {
 
 auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth)
   -> unique_ptr<const Regex> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   size_t j = i;
   size_t repdepth = 0;
   RegexConcat concat;
@@ -511,7 +511,7 @@ auto parseBranch(InputDiags& ctx, size_t& i, uint8_t depth)
 
 auto parseRec(InputDiags& ctx, size_t& i, uint8_t depth)
   -> unique_ptr<const Regex> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   size_t j = i;
   RegexOrList ors;
   unique_ptr<const Regex> subres;
@@ -550,7 +550,7 @@ RegexCharSet parseRegexCharSet(string input) {
 }
 
 auto parseRegex(InputDiags& ctx, size_t& i) -> unique_ptr<const Regex> {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(!hasChar(input,i,'/')) return nullptr;
   size_t j = i+1;
   auto rv = parseRec(ctx, j, 0);

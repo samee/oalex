@@ -114,7 +114,7 @@ oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -141,7 +141,7 @@ oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -172,7 +172,7 @@ oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -195,7 +195,7 @@ oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -226,7 +226,7 @@ oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -249,7 +249,7 @@ oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -288,7 +288,7 @@ oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -313,9 +313,9 @@ oalex::JsonLoc parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
       std::move(*res.getIfMap()), first);
     fallback_point = j;
 
-    res = quietMatch(ctx.input, j, parseRule19);
+    res = quietMatch(ctx.input(), j, parseRule19);
     if(res.holdsErrorValue()) break;
-    res = quietMatch(ctx.input, j, parseRule18);
+    res = quietMatch(ctx.input(), j, parseRule18);
     if(res.holdsErrorValue()) break;
     res = parseRule19(ctx, j);
     if(res.holdsErrorValue())
@@ -329,7 +329,7 @@ oalex::JsonLoc parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
-  return oalex::quietMatch(ctx.input, i, parseRule20);
+  return oalex::quietMatch(ctx.input(), i, parseRule20);
 }
 
 oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
@@ -353,7 +353,7 @@ oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -399,7 +399,7 @@ oalex::JsonLoc parseRule25(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
-  return oalex::quietMatch(ctx.input, i, parseRule25);
+  return oalex::quietMatch(ctx.input(), i, parseRule25);
 }
 
 oalex::JsonLoc parseRule27(oalex::InputDiags& ctx, ssize_t& i) {
@@ -423,7 +423,7 @@ oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -540,7 +540,7 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -563,7 +563,7 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -654,7 +654,7 @@ oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -681,7 +681,7 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value
@@ -708,7 +708,7 @@ oalex::JsonLoc parseRule45(oalex::InputDiags& ctx, ssize_t& i) {
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
   };
-  ssize_t j = skip->next(ctx.input, i);
+  ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return oalex::JsonLoc::Map();  // dummy non-error value

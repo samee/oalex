@@ -125,7 +125,7 @@ void runConcatFlatTest() {
   ctx.diags.clear();
   observed = parseFlatThenAssembled(ctx, pos);
   assertEqual(__func__, observed, expected);
-  assertLocPairEqual(__func__, 0, ctx.input.find(';',0)+1, observed);
+  assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1, observed);
 
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
@@ -176,8 +176,8 @@ void runConcatTest() {
 // This one needs to be extern for linking to generated code.
 JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   static const Skipper *shskip = new Skipper{ {{"#", "\n"}}, {} };
-  const InputPiece& input = ctx.input;
-  ssize_t j = shskip->whitespace(ctx.input, i);
+  const InputPiece& input = ctx.input();
+  ssize_t j = shskip->whitespace(ctx.input(), i);
   size_t bol = input.bol(j);
   if(bol == input.bol(i)) return JsonLoc::ErrorValue{};
   string indent = input.substr(bol, j-bol);
@@ -188,7 +188,7 @@ JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
 }
 
 bool skipPluginBullet(InputDiags& ctx, ssize_t& i) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   if(ssize_t(input.bol(i)) != i) {
     Error(ctx, i, "Expected the beginning of a new line");
     return false;
@@ -206,7 +206,7 @@ bool skipPluginBullet(InputDiags& ctx, ssize_t& i) {
   return true;
 }
 bool pluginBulletedListSkipToBolOrEof(InputDiags& ctx, ssize_t& i) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   while(input.sizeGt(i) && i != ssize_t(input.bol(i))) {
     if(!oalex::is_in(input[i], " \n\t")) {
       Error(ctx, i, "Expected end of line");
@@ -222,11 +222,11 @@ JsonLoc oalexPluginBulletedList(
   JsonLoc::Vector outvec;
   ssize_t j=i, fallback_point=i;
   if(!pluginBulletedListSkipToBolOrEof(ctx, j)) return JsonLoc::ErrorValue{};
-  while(ctx.input.sizeGt(j) && ctx.input[j]=='\n') ++j;
+  while(ctx.input().sizeGt(j) && ctx.input()[j]=='\n') ++j;
 
   while(true) {
     if(!skipPluginBullet(ctx, j)) {
-      if(ctx.input.bol(j) != size_t(j) && outvec.empty())
+      if(ctx.input().bol(j) != size_t(j) && outvec.empty())
         Error(ctx, j, "Expected a list item");
       break;
     }

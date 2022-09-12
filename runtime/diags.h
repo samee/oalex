@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #pragma once
+#include <memory>
 #include <optional>  // for nullopt_t
 #include "input_view.h"
 
@@ -60,17 +61,20 @@ std::nullopt_t Warning(DiagsDest ctx, size_t st, std::string msg);
 std::nullopt_t Note(DiagsDest ctx, size_t st, std::string msg);
 
 struct InputDiags {
-  Input input;
   std::vector<Diag> diags;
 
-  explicit InputDiags(Input input) : input(std::move(input)) {}
+  explicit InputDiags(Input input) : input_(new Input{std::move(input)}) {}
   InputDiags(InputDiags&&) = default;
   InputDiags& operator=(InputDiags&& that) = default;
   InputDiags(const InputDiags&) = delete;
   InputDiags& operator=(const InputDiags&) = delete;
+  const InputPiece& input() const { return *input_; }
+
+private:
+  std::unique_ptr<InputPiece> input_;
 };
 
 inline DiagsDest::DiagsDest(InputDiags& ctx)
-  : rcmap_(&ctx.input), diags_(&ctx.diags) {}
+  : rcmap_(&ctx.input()), diags_(&ctx.diags) {}
 
 }  // namespace oalex

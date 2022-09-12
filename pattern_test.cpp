@@ -95,7 +95,7 @@ size_t findSubstr(const InputPiece& input, string_view s) {
 GluedString findQuote(string_view testName, InputDiags& ctx,
                        string s) {
   s = '"' + s + '"';
-  size_t i = findSubstr(ctx.input, s);
+  size_t i = findSubstr(ctx.input(), s);
   if(i == string::npos)
     Bug("{}: '{}' not found in test input", testName, s);
   size_t j = i;
@@ -215,7 +215,7 @@ void testUnfinishedMatch() {
 }
 
 Ident findIdent(string_view testName, InputDiags& ctx, string_view id) {
-  for(size_t i=0; ctx.input.sizeGt(i); ++i) if(ctx.input.hasPrefix(i, id)) {
+  for(size_t i=0; ctx.input().sizeGt(i); ++i) if(ctx.input().hasPrefix(i, id)) {
     size_t j = i;
     Ident rv = Ident::parse(ctx, j);
     if(rv.preserveCase() == id) return rv;
@@ -488,7 +488,7 @@ void testParaBreaks() {
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
   GluedString patt
-    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input()), "    ");
   map<Ident,PartPattern> partspec{ {fid("directives"), fquote("directives")} };
   vector<string> observed
     = debugTokens(tokenizePattern(*ctx, patt, partspec, paralexopts));
@@ -513,7 +513,7 @@ void testKeepAllNewlines() {
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
   GluedString patt
-    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input()), "    ");
   map<Ident,PartPattern> partspec{
     {fid("timestamp_sec"), fquote("<epoch_time>")},
     {fid("recipient"), fquote("landlord")},
@@ -555,7 +555,7 @@ void testUnmarkedPatternOpers() {
   )";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
   GluedString patt
-    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input), "    ");
+    = assertSuccessfulParse(__func__, *ctx, lineStart(2,ctx->input()), "    ");
   map<Ident,PartPattern> partspec{
     {fid("GhcQuasiQuotes"), DelimPair{fquote("[sql|"), fquote("|]")}},
     {fid("LongEllipsis"), fquote("....")},

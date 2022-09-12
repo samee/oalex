@@ -80,7 +80,7 @@ optional<string> Skipper::valid() const {
   return nullopt;
 }
 
-// Assumes ctx.input.hasPrefix(pos, end-pos, delims.first).
+// Assumes ctx.input().hasPrefix(pos, end-pos, delims.first).
 // Returns npos if comment never ends.
 // Returns the exact eof position if comment ends exactly at eof.
 static size_t skipPastNestedComment(

@@ -92,15 +92,15 @@ ExternParser::externalName() const {
 
 static JsonLoc::ErrorValue
 skipError(InputDiags& ctx, ssize_t preskip_i, const Skipper& skip) {
-  ssize_t com = skip.whitespace(ctx.input, preskip_i);
-  if(!ctx.input.sizeGt(com)) Bug("skipper returned npos without a comment");
+  ssize_t com = skip.whitespace(ctx.input(), preskip_i);
+  if(!ctx.input().sizeGt(com)) Bug("skipper returned npos without a comment");
   Error(ctx, com, "Unfinished comment");
   return {};
 }
 
 static JsonLoc
 skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
-  const InputPiece& input = ctx.input;
+  const InputPiece& input = ctx.input();
   const ssize_t oldi = i;
   const Skipper* skip = &rs.skips[sp.skipperIndex];
   i = skip->next(input, i);
@@ -248,7 +248,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   while(true) {
     JsonLoc out = (first || loop.glueidx != -1)
                     ? eval(ctx, j, rs, loop.partidx)
-                    : evalQuiet(ctx.input, j, rs, loop.partidx);
+                    : evalQuiet(ctx.input(), j, rs, loop.partidx);
     if(out.holdsErrorValue()) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
@@ -256,9 +256,10 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       recordComponent("child", std::move(out), loop.partidx, loop.partname);
       fallback_point = j;
     }
-    if(sp && evalQuiet(ctx.input, j, rs, loop.skipidx).holdsErrorValue()) break;
+    if(sp && evalQuiet(ctx.input(), j, rs, loop.skipidx).holdsErrorValue())
+      break;
     if(loop.glueidx != -1) {
-      JsonLoc out = evalQuiet(ctx.input, j, rs, loop.glueidx);
+      JsonLoc out = evalQuiet(ctx.input(), j, rs, loop.glueidx);
       if(out.holdsErrorValue()) break;
       else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
       if(sp) {
@@ -308,7 +309,7 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
   for(auto& [lidx, pidx, tmpl]: ors.comps) {
     if(ors.flattenOnDemand && !orBranchFlattenableOrError(rs,pidx,tmpl))
       Bug("OrRule branch {} does not produce a map", ruleDebugId(rs, pidx));
-    if(lidx != -1 && !evalPeek(ctx.input, i, rs, lidx)) continue;
+    if(lidx != -1 && !evalPeek(ctx.input(), i, rs, lidx)) continue;
     out = eval(ctx, i, rs, pidx);
     if(!out.holdsErrorValue())
       return JsonLoc::withPos(tmpl.substituteAll({{"child", out}}),
@@ -332,7 +333,7 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
 static JsonLoc
 oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
-  if(ctx.input.substr(i, 5) == "hello") {
+  if(ctx.input().substr(i, 5) == "hello") {
     i += 5;
     return JsonLoc::String{"hello"};
   } else {
@@ -415,7 +416,7 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     if(err->msg.empty()) return JsonLoc::ErrorValue{};
     else return errorValue(ctx, i, err->msg);
   }else if(auto* qm = dynamic_cast<const QuietMatch*>(&r))
-    return evalQuiet(ctx.input, i, ruleset, qm->compidx);
+    return evalQuiet(ctx.input(), i, ruleset, qm->compidx);
   else if(auto* ors = dynamic_cast<const OrRule*>(&r))
     return eval(ctx, i, *ors, ruleset);
   else if(auto* me = dynamic_cast<const MatchOrError*>(&r))
@@ -437,12 +438,12 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
     Bug("trimAndEval(): Out of bounds: {}", ctxskip);
   const Skipper& skip = ruleset.skips[ctxskip];
   ssize_t oldi = i;
-  i = skip.next(ctx.input, i);
+  i = skip.next(ctx.input(), i);
   if(i == ssize_t(string::npos)) return skipError(ctx, oldi, skip);
   JsonLoc rv = eval(ctx, i, ruleset, ruleIndex);
   if(rv.holdsErrorValue()) return rv;
   oldi = i;
-  i = skip.next(ctx.input, i);  // Don't discard rv even on error.
+  i = skip.next(ctx.input(), i);  // Don't discard rv even on error.
   if(i == ssize_t(string::npos)) skipError(ctx, oldi, skip);
   return rv;
 }
@@ -800,7 +801,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    if(first) res = ");
       codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos(format("    else res = quietMatch(ctx.input, j, {});\n",
+    cppos(format("    else res = quietMatch(ctx.input(), j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
     cppos("    if(res.holdsErrorValue()) {\n");
     cppos("      if(first) return res;\n");
@@ -817,13 +818,13 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
-    cppos(format("    res = quietMatch(ctx.input, j, {});\n",
+    cppos(format("    res = quietMatch(ctx.input(), j, {});\n",
                  parserName(skipname)));
     cppos("    if(res.holdsErrorValue()) break;\n");
   }
   if(loop.glueidx != -1) {
     if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
-      cppos(format("    res = quietMatch(ctx.input, j, {});\n",
+      cppos(format("    res = quietMatch(ctx.input(), j, {});\n",
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
     cppos("    if(res.holdsErrorValue()) break;\n");
@@ -902,7 +903,7 @@ static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
   if(const Ident* name = ruleAt(ruleset, qm.compidx).nameOrNull())
-    cppos(format("  return oalex::quietMatch(ctx.input, i, {});\n",
+    cppos(format("  return oalex::quietMatch(ctx.input(), i, {});\n",
                  parserName(*name)));
   else Bug("QuietMatch::compidx targets need to have names");
 }
@@ -912,14 +913,14 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
                  const OutputStream& cppos) {
   const Rule& rule = ruleAt(ruleset, lidx);
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
-    cppos(format("ctx.input.hasPrefix(i, {})", dquoted(s->val)));
+    cppos(format("ctx.input().hasPrefix(i, {})", dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule))
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
   // When adding a new branch here, remember to change StringRule::needsName().
   else {
     if(const Ident* name = rule.nameOrNull())
-      cppos(format("oalex::peekMatch(ctx.input, i, {})", parserName(*name)));
+      cppos(format("oalex::peekMatch(ctx.input(), i, {})", parserName(*name)));
     else Bug("The frontend must always name lookidx for {} rules",
              rule.specifics_typename());
   }
@@ -1005,7 +1006,7 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos(format("    .newlines = Skipper::Newlines::{},\n",
                to_string(skip->newlines)));
   cppos("  };\n");
-  cppos("  ssize_t j = skip->next(ctx.input, i);\n");
+  cppos("  ssize_t j = skip->next(ctx.input(), i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
   cppos("    return oalex::JsonLoc::Map();  // dummy non-error value\n");

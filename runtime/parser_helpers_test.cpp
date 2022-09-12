@@ -31,13 +31,13 @@ void testQuietSkipAtNewline() {
 
   oalex::GeneratedParser skipEval = +[](InputDiags& ctx, ssize_t& i) {
     const Skipper skip{ {{"#","\n"}}, {}, Skipper::Newlines::ignore_blank};
-    i = skip.next(ctx.input, i);
+    i = skip.next(ctx.input(), i);
     return JsonLoc{JsonLoc::Map{}};
   };
   skipEval(ctx, pos);
   assertEqual(me("Skip didn't stop at newline"), pos, 3);
 
-  quietMatch(ctx.input, pos, skipEval);
+  quietMatch(ctx.input(), pos, skipEval);
   assertEqual(me("Quiet skip didn't stop at newline"), pos, 3);
 }
 
