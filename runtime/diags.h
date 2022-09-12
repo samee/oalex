@@ -67,22 +67,7 @@ struct InputDiags {
   InputDiags& operator=(InputDiags&& that) = default;
   InputDiags(const InputDiags&) = delete;
   InputDiags& operator=(const InputDiags&) = delete;
-
-  void markUsed(size_t st, size_t en);
-
- private:
-  size_t lastForgotten_ = 0;
 };
-
-// Helper for Input::forgetBefore().
-// We almost never want to *unconditionally* call forgetBefore().
-// TODO remove all explicit forgetBefore() calls.
-inline void InputDiags::markUsed(size_t st, size_t en) {
-  if(st <= lastForgotten_) {
-    input.forgetBefore(en);
-    lastForgotten_ = en;
-  }
-}
 
 inline DiagsDest::DiagsDest(struct InputDiags& ctx)
   : input_(&ctx.input), diags_(&ctx.diags) {}
