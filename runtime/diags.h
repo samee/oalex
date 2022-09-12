@@ -22,7 +22,7 @@ struct Diag {
   enum Severity { error,warning,note } severity;
   size_t stLine, stPos, enLine, enPos;  // These ranges are inclusive.
   std::string msg;
-  Diag(const Input& input, size_t st, size_t en,
+  Diag(const Input& rcmap, size_t st, size_t en,
        Severity sev, std::string msg);
   explicit operator std::string() const;
 };
@@ -30,7 +30,7 @@ struct Diag {
 bool hasError(const std::vector<Diag>& diags);
 
 class DiagsDest {
-  const Input* input_;
+  const Input* rcmap_;
   std::vector<Diag>* diags_;
  public:
   DiagsDest(struct InputDiags& ctx);  // implicit
@@ -70,6 +70,6 @@ struct InputDiags {
 };
 
 inline DiagsDest::DiagsDest(struct InputDiags& ctx)
-  : input_(&ctx.input), diags_(&ctx.diags) {}
+  : rcmap_(&ctx.input), diags_(&ctx.diags) {}
 
 }  // namespace oalex

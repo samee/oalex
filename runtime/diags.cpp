@@ -41,14 +41,14 @@ static string locationString(const Diag& diag) {
 }
 
 string DiagsDest::locationString(size_t st, size_t en) const {
-  return oalex::locationString(Diag{*input_, st, en, Diag::error, string()});
+  return oalex::locationString(Diag{*rcmap_, st, en, Diag::error, string()});
 }
 
-Diag::Diag(const Input& input, size_t st, size_t en,
+Diag::Diag(const Input& rcmap, size_t st, size_t en,
            Severity sev, std::string msg)
   : severity(sev), msg(msg) {
-  std::tie(stLine,stPos) = input.rowCol(st);
-  std::tie(enLine,enPos) = input.rowCol(--en);
+  std::tie(stLine,stPos) = rcmap.rowCol(st);
+  std::tie(enLine,enPos) = rcmap.rowCol(--en);
 }
 
 Diag::operator string() const {
@@ -64,14 +64,14 @@ bool hasError(const std::vector<Diag>& diags) {
 nullopt_t
 DiagsDest::pushDiagReturnNullOpt(size_t st, size_t en,
                                  Diag::Severity sev, std::string msg) {
-  diags_->emplace_back(*input_, st, en, sev, std::move(msg));
+  diags_->emplace_back(*rcmap_, st, en, sev, std::move(msg));
   return std::nullopt;
 }
 
 Diag
 DiagsDest::makeDiag(size_t st, size_t en,
                     Diag::Severity sev, std::string msg) const {
-  return Diag(*input_, st, en, sev, std::move(msg));
+  return Diag(*rcmap_, st, en, sev, std::move(msg));
 }
 
 void
