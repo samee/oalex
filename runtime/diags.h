@@ -87,15 +87,4 @@ inline void InputDiags::markUsed(size_t st, size_t en) {
 inline DiagsDest::DiagsDest(struct InputDiags& ctx)
   : input_(&ctx.input), diags_(&ctx.diags) {}
 
-class Resetter {
-  size_t oldi_, chkpoint_, *targeti_;
-  InputDiags *ctx_;
- public:
-  explicit Resetter(InputDiags& ctx, size_t& i)
-    : oldi_(i), chkpoint_(i), targeti_(&i), ctx_(&ctx) {}
-  ~Resetter() { if(targeti_) *targeti_ = chkpoint_; }
-  void markUsed(size_t en) { ctx_->markUsed(chkpoint_, en); chkpoint_ = en; }
-  size_t start() const { return oldi_; }
-};
-
 }  // namespace oalex

@@ -190,13 +190,13 @@ optional<JsonTmpl> parseJsonTmplFromBracketGroup(DiagsDest ctx,
 
 // Assumes the whole thing is surrouded by some kind of a bracket.
 optional<JsonTmpl> parseJsonTmpl(InputDiags& ctx, size_t& i) {
-  Resetter rst(ctx,i);
-  optional<BracketGroup> bg = lexBracketGroup(ctx, i);
+  size_t j = i;
+  optional<BracketGroup> bg = lexBracketGroup(ctx, j);
   if(!bg.has_value()) return nullopt;
   bool allSingleQ = allStringsSingleQuoted(ctx, *bg);
   auto rv = parseJsonTmplFromBracketGroup(ctx, std::move(*bg));
   if(rv.has_value() && allSingleQ) {
-    rst.markUsed(i);
+    i = j;
     return rv;
   }else return nullopt;
 }
@@ -212,11 +212,11 @@ optional<JsonLoc> parseJsonLoc(string_view s) {
 }
 
 optional<JsonTmpl> parseJsonTmplFlexQuote(InputDiags& ctx, size_t& i) {
-  Resetter rst(ctx,i);
-  optional<BracketGroup> bg = lexBracketGroup(ctx, i);
+  size_t j = i;
+  optional<BracketGroup> bg = lexBracketGroup(ctx, j);
   if(!bg.has_value()) return nullopt;
   auto rv = parseJsonTmplFromBracketGroup(ctx, std::move(*bg));
-  if(rv.has_value()) rst.markUsed(i);
+  if(rv.has_value()) i = j;
   return rv;
 }
 

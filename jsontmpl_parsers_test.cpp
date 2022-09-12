@@ -44,7 +44,6 @@ using oalex::JsonTmpl;
 using oalex::parseJsonLoc;
 using oalex::parseJsonTmpl;
 using oalex::parseJsonTmplFlexQuote;
-using oalex::Resetter;
 using oalex::showDiags;
 
 namespace {

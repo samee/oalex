@@ -130,13 +130,10 @@ bool isSectionHeaderNonSpace(char ch) {
 // TODO use generic word-lexer based on a char set.
 optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  Resetter rst(ctx, i);
-  while(input.sizeGt(i) && isSectionHeaderNonSpace(input[i])) ++i;
-  if(i == rst.start()) return nullopt;
-  else {
-    rst.markUsed(i);
-    return inputSegment(rst.start(),i,input);
-  }
+  size_t j = i;
+  while(input.sizeGt(j) && isSectionHeaderNonSpace(input[j])) ++j;
+  if(j == i) return nullopt;
+  else return inputSegment(std::exchange(i,j), j, input);
 }
 
 // Return conditions:
@@ -167,20 +164,20 @@ optional<WholeSegment> lexHeaderWord(InputDiags& ctx, size_t& i) {
 vector<WholeSegment>
 lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  Resetter rst(ctx, i);
+  size_t j = i;
   vector<WholeSegment> rv;
   // TODO reduce bsearch overhead.
-  for(i = oalexSkip.next(input, i);
-      input.bol(i) == input.bol(rst.start());
-      i = oalexSkip.next(input, i)) {
-    if(isSectionHeaderNonSpace(input[i])) {
-      if(optional<WholeSegment> token = lexHeaderWord(ctx,i))
+  for(j = oalexSkip.next(input, j);
+      input.bol(j) == input.bol(i);
+      j = oalexSkip.next(input, j)) {
+    if(isSectionHeaderNonSpace(input[j])) {
+      if(optional<WholeSegment> token = lexHeaderWord(ctx,j))
         rv.push_back(*token);
       else return {};
-    }else if(input[i] == '\n') break;
+    }else if(input[j] == '\n') break;
     else return {};
   }
-  rst.markUsed(i);
+  i = j;
   return rv;
 }
 
@@ -191,10 +188,10 @@ lexSectionHeaderContents(InputDiags& ctx, size_t& i) {
 optional<size_t> lexDashLine(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i)) return nullopt;
-  Resetter rst(ctx, i);
-  size_t dashStart = i;
-  while(input.sizeGt(i) && input[i]=='-') ++i;
-  rst.markUsed(i);
+  size_t j = i;
+  size_t dashStart = j;
+  while(input.sizeGt(j) && input[j]=='-') ++j;
+  i = j;
   return dashStart;
 }
 
@@ -466,23 +463,22 @@ optional<WholeSegment> GluedString::getSegment() const {
 static optional<RegexPattern> lexRegexPattern(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
   if(!input.sizeGt(i) || !isregex(input[i])) return nullopt;
-  Resetter rst(ctx, i);
-  unique_ptr<const Regex> rv = parseRegex(ctx, i);  // TODO: improve naming.
+  size_t j = i;
+  unique_ptr<const Regex> rv = parseRegex(ctx, j);  // TODO: improve naming.
   if(rv == nullptr) {
     // Scan till the next unescaped '/'
-    ++i;
-    while(input.sizeGt(i)) {
-      if(input[i] == '\\') {
-        if(input.sizeGt(++i)) ++i;
-      }else if(input[i] == '/') {
-        rst.markUsed(++i);
+    ++j;
+    while(input.sizeGt(j)) {
+      if(input[j] == '\\') {
+        if(input.sizeGt(++j)) ++j;
+      }else if(input[j] == '/') {
+        i = ++j;
         break;
-      }else ++i;
+      }else ++j;
     }
     return nullopt;
   }
-  rst.markUsed(i);
-  return RegexPattern{rst.start(), i, std::move(rv)};
+  return RegexPattern{std::exchange(i,j), j, std::move(rv)};
 }
 
 // This function never returns nullopt silently. It will either return
@@ -505,42 +501,42 @@ static optional<ExprToken> lexSingleToken(InputDiags& ctx, size_t& i) {
  */
 optional<BracketGroup> lexBracketGroup(InputDiags& ctx, size_t& i) {
   const Input& input = ctx.input;
-  Resetter rst(ctx, i);
-  if(!lookaheadStart(ctx,i)) return nullopt;
+  size_t j = i;
+  if(!lookaheadStart(ctx,j)) return nullopt;
 
   BracketType bt;
-  const size_t bstart = i;
-  if(auto btOpt = lexOpenBracket(input,i)) bt=*btOpt;
+  const size_t bstart = j;
+  if(auto btOpt = lexOpenBracket(input,j)) bt=*btOpt;
   else return nullopt;
 
   BracketGroup bg(bstart,Input::npos,bt);
   while(true) {
-    if(!lookaheadStart(ctx,i)) {  // lookaheadStart is false on EOF.
-      Error(ctx, i, format("Match not found for '{}'.", openBracket(bt)));
+    if(!lookaheadStart(ctx,j)) {  // lookaheadStart is false on EOF.
+      Error(ctx, j, format("Match not found for '{}'.", openBracket(bt)));
       i = Input::npos;
       return nullopt;
     }
 
-    if(auto btOpt = lexCloseBracket(input,i)) {
+    if(auto btOpt = lexCloseBracket(input,j)) {
       BracketType bt2=*btOpt;
       // The only success return path.
-      if(bt==bt2) { bg.enPos=i; rst.markUsed(i); return bg; }
+      if(bt==bt2) { bg.enPos=i=j; return bg; }
       else {
-        rst.markUsed(i+1);
-        return Error(ctx, rst.start(), i,
+        // TODO: Examine this '+1' a bit more. It's historical, and suspicious.
+        return Error(ctx, std::exchange(i, j+1), j,
                      format("Match not found for '{}', found '{}' instead.",
                             openBracket(bt), closeBracket(bt2)));
       }
     }
 
-    if(isbracket(ctx.input[i])) {
-      if(auto bgopt = lexBracketGroup(ctx,i))
+    if(isbracket(ctx.input[j])) {
+      if(auto bgopt = lexBracketGroup(ctx,j))
         bg.children.push_back(std::move(*bgopt));
-      else ++i;
+      else ++j;
     }else {
-      size_t oldi = i;
-      if(auto x = lexSingleToken(ctx, i)) bg.children.push_back(std::move(*x));
-      else if(i == oldi) ++i;
+      size_t oldj = j;
+      if(auto x = lexSingleToken(ctx, j)) bg.children.push_back(std::move(*x));
+      else if(j == oldj) ++j;
     }
   }
 }
@@ -585,10 +581,10 @@ firstCharIndent(const Input& input, const vector<ExprToken>& line,
 static vector<vector<ExprToken>>
 lexLinesIndentedAtLeast(InputDiags& ctx, size_t& i,
                         string_view refindent, char bullet) {
-  Resetter rst(ctx, i);
+  size_t j = i;
   vector<vector<ExprToken>> rv;
   while(true) {
-    vector<ExprToken> line = lexNextLine(ctx, i);
+    vector<ExprToken> line = lexNextLine(ctx, j);
     if(line.empty()) return rv;
     IndentCmp cmp = firstCharIndent(ctx.input, line, refindent);
     if(cmp == IndentCmp::lt ||
@@ -600,7 +596,7 @@ lexLinesIndentedAtLeast(InputDiags& ctx, size_t& i,
       return rv;
     }
     rv.push_back(std::move(line));
-    rst.markUsed(i);
+    i = j;
   }
 }
 
@@ -630,15 +626,15 @@ lexListEntries(InputDiags& ctx, size_t& i, char bullet) {
     FatalBug(ctx, i,
         format("lexListEntries() must start at bol(), got string '{}'",
                debugPrefix(ctx.input, i)));
-  Resetter rst(ctx, i);
+  size_t j = i;
 
   size_t first_char_pos = i;
   if(!lookaheadStart(ctx, first_char_pos)) return {};
   string refindent = substrFromBol(input, first_char_pos);
 
   vector<vector<ExprToken>> rv =
-    lexLinesIndentedAtLeast(ctx, i, refindent, bullet);
-  rst.markUsed(i);
+    lexLinesIndentedAtLeast(ctx, j, refindent, bullet);
+  i = j;
   if(rv.empty()) return {};
   mergeListLines(ctx, rv, refindent);
 
@@ -738,31 +734,31 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
   Input& input = ctx.input;
   if(!input.sizeGt(i) || i!=input.bol(i) || input.substr(i,3)!="```")
     return nullopt;
-  Resetter rst(ctx, i);
+  size_t j = i;
   vector<IndexRelation> imap;
-  string fence = getline(ctx, i);
+  string fence = getline(ctx, j);
   if(!isSourceFence(fence))
-    Fatal(ctx, rst.start(), i, "Fences must be alphanumeric");
+    Fatal(ctx, i, j, "Fences must be alphanumeric");
 
   // Valid starting fence, so now we are commited to changing i.
-  size_t fenceStart = rst.start();
-  size_t inputStart = i;
-  rst.markUsed(i);
-  imap.push_back(IndexRelation{.inputPos = i, .quotePos = 0});
-  while(input.sizeGt(i)) {
-    size_t lineStart = i;
-    string line = getline(ctx, i);
+  size_t fenceStart = i;
+  size_t inputStart = j;
+  i = j;
+  imap.push_back(IndexRelation{.inputPos = j, .quotePos = 0});
+  while(input.sizeGt(j)) {
+    size_t lineStart = j;
+    string line = getline(ctx, j);
     if(line == fence) {
-      GluedString s(fenceStart, i-1,
+      GluedString s(fenceStart, j-1,
                      input.substr(inputStart, lineStart-inputStart),
                      GluedString::Ctor::fenced, std::move(imap));
-      rst.markUsed(i);
+      i = j;
       return s;
-    } else imap.push_back(IndexRelation{.inputPos = i,
-                                        .quotePos = i-inputStart});
+    } else imap.push_back(IndexRelation{.inputPos = j,
+                                        .quotePos = j-inputStart});
   }
-  rst.markUsed(i);
-  return Error(ctx, fenceStart, i-1, "Source block ends abruptly");
+  i = j;
+  return Error(ctx, fenceStart, j-1, "Source block ends abruptly");
 }
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
@@ -771,12 +767,12 @@ optional<GluedString>
 lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
   Input& input = ctx.input;
   string rv;
-  Resetter rst(ctx,i);
+  size_t j = i, start = i;
   vector<IndexRelation> imap;
   bool allblank = true;
-  while(input.sizeGt(i)) {
-    size_t ls = i;
-    optional<string> line = lexSourceLine(ctx,i,parindent);
+  while(input.sizeGt(j)) {
+    size_t ls = j;
+    optional<string> line = lexSourceLine(ctx,j,parindent);
     if(!line.has_value()) break;
     if(line->empty())
       imap.push_back(IndexRelation{.inputPos = ls, .quotePos = rv.size()});
@@ -786,13 +782,13 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
                                    .quotePos = rv.size()});
     }
     rv += *line; rv += '\n';
-    rst.markUsed(i);
+    i = j;
   }
   if(allblank) return nullopt;
-  imap.push_back(IndexRelation{.inputPos = i, .quotePos = rv.size()});
-  GluedString qs(rst.start(), i, std::move(rv), GluedString::Ctor::indented,
+  imap.push_back(IndexRelation{.inputPos = j, .quotePos = rv.size()});
+  GluedString qs(start, j, std::move(rv), GluedString::Ctor::indented,
                  std::move(imap));
-  rst.markUsed(i);
+  i = j;
   return qs;
 }
 
@@ -830,22 +826,21 @@ lookaheadParIndent(InputDiags& ctx, size_t i) {
 vector<WholeSegment> lexSectionHeader(InputDiags& ctx, size_t& i) {
   if(i != ctx.input.bol(i)) return {};
 
-  Resetter rst(ctx, i);
-  if(size_t j = skipBlankLines(ctx,i); j != string::npos) i = ctx.input.bol(j);
-  optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,i);
+  size_t j = i;
+  if(size_t k = skipBlankLines(ctx,j); k != string::npos) j = ctx.input.bol(k);
+  optional<vector<WholeSegment>> rv = lexSectionHeaderContents(ctx,j);
   if(!rv) return {};
   Skipper skip = oalexSkip; skip.newlines = Skipper::Newlines::keep_all;
-  i = skip.next(ctx.input, i);
-  if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
-  ++i;
-  i = skip.next(ctx.input, i);
-  if(!ctx.input.sizeGt(i) || ctx.input[i]!='-') return {};
-  optional<size_t> stDash=lexDashLine(ctx,i);
+  j = skip.next(ctx.input, j);
+  if(!ctx.input.sizeGt(j) || ctx.input[j]!='\n') return {};
+  ++j;
+  j = skip.next(ctx.input, j);
+  if(!ctx.input.sizeGt(j) || ctx.input[j]!='-') return {};
+  optional<size_t> stDash=lexDashLine(ctx,j);
   if(!stDash) return {};
-  i = skip.next(ctx.input, i);
-  if(!ctx.input.sizeGt(i) || ctx.input[i]!='\n') return {};
-  ++i;
-  rst.markUsed(i);
+  j = skip.next(ctx.input, j);
+  if(!ctx.input.sizeGt(j) || ctx.input[j]!='\n') return {};
+  i = ++j;
 
   size_t stCont=rv->at(0).stPos;
   const Input& input=ctx.input;
@@ -865,25 +860,25 @@ vector<ExprToken> lexNextLine(InputDiags& ctx, size_t& i) {
         format("lexNextLine() must start at bol, got '{}'",
                debugPrefix(ctx.input, i)));
 
-  Resetter rst(ctx, i);
-  if(size_t j = skipBlankLines(ctx, i); j != string::npos) i = ctx.input.bol(j);
+  size_t j = i;
+  if(size_t k = skipBlankLines(ctx, j); k != string::npos) j = ctx.input.bol(k);
 
   vector<ExprToken> rv;
-  size_t prevBol = i;
-  for(i=oalexSkip.next(ctx.input, prevBol);
-      ctx.input.sizeGt(i);
-      i=oalexSkip.next(ctx.input,i)) {
-    if(ctx.input[i] == '\n') { ++i; break; }
-    optional<ExprToken> tok = lexBracketGroup(ctx, i);
+  size_t prevBol = j;
+  for(j=oalexSkip.next(ctx.input, prevBol);
+      ctx.input.sizeGt(j);
+      j=oalexSkip.next(ctx.input,j)) {
+    if(ctx.input[j] == '\n') { ++j; break; }
+    optional<ExprToken> tok = lexBracketGroup(ctx, j);
     if(!tok.has_value()) {
-      tok = lexSingleToken(ctx, i);
+      tok = lexSingleToken(ctx, j);
       if(!tok.has_value()) return {};
     }
-    i = enPos(*tok);
+    j = enPos(*tok);
     rv.push_back(std::move(*tok));
-    prevBol = ctx.input.bol(i);
+    prevBol = ctx.input.bol(j);
   }
-  rst.markUsed(i);
+  i = j;
   return rv;
 }
 
