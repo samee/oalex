@@ -188,9 +188,10 @@ void stringFailureImpl(const char testInput[], const char testName[],
 }
 
 string debug(const pair<size_t,size_t>& p) {
-  Bug("{}:{}", p.first, p.second);
+  return fmt::format("{}:{}", p.first, p.second);
 }
 
+// TODO: Replace with the test_util.h version
 template <class T>
 void assertEq(string_view errmsg, const T& a, const T& b) {
   if(a != b) Bug("{}: {} != {}", errmsg, debug(a), debug(b));
