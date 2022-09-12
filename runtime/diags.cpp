@@ -44,7 +44,7 @@ string DiagsDest::locationString(size_t st, size_t en) const {
   return oalex::locationString(Diag{*rcmap_, st, en, Diag::error, string()});
 }
 
-Diag::Diag(const Input& rcmap, size_t st, size_t en,
+Diag::Diag(const InputPiece& rcmap, size_t st, size_t en,
            Severity sev, std::string msg)
   : severity(sev), msg(msg) {
   std::tie(stLine,stPos) = rcmap.rowCol(st);
