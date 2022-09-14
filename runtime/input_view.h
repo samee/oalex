@@ -25,6 +25,8 @@ namespace oalex {
 // unprocessed inputs.
 class InputPiece {
  public:
+  static constexpr auto npos = size_t(-1);
+
   virtual char operator[](size_t sz) const = 0;
   virtual bool sizeGt(size_t sz) const = 0;
   virtual std::pair<size_t,size_t> rowCol(size_t i) const = 0;
@@ -34,6 +36,9 @@ class InputPiece {
   virtual size_t find(char ch, size_t pos) const = 0;
   virtual size_t bol(size_t i) const = 0;
   virtual std::string substr(size_t st,  size_t len) const = 0;
+  std::string substr_range(size_t st, size_t en) const {
+    return substr(st, en-st);
+  }
   virtual ~InputPiece() = default;
 };
 
@@ -63,8 +68,6 @@ class InputStream {
 
 class Input final : public InputPiece {
  public:
-  static constexpr auto npos = size_t(-1);
-
   explicit Input(InputStream* is) : stream_(is), size_(npos) {}
   explicit Input(std::string_view s);
   Input(const Input&) = delete;
@@ -106,9 +109,6 @@ class Input final : public InputPiece {
   // Unlike std::string_view, it will stay valid even if s is appended to,
   // and undergoes reallocation.
   std::string substr(size_t pos, size_t count) const override;
-  std::string substr_range(size_t st, size_t en) const {
-    return substr(st, en-st);
-  }
   using InputPiece::hasPrefix;
   bool hasPrefix(size_t pos, std::string_view s) const override;
   size_t find(char ch, size_t pos) const override;
