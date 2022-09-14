@@ -437,11 +437,10 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
   auto enit = upperBound(index_map_, pos+len);
 
   // Construct the new index_map_.
-  // TODO: Clean this up when we have this->rowCol()
   vector<IndexRelation> imap(stit, enit);  // cannot be empty.
+  auto [stLine, stCol] = this->rowCol(pos);
   imap[0] = {.inputPos = this->inputPos(pos), .quotePos = 0,
-             .inputLine = stit->inputLine,  // unchanged.
-             .inputCol = stit->inputCol + (pos - stit->quotePos)};
+             .inputLine = stLine, .inputCol = stPos };
   for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
