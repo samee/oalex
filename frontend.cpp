@@ -517,6 +517,7 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
       if(!rxpr) continue;
       PatternToRuleBinding binding{
         .pp{GluedString{
+          ctx,
           WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
         }},
         .outTmplKey{elt},

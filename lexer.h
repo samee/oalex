@@ -30,9 +30,14 @@ namespace lex {
 
 class GluedString;
 
+// TODO: Maybe move this to lexer.cpp.
+// This will require GluedString copy ctor, move ctor, and dtor to all be
+// explicitly defined with `= default;` in lexer.cpp
 struct IndexRelation {
   size_t inputPos;
   size_t quotePos;
+  size_t inputLine;
+  size_t inputCol;
 };
 
 enum class LexSegmentTag {
@@ -75,7 +80,7 @@ class GluedString final : public Segment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
-  explicit GluedString(WholeSegment s);
+  explicit GluedString(DiagsDest rcmap, WholeSegment s);
   friend auto unquote(const StringLoc& literal, DiagsDest ctx)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)

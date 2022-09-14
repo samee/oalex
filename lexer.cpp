@@ -397,10 +397,22 @@ NewlineChar::NewlineChar(const GluedString& s, size_t pos)
   : Segment{s.inputPos(pos), s.inputPos(pos)+1,
                tagint_t(LexSegmentTag::newlineChar)} {}
 
-GluedString::GluedString(WholeSegment s)
+IndexRelation indexRelation(size_t inputPos, size_t quotePos, DiagsDest rcmap) {
+  auto [line, col] = rcmap.rowCol(inputPos);
+  return { .inputPos=inputPos, .quotePos=quotePos,
+           .inputLine=line, .inputCol=col };
+}
+
+// Dev-note: It's weird to have a DiagsDest as an input here, but it's used as
+// a location map. This is what we use to initialize IndexRelation, the data
+// structure we look up for rowCol(). In future, we can consider this decaying
+// into a dedicated type for rcmap. Some super-interface for InputPiece. No, we
+// won't accept InputPiece here directly, since we don't want DiagsDest to
+// expose InputPiece on the caller side.
+GluedString::GluedString(DiagsDest rcmap, WholeSegment s)
   : Segment{s.stPos, s.enPos, type_tag},
     s_(std::move(*s)), ctor_(Ctor::wholeSegment),
-    index_map_({IndexRelation{.inputPos = s.stPos, .quotePos = 0}}) {}
+    index_map_({indexRelation(s.stPos, 0, rcmap)}) {}
 
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;
@@ -409,7 +421,8 @@ static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
 // Returns index_map.iterator_type, never returns index_map.begin().
 static auto upperBound(const vector<IndexRelation>& index_map, size_t qpos) {
   auto it = upper_bound(index_map.begin(), index_map.end(),
-                     IndexRelation{.inputPos = 0, .quotePos = qpos},
+                     IndexRelation{.inputPos = 0, .quotePos = qpos,
+                                   .inputLine = 0, .inputCol = 0},
                      cmpByQuotePos);
   if(it == index_map.begin()) Bug("Index map doesn't have start entry");
   return it;
@@ -424,8 +437,11 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
   auto enit = upperBound(index_map_, pos+len);
 
   // Construct the new index_map_.
+  // TODO: Clean this up when we have this->rowCol()
   vector<IndexRelation> imap(stit, enit);  // cannot be empty.
-  imap[0] = {.inputPos = this->inputPos(pos), .quotePos = 0};
+  imap[0] = {.inputPos = this->inputPos(pos), .quotePos = 0,
+             .inputLine = stit->inputLine,  // unchanged.
+             .inputCol = stit->inputCol + (pos - stit->quotePos)};
   for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
@@ -668,7 +684,7 @@ optional<GluedString> unquote(const StringLoc& literal, DiagsDest ctx) {
     Bug("Expected quoted literal. Received '{}'", *literal);
   vector<IndexRelation> imap;
   string s;
-  imap.push_back(IndexRelation{.inputPos = literal.stPos()+1, .quotePos = 0});
+  imap.push_back(indexRelation(literal.stPos()+1, 0, ctx));
   size_t i = 1;
   while(i+1<literal->size()) {
     if(literal->at(i) == '\\') {
@@ -676,8 +692,7 @@ optional<GluedString> unquote(const StringLoc& literal, DiagsDest ctx) {
       if(optional<char> escres
           = lexQuotedEscape(*literal, i, ctx, literal.stPos()+i)) {
         s += *escres;
-        imap.push_back(IndexRelation{.inputPos = literal.stPos()+i,
-                                     .quotePos = s.size()});
+        imap.push_back(indexRelation(literal.stPos()+i, s.size(), ctx));
       }else return nullopt;
     }else s += literal->at(i++);
   }
@@ -744,7 +759,7 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
   size_t fenceStart = i;
   size_t inputStart = j;
   i = j;
-  imap.push_back(IndexRelation{.inputPos = j, .quotePos = 0});
+  imap.push_back(indexRelation(j, 0, ctx));
   while(input.sizeGt(j)) {
     size_t lineStart = j;
     string line = getline(ctx, j);
@@ -754,8 +769,7 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
                      GluedString::Ctor::fenced, std::move(imap));
       i = j;
       return s;
-    } else imap.push_back(IndexRelation{.inputPos = j,
-                                        .quotePos = j-inputStart});
+    } else imap.push_back(indexRelation(j, j-inputStart, ctx));
   }
   i = j;
   return Error(ctx, fenceStart, j-1, "Source block ends abruptly");
@@ -775,17 +789,16 @@ lexIndentedSource(InputDiags& ctx, size_t& i, string_view parindent) {
     optional<string> line = lexSourceLine(ctx,j,parindent);
     if(!line.has_value()) break;
     if(line->empty())
-      imap.push_back(IndexRelation{.inputPos = ls, .quotePos = rv.size()});
+      imap.push_back(indexRelation(ls, rv.size(), ctx));
     else {
       allblank = false;
-      imap.push_back(IndexRelation{.inputPos = ls+parindent.size(),
-                                   .quotePos = rv.size()});
+      imap.push_back(indexRelation(ls+parindent.size(), rv.size(), ctx));
     }
     rv += *line; rv += '\n';
     i = j;
   }
   if(allblank) return nullopt;
-  imap.push_back(IndexRelation{.inputPos = j, .quotePos = rv.size()});
+  imap.push_back(indexRelation(j, rv.size(), ctx));
   GluedString qs(start, j, std::move(rv), GluedString::Ctor::indented,
                  std::move(imap));
   i = j;

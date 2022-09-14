@@ -597,7 +597,7 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
   for(const auto& [p, j] : jstmpl.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
     Ident id = Ident::parse(ctx, seg);
-    if(id) rv.insert({id, GluedString(std::move(seg))});
+    if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
   }
   return rv;
 }
