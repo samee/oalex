@@ -62,7 +62,9 @@ auto labelParts(
     const RegexCharSet& wordChars)
     -> std::vector<LabelOrPart>;
 
-// Strong typedefs.
+// Strong typedefs. The distinction between a WordToken and an OperToken is
+// really about whether they need to be surrounded by word boundaries when
+// being matched.
 struct WordToken : public WholeSegment {
   explicit WordToken(const WholeSegment& s) : WholeSegment(s) {}
 };
@@ -72,11 +74,9 @@ struct OperToken : public WholeSegment {
 
 using TokenOrPart = std::variant<WordToken, OperToken, lex::NewlineChar, Ident>;
 // This is unlikely to be used outside of tokenizePattern(), so for now
-// it is really only exposed for testing.
-// A WholeSegment can never be empty. The bool for each element indicates
-// whether the token should be surrounded by word-boundary anchors when
-// matching.
-// Return value elements contain either WordToken or OperToken, never Ident.
+// it is really only exposed for testing. Never produces a zero-sized token.
+// Return value elements never contain an Ident, hence the "WithoutLabel"
+// part of the name.
 // Expects unixified linefeeds, since it uses skippers.
 auto tokenizePatternWithoutLabels(
     DiagsDest ctx, const lex::GluedString& s,
