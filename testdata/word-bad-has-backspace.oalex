@@ -1,0 +1,7 @@
+# expected-error: Words cannot contain unprintable characters
+
+rule foo:
+  Hello
+lexical:
+  word: /[abc\x08]+/
+outputs: {}

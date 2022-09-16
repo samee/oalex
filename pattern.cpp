@@ -103,6 +103,22 @@ static auto matchAllParts(DiagsDest ctx,
   return rv;
 }
 
+string
+validateWordChars(const RegexCharSet& lexopts) {
+  for(auto& range: lexopts.ranges) {
+    unsigned char ch = range.from;
+    while(ch<=range.to) {
+      if(!isprint(ch))
+        return fmt::format("Words cannot contain unprintable characters, "
+                           "such as \\x{:02x}", unsigned{ch});
+      if(isspace(ch)) return "Words cannot contain whitespace";
+      if(ch >= range.to) break;
+      ++ch;
+    }
+  }
+  return {};
+}
+
 // TODO: Produce error message for every `return nullopt` here.
 // Disallows empty patt.
 auto matchAllParts(DiagsDest ctx,

@@ -1,0 +1,7 @@
+# expected-error: Words cannot contain whitespace
+
+rule foo:
+  Hello
+lexical:
+  word: /[abc ]+/
+outputs: {}

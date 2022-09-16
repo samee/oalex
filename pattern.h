@@ -27,13 +27,18 @@
 // TODO s/\<size_t/ssize_t/g
 namespace oalex {
 
-// For now, frontend should restrict wordChars to isprint() && !isspace().
-// This will certainly cause problems if we ever want to support utf8, but we
-// can cross that bridge when we get there.
 struct LexDirective {
   RegexCharSet wordChars;
   Skipper skip;  // Assume skip.valid(), verified at construction.
 };
+
+// Empty on success, error message on failure. Doesn't accept DiagsDest because
+// we've already lost the wordChars don't contain location. And I don't want
+// stPos or enPos parameters either, because that would be confusing.
+// For now, this just restricts wordChars to isprint() && !isspace().
+// This will certainly be insufficient if we ever want to support utf8, but we
+// can cross that bridge when we get there.
+std::string validateWordChars(const RegexCharSet& wordChars);
 
 // TODO Use this in Skipper as well.
 struct DelimPair { lex::GluedString st, en; };

@@ -639,7 +639,11 @@ parseWordCharsDirective(DiagsDest ctx, const GluedString& s) {
   if(rhsctx.input().sizeGt(pos)) Error(rhsctx, pos, "Expected end of line");
   for(auto& d : rhsctx.diags) ctx.push_back(std::move(d));
   if(!rv) return nullopt;
-  else if(auto* cset = extractCharSet(rv.get())) return *cset;
+  else if(auto* cset = extractCharSet(rv.get())) {
+    if(string err = validateWordChars(*cset); !err.empty())
+      return Error(ctx, rhs, err);
+    return *cset;
+  }
   else return Error(ctx, rhs, "'words:' can only use /[some set]+/");
 }
 
