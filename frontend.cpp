@@ -42,11 +42,13 @@ using oalex::parseRegexCharSet;
 using oalex::PartPattern;
 using oalex::passthroughTmpl;
 using oalex::WholeSegment;
-using oalex::lex::enPos;
+using oalex::lex::appendDiags;
 using oalex::lex::BracketGroup;
 using oalex::lex::BracketType;
+using oalex::lex::enPos;
 using oalex::lex::ExprToken;
 using oalex::lex::fromSegment;
+using oalex::lex::gluedCtx;
 using oalex::lex::GluedString;
 using oalex::lex::isToken;
 using oalex::lex::lexIndentedSource;
@@ -620,8 +622,6 @@ parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
   return nullopt;
 }
 
-InputDiags gluedCtx(GluedString s) { return InputDiags{move_to_unique(s)}; }
-
 const RegexCharSet*
 extractCharSet(const Regex* regex) {
   auto* rep = dynamic_cast<const RegexRepeat*>(regex);
@@ -637,7 +637,7 @@ parseWordCharsDirective(DiagsDest ctx, const GluedString& s) {
   unique_ptr<const Regex> rv = parseRegex(rhsctx, pos);
   // No comment support yet. TODO skipper
   if(rhsctx.input().sizeGt(pos)) Error(rhsctx, pos, "Expected end of line");
-  for(auto& d : rhsctx.diags) ctx.push_back(std::move(d));
+  appendDiags(ctx, std::move(rhsctx));
   if(!rv) return nullopt;
   else if(auto* cset = extractCharSet(rv.get())) {
     if(string err = validateWordChars(*cset); !err.empty())

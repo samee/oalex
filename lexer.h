@@ -179,6 +179,13 @@ inline bool isToken(const ExprToken& x, std::string_view s) {
  return false;
 }
 
+// Dev-note: appendDiags() is not in a destructor because we often need
+// to append errors back into the parent context before the caller returns.
+// E.g. when the caller has more errors to append after the child.
+InputDiags gluedCtx(GluedString s);
+void appendDiags(DiagsDest parent, InputDiags child);
+
+
 // Note: right now, we don't worry about unterminated comments in lexer.cpp.
 // We will need to change that if we add more comment delimitters here later.
 inline Skipper oalexSkip{{{"#","\n"}}, {}, Skipper::Newlines::ignore_blank};

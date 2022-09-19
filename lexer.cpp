@@ -77,6 +77,13 @@ using std::vector;
 
 namespace oalex::lex {
 
+InputDiags gluedCtx(GluedString s) {
+  return InputDiags{move_to_unique(s)};
+}
+void appendDiags(DiagsDest parent, InputDiags child) {
+  for(auto& d : child.diags) parent.push_back(std::move(d));
+}
+
 RegexOptions oalexRegexOpts{
   // Do not use user-supplied input. See regex_io.h for details.
   .word = parseRegexCharSet("[0-9A-Za-z_]")
