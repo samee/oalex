@@ -397,6 +397,13 @@ NewlineChar::NewlineChar(const GluedString& s, size_t pos)
   : Segment{s.inputPos(pos), s.inputPos(pos)+1,
                tagint_t(LexSegmentTag::newlineChar)} {}
 
+struct IndexRelation {
+  size_t inputPos;
+  size_t quotePos;
+  size_t inputLine;
+  size_t inputCol;
+};
+
 IndexRelation indexRelation(size_t inputPos, size_t quotePos, DiagsDest rcmap) {
   auto [line, col] = rcmap.rowCol(inputPos);
   return { .inputPos=inputPos, .quotePos=quotePos,
@@ -413,6 +420,17 @@ GluedString::GluedString(DiagsDest rcmap, WholeSegment s)
   : Segment{s.stPos, s.enPos, type_tag},
     s_(std::move(*s)), ctor_(Ctor::wholeSegment),
     index_map_({indexRelation(s.stPos, 0, rcmap)}) {}
+
+GluedString::GluedString(size_t st, size_t en, std::string_view s, Ctor ctor,
+                         std::vector<IndexRelation> imap)
+  : Segment{st,en,type_tag}, s_(s), ctor_(ctor),
+    index_map_(std::move(imap)) {}
+
+GluedString::GluedString(GluedString&&) noexcept = default;
+GluedString::GluedString(const GluedString&) = default;
+GluedString::~GluedString() = default;
+GluedString& GluedString::operator=(const GluedString&) = default;
+GluedString& GluedString::operator=(GluedString&&) noexcept = default;
 
 static bool cmpByQuotePos(const IndexRelation& a, const IndexRelation& b) {
   return a.quotePos < b.quotePos;

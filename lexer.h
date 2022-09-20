@@ -30,16 +30,6 @@ namespace lex {
 
 class GluedString;
 
-// TODO: Maybe move this to lexer.cpp.
-// This will require GluedString copy ctor, move ctor, and dtor to all be
-// explicitly defined with `= default;` in lexer.cpp
-struct IndexRelation {
-  size_t inputPos;
-  size_t quotePos;
-  size_t inputLine;
-  size_t inputCol;
-};
-
 enum class LexSegmentTag {
   section = Segment::lastReservedTag + 1,
   gluedString,
@@ -80,7 +70,7 @@ class GluedString final : public Segment, public InputPiece {
  public:
   static constexpr auto type_tag = tagint_t(LexSegmentTag::gluedString);
   enum class Ctor { dquoted, squoted, fenced, indented, subqstr, wholeSegment };
-  explicit GluedString(DiagsDest rcmap, WholeSegment s);
+  GluedString(DiagsDest rcmap, WholeSegment s);
   friend auto unquote(const StringLoc& literal, DiagsDest ctx)
     -> std::optional<GluedString>;
   friend auto lexFencedSource(InputDiags& ctx, size_t& i)
@@ -88,6 +78,15 @@ class GluedString final : public Segment, public InputPiece {
   friend auto lexIndentedSource(InputDiags& ctx, size_t& i,
                                 std::string_view parindent)
     -> std::optional<GluedString>;
+
+  // These are all explicitly defaulted. It had to be done in the .cpp file
+  // to keep IndexRelations incomplete here.
+  GluedString(GluedString&&) noexcept;
+  GluedString(const GluedString&);
+  ~GluedString();
+
+  GluedString& operator=(const GluedString&);
+  GluedString& operator=(GluedString&&) noexcept;
 
   char operator[](size_t pos) const final { return s_[pos]; }
   bool sizeGt(size_t pos) const final { return s_.size() > pos; }
@@ -116,11 +115,9 @@ class GluedString final : public Segment, public InputPiece {
  private:
   std::string s_;  // escape codes already interpreted.
   Ctor ctor_;  // Records how this object was constructed.
-  std::vector<IndexRelation> index_map_;
+  std::vector<struct IndexRelation> index_map_;
   GluedString(size_t st, size_t en, std::string_view s, Ctor ctor,
-              std::vector<IndexRelation> imap)
-    : Segment{st,en,type_tag}, s_(s), ctor_(ctor),
-      index_map_(std::move(imap)) {}
+              std::vector<IndexRelation> imap);
   GluedString() = delete;
 };
 
