@@ -14,6 +14,7 @@
 
 #pragma once
 #include <vector>
+#include "lexer.h"
 #include "ident.h"
 #include "codegen.h"
 #include "jsontmpl.h"
@@ -89,7 +90,7 @@ struct MappedPos {
 struct Example {
   MappedPos mappedPos;
   Ident ruleName;
-  std::string sampleInput;
+  lex::GluedString sampleInput;
   Expectation expectation;
   static bool runSucceeded(const JsonLoc& jsloc,
                            const std::vector<Diag>& diags)

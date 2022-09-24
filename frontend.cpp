@@ -1123,24 +1123,23 @@ resemblesExample(const vector<ExprToken>& linetoks) {
 optional<Example>
 parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
   if(!requireColonEol(linetoks, 2, ctx)) return nullopt;
-  Example rv;
   // Guaranteed to succeed by resemblesExample().
-  rv.mappedPos = {.line = ctx.input().rowCol(stPos(linetoks[0])).first};
-  rv.ruleName = requireIdent(linetoks[1], ctx);
-  if(!rv.ruleName) return nullopt;
+  size_t exLine = ctx.input().rowCol(stPos(linetoks[0])).first;
+  Ident ruleName = requireIdent(linetoks[1], ctx);
+  if(!ruleName) return nullopt;
 
-  if(auto sampleInput =
+  optional<GluedString> sampleInput =
       parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
-                         "example input")) {
-    rv.sampleInput = std::move(*sampleInput);
-  }else return nullopt;
+                         "example input");
+  if(!sampleInput) return nullopt;
 
   vector<ExprToken> linetoks2 = lexNextLine(ctx, i);
   if(linetoks2.empty()) return nullopt;
 
+  Expectation expectation;
   if(matchesTokens(linetoks2, {"outputs", "success"})) {
     if(!requireEol(linetoks2, 2, ctx)) return nullopt;
-    rv.expectation = Expectation::Success;
+    expectation = Expectation::Success;
   }
   else if(matchesTokens(linetoks2, {"outputs", "error", "with"})) {
     if(linetoks2.size() < 4)
@@ -1150,7 +1149,7 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
     if(s == nullptr || s->ctor() != GluedString::Ctor::squoted)
       return Error(ctx, stPos(linetoks2[3]),
                    "The expected error should be 'single-quoted'");
-    rv.expectation = Expectation::ErrorSubstr{string(*s)};
+    expectation = Expectation::ErrorSubstr{string(*s)};
     if(!requireEol(linetoks2, 4, ctx)) return nullopt;
   }else if(matchesTokens(linetoks2, {"outputs", ":"})) {
     optional<JsonTmpl> jstmpl = parseOutputBraces<2>(std::move(linetoks2), ctx);
@@ -1158,14 +1157,16 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
     if(hasEllipsis(*jstmpl)) Unimplemented("Ellipsis in output templates");
     if(jstmpl->substitutionsNeeded())
       return Error(ctx, linetoks[2], "Values need to be properly quoted");
-    rv.expectation = Expectation::SuccessWithJson{std::move(*jstmpl)};
+    expectation = Expectation::SuccessWithJson{std::move(*jstmpl)};
   }else if(matchesTokens(linetoks2, {"outputs"}))
     return Error(ctx, enPos(linetoks2[0]),
                  "Was expecting ': {', 'success', or 'error with' after this");
   else return Error(ctx, i, "Was expecting 'outputs'");
 
   // FIXME invalid escape code error appeared multiple times.
-  return rv;
+  return Example{.mappedPos{.line = exLine}, .ruleName = std::move(ruleName),
+                 .sampleInput = std::move(*sampleInput),
+                 .expectation = std::move(expectation) };
 }
 
 const JsonTmpl*
