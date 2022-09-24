@@ -41,6 +41,9 @@ struct LexDirective {
 std::string validateWordChars(const RegexCharSet& wordChars);
 
 // TODO Use this in Skipper as well.
+// Dev-note: We cannot use WholeSegment here, since the user does sometimes
+// have to use escape characters. Like '\"'. The PartPattern often has to refer
+// to this escaped version before they are found in a pattern.
 struct DelimPair { lex::GluedString st, en; };
 using PartPattern = std::variant<lex::GluedString, DelimPair>;
 
