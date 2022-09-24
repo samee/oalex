@@ -45,6 +45,7 @@ using oalex::Rule;
 using oalex::RuleSet;
 using oalex::Skipper;
 using oalex::UserError;
+using oalex::lex::gluedCtx;
 using std::nullopt;
 using std::optional;
 using std::size;
@@ -377,7 +378,7 @@ bool atInputEnd(const InputPiece& input, size_t pos) {
 
 // Returns true on success.
 bool testExample(const RuleSet& rs, const Example& ex) {
-  InputDiags ctx{Input{ex.sampleInput}};
+  InputDiags ctx = gluedCtx(ex.sampleInput);
   ssize_t pos = 0;
   ssize_t ruleIndex = findRule(rs, ex.ruleName);
   if(ruleIndex < 0)
