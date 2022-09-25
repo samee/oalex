@@ -274,18 +274,10 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
                                          fallback_point);
 }
 
-// Defined in parser_helpers.cpp, but intentionally not exposed in header.
-unique_ptr<InputStream> substrProxy(const InputPiece& input, ssize_t i);
-
-// TODO write a proper resemblance-checker. See the rant in parser_helpers.cpp.
 static JsonLoc evalQuiet(const InputPiece& input, ssize_t& i,
                          const RuleSet& rs, ssize_t ruleIndex) {
-  unique_ptr<InputStream> sp = substrProxy(input, input.bol(i));
-  InputDiags proxy{Input{sp.get()}};
-  ssize_t pos = i-input.bol(i);
-  JsonLoc res = eval(proxy, pos, rs, ruleIndex);
-  if(!res.holdsErrorValue()) i = input.bol(i) + pos;
-  return res;
+  InputDiags proxy{unowned(input)};
+  return eval(proxy, i, rs, ruleIndex);
 }
 
 static bool

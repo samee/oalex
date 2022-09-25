@@ -36,6 +36,8 @@ bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
 JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
               std::string_view s);
 
+std::unique_ptr<InputPiece> unowned(const InputPiece& input);
+
 // Converts a parser into a resemblance-checker.
 using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
 bool peekMatch(const InputPiece& input, ssize_t i, GeneratedParser parser);
