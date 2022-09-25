@@ -172,9 +172,17 @@ void stringSuccessImpl(const char testInput[], const char testName[],
   assertEqual(testInput, size_t{0}, res->stPos);
   assertEqual(testInput, string_view(testInput).size(), res->enPos);
   GluedString res2 = res->subqstr(0, res->size());
-  for(size_t i=0; i<res->size(); ++i) if(res->inputPos(i) != res2.inputPos(i))
-    Bug("{}: inputPos changed in substring at sourcePos {}: {} != {}",
-        testName, i, res->inputPos(i), res2.inputPos(i));
+  for(size_t i=0; i<res->size(); ++i) {
+    if(res->inputPos(i) != res2.inputPos(i))
+      Bug("{}: inputPos changed in substring at sourcePos {}: {} != {}",
+          testName, i, res->inputPos(i), res2.inputPos(i));
+    if(res->rowCol(i) != res2.rowCol(i)) {
+      auto [l1,c1] = res->rowCol(i);
+      auto [l2,c2] = res2.rowCol(i);
+      Bug("{}: rowCol changed in substring at sourcePos{}: ({},{}) != ({},{})",
+          testName, i, l1, c1, l2, c2);
+    }
+  }
 }
 
 void stringFailureImpl(const char testInput[], const char testName[],

@@ -111,6 +111,7 @@ class GluedString final : public Segment, public InputPiece {
   // Doesn't support trailing newlines yet.
   std::optional<WholeSegment> getSegment() const;
   Ctor ctor() const { return ctor_; }
+  std::string debugImap() const;
 
  private:
   std::string s_;  // escape codes already interpreted.

@@ -458,7 +458,7 @@ GluedString GluedString::subqstr(size_t pos, size_t len) const {
   vector<IndexRelation> imap(stit, enit);  // cannot be empty.
   auto [stLine, stCol] = this->rowCol(pos);
   imap[0] = {.inputPos = this->inputPos(pos), .quotePos = 0,
-             .inputLine = stLine, .inputCol = stPos };
+             .inputLine = stLine, .inputCol = stCol };
   for(size_t i=1; i<imap.size(); ++i) imap[i].quotePos -= pos;
   size_t st = imap[0].inputPos;
   size_t en = imap.back().inputPos + (len - imap.back().quotePos);
@@ -795,6 +795,14 @@ optional<GluedString> lexFencedSource(InputDiags& ctx, size_t& i) {
   }
   i = j;
   return Error(ctx, fenceStart, j-1, "Source block ends abruptly");
+}
+
+string GluedString::debugImap() const {
+  string rv;
+  for(auto& e : index_map_)
+    rv += format("  {} --> {}, seen at {}:{}\n",
+                 e.inputPos, e.quotePos, e.inputLine, e.inputCol);
+  return rv;
 }
 
 // Can return nullopt if it's only blank lines till a non-blank (or non-error)
