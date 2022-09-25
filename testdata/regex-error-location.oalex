@@ -1,4 +1,4 @@
-# expected-error: 18:18: error: Does not match
+# expected-error: 14:18: error: Does not match
 
 rule my_function_declaration:
 
@@ -9,11 +9,7 @@ where:
   name, type, param ~ /[a-zA-Z_]+/
 
 
-# Examples like these are tested with `oalex test readme-example-good.oalex`.
-# The command is quiet on success, but if you tweak the expected
-# output below it will complain of a mismatch.
-
-example my_function_declaration:  # An example function
+example my_function_declaration:
 
   fn connect(intx, string s)
 
