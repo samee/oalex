@@ -45,7 +45,10 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
   size_t oldi = i;
   if(consumeGreedily(ctx.input(), sign_cast<size_t&>(i), regex, ropts))
     return quote(ctx.input().substr(oldi, i-oldi), oldi, i);
-  else return JsonLoc::ErrorValue{};
+  else {
+    i = oldi;
+    return JsonLoc::ErrorValue{};
+  }
 }
 
 bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,

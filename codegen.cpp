@@ -325,7 +325,7 @@ static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   ssize_t oldi = i;
   JsonLoc out = eval(ctx, i, rs, me.compidx);
-  if(out.holdsErrorValue()) Error(ctx, oldi, i, me.errmsg);
+  if(out.holdsErrorValue()) Error(ctx, oldi, me.errmsg);
   return out;
 }
 
