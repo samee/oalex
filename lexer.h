@@ -158,17 +158,15 @@ struct BracketGroup : Segment {
   BracketGroup& operator=(BracketGroup&&) noexcept = default;
 };
 
-// Identity function, used in std::visit for casting.
-inline Segment& segment(Segment& x) { return x; }
-inline const Segment& segment(const Segment& x) { return x; }
+// Dev-note: consider replacing variant with std::value_ptr
+// if that is standardized.
+template <class Dest> auto static_cast_f = [](auto& v) -> Dest {return v;};
+
 inline Segment& segment(ExprToken& x) {
-  // Use static_cast to disambiguate between overloads.
-  return std::visit(static_cast<Segment&(*)(Segment&)>(&segment), x);
+  return std::visit(static_cast_f<Segment&>, x);
 }
 inline const Segment& segment(const ExprToken& x) {
-  // Use static_cast to disambiguate between overloads.
-  using cseg = const Segment;
-  return std::visit(static_cast<cseg&(*)(cseg&)>(&segment), x);
+  return std::visit(static_cast_f<const Segment&>, x);
 }
 const char* exprTagName(const ExprToken& t);
 
