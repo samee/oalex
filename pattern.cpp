@@ -278,6 +278,9 @@ static auto tokenizeLabelledPattern(
     }else Bug("{}: Unknown LabelOrPart alternative, index {}",
               __func__, lorp.index());
   }
+  if(lexopts.tailcont)
+    while(!rv.empty() && holds_alternative<NewlineChar>(rv.back()))
+      rv.pop_back();
   return rv;
 }
 

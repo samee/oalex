@@ -534,6 +534,40 @@ void testKeepAllNewlines() {
     BugMe("\n{}\nis not equal to \n{}", observed, expected);
 }
 
+void testTailcont() {
+  char input[] = R"(
+    {
+      lineA
+      lineB
+      lineC
+    }
+
+  )";
+  auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
+  GluedString patt
+    = assertSuccessfulParse(__func__, *ctx, lineStart(1,ctx->input()), "    ");
+  vector<string> observed
+    = debugTokens(tokenizePattern(*ctx, patt, {}, linelexopts));
+  vector<string> expected {
+    "oper:{", "newline",
+    "word:lineA", "newline",
+    "word:lineB", "newline",
+    "word:lineC", "newline",
+    "oper:}", "newline", "newline",
+  };
+  if(observed != expected)
+    BugMe("\n{}\n is not equal to \n{}", observed, expected);
+
+  assertEqual("Expectation should end in a newline",
+              expected.back(), "newline");
+  while(expected.back() == "newline") expected.pop_back();
+  LexDirective tail_continues = linelexopts;
+  tail_continues.tailcont = true;
+  observed = debugTokens(tokenizePattern(*ctx, patt, {}, tail_continues));
+  if(observed != expected)
+    BugMe("\n{}\n is not equal to \n{}", observed, expected);
+}
+
 void testNoEndingNewline() {
   char input[] = R"("foo bar /* baz */")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
@@ -874,6 +908,7 @@ int main() {
   testTokenizeRunoffComment();
   testParaBreaks();
   testKeepAllNewlines();
+  testTailcont();
   testNoEndingNewline();
   testUnmarkedPatternOpers();
   testPatternSimpleConcat();
