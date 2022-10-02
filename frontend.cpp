@@ -611,15 +611,21 @@ commentDelims(DiagsDest ctx, const GluedString& line) {
 }
 
 optional<Skipper::Newlines>
+from_string(string_view s) {
+  if(s == "ignore_all")   return Skipper::Newlines::ignore_all;
+  if(s == "keep_all")     return Skipper::Newlines::keep_all;
+  if(s == "ignore_blank") return Skipper::Newlines::ignore_blank;
+  if(s == "keep_para")    return Skipper::Newlines::keep_para;
+  return nullopt;
+}
+
+optional<Skipper::Newlines>
 parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
   GluedString rhs = trim(s.subqstr(sizeof("newlines:")-1, s.size()));
-  string_view rhsv = rhs;
-  if(rhsv == "ignore_all") return Skipper::Newlines::ignore_all;
-  else if(rhsv == "keep_all") return Skipper::Newlines::keep_all;
-  else if(rhsv == "ignore_blank") return Skipper::Newlines::ignore_blank;
-  else if(rhsv == "keep_para") return Skipper::Newlines::keep_para;
-  Error(ctx, rhs, "Unknown 'newlines:' directive");
-  return nullopt;
+  optional<Skipper::Newlines> nl = from_string(rhs);
+  if(!nl) return Error(ctx, rhs, "Expected ignore_all, keep_all, "
+                                 "ignore_blank, or keep_para");
+  return nl;
 }
 
 const RegexCharSet*
