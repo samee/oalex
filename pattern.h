@@ -27,9 +27,14 @@
 // TODO s/\<size_t/ssize_t/g
 namespace oalex {
 
+/* Dev-note: I would have preferred if tailcont didn't make an appearance in
+   pattern.{h,cpp} at all. We really need this only in the frontend.cpp and
+   compiler.cpp, where this can be used to trim off the last newline. This
+   is needlessly expanding the API surface. */
 struct LexDirective {
   RegexCharSet wordChars;
   Skipper skip;  // Assume skip.valid(), verified at construction.
+  bool tailcont;
 };
 
 // Empty on success, error message on failure. Doesn't accept DiagsDest because

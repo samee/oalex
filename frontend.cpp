@@ -278,6 +278,7 @@ defaultLexopts() {
   static const auto* var = new LexDirective{
     parseRegexCharSet("[_a-zA-Z0-9]"),
     Skipper{ {}, {} },
+    .tailcont = false,
   };
   return *var;
 }
@@ -698,6 +699,7 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
   LexDirective rv = LexDirective{
     parseRegexCharSet("[_a-zA-Z0-9]"),
     Skipper{ {}, {} },
+    .tailcont = false,
   };
   vector<GluedString> lines = splitLines(*lexblock);
   for(auto& line : lines) {

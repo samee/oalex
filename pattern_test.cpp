@@ -349,7 +349,8 @@ LexDirective mkLineLexOpts(LexDirective lexopts) {
   return lexopts;
 }
 const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
-                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} }};
+                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+                           .tailcont = false};
 const LexDirective linelexopts = mkLineLexOpts(lexopts);
 
 void testTokenizeNoLabel() {
