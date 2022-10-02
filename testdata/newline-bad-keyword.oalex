@@ -1,0 +1,8 @@
+# expected-error: Expected ignore_all, keep_all, ignore_blank, or keep_para
+
+rule stmt:
+  a = b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines: do_whatever

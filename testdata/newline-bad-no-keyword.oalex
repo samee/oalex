@@ -1,0 +1,8 @@
+# expected-error: Newline-handling expected
+
+rule stmt:
+  a = b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines:

@@ -1,0 +1,8 @@
+# expected-error: Expected end of line
+
+rule stmt:
+  a = b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines: ignore_all tailcont ignore_blanks

@@ -1,0 +1,8 @@
+# expected-error: Expected ignore_all
+
+rule sum:
+  a + b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines: ()

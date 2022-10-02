@@ -649,17 +649,43 @@ from_string(string_view s) {
   return nullopt;
 }
 
-optional<Skipper::Newlines>
+optional<pair<Skipper::Newlines, bool>>
 parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
   vector<ExprToken> linetoks = lexGluedLine(ctx, s, "newlines directive");
   if(!matchesTokens(linetoks, 0, {"newlines", ":"}))
     FatalBug(ctx, s.stPos, s.enPos, "This line has no newlines directive");
-  if(!requireEol(linetoks, 3, ctx)) return nullopt;
-  const auto* word = get_if<WholeSegment>(&linetoks[2]);
-  optional<Skipper::Newlines> nl = word ? from_string(word->data) : nullopt;
-  if(!nl) return Error(ctx, linetoks[2], "Expected ignore_all, keep_all, "
+  bool tailcont = false, errors_emitted = false;
+  optional<Skipper::Newlines> nl;
+  for(size_t i=2; i<linetoks.size(); ++i) {
+    const auto* word = get_if<WholeSegment>(&linetoks[i]);
+    optional<Skipper::Newlines> wordnl = word ? from_string(word->data)
+                                              : nullopt;
+    bool istailcont = (word && word->data == "tailcont");
+    if(wordnl && !nl) nl = wordnl;
+    else if(istailcont && !tailcont) tailcont = true;
+    else {  // We know it's an error. Classify it.
+      errors_emitted = true;
+      if(wordnl)
+        Error(ctx, *word, "Multiple newline-handling on the same line");
+      else if(istailcont) Error(ctx, *word, "tailcont already set");
+      else {
+        // Neither wordnl nor istailcont is true. So it's a bad keyword.
+        // Suggest fixes and return.
+        if(!nl)
+          return Error(ctx, linetoks[i], "Expected ignore_all, keep_all, "
                                          "ignore_blank, or keep_para");
-  return nl;
+        else if(!tailcont)
+          return Error(ctx, linetoks[i], "Expected tailcont or end of line");
+        else return Error(ctx, linetoks[i], "Expected end of line");
+      }
+    }
+  }
+  if(!nl) {
+    if(!errors_emitted)
+      Error(ctx, enPos(linetoks[1]), "Newline-handling expected");
+    return nullopt;
+  }
+  return pair{*nl, tailcont};
 }
 
 const RegexCharSet*
@@ -706,7 +732,10 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
     line = trim(line);
     if(line.empty()) continue;
     if(line.hasPrefix(0, "newlines:")) {// TODO: tolerate wspace between tokens
-      if(auto nl = parseNewlinesDirective(ctx, line)) rv.skip.newlines = *nl;
+      if(auto nl = parseNewlinesDirective(ctx, line)) {
+        rv.skip.newlines = nl->first;
+        rv.tailcont = nl->second;
+      }
       continue;
     }else if(line.hasPrefix(0, "word:")) {
       if(auto cs = parseWordCharsDirective(ctx, line)) rv.wordChars = *cs;

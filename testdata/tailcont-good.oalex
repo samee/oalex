@@ -1,0 +1,67 @@
+rule code:
+
+    stmt
+    stmt
+    ...
+
+  outputs: { stmt: [stmt, ...] }
+  lexical:
+    # comment
+    newlines: ignore_blank
+
+# TODO: Implement quiet match or something similar. Right now, shortening
+# asgn -> asgn to just asgn makes it no longer suppress errors.
+rule stmt choices:
+  | asgn -> asgn
+  | var_sans_tailcont
+
+
+# TODO: Find a better syntax, instead of tailcont.
+# Think of how we do this for tutorials. Double-quoted rules will already take
+# care of common cases. For the less common, multi-line inline structures, we
+# can use rules that only use a part of the pattern, leaving out the rest for
+# exposition and newline indicators. E.g. `rule asgn for "{ ... }":`. But I'm
+# still hoping that double-quotes will enable most applications needed.
+
+rule asgn:
+
+    a = b
+
+  where:
+    a, b ~ /[a-z]+/
+  outputs: { type: "asgn", lhs: a, rhs: b }
+  lexical:
+    newlines: ignore_blank tailcont
+
+example code:
+
+    tmp = a
+    a = b
+    b = tmp
+
+  outputs: {
+    stmt: [
+      { type: "asgn", lhs: "tmp", rhs: "a" },
+      { type: "asgn", lhs: "a", rhs: "b" },
+      { type: "asgn", lhs: "b", rhs: "tmp" },
+    ]
+  }
+
+
+rule var_sans_tailcont:
+
+    var x
+
+  outputs: { type: "var", varname: x }
+  lexical:
+    newlines: ignore_blank  # no tailcont here
+  where:
+    x ~ /[a-z]+/
+
+
+example code:
+
+    var tmp
+    tmp = a
+
+  outputs error with 'Expected a newline'

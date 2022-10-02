@@ -1,0 +1,43 @@
+rule bin_sum:
+  a + b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines: ignore_blank tailcont
+
+rule bin_sum2:
+  a + b
+where:
+  a, b ~ /[a-z]+/
+lexical:
+  newlines: tailcont ignore_blank
+
+# TODO: Return relative line numbers on an opt-in basis, so we
+# can test for line numbers in errors. Perhaps use relative for opted-in
+# failure tests, and keep absolute line numbers for success tests.
+example bin_sum:
+  x
+  + y
+outputs error with 'Expected \'+\''
+
+example bin_sum2:
+  x
+  + y
+outputs error with 'Expected \'+\''
+
+
+rule paren_expr:
+  (sum)
+where:
+  sum ~ bin_sum
+lexical:
+  newlines: ignore_blank
+
+example paren_expr:
+  (x + y)
+outputs: { sum: {a: "x", b: "y"} }
+
+example paren_expr:
+  (x + y
+  )
+outputs error with 'Expected \')\''
