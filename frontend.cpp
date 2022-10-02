@@ -684,7 +684,9 @@ parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
     if(!errors_emitted)
       Error(ctx, enPos(linetoks[1]), "Newline-handling expected");
     return nullopt;
-  }
+  }else if(nl == Skipper::Newlines::ignore_all && tailcont)
+    Error(ctx, linetoks[2],
+          "tailcont is only useful for newline-sensitive patterns");
   return pair{*nl, tailcont};
 }
 
