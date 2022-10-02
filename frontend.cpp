@@ -610,6 +610,35 @@ commentDelims(DiagsDest ctx, const GluedString& line) {
   else return pair{string(begin), string(end)};
 }
 
+// TODO: Change this type from a GluedString to InputPiece. For both these
+// functions. We should be able to translate locations with InputPiece alone,
+// given how we do it for rowCol() already. That said, I do recall trying to
+// get rid of inputPos() altogether.
+void
+transloc_in_place(const GluedString& s, size_t& loc)
+  { loc = s.inputPos(loc); }
+
+vector<ExprToken>
+transloc(const GluedString& s, vector<ExprToken> toks) {
+  for(auto& tok:toks) {
+    transloc_in_place(s, segment(tok).stPos);
+    transloc_in_place(s, segment(tok).enPos);
+  }
+  return toks;
+}
+
+vector<ExprToken>
+lexGluedLine(DiagsDest ctx, const GluedString& s, string_view desc) {
+  InputDiags linectx = gluedCtx(s);
+  size_t i = 0;
+  vector<ExprToken> rv = transloc(s, lexNextLine(linectx, i));
+  if(rv.empty() && !linectx.input().sizeGt(i))
+    Error(ctx, s.stPos, s.enPos,
+          format("Line for {} unexpectedly empty", desc));
+  appendDiags(ctx, std::move(linectx));
+  return rv;
+}
+
 optional<Skipper::Newlines>
 from_string(string_view s) {
   if(s == "ignore_all")   return Skipper::Newlines::ignore_all;
@@ -621,10 +650,14 @@ from_string(string_view s) {
 
 optional<Skipper::Newlines>
 parseNewlinesDirective(DiagsDest ctx, const GluedString& s) {
-  GluedString rhs = trim(s.subqstr(sizeof("newlines:")-1, s.size()));
-  optional<Skipper::Newlines> nl = from_string(rhs);
-  if(!nl) return Error(ctx, rhs, "Expected ignore_all, keep_all, "
-                                 "ignore_blank, or keep_para");
+  vector<ExprToken> linetoks = lexGluedLine(ctx, s, "newlines directive");
+  if(!matchesTokens(linetoks, 0, {"newlines", ":"}))
+    FatalBug(ctx, s.stPos, s.enPos, "This line has no newlines directive");
+  if(!requireEol(linetoks, 3, ctx)) return nullopt;
+  const auto* word = get_if<WholeSegment>(&linetoks[2]);
+  optional<Skipper::Newlines> nl = word ? from_string(word->data) : nullopt;
+  if(!nl) return Error(ctx, linetoks[2], "Expected ignore_all, keep_all, "
+                                         "ignore_blank, or keep_para");
   return nl;
 }
 

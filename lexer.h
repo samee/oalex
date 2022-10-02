@@ -158,8 +158,13 @@ struct BracketGroup : Segment {
   BracketGroup& operator=(BracketGroup&&) noexcept = default;
 };
 
-// Identity function, used in diags.h helpers below.
+// Identity function, used in std::visit for casting.
+inline Segment& segment(Segment& x) { return x; }
 inline const Segment& segment(const Segment& x) { return x; }
+inline Segment& segment(ExprToken& x) {
+  // Use static_cast to disambiguate between overloads.
+  return std::visit(static_cast<Segment&(*)(Segment&)>(&segment), x);
+}
 inline const Segment& segment(const ExprToken& x) {
   // Use static_cast to disambiguate between overloads.
   using cseg = const Segment;
