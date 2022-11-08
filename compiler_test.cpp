@@ -154,6 +154,8 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
       extra = "{ ";
       for(auto& [id,p] : cat->comps) extra += format("{{{}, \"{}\"}}, ", id, p);
       extra += "}";
+    }else if(auto* s = dynamic_cast<const StringRule*>(rule_ptr.get())) {
+      extra = format("{{\"{}\"}}", s->val);
     }
     oalex::Debug("  {: 3d}| {}: {}{}", i++, nm,
                  typeid(*rule_ptr).name(), extra);
@@ -664,12 +666,76 @@ void testRuleExprCompilation() {
     RulesWithLocs rl;
     for(auto& [name, rxpr] : testcase.rxprs) {
       ssize_t identi = rl.defineIdentForTest(ctx, Ident::parseGenerated(name));
-      assignRuleExpr(ctx, *rxpr, rl, identi);
+      assignRuleExpr(ctx, *rxpr, {}, rl, identi);
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
       rl.releaseRulesWith({}).rules, *testcase.expected);
   }
+}
+
+void testLocalNameResolution() {
+  InputDiags ctx{Input{""}};
+  RulesWithLocs rl;
+
+  // First, define a global with this name, "string_literal"
+  const char* string_literal_name = "string_literal";
+  unique_ptr<const Regex> dquoted_literal_regex
+    = parseRegex(R"(/"([^"\\]|\\.)*"/)");
+  RuleExprRegex dquoted_literal_rule{dquoted_literal_regex->clone()};
+
+  ssize_t dquoted_i =
+    rl.defineIdentForTest(ctx, Ident::parseGenerated(string_literal_name));
+  assignRuleExpr(ctx, dquoted_literal_rule, {}, rl, dquoted_i);
+
+  // Next, do the same thing, but don't give it a global name.
+  unique_ptr<const Regex> squoted_literal_regex
+    = parseRegex(R"(/'([^'\\]|\\.)*'/)");
+  RuleExprRegex squoted_literal_rule{squoted_literal_regex->clone()};
+  ssize_t squoted_i = rl.appendAnonRule(DefinitionInProgress{});
+  assignRuleExpr(ctx, squoted_literal_rule, {}, rl, squoted_i);
+
+  // Now, we will have one rule, that references a "string_literal". We will
+  // now either overshadow that name with a local name binding, or let the
+  // global name pass through.
+  RuleExprConcat u_quoted_rule{makeVectorUnique<const RuleExpr>(
+    RuleExprSquoted{"u"},
+    RuleExprIdent{Ident::parseGenerated(string_literal_name)}
+  )};
+  ssize_t u_squoted_i =
+    rl.defineIdentForTest(ctx, Ident::parseGenerated("u_squoted_literal"));
+  assignRuleExpr(ctx, u_quoted_rule,
+                 {{Ident::parseGenerated("string_literal"), squoted_i}},
+                 rl, u_squoted_i);
+  ssize_t u_dquoted_i =
+    rl.defineIdentForTest(ctx, Ident::parseGenerated("u_dquoted_literal"));
+  assignRuleExpr(ctx, u_quoted_rule, {}, rl, u_dquoted_i);
+
+  auto expected = makeVectorUnique<Rule>(
+    RegexRule(dquoted_literal_regex->clone()),
+    nmRule(MatchOrError{0, "Does not match expected pattern"},
+           "string_literal"),
+    RegexRule(squoted_literal_regex->clone()),
+    MatchOrError{2, "Does not match expected pattern"},
+    StringRule{"u"},
+    MatchOrError{4, "Expected 'u'"},
+    StringRule{"u"},
+    MatchOrError{6, "Expected 'u'"},
+    ConcatFlatRule{{{1, "string_literal"}}},
+    ConcatFlatRule{{{3, "string_literal"}}},
+    ConcatFlatRule{{ {5, {}}, {8, {}} }},
+    ConcatFlatRule{{ {7, {}}, {9, {}} }},
+    nmRule(OutputTmpl{10, {}, JsonTmpl{JsonTmpl::Map{
+            {"string_literal",
+             JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}
+          }}}, "u_dquoted_literal"),
+    nmRule(OutputTmpl{11, {}, JsonTmpl{JsonTmpl::Map{
+            {"string_literal",
+             JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}
+          }}}, "u_squoted_literal")
+  );
+  auto observed = rl.releaseRulesWith({}).rules;
+  assertValidAndEqualRuleList(__func__, observed, expected);
 }
 
 void testRuleExprDuplicateIdent() {
@@ -688,7 +754,7 @@ void testRuleExprDuplicateIdent() {
 
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
-  assignRuleExpr(ctx, asgn_rule, rl,
+  assignRuleExpr(ctx, asgn_rule, {}, rl,
                  rl.defineIdentForTest(ctx, Ident::parseGenerated("asgn")));
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "Duplicate identifier 'varname'");
@@ -705,7 +771,7 @@ void testRuleExprCompilationAndParsing() {
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
   ssize_t identi = rl.defineIdentForTest(ctx, ident_part_name);
-  assignRuleExpr(ctx, rxpr_ident, rl, identi);
+  assignRuleExpr(ctx, rxpr_ident, {}, rl, identi);
 
   RuleExprRepeat rxpr_main{
     move_to_unique(RuleExprIdent{ident_part_name}),
@@ -714,7 +780,7 @@ void testRuleExprCompilationAndParsing() {
 
   ssize_t maini =
     rl.defineIdentForTest(ctx, Ident::parseGenerated("hyphen_ident"));
-  assignRuleExpr(ctx, rxpr_main, rl, maini);
+  assignRuleExpr(ctx, rxpr_main, {}, rl, maini);
 
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
   RuleSet rs = rl.releaseRulesWith(regopts);
@@ -764,6 +830,7 @@ int main() {
   testDefineAndReserveProducesError();
   testDestructureErrors();
   testRuleExprCompilation();
+  testLocalNameResolution();
   testRuleExprDuplicateIdent();
   testRuleExprCompilationAndParsing();
 }

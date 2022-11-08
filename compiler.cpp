@@ -798,7 +798,7 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   for(ssize_t i=0; i<ssize(lhs_exprs); ++i) {
     ssize_t j = rv[i].second;
     if(lhs_exprs[i] && dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *lhs_exprs[i], rl, j);
+      assignRuleExpr(ctx, *lhs_exprs[i], rv, rl, j);
   }
   return rv;
 }
@@ -1119,8 +1119,9 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
 }
 
 void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
-               ssize_t ruleIndex) {
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
+               const SymbolTable& symtab,
+               RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectIdent()
   //    produces an empty vector. But that requires a new codegen Rule that
@@ -1135,7 +1136,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return assignLiteralOrError(rl, ruleIndex, sq->s);
 
-  RuleExprCompiler comp{rl, ctx, {}};
+  RuleExprCompiler comp{rl, ctx, symtab};
   ssize_t flatRule = comp.process(rxpr);
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx

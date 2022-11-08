@@ -233,6 +233,7 @@ appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 
 void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
+               const SymbolTable& localBindings,
                RulesWithLocs& rl, ssize_t ruleIndex);
 
 
