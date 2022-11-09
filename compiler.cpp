@@ -753,15 +753,26 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
 }
 
 static ssize_t
-appendRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl);
+allocateRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl) {
+  // Avoid allocation of a new index in simple cases.
+  if(auto* id = getIfIdent(rxpr)) return rl.findOrAppendIdent(ctx, *id);
+  return rl.appendAnonRule(DefinitionInProgress{});
+}
 
 // This function looks up rule names, and resolves them to rule indices.
 // It combines variables used in an `output:` template and in a `where` stanza.
+//
+// It proceeds in two stages: first, it resolves all names to either local or
+// global identifiers. This produces the return value rv. Then, in a second
+// phase, it uses that name-to-ruleIndex mapping to compile the RuleExpr
+// objects. The second phase is separate so that we can use all the names
+// resolved in the first phase there.
 static vector<pair<Ident, ssize_t>>
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   vector<pair<Ident, ssize_t>> rv;
+  vector<const RuleExpr*> lhs_exprs;
   vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
@@ -771,15 +782,23 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     ssize_t ruleIndex = -1;
     if(local != nullptr) {
       reserveLocalNameInRule(ctx, rl, *local, unq_lhs);
-      ruleIndex = appendRuleExpr(ctx, *local->ruleExpr, rl);
+      ruleIndex = allocateRuleExpr(ctx, *local->ruleExpr, rl);
     }else ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
+    lhs_exprs.push_back(local ? local->ruleExpr.get() : nullptr);
   }
   // Duplicates a few entries, but seems mostly harmless for now.
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     rv.emplace_back(binding.outTmplKey,
-                    appendRuleExpr(ctx, *binding.ruleExpr, rl));
+                    allocateRuleExpr(ctx, *binding.ruleExpr, rl));
+    lhs_exprs.push_back(binding.ruleExpr.get());
+  }
+  // rv is now ready to be returned, and to be used for lookups.
+  for(ssize_t i=0; i<ssize(lhs_exprs); ++i) {
+    ssize_t j = rv[i].second;
+    if(lhs_exprs[i] && dynamic_cast<const DefinitionInProgress*>(&rl[j]))
+      assignRuleExpr(ctx, *lhs_exprs[i], rl, j);
   }
   return rv;
 }
@@ -1088,17 +1107,6 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
-}
-
-// Dev-note: this currently does a better job of handling `left ~ right`,
-// where the right-hand side is just a single identifier. assignRuleExpr()
-// needs to fix this by resoving the todo there.
-ssize_t
-appendRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl) {
-  if(auto* id = getIfIdent(rxpr)) return rl.findOrAppendIdent(ctx, *id);
-  ssize_t newIndex = rl.appendAnonRule(DefinitionInProgress{});
-  assignRuleExpr(ctx, rxpr, rl, newIndex);
-  return newIndex;
 }
 
 void
