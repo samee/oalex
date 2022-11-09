@@ -992,14 +992,16 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
 
 class RuleExprCompiler {
  public:
-  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx)
-    : rl_{&rl}, ctx_{ctx} {}
+  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx, const SymbolTable& symtab)
+    : rl_{&rl}, ctx_{ctx}, symtab_{&symtab} {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
+  const SymbolTable* symtab_;  // Assumed to not have duplicates.
+  ssize_t lookupIdent(const Ident& id) const;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
@@ -1012,9 +1014,16 @@ RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
   }});
 }
 ssize_t
+RuleExprCompiler::lookupIdent(const Ident& id) const {
+  for(auto& [entry_id,target]: *symtab_) if(id == entry_id) return target;
+  // Fall back to globals. Our symbol table only contain local symbols from
+  // `where` and `outputs`. `RuleExpr` can refer to globals not in either.
+  return rl_->findOrAppendIdent(ctx_, id);
+}
+ssize_t
 RuleExprCompiler::process(const RuleExpr& rxpr) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
-    return appendFlatIdent(id->ident, rl_->findOrAppendIdent(ctx_, id->ident));
+    return appendFlatIdent(id->ident, lookupIdent(id->ident));
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return appendLiteralOrError(*rl_, s->s);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
@@ -1126,7 +1135,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl,
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return assignLiteralOrError(rl, ruleIndex, sq->s);
 
-  RuleExprCompiler comp{rl, ctx};
+  RuleExprCompiler comp{rl, ctx, {}};
   ssize_t flatRule = comp.process(rxpr);
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx
