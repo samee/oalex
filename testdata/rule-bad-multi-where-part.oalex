@@ -1,4 +1,4 @@
-# expected-error: Part 'var' appears multiple times in the pattern
+# expected-error: Duplicate part 'var' will be impossible to distinguish
 
 rule var: /[a-z]+/
 

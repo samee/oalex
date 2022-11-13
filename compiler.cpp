@@ -640,47 +640,49 @@ checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
     Bug("Unknown pattern index in checkPlaceholderTypes() {}", patt.index());
 }
 
-static bool
-checkMultipleUsageRecur(DiagsDest ctx, vector<pair<string, int>>& counts,
-                        const Pattern& patt) {
-  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
+static void
+patternCollectIdentRecur(const Pattern& patt, vector<Ident>& output) {
+  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return;
   else if(auto* id = get_if_unique<Ident>(&patt)) {
-    for(auto& [k, count] : counts) if(k == id->preserveCase() && ++count > 1) {
-      Error(ctx, id->stPos(), id->enPos(),
-        format("Part '{}' appears multiple times in the pattern", k));
-      return false;
-    }
-    return true;
+    output.push_back(*id);
   }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
-    for(auto& elt : seq->parts)
-      if(!checkMultipleUsageRecur(ctx, counts, elt))
-        return false;
-    return true;
+    for(auto& elt : seq->parts) patternCollectIdentRecur(elt, output);
   }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
-    for(auto& elt : ors->parts)
-      if(!checkMultipleUsageRecur(ctx, counts, elt))
-        return false;
-    return true;
+    for(auto& elt : ors->parts) patternCollectIdentRecur(elt, output);
   }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return checkMultipleUsageRecur(ctx, counts, opt->part);
+    patternCollectIdentRecur(opt->part, output);
   }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return checkMultipleUsageRecur(ctx, counts, rep->part);
+    patternCollectIdentRecur(rep->part, output);
   }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return checkMultipleUsageRecur(ctx, counts, fold->part) &&
-           checkMultipleUsageRecur(ctx, counts, fold->glue);
+    patternCollectIdentRecur(fold->part, output);
+    patternCollectIdentRecur(fold->glue, output);
   }else
     Bug("Unknown pattern index in checkMultipleUsage() {}", patt.index());
 }
 
-// Dev-note: we do intend to allow Pattern Idents that do *not* appear in
-// the output template. While such Idents cannot be represented in the input
-// syntax today, it will become possible later.
+static vector<Ident>
+patternCollectIdent(const Pattern& patt) {
+  vector<Ident> rv;
+  patternCollectIdentRecur(patt, rv);
+  sort(rv.begin(), rv.end());
+  return rv;
+}
+
 static bool
-checkMultipleUsage(DiagsDest ctx, const map<Ident,PartPattern>& m,
-                   const Pattern& patt) {
-  vector<pair<string, int>> counts;
-  for(auto& [k,v] : m) counts.emplace_back(k.preserveCase(), 0);
-  return checkMultipleUsageRecur(ctx, counts, patt);
+checkMultipleUsage(DiagsDest ctx, const vector<Ident>& idents) {
+  bool rv = true;
+  for(ssize_t i=1; i<ssize(idents); ++i) if(idents[i] == idents[i-1]) {
+      Error(ctx, idents[i].stPos(), idents[i].enPos(),
+            format("Duplicate part '{}' will be impossible "
+                   "to distinguish in the output.", idents[i].preserveCase()));
+      // TODO: change pattern.cpp to use locations of where the idents appear
+      // in patterns, not where they are defined. This will allow us to output
+      // a "Previously used in..." note here. Right now, we don't have that
+      // information at all. Then change patternCollectIdent() to use
+      // stable_sort().
+      rv = false;
+  }
+  return rv;
 }
 
 static Ident
@@ -905,8 +907,12 @@ appendPatternRules(DiagsDest ctx, const Ident& ruleName,
     vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
     if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   }
-  if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
+  vector<Ident> patternIdents = patternCollectIdent(*patt);
+  if(!checkMultipleUsage(ctx, patternIdents)) return;
+  // ruleExprMakeOutputTmpl() checks for multiple usage in each RuleExpr.
+
   if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pattToRule);
+
   compilePattern(ctx, ruleName, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
 }
