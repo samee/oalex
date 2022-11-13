@@ -861,11 +861,7 @@ deduceOutputTmpl(const vector<pair<Ident,ssize_t>>& p2rule) {
 // various local definitions.
 static optional<Pattern>
 parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
-    const LexDirective& lexOpts, const vector<PatternToRuleBinding>& pattToRule,
-    const JsonTmpl& jstmpl) {
-  map<Ident,PartPattern> partPatterns
-    = makePartPatterns(ctx, jstmpl, pattToRule);
-
+    const LexDirective& lexOpts, const map<Ident,PartPattern>& partPatterns) {
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
   if(!patt_string.empty() && toks.empty()) return std::nullopt;
   return parsePattern(ctx, std::move(toks));
@@ -906,9 +902,11 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                    JsonLoc errors, RulesWithLocs& rl) {
-  optional<Pattern> patt =
-    parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
-                            pattToRule, jstmpl);
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, jstmpl, pattToRule);
+
+  optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
+                                                   lexOpts, partPatterns);
   if(!patt.has_value()) return;
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
@@ -924,9 +922,11 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonLoc errors,
                    RulesWithLocs& rl) {
-  optional<Pattern> patt =
-    parsePatternForLocalEnv(ctx, std::move(patt_string), lexOpts,
-                            pattToRule, JsonTmpl::Map{});
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, JsonTmpl::Map{}, pattToRule);
+
+  optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
+                                                   lexOpts, partPatterns);
   if(!patt.has_value()) return;
   compilePattern(ctx, ident, *patt, pattToRule, lexOpts, JsonTmpl::Ellipsis{},
                  errors, rl);
