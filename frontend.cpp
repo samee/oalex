@@ -964,7 +964,7 @@ parseSingleLineRule(const Ident& ruleName, vector<ExprToken> linetoks,
 bool
 requireColon(const vector<ExprToken>& linetoks, size_t pos, DiagsDest ctx) {
   if(linetoks.size() > pos && isToken(linetoks[pos], ":")) return true;
-  Error(ctx, enPos(linetoks[pos]), "Was expecting a ':' after this");
+  Error(ctx, enPos(linetoks[pos-1]), "Was expecting a ':' after this");
   return false;
 }
 

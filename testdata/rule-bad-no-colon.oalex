@@ -1,0 +1,7 @@
+# expected-error: Was expecting a ':' after this
+
+rule bad
+  pattern
+outputs: { something }
+
+rule something: /[a-z]+/
