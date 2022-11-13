@@ -843,10 +843,10 @@ requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
 }
 
 static JsonTmpl
-deduceOutputTmpl(const vector<PatternToRuleBinding>& pattToRule) {
+deduceOutputTmpl(const vector<Ident>& idents) {
   JsonTmpl::Map rv;
-  for(auto& binding : pattToRule) {
-    string s = binding.outTmplKey.preserveCase();
+  for(auto& id : idents) {
+    string s = id.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
@@ -911,7 +911,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ruleName,
   if(!checkMultipleUsage(ctx, patternIdents)) return;
   // ruleExprMakeOutputTmpl() checks for multiple usage in each RuleExpr.
 
-  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pattToRule);
+  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(patternIdents);
 
   compilePattern(ctx, ruleName, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
