@@ -215,7 +215,7 @@ ssize_t
 appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
 
 void
-appendPatternRules(DiagsDest ctx, const Ident& ident,
+appendPatternRules(DiagsDest ctx, const Ident& ruleName,
                    lex::GluedString patt_string, const LexDirective& lexOpts,
                    std::vector<PatternToRuleBinding> pattToRule,
                    JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);

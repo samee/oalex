@@ -861,7 +861,7 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
 }
 
 static void
-compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
+compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
                const LexDirective& lexopts, JsonTmpl jstmpl, JsonLoc errors,
                RulesWithLocs& rl) {
@@ -874,7 +874,7 @@ compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ident, skipIndex);
+  ssize_t newIndex2 = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex2 == -1) return;
   rl.deferred_assign(newIndex2, OutputTmpl{
       /* childidx */ newIndex,
@@ -891,7 +891,7 @@ compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
 // deduced.
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
 void
-appendPatternRules(DiagsDest ctx, const Ident& ident,
+appendPatternRules(DiagsDest ctx, const Ident& ruleName,
                    GluedString patt_string, const LexDirective& lexOpts,
                    vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                    JsonLoc errors, RulesWithLocs& rl) {
@@ -907,7 +907,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   }
   if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
   if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pattToRule);
-  compilePattern(ctx, ident, *patt, pattToRule, lexOpts, std::move(jstmpl),
+  compilePattern(ctx, ruleName, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
 }
 
