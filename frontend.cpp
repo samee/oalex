@@ -1029,17 +1029,13 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(errors.holdsErrorValue()) errors = JsonLoc::Map{};
 
   if(!ident) return;
-  if(!sawOutputsKw) {
-    if(sawWhereKw)
-      appendPatternRules(ctx, ident, std::move(*patt), lexopts,
-                         std::move(local_decls), std::move(errors), rl);
-    else
-      Error(ctx, i, format("outputs stanza missing in rule {}",
-                           ident.preserveCase()));
+  if(!sawOutputsKw && !sawWhereKw) {
+    Error(ctx, i, format("outputs stanza missing in rule {}",
+                         ident.preserveCase()));
     return;
   }
 
-  if(!jstmpl.has_value()) return;
+  if(!jstmpl.has_value()) jstmpl = JsonTmpl::Ellipsis{};
   appendPatternRules(ctx, ident, std::move(*patt), lexopts,
                      std::move(local_decls), std::move(*jstmpl),
                      std::move(errors), rl);

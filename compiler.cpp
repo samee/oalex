@@ -587,12 +587,6 @@ desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
 static map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
                  const vector<PatternToRuleBinding>& pattToRule) {
-  if(jstmpl.holdsVector())
-    Unimplemented("Directly outputting list not encased in a map");
-  const JsonTmpl::Map* jstmplmap = jstmpl.getIfMap();
-  if(jstmplmap == nullptr)
-    Bug("parseJsonTmplFromBracketGroup() returned something strange");
-
   map<Ident, PartPattern> rv;
   for(const auto& [p, j] : jstmpl.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
@@ -892,6 +886,9 @@ compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
+// This function utilizes a hack of using JsonTmpl::Ellipsis to mean the
+// absense of an `outputs` stanza, where the template needs to be automatically
+// deduced.
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
 void
 appendPatternRules(DiagsDest ctx, const Ident& ident,
@@ -904,29 +901,14 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
                                                    lexOpts, partPatterns);
   if(!patt.has_value()) return;
-  vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-  if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
+  if(!jstmpl.holdsEllipsis()) {
+    vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
+    if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
+  }
   if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
+  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pattToRule);
   compilePattern(ctx, ident, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
-}
-
-// Dev-note: keeping this function separate from its overload for now. Might
-// merge them later.
-void
-appendPatternRules(DiagsDest ctx, const Ident& ident,
-                   GluedString patt_string, const LexDirective& lexOpts,
-                   vector<PatternToRuleBinding> pattToRule, JsonLoc errors,
-                   RulesWithLocs& rl) {
-  map<Ident,PartPattern> partPatterns
-    = makePartPatterns(ctx, JsonTmpl::Map{}, pattToRule);
-
-  optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
-                                                   lexOpts, partPatterns);
-  if(!patt.has_value()) return;
-  if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
-  compilePattern(ctx, ident, *patt, pattToRule, lexOpts,
-                 deduceOutputTmpl(pattToRule), errors, rl);
 }
 
 ssize_t
