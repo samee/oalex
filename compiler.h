@@ -185,7 +185,7 @@ class RuleExprOptional final : public RuleExpr {
 //
 //   "patt" as var ~ lhs
 //
-// is represented as { .pp = "patt", .outTmplKey = var, .ruleName = lhs }
+// is represented as { .pp = "patt", .outTmplKey = var, .ruleExpr = lhs }
 struct PatternToRuleBinding {
   PartPattern pp;
   Ident outTmplKey;
