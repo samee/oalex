@@ -647,47 +647,46 @@ checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
 }
 
 static bool
-checkMultipleTmplPartsRecur(DiagsDest ctx,
-                            vector<pair<string, int>>& counts,
-                            const Pattern& patt) {
+checkMultipleUsageRecur(DiagsDest ctx, vector<pair<string, int>>& counts,
+                        const Pattern& patt) {
   if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
   else if(auto* id = get_if_unique<Ident>(&patt)) {
     for(auto& [k, count] : counts) if(k == id->preserveCase() && ++count > 1) {
       Error(ctx, id->stPos(), id->enPos(),
-        format("Output part '{}' appears multiple times in the pattern", k));
+        format("Part '{}' appears multiple times in the pattern", k));
       return false;
     }
     return true;
   }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
     for(auto& elt : seq->parts)
-      if(!checkMultipleTmplPartsRecur(ctx, counts, elt))
+      if(!checkMultipleUsageRecur(ctx, counts, elt))
         return false;
     return true;
   }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
     for(auto& elt : ors->parts)
-      if(!checkMultipleTmplPartsRecur(ctx, counts, elt))
+      if(!checkMultipleUsageRecur(ctx, counts, elt))
         return false;
     return true;
   }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, opt->part);
+    return checkMultipleUsageRecur(ctx, counts, opt->part);
   }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, rep->part);
+    return checkMultipleUsageRecur(ctx, counts, rep->part);
   }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return checkMultipleTmplPartsRecur(ctx, counts, fold->part) &&
-           checkMultipleTmplPartsRecur(ctx, counts, fold->glue);
+    return checkMultipleUsageRecur(ctx, counts, fold->part) &&
+           checkMultipleUsageRecur(ctx, counts, fold->glue);
   }else
-    Bug("Unknown pattern index in checkMultipleTmplParts() {}", patt.index());
+    Bug("Unknown pattern index in checkMultipleUsage() {}", patt.index());
 }
 
 // Dev-note: we do intend to allow Pattern Idents that do *not* appear in
 // the output template. While such Idents cannot be represented in the input
 // syntax today, it will become possible later.
 static bool
-checkMultipleTmplParts(DiagsDest ctx, const JsonTmpl::ConstPlaceholderMap& m,
-                       const Pattern& patt) {
+checkMultipleUsage(DiagsDest ctx, const map<Ident,PartPattern>& m,
+                   const Pattern& patt) {
   vector<pair<string, int>> counts;
-  for(auto& [k,v] : m) counts.emplace_back(k, 0);
-  return checkMultipleTmplPartsRecur(ctx, counts, patt);
+  for(auto& [k,v] : m) counts.emplace_back(k.preserveCase(), 0);
+  return checkMultipleUsageRecur(ctx, counts, patt);
 }
 
 static Ident
@@ -910,7 +909,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   if(!patt.has_value()) return;
   vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
   if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
-  if(!checkMultipleTmplParts(ctx, jstmpl.allPlaceholders(), *patt)) return;
+  if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
   compilePattern(ctx, ident, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
 }
@@ -928,6 +927,7 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
   optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
                                                    lexOpts, partPatterns);
   if(!patt.has_value()) return;
+  if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
   compilePattern(ctx, ident, *patt, pattToRule, lexOpts, JsonTmpl::Ellipsis{},
                  errors, rl);
 }

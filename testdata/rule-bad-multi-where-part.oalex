@@ -4,4 +4,5 @@ rule var: /[a-z]+/
 
 rule asgn:
   var = var;
-outputs: { var }
+where:
+  var ~ var
