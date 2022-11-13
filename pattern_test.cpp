@@ -275,19 +275,6 @@ void testCrossLabelOverlapFails() {
                           "Part '] ... [' overlaps with '[ ... ]'");
 }
 
-void testNoMatchWarns() {
-  auto [ctx, fquote] = setupMatchTest(__func__, R"(" " "foo")");
-  GluedString patt = fquote(" ");
-  map<Ident,PartPattern> partspec{
-    {findIdent(__func__, *ctx, "foo"), fquote("foo")},
-  };
-  vector<LabelOrPart> observed = labelParts(*ctx, patt, partspec, {});
-  vector<LabelOrPart> expected{pair{0,1}};
-  if(observed != expected) BugMe("Didn't get the unsplit string");
-  assertHasDiagWithSubstr(__func__, ctx->diags,
-                          "No match found for pattern 'foo'");
-}
-
 void testEmptySuccess() {
   auto [ctx, fquote] = setupMatchTest(__func__, R"("")");
   vector observed = labelParts(*ctx, fquote(""), {}, {});
@@ -898,7 +885,6 @@ int main() {
   testUnfinishedMatch();
   testLabelParts();
   testCrossLabelOverlapFails();
-  testNoMatchWarns();
   testEmptySuccess();
   testNoWordSplit();
   testTokenizeNoLabel();

@@ -1,0 +1,23 @@
+rule expr:
+  var name = value;
+where:
+  name ~ /[a-z_]+/
+  value ~ ([sign ~ '-'] num)
+  num ~ /[0-9]+/
+
+example expr:
+  var x = 42;
+outputs: {
+  name: "x",
+  value: { sign:{}, num:"42" },
+}
+
+example expr:
+  var x = -42;
+outputs: {
+  name: "x",
+  value: { sign:"-", num:"42" },
+}
+
+# TODO: Support lone identifiers on the right-hand side of local rules.
+# This requires codegen to support alias rules.

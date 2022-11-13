@@ -1,0 +1,15 @@
+rule unnested_lisp_list:
+  ( term term ... )
+where:
+  term ~ (part '-' ... '-' part)  # Use local identifier
+  part ~ /[a-zA-Z]+/
+
+example unnested_lisp_list:
+
+  (say-hello to john)
+
+outputs: { term: [
+  {part: ["say", "hello"]},
+  {part: ["to"]},
+  {part: ["john"]},
+] }

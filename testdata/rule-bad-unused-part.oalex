@@ -1,4 +1,4 @@
-# expected-error: 8:19-27: error: No match found for pattern 'int_value'
+# expected-error: 8:19-27: error: Output field 'int_value' was not found
 
 rule ident: /[_a-zA-Z]+/
 rule int_value: /-?[0-9]+/

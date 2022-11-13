@@ -668,6 +668,9 @@ patternCollectIdent(const Pattern& patt) {
   return rv;
 }
 
+static void
+ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output);
+
 static bool
 checkMultipleUsage(DiagsDest ctx, const vector<Ident>& idents) {
   bool rv = true;
@@ -690,6 +693,29 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
   auto* p = jstmpl.getIfPlaceholder();
   if(!p) Bug("Expected a Placeholder, got {}", jstmpl.prettyPrint());
   return Ident::parse(ctx, WholeSegment{jstmpl.stPos, jstmpl.enPos, p->key});
+}
+
+static void
+checkUnusedParts(DiagsDest ctx, vector<Ident> patternIdents,
+                 const vector<PatternToRuleBinding>& pattToRule,
+                 const JsonTmpl& jstmpl) {
+  for(auto& [k,v]: jstmpl.allPlaceholders()) {
+    const Ident outid = identOf(ctx, *v);
+    if(!binary_search(patternIdents.begin(), patternIdents.end(), outid))
+      Error(ctx, outid.stPos(), outid.enPos(),
+            format("Output field '{}' was not found in the rule pattern",
+                   outid.preserveCase()));
+  }
+  vector<Ident> allIdents = std::move(patternIdents);
+  for(auto& b: pattToRule) ruleExprCollectInputIdents(*b.ruleExpr, allIdents);
+  sort(allIdents.begin(), allIdents.end());
+  for(auto& b: pattToRule) {
+    const Ident outid = b.outTmplKey;  // rename from outputTmplKey TODO
+    if(!binary_search(allIdents.begin(),allIdents.end(), outid))
+      Error(ctx, outid.stPos(), outid.enPos(),
+            format("Local rule '{}' is not used in this rule",
+                   outid.preserveCase()));
+  }
 }
 
 // Caller must already ensure no duplicate bindings for the same outTmplKey.
@@ -913,6 +939,9 @@ appendPatternRules(DiagsDest ctx, const Ident& ruleName,
 
   if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(patternIdents);
 
+  // Errors are not fatal. Unused fields stay unused.
+  checkUnusedParts(ctx, patternIdents, pattToRule, jstmpl);
+
   compilePattern(ctx, ruleName, *patt, pattToRule, lexOpts, std::move(jstmpl),
                  errors, rl);
 }
@@ -1096,7 +1125,6 @@ ruleExprCollectOutputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
                         output);
 }
 
-[[maybe_unused]]
 static void
 ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
   ruleExprCollectIdents(rxpr, RuleExprIdentCollection::inputsUsed,
