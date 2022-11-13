@@ -584,9 +584,9 @@ desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
   return rv;
 }
 
-// We can later add where-stanza arguments for extracting partPatterns
 static map<Ident,PartPattern>
-makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
+makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
+                 const vector<PatternToRuleBinding>& pattToRule) {
   if(jstmpl.holdsVector())
     Unimplemented("Directly outputting list not encased in a map");
   const JsonTmpl::Map* jstmplmap = jstmpl.getIfMap();
@@ -599,12 +599,6 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl) {
     Ident id = Ident::parse(ctx, seg);
     if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
   }
-  return rv;
-}
-
-static map<Ident,PartPattern>
-makePartPatterns(const vector<PatternToRuleBinding>& pattToRule) {
-  map<Ident, PartPattern> rv;
   for(const auto& binding : pattToRule)
     rv.insert({binding.outTmplKey, binding.pp}).second;
   return rv;
@@ -869,8 +863,8 @@ static optional<Pattern>
 parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
     const LexDirective& lexOpts, const vector<PatternToRuleBinding>& pattToRule,
     const JsonTmpl& jstmpl) {
-  map<Ident,PartPattern> partPatterns = makePartPatterns(pattToRule);
-  partPatterns.merge(makePartPatterns(ctx, jstmpl));
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, jstmpl, pattToRule);
 
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
   if(!patt_string.empty() && toks.empty()) return std::nullopt;
