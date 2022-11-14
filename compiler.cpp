@@ -847,10 +847,10 @@ requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
 }
 
 static JsonTmpl
-deduceOutputTmpl(const vector<pair<Ident,ssize_t>>& p2rule) {
+deduceOutputTmpl(const vector<PatternToRuleBinding>& pattToRule) {
   JsonTmpl::Map rv;
-  for(auto& [id, _] : p2rule) {
-    string s = id.preserveCase();
+  for(auto& binding : pattToRule) {
+    string s = binding.outTmplKey.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
@@ -866,8 +866,6 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
-// Note: JsonTmpl::Ellipsis is used as a special value to indicate that the
-// template should be automatically deduced. Sorry!
 static void
 compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
@@ -884,7 +882,6 @@ compilePattern(DiagsDest ctx, const Ident& ident, const Pattern& patt,
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ident, skipIndex);
   if(newIndex2 == -1) return;
-  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(pl2ruleMap);
   rl.deferred_assign(newIndex2, OutputTmpl{
       /* childidx */ newIndex,
       /* childName */ "",
@@ -928,8 +925,8 @@ appendPatternRules(DiagsDest ctx, const Ident& ident,
                                                    lexOpts, partPatterns);
   if(!patt.has_value()) return;
   if(!checkMultipleUsage(ctx, partPatterns, *patt)) return;
-  compilePattern(ctx, ident, *patt, pattToRule, lexOpts, JsonTmpl::Ellipsis{},
-                 errors, rl);
+  compilePattern(ctx, ident, *patt, pattToRule, lexOpts,
+                 deduceOutputTmpl(pattToRule), errors, rl);
 }
 
 ssize_t
