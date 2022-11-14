@@ -736,6 +736,7 @@ getIfIdent(const RuleExpr& rxpr) {
   else return nullptr;
 }
 
+// This is only used in preparation for reserveLocalNameInRule().
 static vector<Ident>
 filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
   vector<Ident> rv;
@@ -752,6 +753,8 @@ filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
   return rv;
 }
 
+// Special case for allowing `"+" as binop ~ binop`, while we usually
+// don't allow local-global name collisions.
 static void
 reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
                        const PatternToRuleBinding& binding,
