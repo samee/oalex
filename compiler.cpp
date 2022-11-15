@@ -797,15 +797,11 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
 
     const PatternToRuleBinding* local
       = findRuleLocalBinding(ctx, outputIdent, pattToRule);
-    ssize_t ruleIndex = -1;
-    if(local != nullptr) {
-      reserveLocalNameInRule(ctx, rl, *local, unq_lhs);
-      ruleIndex = allocateRuleExpr(ctx, *local->ruleExpr, rl);
-    }else ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
+    if(local) continue;
+    ssize_t ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
-    lhs_exprs.push_back(local ? local->ruleExpr.get() : nullptr);
+    lhs_exprs.push_back(nullptr);
   }
-  // Duplicates a few entries, but seems mostly harmless for now.
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     rv.emplace_back(binding.outTmplKey,
