@@ -1048,14 +1048,28 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
       .lookidx = -1, .skipidx = -1}});
 }
 
+
+// Dev-note: This "code reuse" feels like a kludge, that will eventually
+// accrue all sorts of "options" parameters for slight variations. Be on the
+// lookout cleanup opportunities.
+enum class RuleExprIdentCollection {
+  inputsUsed,
+  outputsProduced,
+};
+
 static void
-ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
+ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
+                     vector<Ident>& output) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr))
     output.push_back(id->ident);
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
-    output.push_back(mid->lhs);
+    if(coll == RuleExprIdentCollection::inputsUsed)
+      ruleExprCollectIdents(*mid->rhs, coll, output);
+    else if(coll == RuleExprIdentCollection::outputsProduced)
+      output.push_back(mid->lhs);
+    else Bug("Bad identifier collection config");
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprSquoted*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprIdent*>(mid->rhs.get()))
@@ -1064,22 +1078,35 @@ ruleExprCollectIdent(const RuleExpr& rxpr, vector<Ident>& output) {
   }
   else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     for(const unique_ptr<const RuleExpr>& part : cat->parts)
-      ruleExprCollectIdent(*part, output);
+      ruleExprCollectIdents(*part, coll, output);
   }
   else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr))
-    ruleExprCollectIdent(*opt->part, output);
+    ruleExprCollectIdents(*opt->part, coll, output);
   else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
-    ruleExprCollectIdent(*rep->part, output);
-    if(rep->glue) ruleExprCollectIdent(*rep->glue, output);
+    ruleExprCollectIdents(*rep->part, coll, output);
+    if(rep->glue) ruleExprCollectIdents(*rep->glue, coll, output);
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
 }
 
+static void
+ruleExprCollectOutputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
+  ruleExprCollectIdents(rxpr, RuleExprIdentCollection::outputsProduced,
+                        output);
+}
+
+[[maybe_unused]]
+static void
+ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
+  ruleExprCollectIdents(rxpr, RuleExprIdentCollection::inputsUsed,
+                        output);
+}
+
 static JsonTmpl
 ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
   vector<Ident> ids;
-  ruleExprCollectIdent(rxpr, ids);
+  ruleExprCollectOutputIdents(rxpr, ids);
   sort(ids.begin(), ids.end());  // to skip over duplicates later
 
   JsonTmpl::Map rv;
@@ -1102,7 +1129,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
                const SymbolTable& symtab,
                RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
-  //  - If rxpr has no idents anywhere, ie. if ruleExprCollectIdent()
+  //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
   //    produces an empty vector. But that requires a new codegen Rule that
   //    collects and concatenates strings. Or it requires some strange
   //    regex surgery.
