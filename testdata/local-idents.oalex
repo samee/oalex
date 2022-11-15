@@ -13,3 +13,18 @@ outputs: { term: [
   {part: ["to"]},
   {part: ["john"]},
 ] }
+
+
+rule sum:
+  a + b
+where:
+  a ~ (value ~ num)
+  b ~ (value ~ num)
+  num ~ /[0-9]+/
+
+example sum:
+  23 + 34
+outputs: {
+  a: { value: "23" },
+  b: { value: "34" }
+}

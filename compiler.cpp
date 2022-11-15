@@ -1051,7 +1051,7 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
 ssize_t
 RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
   if(auto* rhsid = dynamic_cast<const RuleExprIdent*>(midxpr.rhs.get())) {
-    ssize_t targetIndex = rl_->findOrAppendIdent(ctx_, rhsid->ident);
+    ssize_t targetIndex = lookupIdent(rhsid->ident);
     return this->appendFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
