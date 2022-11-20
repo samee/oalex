@@ -258,6 +258,13 @@ class MatchOrError final : public Rule {
   std::string errmsg;
 };
 
+class AliasRule final : public Rule {
+ public:
+  AliasRule(ssize_t targetidx) : targetidx{targetidx} {}
+  std::string specifics_typename() const override { return "AliasRule"; }
+  ssize_t targetidx;
+};
+
 class StringLoc;  // forward declaration
 
 // Note: we currently don't support ExternParser in tentative contexts.
@@ -329,6 +336,7 @@ Return types are either an ErrorValue or:
     Maybe rename to resultFlattenableOrErrorOrError().
   * QuietMatch: Same as its child.
   * MatchOrError: Same as child.
+  * AliasRule: Same as its target.
 */
 void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos);

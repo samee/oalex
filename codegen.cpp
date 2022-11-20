@@ -126,6 +126,8 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
     return resultFlattenableOrError(rs, mor->compidx);
   if(auto* qm = dynamic_cast<const QuietMatch*>(&rule))
     return resultFlattenableOrError(rs, qm->compidx);
+  if(auto* alias = dynamic_cast<const AliasRule*>(&rule))
+    return resultFlattenableOrError(rs, alias->targetidx);
   else {
     auto& t = typeid(rule);
     return t == typeid(ConcatFlatRule) || t == typeid(LoopRule)
@@ -321,6 +323,11 @@ eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   return out;
 }
 
+static JsonLoc
+eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
+  return eval(ctx, i, rs, alias.targetidx);
+}
+
 // TODO move this to runtime/ directory if we want to use this in
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
 static JsonLoc
@@ -413,6 +420,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     return eval(ctx, i, *ors, ruleset);
   else if(auto* me = dynamic_cast<const MatchOrError*>(&r))
     return eval(ctx, i, *me, ruleset);
+  else if(auto* alias = dynamic_cast<const AliasRule*>(&r))
+    return eval(ctx, i, *alias, ruleset);
   Bug("Unknown rule type {} in eval", r.specifics_typename());
 }
 
@@ -978,6 +987,14 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
 }
 
 static void
+codegen(const RuleSet& ruleset, const AliasRule& alias,
+        const OutputStream& cppos) {
+  cppos("  return ");
+    codegenParserCall(ruleAt(ruleset, alias.targetidx), "i", cppos);
+    cppos(";\n");
+}
+
+static void
 codegen(const RuleSet& ruleset, const SkipPoint& sp,
         const OutputStream& cppos) {
   const Skipper* skip = &ruleset.skips[sp.skipperIndex];
@@ -1109,6 +1126,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *ors, cppos);
   }else if(auto* me = dynamic_cast<const MatchOrError*>(&r)) {
     codegen(ruleset, *me, cppos);
+  }else if(auto* alias = dynamic_cast<const AliasRule*>(&r)) {
+    codegen(ruleset, *alias, cppos);
   // TODO Implement errors, error-recovery scanner.
   }else Bug("Unknown rule type {} in codegen()", r.specifics_typename());
   cppos("}\n");

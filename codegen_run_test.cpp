@@ -80,6 +80,14 @@ void runMatchOrErrorTest(JsonLoc (*parse)(InputDiags&, ssize_t&)) {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
+void runAliasRuleTest() {
+  string msg = " hello-world";
+  InputDiags ctx{Input{msg}};
+  ssize_t pos = 1;
+  JsonLoc jsloc = parseAliasedHelloWorld(ctx, pos);
+  assertJsonLocIsString(__func__, jsloc, msg.substr(1), 1, msg.size());
+}
+
 void runSingleRegexTest() {
   const tuple<string, JsonLoc(*)(InputDiags&, ssize_t&), size_t> inputs[] = {
     {"fox", parseFooOrFox, 3},
@@ -500,6 +508,7 @@ int main() {
   runSingleStringTest();
   runMatchOrErrorTest(&parseHelloWorldOrError);
   runMatchOrErrorTest(&parseErrorRuleHelloWorld);
+  runAliasRuleTest();
   runSingleRegexTest();
   runConcatFlatTest();
   runSingleWordTemplate();

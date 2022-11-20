@@ -26,6 +26,7 @@
 #include <string_view>
 #include <unistd.h>
 #include <utility>
+using oalex::AliasRule;
 using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
 using oalex::ConcatFlatRule;
@@ -285,6 +286,18 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
   codegen(rs, 1, cppos, hos);
 }
 
+void generateAliasRuleTest(const OutputStream& cppos,
+                           const OutputStream& hos) {
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+        StringRule{"hello-world"},
+        nmRule(AliasRule{0}, "AliasedHelloWorld")),
+    .skips{},
+    .regexOpts{regexOpts},
+  };
+  codegen(rs, 1, cppos, hos);
+}
+
 void generateErrorRuleTest(const OutputStream& cppos,
                            const OutputStream& hos) {
   RuleSet rs{
@@ -517,6 +530,8 @@ int main(int argc, char* argv[]) {
   generateOrTest(cppos, hos);
   linebreaks();
   generateMatchOrErrorTest(cppos, hos);
+  linebreaks();
+  generateAliasRuleTest(cppos, hos);
   linebreaks();
   generateErrorRuleTest(cppos, hos);
   linebreaks();

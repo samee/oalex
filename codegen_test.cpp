@@ -32,6 +32,7 @@ using std::tuple;
 using std::unique_ptr;
 using std::vector;
 using namespace std::string_literals;
+using oalex::AliasRule;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::ConcatFlatRule;
@@ -109,6 +110,19 @@ void testMatchOrError() {
   pos = 0;
   eval(ctx, pos, rs, 1);
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
+}
+
+void testAliasRule() {
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(StringRule{"hello-world"}, AliasRule{0}),
+    .skips{},
+    .regexOpts{regexOpts},
+  };
+  const string msg = " hello-world";
+  InputDiags ctx{Input{msg}};
+  ssize_t pos = 1;
+  JsonLoc jsloc = eval(ctx, pos, rs, 1);
+  assertJsonLocIsString(__func__, jsloc, msg.substr(1), 1, msg.size());
 }
 
 void testErrorRule() {
@@ -599,6 +613,7 @@ int main() {
   testSingleStringMatch();
   testSingleStringMismatch();
   testMatchOrError();
+  testAliasRule();
   testErrorRule();
   testSingleSkip();
   testSingleWordPreserving();
