@@ -1004,11 +1004,11 @@ class RuleExprCompiler {
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
+  ssize_t lookupIdent(const Ident& id) const;
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
-  ssize_t lookupIdent(const Ident& id) const;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
@@ -1160,8 +1160,6 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   //    produces an empty vector. But that requires a new codegen Rule that
   //    collects and concatenates strings. Or it requires some strange
   //    regex surgery.
-  //  - If rxpr is a single Ident. Maybe make it an alias, instead of wrapping
-  //    it in another layer of a singleton OutputTmpl.
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
     return assignRegexOrError(
         rl, ruleIndex, "Does not match expected pattern",
@@ -1170,6 +1168,9 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
     return assignLiteralOrError(rl, ruleIndex, sq->s);
 
   RuleExprCompiler comp{rl, ctx, symtab};
+
+  if(auto* id = getIfIdent(rxpr))
+    return rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
   ssize_t flatRule = comp.process(rxpr);
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx

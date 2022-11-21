@@ -4,11 +4,11 @@ example string_body_only:
   "hello world"
 outputs: { body: "hello world" }
 
-rule single_component: (string_body_only)
+rule single_component: string_body_only
 
 example single_component:
   "hello world"
-outputs: { string_body_only: { body: "hello world" } }
+outputs: { body: "hello world" }
 
 rule hyphen_ident: (ident_part '-' ... '-' ident_part)
 rule ident_part: /[a-zA-Z]+/

@@ -947,13 +947,6 @@ parseSingleLineRule(const Ident& ruleName, vector<ExprToken> linetoks,
   requireEol(linetoks, 4, ctx);
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
-  if(auto* seg = get_if<WholeSegment>(&linetoks[3])) {
-    // TODO: Fix RuleExprIdent codegen to alias and not nest single idents.
-    if(resemblesIdent(*seg))
-      Error(ctx, *seg,
-            format("Aliasing unimplemented. Use `({})` instead", **seg) );
-    return;
-  }
   if(auto* gs = get_if<GluedString>(&linetoks[3]);
      gs && gs->ctor() == GluedString::Ctor::dquoted)
     Bug("Need to add context to defineIdent() in parseSingleLineRule()");
