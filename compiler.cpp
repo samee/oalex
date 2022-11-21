@@ -755,12 +755,17 @@ filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
 
 // Special case for allowing `"+" as binop ~ binop`, while we usually
 // don't allow local-global name collisions.
+static bool
+reusesGlobalName(const PatternToRuleBinding& b) {
+  auto* id = getIfIdent(*b.ruleExpr);
+  return id && *id == b.outTmplKey;
+}
+
 static void
 reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
                        const PatternToRuleBinding& binding,
                        const vector<Ident>& unq_lhs) {
-  const Ident* rname = getIfIdent(*binding.ruleExpr);
-  if(!rname || binding.outTmplKey != *rname)
+  if(!reusesGlobalName(binding))
     rl.reserveLocalName(ctx, binding.outTmplKey);
   else if(!std::binary_search(unq_lhs.begin(), unq_lhs.end(),
                               binding.outTmplKey)) {
@@ -768,13 +773,6 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
           "Reusing rule name is allowed only if "
           "its use is unique in this definition");
   }
-}
-
-static ssize_t
-allocateRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RulesWithLocs& rl) {
-  // Avoid allocation of a new index in simple cases.
-  if(auto* id = getIfIdent(rxpr)) return rl.findOrAppendIdent(ctx, *id);
-  return rl.appendAnonRule(DefinitionInProgress{});
 }
 
 // This function looks up rule names, and resolves them to rule indices.
@@ -804,8 +802,11 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
   }
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
-    rv.emplace_back(binding.outTmplKey,
-                    allocateRuleExpr(ctx, *binding.ruleExpr, rl));
+    size_t ruleIndex;
+    if(reusesGlobalName(binding))
+      ruleIndex = rl.findOrAppendIdent(ctx, binding.outTmplKey);
+    else ruleIndex = rl.appendAnonRule(DefinitionInProgress{});
+    rv.emplace_back(binding.outTmplKey, ruleIndex);
     lhs_exprs.push_back(binding.ruleExpr.get());
   }
   // rv is now ready to be returned, and to be used for lookups.

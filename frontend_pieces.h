@@ -66,21 +66,19 @@ oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i);
-
 oalex::JsonLoc parseRule31(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i);
 
+oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i);
+
 oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule35(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i);
-
-oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule37(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -91,6 +89,8 @@ oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i);
 oalex::JsonLoc parseRule40(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule41(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -103,6 +103,16 @@ oalex::JsonLoc parseRule45(oalex::InputDiags& ctx, ssize_t& i);
 oalex::JsonLoc parseRule46(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule47(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseRule48(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseRule49(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseRule50(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseRule51(oalex::InputDiags& ctx, ssize_t& i);
+
+oalex::JsonLoc parseRule52(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i);
 
