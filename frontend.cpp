@@ -397,10 +397,10 @@ parseRuleOutput(vector<ExprToken> linetoks, InputDiags& ctx) {
 bool
 requireUniqueBinding(const vector<PatternToRuleBinding>& collected,
                      const PatternToRuleBinding& found, DiagsDest ctx) {
-  for(auto& c : collected) if(c.outTmplKey == found.outTmplKey) {
-    Error(ctx, found.outTmplKey.stPos(), found.outTmplKey.enPos(),
+  for(auto& c : collected) if(c.localName == found.localName) {
+    Error(ctx, found.localName.stPos(), found.localName.enPos(),
           format("Duplicate definition for placeholder '{}'",
-                 found.outTmplKey.preserveCase()));
+                 found.localName.preserveCase()));
     return false;
   }
   return true;
@@ -497,7 +497,7 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
   else {
     unique_ptr<const RuleExpr> rxpr = makeRuleExpr(line[4], ctx);
     if(rxpr) p2rule.push_back(PatternToRuleBinding{
-        .pp{std::move(*patt)}, .outTmplKey{std::move(outkey)},
+        .pp{std::move(*patt)}, .localName{std::move(outkey)},
         .ruleExpr{std::move(rxpr)},
       });
   }
@@ -523,7 +523,7 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
           ctx,
           WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
         }},
-        .outTmplKey{elt},
+        .localName{elt},
         .ruleExpr{std::move(rxpr)},
       };
       if(requireUniqueBinding(p2rule, binding, ctx))

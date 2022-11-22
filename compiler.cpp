@@ -594,7 +594,7 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
     if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
   }
   for(const auto& binding : pattToRule)
-    rv.insert({binding.outTmplKey, binding.pp}).second;
+    rv.insert({binding.localName, binding.pp}).second;
   return rv;
 }
 
@@ -710,7 +710,7 @@ checkUnusedParts(DiagsDest ctx, vector<Ident> patternIdents,
   for(auto& b: pattToRule) ruleExprCollectInputIdents(*b.ruleExpr, allIdents);
   sort(allIdents.begin(), allIdents.end());
   for(auto& b: pattToRule) {
-    const Ident outid = b.outTmplKey;  // rename from outputTmplKey TODO
+    const Ident outid = b.localName;
     if(!binary_search(allIdents.begin(),allIdents.end(), outid))
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Local rule '{}' is not used in this rule",
@@ -718,12 +718,12 @@ checkUnusedParts(DiagsDest ctx, vector<Ident> patternIdents,
   }
 }
 
-// Caller must already ensure no duplicate bindings for the same outTmplKey.
+// Caller must already ensure no duplicate bindings for the same localName.
 static const PatternToRuleBinding*
 findRuleLocalBinding(DiagsDest ctx, const Ident& outputIdent,
                      const vector<PatternToRuleBinding>& pattToRule) {
-  for(auto& binding : pattToRule) if(binding.outTmplKey == outputIdent) {
-    requireExactMatch(ctx, binding.outTmplKey, outputIdent);
+  for(auto& binding : pattToRule) if(binding.localName == outputIdent) {
+    requireExactMatch(ctx, binding.localName, outputIdent);
     return &binding;
   }
   return nullptr;
@@ -758,7 +758,7 @@ filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
 static bool
 reusesGlobalName(const PatternToRuleBinding& b) {
   auto* id = getIfIdent(*b.ruleExpr);
-  return id && *id == b.outTmplKey;
+  return id && *id == b.localName;
 }
 
 static void
@@ -766,10 +766,10 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
                        const PatternToRuleBinding& binding,
                        const vector<Ident>& unq_lhs) {
   if(!reusesGlobalName(binding))
-    rl.reserveLocalName(ctx, binding.outTmplKey);
+    rl.reserveLocalName(ctx, binding.localName);
   else if(!std::binary_search(unq_lhs.begin(), unq_lhs.end(),
-                              binding.outTmplKey)) {
-    Error(ctx, binding.outTmplKey.stPos(), binding.outTmplKey.enPos(),
+                              binding.localName)) {
+    Error(ctx, binding.localName.stPos(), binding.localName.enPos(),
           "Reusing rule name is allowed only if "
           "its use is unique in this definition");
   }
@@ -804,9 +804,9 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
     size_t ruleIndex;
     if(reusesGlobalName(binding))
-      ruleIndex = rl.findOrAppendIdent(ctx, binding.outTmplKey);
+      ruleIndex = rl.findOrAppendIdent(ctx, binding.localName);
     else ruleIndex = rl.appendAnonRule(DefinitionInProgress{});
-    rv.emplace_back(binding.outTmplKey, ruleIndex);
+    rv.emplace_back(binding.localName, ruleIndex);
     lhs_exprs.push_back(binding.ruleExpr.get());
   }
   // rv is now ready to be returned, and to be used for lookups.

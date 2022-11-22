@@ -185,10 +185,10 @@ class RuleExprOptional final : public RuleExpr {
 //
 //   "patt" as var ~ lhs
 //
-// is represented as { .pp = "patt", .outTmplKey = var, .ruleExpr = lhs }
+// is represented as { .pp = "patt", .localName = var, .ruleExpr = lhs }
 struct PatternToRuleBinding {
   PartPattern pp;
-  Ident outTmplKey;
+  Ident localName;
   std::unique_ptr<const RuleExpr> ruleExpr;
 };
 
