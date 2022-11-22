@@ -754,6 +754,8 @@ parseLexicalStanza(InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
   return rv;
 }
 
+// A complex component in this case is anything that cannot appear as a
+// component of RuleExprRepeat (either as .part or as .glue).
 size_t
 findComplexComponent(const vector<ExprToken>& toks) {
   for(size_t i=0; i<toks.size(); ++i) {
@@ -785,6 +787,12 @@ hasAnyTlide(const vector<ExprToken>& toks) {
 // Returns non-null if successful. Produces no diags if token is a
 // BracketGroup, just returns null. On other token types, returns null and
 // produces error.
+//
+// An "atom" in this case means any pattern that can appear unparenthesized.
+// Either as a rule expression all by itself, or on the right hand side of a
+// RuleExprMappedIdent. A concatenated sequence of RuleExpr is _not_ an atom,
+// for instance.
+//
 // Top-level caller TODO: requireEol and RuleExprIdent
 unique_ptr<const RuleExpr>
 makeRuleExprAtom(DiagsDest ctx, const ExprToken& tok) {
@@ -865,6 +873,9 @@ makeRuleExprAtomVector(const vector<ExprToken>& toks, size_t st, size_t en,
   return make_unique<RuleExprConcat>(std::move(concat_parts));
 }
 
+// This function assumes that that toks don't have anything other than
+// identifiers, ellipses, and single-quoted strings. The caller should have
+// already verified this with findComplexComponent().
 unique_ptr<const RuleExpr>
 makeRuleExprRepeat(const vector<ExprToken>& toks, size_t ellPos,
                    DiagsDest ctx) {
