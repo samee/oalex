@@ -81,7 +81,7 @@ class PatternToRulesCompiler {
   DiagsDest ctx_;      // These is where all errors and warnings get logged.
   RulesWithLocs* rl_;  // This is where new rules get appended.
   // Rule index for placeholders
-  const vector<pair<Ident,ssize_t>>* p2rule_;
+  vector<pair<Ident,ssize_t>> p2rule_;
   // Optional error message for any failures. This can later be extended
   // with recovery rules and alternate branches. The Idents here are assumed
   // to be a subset of those in p2rule_ above.
@@ -95,10 +95,10 @@ class PatternToRulesCompiler {
   ssize_t processFold(const PatternFold& foldPatt);
  public:
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
-                         const vector<pair<Ident,ssize_t>>& p2rule,
+                         vector<pair<Ident,ssize_t>> p2rule,
                          const vector<pair<Ident,string>>& errmsg,
                          ssize_t skipIndex) :
-    ctx_(ctx), rl_(&rl), p2rule_(&p2rule),
+    ctx_(ctx), rl_(&rl), p2rule_(std::move(p2rule)),
     errmsg_(&errmsg), skipIndex_(skipIndex) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
@@ -145,12 +145,12 @@ PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
 ssize_t
 PatternToRulesCompiler::processIdent(const Ident& ident) {
   size_t i;
-  for(i=0; i<p2rule_->size(); ++i) if(ident == p2rule_->at(i).first) break;
-  if(i == p2rule_->size())
+  for(i=0; i<p2rule_.size(); ++i) if(ident == p2rule_.at(i).first) break;
+  if(i == p2rule_.size())
     Bug("Ident map should already have an entry for '{}'",
         ident.preserveCase());
   ssize_t identRule = rl_->appendAnonRule(ConcatFlatRule{{
-      {p2rule_->at(i).second, ident.preserveCase()},
+      {p2rule_.at(i).second, ident.preserveCase()},
   }});
 
   for(i=0; i<errmsg_->size(); ++i) if(ident == errmsg_->at(i).first) break;
@@ -911,7 +911,8 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
   if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
 
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
-  PatternToRulesCompiler comp{ctx, rl, pl2ruleMap, errmsg, skipIndex};
+  PatternToRulesCompiler comp{ctx, rl, std::move(pl2ruleMap),
+                              errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex2 == -1) return;
