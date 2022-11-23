@@ -1180,4 +1180,18 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   });
 }
 
+// TODO: Refactor common parts between this and appendPatternRule().
+// Dev-note: Right now, this supports ruleName being empty. But this should
+// only be used for tests.
+ssize_t
+appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
+               vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
+  vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule, {});
+  ssize_t newIndex = ruleName
+    ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
+    : rl.appendAnonRule(DefinitionInProgress{});
+  if(newIndex != -1) assignRuleExpr(ctx, rxpr, pl2ruleMap, rl, newIndex);
+  return newIndex;
+}
+
 }  // namespace oalex

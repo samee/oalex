@@ -961,8 +961,7 @@ parseSingleLineRule(const Ident& ruleName, vector<ExprToken> linetoks,
   if(auto* gs = get_if<GluedString>(&linetoks[3]);
      gs && gs->ctor() == GluedString::Ctor::dquoted)
     Bug("Need to add context to defineIdent() in parseSingleLineRule()");
-  ssize_t newIndex = rl.defineIdent(ctx, ruleName, Rule::removedContext);
-  if(newIndex != -1) assignRuleExpr(ctx, *rxpr, {}, rl, newIndex);
+  appendExprRule(ctx, ruleName, *rxpr, {}, rl);
 }
 
 bool

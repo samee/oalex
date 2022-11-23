@@ -41,6 +41,8 @@ using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::parseRegexCharSet;
+using oalex::PartPattern;
+using oalex::PatternToRuleBinding;
 using oalex::prettyPrint;
 using oalex::QuietMatch;
 using oalex::Regex;
@@ -60,8 +62,11 @@ using oalex::RulesWithLocs;
 using oalex::ssize;
 using oalex::StringRule;
 using oalex::UnassignedRule;
+using oalex::WholeSegment;
+using oalex::lex::GluedString;
 using oalex::test::nmRule;
 using oalex::test::parseRegex;
+using std::make_unique;
 using std::pair;
 using std::string;
 using std::string_view;
@@ -680,36 +685,37 @@ void testLocalNameResolution() {
 
   // First, define a global with this name, "string_literal"
   const char* string_literal_name = "string_literal";
+  Ident string_literal_ident = Ident::parseGenerated(string_literal_name);
   unique_ptr<const Regex> dquoted_literal_regex
     = parseRegex(R"(/"([^"\\]|\\.)*"/)");
   RuleExprRegex dquoted_literal_rule{dquoted_literal_regex->clone()};
 
-  ssize_t dquoted_i =
-    rl.defineIdentForTest(ctx, Ident::parseGenerated(string_literal_name));
-  assignRuleExpr(ctx, dquoted_literal_rule, {}, rl, dquoted_i);
+  appendExprRule(ctx, string_literal_ident, dquoted_literal_rule, {}, rl);
 
   // Next, do the same thing, but don't give it a global name.
   unique_ptr<const Regex> squoted_literal_regex
     = parseRegex(R"(/'([^'\\]|\\.)*'/)");
   RuleExprRegex squoted_literal_rule{squoted_literal_regex->clone()};
-  ssize_t squoted_i = rl.appendAnonRule(DefinitionInProgress{});
-  assignRuleExpr(ctx, squoted_literal_rule, {}, rl, squoted_i);
 
   // Now, we will have one rule, that references a "string_literal". We will
   // now either overshadow that name with a local name binding, or let the
   // global name pass through.
   RuleExprConcat u_quoted_rule{makeVectorUnique<const RuleExpr>(
     RuleExprSquoted{"u"},
-    RuleExprIdent{Ident::parseGenerated(string_literal_name)}
+    RuleExprIdent{string_literal_ident}
   )};
-  ssize_t u_squoted_i =
-    rl.defineIdentForTest(ctx, Ident::parseGenerated("u_squoted_literal"));
-  assignRuleExpr(ctx, u_quoted_rule,
-                 {{Ident::parseGenerated("string_literal"), squoted_i}},
-                 rl, u_squoted_i);
-  ssize_t u_dquoted_i =
-    rl.defineIdentForTest(ctx, Ident::parseGenerated("u_dquoted_literal"));
-  assignRuleExpr(ctx, u_quoted_rule, {}, rl, u_dquoted_i);
+
+  vector<PatternToRuleBinding> pattToRule;
+  pattToRule.push_back({
+    .pp = GluedString{ctx, WholeSegment{0, 0, string_literal_name}},
+    .localName = string_literal_ident,
+    .ruleExpr = make_unique<RuleExprRegex>(squoted_literal_regex->clone()),
+  });
+  appendExprRule(ctx, Ident::parseGenerated("u_squoted_literal"),
+                 u_quoted_rule, std::move(pattToRule), rl);
+
+  appendExprRule(ctx, Ident::parseGenerated("u_dquoted_literal"),
+                 u_quoted_rule, {}, rl);
 
   auto expected = makeVectorUnique<Rule>(
     RegexRule(dquoted_literal_regex->clone()),

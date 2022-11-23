@@ -223,11 +223,14 @@ appendPatternRules(DiagsDest ctx, const Ident& ruleName,
 void
 appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 
-void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
-               const SymbolTable& localBindings,
-               RulesWithLocs& rl, ssize_t ruleIndex);
-
+// Don't use this for local rules. This function takes in a global name for a
+// new rule. Local rules are added implicitly using pattToRule parameters.
+// The name is intentionally backwards: ExprRule is meant to mirror PatternRule.
+// TODO rename appendPatternRules --> appendPatternRule
+ssize_t
+appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
+               std::vector<PatternToRuleBinding> pattToRule,
+               RulesWithLocs& rl);
 
 // Internal functions, exposed for testing only
 // Dev-note: consider a separate compiler_testables.h
@@ -236,5 +239,10 @@ class Ident;
 class JsonLoc;
 std::vector<std::pair<Ident, std::string>>
 destructureErrors(DiagsDest ctx, JsonLoc errors);
+
+void
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
+               const SymbolTable& localBindings,
+               RulesWithLocs& rl, ssize_t ruleIndex);
 
 }  // namespace oalex
