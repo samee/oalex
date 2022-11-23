@@ -1204,6 +1204,8 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
+  // Special-case: when we add lexopts parameter here, remember to pass it to
+  // defineIdent, mapToRule, and assignRuleExpr.
   vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule, {});
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, Rule::removedContext)

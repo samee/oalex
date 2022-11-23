@@ -856,12 +856,11 @@ makeRuleExprAtom(DiagsDest ctx, const ExprToken& tok) {
   if(auto* regex = get_if<RegexPattern>(&tok)) {
     return make_unique<RuleExprRegex>(regex->patt->clone());
   }else if(auto* gs = get_if<GluedString>(&tok)) {
-    if(gs->ctor() != GluedString::Ctor::squoted) {
-      if(gs->ctor() == GluedString::Ctor::dquoted)
-        Error(ctx, *gs, "Double-quoted patterns not yet implemented");
-      else
-        Error(ctx, *gs, "Strings need to be 'quoted'");
-    }else return make_unique<RuleExprSquoted>(string(*gs));
+    if(gs->ctor() == GluedString::Ctor::squoted)
+      return make_unique<RuleExprSquoted>(string(*gs));
+    else if(gs->ctor() == GluedString::Ctor::dquoted)
+      return make_unique<RuleExprDquoted>(*gs);
+    else Error(ctx, *gs, "Strings need to be 'quoted'");
   }else if(auto* seg = get_if<WholeSegment>(&tok)) {
     if(resemblesIdent(*seg)) {
       Ident id = requireIdent(tok, ctx);
@@ -1015,9 +1014,6 @@ parseExprRule(const Ident& ruleName, vector<ExprToken> linetoks,
   requireEol(linetoks, 4, ctx);
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
-  if(auto* gs = get_if<GluedString>(&linetoks[3]);
-     gs && gs->ctor() == GluedString::Ctor::dquoted)
-    Bug("Need to add context to defineIdent() in parseExprRule()");
   RuleStanzas stz = parseRuleStanzas(ctx, i);
   if(stz.sawOutputsKw || stz.sawErrorsKw || stz.sawLexicalKw)
     Unimplemented("'outputs', 'errors', and 'lexical' in expression rules");
