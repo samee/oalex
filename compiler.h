@@ -209,10 +209,10 @@ ssize_t
 appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
 
 void
-appendPatternRules(DiagsDest ctx, const Ident& ruleName,
-                   lex::GluedString patt_string, const LexDirective& lexOpts,
-                   std::vector<PatternToRuleBinding> pattToRule,
-                   JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
+appendPatternRule(DiagsDest ctx, const Ident& ruleName,
+                  lex::GluedString patt_string, const LexDirective& lexOpts,
+                  std::vector<PatternToRuleBinding> pattToRule,
+                  JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
 
 void
 appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
@@ -220,7 +220,6 @@ appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 // Don't use this for local rules. This function takes in a global name for a
 // new rule. Local rules are added implicitly using pattToRule parameters.
 // The name is intentionally backwards: ExprRule is meant to mirror PatternRule.
-// TODO rename appendPatternRules --> appendPatternRule
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                std::vector<PatternToRuleBinding> pattToRule,

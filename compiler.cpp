@@ -518,7 +518,7 @@ appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
   return newIndex + 1;
 }
 
-// ---------------------- Start appendPatternRules() --------------------------
+// ---------------------- Start appendPatternRule() ---------------------------
 
 // Looks for [p, ...] for some `JsonTmpl::Placeholder p`. If found, returns
 // &p, which is guaranteed to point to a JsonTmpl::Placeholder. If not, returns
@@ -930,10 +930,10 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
 // deduced.
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
 void
-appendPatternRules(DiagsDest ctx, const Ident& ruleName,
-                   GluedString patt_string, const LexDirective& lexOpts,
-                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-                   JsonLoc errors, RulesWithLocs& rl) {
+appendPatternRule(DiagsDest ctx, const Ident& ruleName,
+                  GluedString patt_string, const LexDirective& lexOpts,
+                  vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
+                  JsonLoc errors, RulesWithLocs& rl) {
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, jstmpl, pattToRule);
 

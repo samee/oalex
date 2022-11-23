@@ -1039,9 +1039,9 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   }
 
   if(!jstmpl.has_value()) jstmpl = JsonTmpl::Ellipsis{};
-  appendPatternRules(ctx, ident, std::move(*patt), lexopts,
-                     std::move(local_decls), std::move(*jstmpl),
-                     std::move(errors), rl);
+  appendPatternRule(ctx, ident, std::move(*patt), lexopts,
+                    std::move(local_decls), std::move(*jstmpl),
+                    std::move(errors), rl);
 }
 
 // For error-locating, it assumes !v.empty().
