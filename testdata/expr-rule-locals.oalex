@@ -1,0 +1,15 @@
+
+# This is another alternative to tailcont, expecially if we don't
+# want any superfluous spaces at all.
+
+rule bash_asgn: (a '=' b)
+where:
+  a, b ~ /[a-z]+/
+
+example bash_asgn:
+  var=value
+outputs: { a: "var", b: "value" }
+
+example bash_asgn:
+  var = value
+outputs error with 'Expected \'=\''

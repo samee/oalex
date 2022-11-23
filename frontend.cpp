@@ -1011,14 +1011,17 @@ makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
 // Assumes linetoks.size() >= 4
 void
 parseExprRule(const Ident& ruleName, vector<ExprToken> linetoks,
-              DiagsDest ctx, RulesWithLocs& rl) {
+              InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   requireEol(linetoks, 4, ctx);
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
   if(auto* gs = get_if<GluedString>(&linetoks[3]);
      gs && gs->ctor() == GluedString::Ctor::dquoted)
     Bug("Need to add context to defineIdent() in parseExprRule()");
-  appendExprRule(ctx, ruleName, *rxpr, {}, rl);
+  RuleStanzas stz = parseRuleStanzas(ctx, i);
+  if(stz.sawOutputsKw || stz.sawErrorsKw || stz.sawLexicalKw)
+    Unimplemented("'outputs', 'errors', and 'lexical' in expression rules");
+  appendExprRule(ctx, ruleName, *rxpr, std::move(stz.local_decls), rl);
 }
 
 bool
@@ -1044,9 +1047,11 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
   if(!requireColon(linetoks, 2, ctx)) return;
   const Ident ident = requireIdent(linetoks[1], ctx);
   if(linetoks.size() > 3) {
-    if(ident) parseExprRule(ident, std::move(linetoks), ctx, rl);
+    if(ident) parseExprRule(ident, std::move(linetoks), ctx, i, rl);
     return;
   }
+  // TODO: refactor out the next part into a parsePatternRule(), instead of
+  // returning above.
   optional<GluedString> patt =
       parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
                          "pattern");
