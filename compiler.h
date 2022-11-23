@@ -140,6 +140,11 @@ class RuleExprSquoted final : public RuleExpr {
   explicit RuleExprSquoted(std::string s) : s{std::move(s)} {}
   std::string s;
 };
+class RuleExprDquoted final : public RuleExpr {
+ public:
+  explicit RuleExprDquoted(lex::GluedString gs) : gs{std::move(gs)} {}
+  lex::GluedString gs;
+};
 class RuleExprRegex final : public RuleExpr {
  public:
   explicit RuleExprRegex(std::unique_ptr<const Regex> r)

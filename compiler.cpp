@@ -1046,6 +1046,8 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
     return appendFlatIdent(id->ident, lookupIdent(id->ident));
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return appendLiteralOrError(*rl_, s->s);
+  }else if(dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
+    Unimplemented("Double-quoted strings in rule expressions");
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
     return appendRegexOrError(*rl_, regex->regex->clone());
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
@@ -1066,6 +1068,7 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     ssize_t targetIndex = lookupIdent(rhsid->ident);
     return this->appendFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
+           dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->process(*midxpr.rhs);
     return this->appendFlatIdent(midxpr.lhs, newIndex);
@@ -1105,6 +1108,8 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
     output.push_back(id->ident);
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
+  else if(dynamic_cast<const RuleExprDquoted*>(&rxpr))
+    Unimplemented("Ident collection for RuleExprDquoted");
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     if(coll == RuleExprIdentCollection::inputsUsed)
       ruleExprCollectIdents(*mid->rhs, coll, output);
@@ -1113,6 +1118,7 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
     else Bug("Bad identifier collection config");
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprSquoted*>(mid->rhs.get()) &&
+       !dynamic_cast<const RuleExprDquoted*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprIdent*>(mid->rhs.get()))
       Bug("Mapped idents must have simple rhs. Found {}",
           typeid(*mid->rhs).name());
