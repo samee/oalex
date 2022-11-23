@@ -775,6 +775,17 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
   }
 }
 
+// This is used to look up rules in RulesWithLocs by name.
+// This usually represents all visible symbols in a certain context. When this
+// object is constructed, we have usually already resolved symbols to either
+// globally defined rules or ones locally defined in a rule.
+using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
+
+static void
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
+               const SymbolTable& symtab,
+               RulesWithLocs& rl, ssize_t ruleIndex);
+
 // This function looks up rule names, and resolves them to rule indices.
 // It combines variables used in an `output:` template and in a `where` stanza.
 //
@@ -1152,7 +1163,7 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
   return rv;
 }
 
-void
+static void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
                const SymbolTable& symtab,
                RulesWithLocs& rl, ssize_t ruleIndex) {

@@ -192,12 +192,6 @@ struct PatternToRuleBinding {
   std::unique_ptr<const RuleExpr> ruleExpr;
 };
 
-// This is used to look up rules in RulesWithLocs by name.
-// This usually represents all visible symbols in a certain context. When this
-// object is constructed, we have usually already resolved symbols to either
-// globally defined rules or ones locally defined in a rule.
-using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
-
 void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 		     std::string_view literal);
@@ -239,10 +233,5 @@ class Ident;
 class JsonLoc;
 std::vector<std::pair<Ident, std::string>>
 destructureErrors(DiagsDest ctx, JsonLoc errors);
-
-void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
-               const SymbolTable& localBindings,
-               RulesWithLocs& rl, ssize_t ruleIndex);
 
 }  // namespace oalex

@@ -670,8 +670,7 @@ void testRuleExprCompilation() {
     InputDiags ctx{Input{""}};
     RulesWithLocs rl;
     for(auto& [name, rxpr] : testcase.rxprs) {
-      ssize_t identi = rl.defineIdentForTest(ctx, Ident::parseGenerated(name));
-      assignRuleExpr(ctx, *rxpr, {}, rl, identi);
+      appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, {}, rl);
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
@@ -760,8 +759,7 @@ void testRuleExprDuplicateIdent() {
 
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
-  assignRuleExpr(ctx, asgn_rule, {}, rl,
-                 rl.defineIdentForTest(ctx, Ident::parseGenerated("asgn")));
+  appendExprRule(ctx, Ident::parseGenerated("asgn"), asgn_rule, {}, rl);
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "Duplicate identifier 'varname'");
 }
@@ -776,17 +774,15 @@ void testRuleExprCompilationAndParsing() {
 
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
-  ssize_t identi = rl.defineIdentForTest(ctx, ident_part_name);
-  assignRuleExpr(ctx, rxpr_ident, {}, rl, identi);
+  appendExprRule(ctx, ident_part_name, rxpr_ident, {}, rl);
 
   RuleExprRepeat rxpr_main{
     move_to_unique(RuleExprIdent{ident_part_name}),
     move_to_unique(RuleExprSquoted{"-"})
   };
 
-  ssize_t maini =
-    rl.defineIdentForTest(ctx, Ident::parseGenerated("hyphen_ident"));
-  assignRuleExpr(ctx, rxpr_main, {}, rl, maini);
+  ssize_t maini = appendExprRule(ctx, Ident::parseGenerated("hyphen_ident"),
+                                 rxpr_main, {}, rl);
 
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
   RuleSet rs = rl.releaseRulesWith(regopts);
