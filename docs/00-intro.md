@@ -29,7 +29,7 @@ Planned table of contents, subject to change:
 
   1. [Pattern basics](01-pattern-basics.md)
   2. Optional components and repeats
-  3. Composing multiple rules together, and single-line rules
+  3. Composing multiple rules together, and expression rules
   4. Alternate choices and error-handling
   5. Unit tests, and how it improves readability
   6. Comment-processing, space-handling, and newlines

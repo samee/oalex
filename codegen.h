@@ -49,7 +49,7 @@ class Rule {
 
   enum ContextSkipper : ssize_t {
     helperRuleNoContext = -1,  // The vast majority of rules use this value.
-    removedContext = -2,       // This is typically used by single-line rules.
+    removedContext = -2,       // This is typically used by expression rules.
   };
  private:
   Ident name_;
