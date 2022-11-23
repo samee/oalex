@@ -784,6 +784,63 @@ hasAnyTlide(const vector<ExprToken>& toks) {
   return false;
 }
 
+// This struct stores the result of parsing `where`, `outputs`, `errors`,
+// and everything else that can accompany a rule. It's meant to be reused
+// between pattern rules and expression rules.
+//
+// Here, many of the values here have default values, which we use if that
+// stanza was missing or had some error. The various `saw*Kw` booleans are
+// meant to help with diagnostics: they tell the caller if the corresponding
+// keyword was completely missing, or if it was present but had other errors
+// that resulted in us using the default value.
+//
+// TODO: Make this an argument in appendPatternRule, instead of passing in
+// all the components separately.
+struct RuleStanzas {
+  bool sawOutputsKw = false, sawWhereKw = false, sawLexicalKw = false;
+  bool sawErrorsKw = false;
+  JsonTmpl jstmpl = JsonTmpl::Ellipsis{};
+  vector<PatternToRuleBinding> local_decls = {};
+  LexDirective lexopts = defaultLexopts();
+  JsonLoc errors = JsonLoc::Map{};
+};
+
+RuleStanzas
+parseRuleStanzas(InputDiags& ctx, size_t& i) {
+  RuleStanzas rv;
+
+  while(true) {
+    size_t oldi = i;
+    auto toks = lexNextLine(ctx, i);
+    if(toks.empty()) break;
+    auto* leader = get_if<WholeSegment>(&toks[0]);
+    if(!leader) { i = oldi; break; }
+    else if(**leader == "outputs") {
+      if(skipStanzaIfSeen(rv.sawOutputsKw, *leader, ctx, i)) continue;
+      optional<JsonTmpl> jstmpl = parseRuleOutput(std::move(toks), ctx);
+      if(jstmpl.has_value()) rv.jstmpl = std::move(*jstmpl);
+    }else if(**leader == "where") {
+      if(skipStanzaIfSeen(rv.sawWhereKw, *leader, ctx, i)) continue;
+      StringLoc leaderIndent = indent_of(ctx.input(), toks[0]);
+      auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
+      if(!new_local_decls.empty()) rv.local_decls = std::move(new_local_decls);
+      else i = skipToIndentLe(ctx, i, *leaderIndent);
+    }else if(**leader == "errors") {
+      if(skipStanzaIfSeen(rv.sawErrorsKw, *leader, ctx, i)) continue;
+      ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
+      JsonLoc errors = parseErrorStanza(ctx, is);
+      if(!errors.holdsErrorValue()) rv.errors = std::move(errors);
+      else continue;
+      i = skipBlankLines(ctx, is);
+    }else if(**leader == "lexical") {
+      if(skipStanzaIfSeen(rv.sawLexicalKw, *leader, ctx, i)) continue;
+      if(auto opt = parseLexicalStanza(ctx, i, std::move(toks)))
+        rv.lexopts = std::move(*opt);
+    }else { i = oldi; break; }
+  }
+  return rv;
+}
+
 // Returns non-null if successful. Produces no diags if token is a
 // BracketGroup, just returns null. On other token types, returns null and
 // produces error.
@@ -994,54 +1051,18 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
       parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
                          "pattern");
   if(!patt.has_value()) return;
-  bool sawOutputsKw = false, sawWhereKw = false, sawErrorsKw = false;
-  bool sawLexicalKw = false;
-  optional<JsonTmpl> jstmpl;
-  vector<PatternToRuleBinding> local_decls;
-  LexDirective lexopts = defaultLexopts();
-  JsonLoc errors = JsonLoc::ErrorValue{};
-
-  // Consume next line for the outputs stanza.
-  while(true) {
-    size_t oldi = i;
-    auto toks = lexNextLine(ctx, i);
-    if(toks.empty()) break;
-    auto* leader = get_if<WholeSegment>(&toks[0]);
-    if(!leader) { i = oldi; break; }
-    else if(**leader == "outputs") {
-      if(skipStanzaIfSeen(sawOutputsKw, *leader, ctx, i)) continue;
-      jstmpl = parseRuleOutput(std::move(toks), ctx);
-    }else if(**leader == "where") {
-      if(skipStanzaIfSeen(sawWhereKw, *leader, ctx, i)) continue;
-      StringLoc leaderIndent = indent_of(ctx.input(), toks[0]);
-      auto new_local_decls = parseRuleLocalDecls(ctx, i, leaderIndent);
-      if(!new_local_decls.empty()) local_decls = std::move(new_local_decls);
-      else i = skipToIndentLe(ctx, i, *leaderIndent);
-    }else if(**leader == "errors") {
-      if(skipStanzaIfSeen(sawErrorsKw, *leader, ctx, i)) continue;
-      ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
-      errors = parseErrorStanza(ctx, is);
-      if(errors.holdsErrorValue()) continue;
-      i = skipBlankLines(ctx, is);
-    }else if(**leader == "lexical") {
-      if(skipStanzaIfSeen(sawLexicalKw, *leader, ctx, i)) continue;
-      if(auto opt = parseLexicalStanza(ctx, i, std::move(toks)))
-        lexopts = std::move(*opt);
-    }else { i = oldi; break; }
-  }
-  if(errors.holdsErrorValue()) errors = JsonLoc::Map{};
+  RuleStanzas stz = parseRuleStanzas(ctx, i);
 
   if(!ident) return;
-  if(!sawOutputsKw && !sawWhereKw) {
+  if(!stz.sawOutputsKw && !stz.sawWhereKw) {
     Error(ctx, i, format("outputs stanza missing in rule {}",
                          ident.preserveCase()));
     return;
   }
 
-  if(!jstmpl.has_value()) jstmpl = JsonTmpl::Ellipsis{};
-  appendPatternRule(ctx, ident, std::move(*patt), lexopts,
-                    std::move(local_decls), std::move(*jstmpl),
-                    std::move(errors), rl);
+  appendPatternRule(ctx, ident, std::move(*patt), stz.lexopts,
+                    std::move(stz.local_decls), std::move(stz.jstmpl),
+                    std::move(stz.errors), rl);
 }
 
 // For error-locating, it assumes !v.empty().
