@@ -784,6 +784,7 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
 static void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
                const SymbolTable& symtab,
+               const map<Ident,PartPattern>& partPatterns,
                RulesWithLocs& rl, ssize_t ruleIndex);
 
 // This function looks up rule names, and resolves them to rule indices.
@@ -831,11 +832,12 @@ lookupSymbol(const SymbolTable& symtab, const Ident& name) {
 static void
 compileLocalRules(DiagsDest ctx,
                   const vector<PatternToRuleBinding>& pattToRule,
+                  const map<Ident,PartPattern>& partPatterns,
                   const SymbolTable& symtab, RulesWithLocs& rl) {
   for(auto& binding : pattToRule) {
     ssize_t j = lookupSymbol(symtab, binding.localName);
     if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *binding.ruleExpr, symtab, rl, j);
+      assignRuleExpr(ctx, *binding.ruleExpr, symtab, partPatterns, rl, j);
   }
 }
 
@@ -913,11 +915,12 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
 static void
 compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
+               const map<Ident,PartPattern>& partPatterns,
                const LexDirective& lexopts, JsonTmpl jstmpl, JsonLoc errors,
                RulesWithLocs& rl) {
   SymbolTable symtab
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  compileLocalRules(ctx, pattToRule, symtab, rl);
+  compileLocalRules(ctx, pattToRule, partPatterns, symtab, rl);
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) return;
@@ -941,6 +944,10 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
 // absense of an `outputs` stanza, where the template needs to be automatically
 // deduced.
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
+// Dev-note: in future, this function should be identical to calling
+//   appendExprRule() with a RuleExprDquoted. But for now, this function is a
+//   lot more featureful since it's been around for much longer.
+//   TODO: make it so.
 void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   GluedString patt_string, const LexDirective& lexOpts,
@@ -965,8 +972,8 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
   // Errors are not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, patternIdents, pattToRule, jstmpl);
 
-  compilePattern(ctx, ruleName, *patt, pattToRule, lexOpts, std::move(jstmpl),
-                 errors, rl);
+  compilePattern(ctx, ruleName, *patt, pattToRule, partPatterns, lexOpts,
+                 std::move(jstmpl), errors, rl);
 }
 
 ssize_t
@@ -1023,8 +1030,9 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
 
 class RuleExprCompiler {
  public:
-  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx, const SymbolTable& symtab)
-    : rl_{&rl}, ctx_{ctx}, symtab_{&symtab} {}
+  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx, const SymbolTable& symtab,
+                   const map<Ident,PartPattern>& partPatterns)
+    : rl_{&rl}, ctx_{ctx}, symtab_{&symtab}, partPatterns_{&partPatterns} {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
@@ -1033,10 +1041,12 @@ class RuleExprCompiler {
   RulesWithLocs* rl_;
   DiagsDest ctx_;
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
+  const map<Ident,PartPattern>* partPatterns_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
   ssize_t processRepeat(const RuleExprRepeat& repxpr);
+  ssize_t processDquoted(const RuleExprDquoted& dq);
 };
 ssize_t
 RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1057,8 +1067,8 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
     return appendFlatIdent(id->ident, lookupIdent(id->ident));
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return appendLiteralOrError(*rl_, s->s);
-  }else if(dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
-    Unimplemented("Double-quoted strings in rule expressions");
+  }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
+    return this->processDquoted(*dq);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
     return appendRegexOrError(*rl_, regex->regex->clone());
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
@@ -1101,6 +1111,11 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
   return rl_->appendAnonRule(LoopRule{{
       .partidx = i, .partname = "", .glueidx = j, .gluename = "",
       .lookidx = -1, .skipidx = -1}});
+}
+ssize_t
+RuleExprCompiler::processDquoted(const RuleExprDquoted&) {
+  Unimplemented("Double-quoted strings in rule expressions");
+  return -1;
 }
 
 
@@ -1184,6 +1199,7 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
 static void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
                const SymbolTable& symtab,
+               const map<Ident,PartPattern>& partPatterns,
                RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
@@ -1197,7 +1213,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return assignLiteralOrError(rl, ruleIndex, sq->s);
 
-  RuleExprCompiler comp{rl, ctx, symtab};
+  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
 
   if(auto* id = getIfIdent(rxpr))
     return rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
@@ -1218,11 +1234,14 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   // Special-case: when we add lexopts parameter here, remember to pass it to
   // defineIdent, mapToRule, and assignRuleExpr.
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
-  compileLocalRules(ctx, pattToRule, symtab, rl);
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, JsonTmpl::Ellipsis{}, pattToRule);
+  compileLocalRules(ctx, pattToRule, partPatterns, symtab, rl);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex != -1) assignRuleExpr(ctx, rxpr, symtab, rl, newIndex);
+  if(newIndex != -1)
+    assignRuleExpr(ctx, rxpr, symtab, partPatterns, rl, newIndex);
   return newIndex;
 }
 
