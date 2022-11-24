@@ -789,17 +789,13 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
 // This function looks up rule names, and resolves them to rule indices.
 // It combines variables used in an `output:` template and in a `where` stanza.
 //
-// It proceeds in two stages: first, it resolves all names to either local or
-// global identifiers. This produces the return value rv. Then, in a second
-// phase, it uses that name-to-ruleIndex mapping to compile the RuleExpr
-// objects. The second phase is separate so that we can use all the names
-// resolved in the first phase there.
+// The output is sorted by name, so that lookups can be binary searched.
+// lookupSymbol() uses this property.
 static SymbolTable
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   SymbolTable rv;
-  vector<const RuleExpr*> lhs_exprs;
   vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
@@ -809,7 +805,6 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
     if(local) continue;
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
-    lhs_exprs.push_back(nullptr);
   }
   for(auto& binding : pattToRule) {
     reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
@@ -818,16 +813,32 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl,
       ruleIndex = rl.findOrAppendIdent(ctx, binding.localName);
     else ruleIndex = rl.appendAnonRule(DefinitionInProgress{});
     rv.emplace_back(binding.localName, ruleIndex);
-    lhs_exprs.push_back(binding.ruleExpr.get());
   }
-  // rv is now ready to be returned, and to be used for lookups.
-  for(ssize_t i=0; i<ssize(lhs_exprs); ++i) {
-    ssize_t j = rv[i].second;
-    if(lhs_exprs[i] && dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *lhs_exprs[i], rv, rl, j);
-  }
+  sort(rv.begin(), rv.end());
   return rv;
 }
+
+static ssize_t
+lookupSymbol(const SymbolTable& symtab, const Ident& name) {
+  size_t i = std::lower_bound(symtab.begin(), symtab.end(),
+                              pair{name, ssize_t{0}})
+             - symtab.begin();
+  if(i >= symtab.size()) Bug("mapToRule() missed allocating for {}",
+                             name.preserveCase());
+  return symtab[i].second;
+}
+
+static void
+compileLocalRules(DiagsDest ctx,
+                  const vector<PatternToRuleBinding>& pattToRule,
+                  const SymbolTable& symtab, RulesWithLocs& rl) {
+  for(auto& binding : pattToRule) {
+    ssize_t j = lookupSymbol(symtab, binding.localName);
+    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
+      assignRuleExpr(ctx, *binding.ruleExpr, symtab, rl, j);
+  }
+}
+
 
 /* Input: the JsonLoc from the output of error_stanza in frontend_pieces.oalex.
    Argument errors.items should be a JsonLoc::Vector that looks like this: [
@@ -906,6 +917,7 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                RulesWithLocs& rl) {
   SymbolTable symtab
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
+  compileLocalRules(ctx, pattToRule, symtab, rl);
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) return;
@@ -1206,6 +1218,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   // Special-case: when we add lexopts parameter here, remember to pass it to
   // defineIdent, mapToRule, and assignRuleExpr.
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
+  compileLocalRules(ctx, pattToRule, symtab, rl);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
     : rl.appendAnonRule(DefinitionInProgress{});
