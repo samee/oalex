@@ -781,12 +781,6 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
   }
 }
 
-static void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
-               const SymbolTable& symtab,
-               const map<Ident,PartPattern>& partPatterns,
-               RulesWithLocs& rl, ssize_t ruleIndex);
-
 // This function looks up rule names, and resolves them to rule indices.
 // It combines variables used in an `output:` template and in a `where` stanza.
 //
@@ -827,18 +821,6 @@ lookupSymbol(const SymbolTable& symtab, const Ident& name) {
   if(i >= symtab.size()) Bug("mapToRule() missed allocating for {}",
                              name.preserveCase());
   return symtab[i].second;
-}
-
-static void
-compileLocalRules(DiagsDest ctx,
-                  const vector<PatternToRuleBinding>& pattToRule,
-                  const map<Ident,PartPattern>& partPatterns,
-                  const SymbolTable& symtab, RulesWithLocs& rl) {
-  for(auto& binding : pattToRule) {
-    ssize_t j = lookupSymbol(symtab, binding.localName);
-    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *binding.ruleExpr, symtab, partPatterns, rl, j);
-  }
 }
 
 
@@ -912,6 +894,11 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
+static void
+compileLocalRules(DiagsDest ctx,
+                  const vector<PatternToRuleBinding>& pattToRule,
+                  const map<Ident,PartPattern>& partPatterns,
+                  const SymbolTable& symtab, RulesWithLocs& rl);
 static void
 compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
@@ -1196,10 +1183,11 @@ ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
   return rv;
 }
 
+// This function is used both for local rules and for the main expression
+// in an expression-rule.
 static void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
-               const SymbolTable& symtab,
-               const map<Ident,PartPattern>& partPatterns,
+               RuleExprCompiler& comp,
                RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
@@ -1213,8 +1201,6 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return assignLiteralOrError(rl, ruleIndex, sq->s);
 
-  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
-
   if(auto* id = getIfIdent(rxpr))
     return rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
   ssize_t flatRule = comp.process(rxpr);
@@ -1223,6 +1209,36 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
       {},        // childName, ignored for map-returning childidx
       ruleExprMakeOutputTmpl(ctx, rxpr)  // outputTmpl
   });
+}
+
+// Dev-note: I don't understand why these functions need to accept rl, symtab,
+// _and_ comp. The RuleExprCompiler should, I think, be able to expose all of
+// that. Or hide it all in nice methods.
+//
+// TODO: Reuse the result of identical patterns. I.e. For a local decl like
+// `a, b ~ ( some complex expr )`, don't instantiate that left-hand
+// expression multiple times.
+static void
+compileLocalRules(DiagsDest ctx,
+                  const vector<PatternToRuleBinding>& pattToRule,
+                  RuleExprCompiler& comp, const SymbolTable& symtab,
+                  RulesWithLocs& rl) {
+  for(auto& binding : pattToRule) {
+    ssize_t j = lookupSymbol(symtab, binding.localName);
+    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
+      assignRuleExpr(ctx, *binding.ruleExpr, comp, rl, j);
+  }
+}
+
+// This version exists so that it can be used by appendPatternRule(), before
+// the type RuleExprCompiler has been defined.
+static void
+compileLocalRules(DiagsDest ctx,
+                  const vector<PatternToRuleBinding>& pattToRule,
+                  const map<Ident,PartPattern>& partPatterns,
+                  const SymbolTable& symtab, RulesWithLocs& rl) {
+  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
+  compileLocalRules(ctx, pattToRule, comp, symtab, rl);
 }
 
 // TODO: Refactor common parts between this and appendPatternRule().
@@ -1236,12 +1252,12 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, JsonTmpl::Ellipsis{}, pattToRule);
-  compileLocalRules(ctx, pattToRule, partPatterns, symtab, rl);
+  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
+  compileLocalRules(ctx, pattToRule, comp, symtab, rl);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex != -1)
-    assignRuleExpr(ctx, rxpr, symtab, partPatterns, rl, newIndex);
+  if(newIndex != -1) assignRuleExpr(ctx, rxpr, comp, rl, newIndex);
   return newIndex;
 }
 
