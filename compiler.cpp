@@ -1030,6 +1030,9 @@ class RuleExprCompiler {
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
   ssize_t lookupIdent(const Ident& id) const;
+  const map<string,vector<Ident>>& patternIdents() const {
+    return patternIdents_;
+  }
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1037,6 +1040,7 @@ class RuleExprCompiler {
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
   const map<Ident,PartPattern>* partPatterns_;
   PatternToRulesCompiler pattComp_;
+  map<string,vector<Ident>> patternIdents_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
@@ -1116,8 +1120,11 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // all of RuleExprCompiler::process();
   if(!patt.has_value()) return rl_->appendAnonRule(StringRule{""});
 
+  // It's okay if the pattern already exists in patternIdents_.
+  // See the comment for compileLocalRules() for how to optimize this.
   vector<Ident> patternIdents = patternCollectIdent(*patt);
   JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
+  patternIdents_.insert({dq.gs, patternIdents});
 
   ssize_t newIndex = pattComp_.process(*patt);
   return rl_->appendAnonRule(OutputTmpl{
