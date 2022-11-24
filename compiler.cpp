@@ -38,6 +38,12 @@ namespace oalex {
 
 namespace {
 
+// This is used to look up rules in RulesWithLocs by name.
+// This usually represents all visible symbols in a certain context. When this
+// object is constructed, we have usually already resolved symbols to either
+// globally defined rules or ones locally defined in a rule.
+using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
+
 /*
 Pattern to Rule compilation
 ---------------------------
@@ -81,10 +87,10 @@ class PatternToRulesCompiler {
   DiagsDest ctx_;      // These is where all errors and warnings get logged.
   RulesWithLocs* rl_;  // This is where new rules get appended.
   // Rule index for placeholders
-  vector<pair<Ident,ssize_t>> p2rule_;
+  SymbolTable symtab_;
   // Optional error message for any failures. This can later be extended
   // with recovery rules and alternate branches. The Idents here are assumed
-  // to be a subset of those in p2rule_ above.
+  // to be a subset of those in symtab_ above.
   const vector<pair<Ident,string>>* errmsg_;
   ssize_t skipIndex_;
   ssize_t processConcat(const PatternConcat& concatPatt);
@@ -95,10 +101,10 @@ class PatternToRulesCompiler {
   ssize_t processFold(const PatternFold& foldPatt);
  public:
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
-                         vector<pair<Ident,ssize_t>> p2rule,
+                         SymbolTable symtab,
                          const vector<pair<Ident,string>>& errmsg,
                          ssize_t skipIndex) :
-    ctx_(ctx), rl_(&rl), p2rule_(std::move(p2rule)),
+    ctx_(ctx), rl_(&rl), symtab_(std::move(symtab)),
     errmsg_(&errmsg), skipIndex_(skipIndex) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
@@ -145,12 +151,12 @@ PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
 ssize_t
 PatternToRulesCompiler::processIdent(const Ident& ident) {
   size_t i;
-  for(i=0; i<p2rule_.size(); ++i) if(ident == p2rule_.at(i).first) break;
-  if(i == p2rule_.size())
+  for(i=0; i<symtab_.size(); ++i) if(ident == symtab_.at(i).first) break;
+  if(i == symtab_.size())
     Bug("Ident map should already have an entry for '{}'",
         ident.preserveCase());
   ssize_t identRule = rl_->appendAnonRule(ConcatFlatRule{{
-      {p2rule_.at(i).second, ident.preserveCase()},
+      {symtab_.at(i).second, ident.preserveCase()},
   }});
 
   for(i=0; i<errmsg_->size(); ++i) if(ident == errmsg_->at(i).first) break;
@@ -775,12 +781,6 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
   }
 }
 
-// This is used to look up rules in RulesWithLocs by name.
-// This usually represents all visible symbols in a certain context. When this
-// object is constructed, we have usually already resolved symbols to either
-// globally defined rules or ones locally defined in a rule.
-using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
-
 static void
 assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
                const SymbolTable& symtab,
@@ -794,11 +794,11 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
 // phase, it uses that name-to-ruleIndex mapping to compile the RuleExpr
 // objects. The second phase is separate so that we can use all the names
 // resolved in the first phase there.
-static vector<pair<Ident, ssize_t>>
+static SymbolTable
 mapToRule(DiagsDest ctx, RulesWithLocs& rl,
           const vector<PatternToRuleBinding>& pattToRule,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
-  vector<pair<Ident, ssize_t>> rv;
+  SymbolTable rv;
   vector<const RuleExpr*> lhs_exprs;
   vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
   for(auto& [k, kcontainer] : outputKeys) {
@@ -856,11 +856,11 @@ destructureErrors(DiagsDest ctx, JsonLoc errors) {
 
 static bool
 requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
-                   const vector<pair<Ident,ssize_t>>& p2rule) {
+                   const SymbolTable& symtab) {
   bool rv = true;
   for(auto& [id, _] : errmsg) {
     bool found = false;
-    for(auto& [id2, _] : p2rule) if(id == id2) { found = true; break; }
+    for(auto& [id2, _] : symtab) if(id == id2) { found = true; break; }
     if(!found) {
       Error(ctx, id.stPos(), id.enPos(),
             format("Undefined part pattern '{}'", id.preserveCase()));
@@ -904,15 +904,14 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                const vector<PatternToRuleBinding>& pattToRule,
                const LexDirective& lexopts, JsonTmpl jstmpl, JsonLoc errors,
                RulesWithLocs& rl) {
-  vector<pair<Ident, ssize_t>> pl2ruleMap
+  SymbolTable symtab
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
-  if(!requireValidIdents(ctx, errmsg, pl2ruleMap)) return;
+  if(!requireValidIdents(ctx, errmsg, symtab)) return;
 
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
-  PatternToRulesCompiler comp{ctx, rl, std::move(pl2ruleMap),
-                              errmsg, skipIndex};
+  PatternToRulesCompiler comp{ctx, rl, std::move(symtab), errmsg, skipIndex};
   ssize_t newIndex = comp.process(patt);
   ssize_t newIndex2 = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex2 == -1) return;
@@ -1206,11 +1205,11 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
   // Special-case: when we add lexopts parameter here, remember to pass it to
   // defineIdent, mapToRule, and assignRuleExpr.
-  vector<pair<Ident, ssize_t>> pl2ruleMap = mapToRule(ctx, rl, pattToRule, {});
+  SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex != -1) assignRuleExpr(ctx, rxpr, pl2ruleMap, rl, newIndex);
+  if(newIndex != -1) assignRuleExpr(ctx, rxpr, symtab, rl, newIndex);
   return newIndex;
 }
 
