@@ -902,13 +902,8 @@ compileLocalRules(DiagsDest ctx,
                   const SymbolTable& symtab, RulesWithLocs& rl);
 static void
 compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
-               const vector<PatternToRuleBinding>& pattToRule,
-               const map<Ident,PartPattern>& partPatterns,
-               const LexDirective& lexopts, JsonTmpl jstmpl, JsonLoc errors,
-               RulesWithLocs& rl) {
-  SymbolTable symtab
-    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  compileLocalRules(ctx, lexopts, pattToRule, partPatterns, symtab, rl);
+               const SymbolTable& symtab, const LexDirective& lexopts,
+               JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl) {
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) return;
@@ -957,10 +952,14 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
 
   if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(patternIdents);
 
+  SymbolTable symtab
+    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
+  compileLocalRules(ctx, lexOpts, pattToRule, partPatterns, symtab, rl);
+
   // Errors are not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, patternIdents, pattToRule, jstmpl);
 
-  compilePattern(ctx, ruleName, *patt, pattToRule, partPatterns, lexOpts,
+  compilePattern(ctx, ruleName, *patt, symtab, lexOpts,
                  std::move(jstmpl), errors, rl);
 }
 
