@@ -1046,6 +1046,7 @@ class RuleExprCompiler {
   ssize_t processConcat(const RuleExprConcat& catxpr);
   ssize_t processRepeat(const RuleExprRepeat& repxpr);
   ssize_t processDquoted(const RuleExprDquoted& dq);
+  ssize_t unflattenableWrapper(ssize_t targetPattRule, const string& patt);
 };
 ssize_t
 RuleExprCompiler::appendFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1088,9 +1089,12 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     ssize_t targetIndex = lookupIdent(rhsid->ident);
     return this->appendFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
-           dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->process(*midxpr.rhs);
+    return this->appendFlatIdent(midxpr.lhs, newIndex);
+  }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get())) {
+    ssize_t newIndex = this->processDquoted(*dq);
+    newIndex = this->unflattenableWrapper(newIndex, dq->gs);
     return this->appendFlatIdent(midxpr.lhs, newIndex);
   }else
     Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
@@ -1111,6 +1115,27 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
       .partidx = i, .partname = "", .glueidx = j, .gluename = "",
       .lookidx = -1, .skipidx = -1}});
 }
+// TODO change this to use string_view.
+static const vector<Ident>&
+getPrecomputedOrDie(const map<string,vector<Ident>>& precomp,
+                    const string& patt) {
+  auto it = precomp.find(patt);
+  if(it == precomp.end())
+    Bug("processDquoted() hasn't yet been called on '{}'", patt);
+  return it->second;
+}
+ssize_t
+RuleExprCompiler::unflattenableWrapper(ssize_t targetPattRule,
+                                       const string& patt) {
+  const vector<Ident>& patternIdents
+    = getPrecomputedOrDie(patternIdents_, patt);
+  JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
+  return rl_->appendAnonRule(OutputTmpl{
+        /* childidx */ targetPattRule,
+        /* childName */ "",
+        /* outputTmpl */ std::move(jstmpl)
+  });
+}
 ssize_t
 RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
@@ -1123,15 +1148,8 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
   vector<Ident> patternIdents = patternCollectIdent(*patt);
-  JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
   patternIdents_.insert({dq.gs, patternIdents});
-
-  ssize_t newIndex = pattComp_.process(*patt);
-  return rl_->appendAnonRule(OutputTmpl{
-        /* childidx */ newIndex,
-        /* childName */ "",
-        /* outputTmpl */ std::move(jstmpl)
-  });
+  return pattComp_.process(*patt);
 }
 
 
