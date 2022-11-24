@@ -675,7 +675,9 @@ patternCollectIdent(const Pattern& patt) {
 }
 
 static void
-ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output);
+ruleExprCollectInputIdents(
+    const RuleExpr& rxpr, const map<string,vector<Ident>>& patternIdents,
+    vector<Ident>& output);
 
 static bool
 checkMultipleUsage(DiagsDest ctx, const vector<Ident>& idents) {
@@ -703,6 +705,7 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
 
 static void
 checkUnusedParts(DiagsDest ctx, vector<Ident> patternIdents,
+                 const map<string,vector<Ident>>& localRulePatternIdents,
                  const vector<PatternToRuleBinding>& pattToRule,
                  const JsonTmpl& jstmpl) {
   for(auto& [k,v]: jstmpl.allPlaceholders()) {
@@ -713,7 +716,8 @@ checkUnusedParts(DiagsDest ctx, vector<Ident> patternIdents,
                    outid.preserveCase()));
   }
   vector<Ident> allIdents = std::move(patternIdents);
-  for(auto& b: pattToRule) ruleExprCollectInputIdents(*b.ruleExpr, allIdents);
+  for(auto& b: pattToRule)
+    ruleExprCollectInputIdents(*b.ruleExpr, localRulePatternIdents, allIdents);
   sort(allIdents.begin(), allIdents.end());
   for(auto& b: pattToRule) {
     const Ident outid = b.localName;
@@ -894,7 +898,7 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
-static void
+static map<string, vector<Ident>>
 compileLocalRules(DiagsDest ctx,
                   const LexDirective& lexOpts,
                   const vector<PatternToRuleBinding>& pattToRule,
@@ -954,10 +958,12 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
 
   SymbolTable symtab
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  compileLocalRules(ctx, lexOpts, pattToRule, partPatterns, symtab, rl);
+  const map<string,vector<Ident>> localRulePatternIdents
+    = compileLocalRules(ctx, lexOpts, pattToRule, partPatterns, symtab, rl);
 
   // Errors are not fatal. Unused fields stay unused.
-  checkUnusedParts(ctx, patternIdents, pattToRule, jstmpl);
+  checkUnusedParts(ctx, patternIdents, localRulePatternIdents,
+                   pattToRule, jstmpl);
 
   compilePattern(ctx, ruleName, *patt, symtab, lexOpts,
                  std::move(jstmpl), errors, rl);
@@ -1157,6 +1163,7 @@ struct RuleExprCollectConfig {
     inputsUsed,
     outputsProduced,
   } type;
+  const map<string,vector<Ident>>* patternIdents;
 };
 
 static void
@@ -1196,21 +1203,29 @@ ruleExprCollectIdents(const RuleExpr& rxpr, const RuleExprCollectConfig& conf,
 }
 
 static void
-ruleExprCollectOutputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
-  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced };
+ruleExprCollectOutputIdents(
+      const RuleExpr& rxpr, const map<string,vector<Ident>>& patternIdents,
+      vector<Ident>& output) {
+  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced,
+                              &patternIdents };
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
 static void
-ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
-  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::inputsUsed };
+ruleExprCollectInputIdents(
+      const RuleExpr& rxpr, const map<string,vector<Ident>>& patternIdents,
+      vector<Ident>& output) {
+  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::inputsUsed,
+                              &patternIdents };
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
 static JsonTmpl
-ruleExprMakeOutputTmpl(DiagsDest ctx, const RuleExpr& rxpr) {
+ruleExprMakeOutputTmpl(DiagsDest ctx,
+                       const map<string,vector<Ident>>& patternIdents,
+                       const RuleExpr& rxpr) {
   vector<Ident> ids;
-  ruleExprCollectOutputIdents(rxpr, ids);
+  ruleExprCollectOutputIdents(rxpr, patternIdents, ids);
   sort(ids.begin(), ids.end());  // to skip over duplicates later
 
   JsonTmpl::Map rv;
@@ -1252,7 +1267,7 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
-      ruleExprMakeOutputTmpl(ctx, rxpr)  // outputTmpl
+      ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr)  // outputTmpl
   });
 }
 
@@ -1277,7 +1292,7 @@ compileLocalRules(DiagsDest ctx,
 
 // This version exists so that it can be used by appendPatternRule(), before
 // the type RuleExprCompiler has been defined.
-static void
+static map<string, vector<Ident>>
 compileLocalRules(DiagsDest ctx,
                   const LexDirective& lexOpts,
                   const vector<PatternToRuleBinding>& pattToRule,
@@ -1285,6 +1300,7 @@ compileLocalRules(DiagsDest ctx,
                   const SymbolTable& symtab, RulesWithLocs& rl) {
   RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
+  return std::move(comp).patternIdents();
 }
 
 // TODO: Refactor common parts between this and appendPatternRule().
