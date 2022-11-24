@@ -1153,17 +1153,16 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
 }
 
 
-// Dev-note: This "code reuse" feels like a kludge, that will eventually
-// accrue all sorts of "options" parameters for slight variations. Be on the
-// lookout cleanup opportunities.
-enum class RuleExprIdentCollection {
-  inputsUsed,
-  outputsProduced,
+struct RuleExprCollectConfig {
+  enum class Type {
+    inputsUsed,
+    outputsProduced,
+  } type;
 };
 
 static void
-ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
-                     vector<Ident>& output) {
+ruleExprCollectIdents(const RuleExpr& rxpr, const RuleExprCollectConfig& conf,
+                      vector<Ident>& output) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr))
     output.push_back(id->ident);
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
@@ -1171,9 +1170,9 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
   else if(dynamic_cast<const RuleExprDquoted*>(&rxpr))
     return;  // TODO proper rule collection
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
-    if(coll == RuleExprIdentCollection::inputsUsed)
-      ruleExprCollectIdents(*mid->rhs, coll, output);
-    else if(coll == RuleExprIdentCollection::outputsProduced)
+    if(conf.type == RuleExprCollectConfig::Type::inputsUsed)
+      ruleExprCollectIdents(*mid->rhs, conf, output);
+    else if(conf.type == RuleExprCollectConfig::Type::outputsProduced)
       output.push_back(mid->lhs);
     else Bug("Bad identifier collection config");
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
@@ -1185,13 +1184,13 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
   }
   else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     for(const unique_ptr<const RuleExpr>& part : cat->parts)
-      ruleExprCollectIdents(*part, coll, output);
+      ruleExprCollectIdents(*part, conf, output);
   }
   else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr))
-    ruleExprCollectIdents(*opt->part, coll, output);
+    ruleExprCollectIdents(*opt->part, conf, output);
   else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
-    ruleExprCollectIdents(*rep->part, coll, output);
-    if(rep->glue) ruleExprCollectIdents(*rep->glue, coll, output);
+    ruleExprCollectIdents(*rep->part, conf, output);
+    if(rep->glue) ruleExprCollectIdents(*rep->glue, conf, output);
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
@@ -1199,14 +1198,14 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
 
 static void
 ruleExprCollectOutputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
-  ruleExprCollectIdents(rxpr, RuleExprIdentCollection::outputsProduced,
-                        output);
+  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced };
+  ruleExprCollectIdents(rxpr, conf, output);
 }
 
 static void
 ruleExprCollectInputIdents(const RuleExpr& rxpr, vector<Ident>& output) {
-  ruleExprCollectIdents(rxpr, RuleExprIdentCollection::inputsUsed,
-                        output);
+  RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::inputsUsed };
+  ruleExprCollectIdents(rxpr, conf, output);
 }
 
 static JsonTmpl
