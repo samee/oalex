@@ -1167,14 +1167,17 @@ struct RuleExprCollectConfig {
 };
 
 static void
-ruleExprCollectIdents(const RuleExpr& rxpr, const RuleExprCollectConfig& conf,
+ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
                       vector<Ident>& output) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr))
     output.push_back(id->ident);
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
-  else if(dynamic_cast<const RuleExprDquoted*>(&rxpr))
-    return;  // TODO proper rule collection
+  else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
+    const vector<Ident>& patternIdents =
+      getPrecomputedOrDie(*conf.patternIdents, string(dq->gs));
+    output.insert(output.end(), patternIdents.begin(), patternIdents.end());
+  }
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     if(conf.type == RuleExprCollectConfig::Type::inputsUsed)
       ruleExprCollectIdents(*mid->rhs, conf, output);

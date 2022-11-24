@@ -6,4 +6,7 @@ example test:
 
   print(x,y,z)
 
-outputs: {}
+outputs: {
+  func: "print",
+  param: ["x", "y", "z"],
+}
