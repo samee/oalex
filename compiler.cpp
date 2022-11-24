@@ -1020,9 +1020,12 @@ class RuleExprCompiler {
  public:
   RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx,
                    const LexDirective& lexOpts, const SymbolTable& symtab,
-                   const map<Ident,PartPattern>& partPatterns)
+                   const map<Ident,PartPattern>& partPatterns,
+                   const vector<pair<Ident,string>>& errmsg)
     : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexOpts}, symtab_{&symtab},
-      partPatterns_{&partPatterns} {}
+      partPatterns_{&partPatterns},
+      pattComp_{ctx_, *rl_, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip)}
+      {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
@@ -1033,6 +1036,7 @@ class RuleExprCompiler {
   const LexDirective* lexOpts_;
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
   const map<Ident,PartPattern>* partPatterns_;
+  PatternToRulesCompiler pattComp_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
@@ -1115,9 +1119,7 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   vector<Ident> patternIdents = patternCollectIdent(*patt);
   JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
 
-  ssize_t skipIndex = rl_->addSkipper(lexOpts_->skip);
-  PatternToRulesCompiler comp{ctx_, *rl_, *symtab_, {}, skipIndex};
-  ssize_t newIndex = comp.process(*patt);
+  ssize_t newIndex = pattComp_.process(*patt);
   return rl_->appendAnonRule(OutputTmpl{
         /* childidx */ newIndex,
         /* childName */ "",
@@ -1258,7 +1260,7 @@ compileLocalRules(DiagsDest ctx,
                   const vector<PatternToRuleBinding>& pattToRule,
                   const map<Ident,PartPattern>& partPatterns,
                   const SymbolTable& symtab, RulesWithLocs& rl) {
-  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns};
+  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
 }
 
@@ -1274,7 +1276,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, JsonTmpl::Ellipsis{}, pattToRule);
-  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns};
+  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
   ssize_t skipIndex = rl.addSkipper(lexOpts.skip);
   ssize_t newIndex = ruleName
