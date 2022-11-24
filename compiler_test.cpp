@@ -34,6 +34,7 @@ using oalex::Input;
 using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::JsonTmpl;
+using oalex::LexDirective;
 using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
@@ -59,6 +60,7 @@ using oalex::RuleExprRepeat;
 using oalex::RuleExprSquoted;
 using oalex::RuleSet;
 using oalex::RulesWithLocs;
+using oalex::Skipper;
 using oalex::ssize;
 using oalex::StringRule;
 using oalex::UnassignedRule;
@@ -455,6 +457,10 @@ void testDestructureErrors() {
   }
 }
 
+const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
+                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+                           .tailcont = false};
+
 void testRuleExprCompilation() {
   const char* keyword_fn_name = "keyword_fn";
   RuleExprSquoted keyword_fn_rule{"fn"};
@@ -670,7 +676,7 @@ void testRuleExprCompilation() {
     InputDiags ctx{Input{""}};
     RulesWithLocs rl;
     for(auto& [name, rxpr] : testcase.rxprs) {
-      appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, {}, rl);
+      appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, lexopts, {}, rl);
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
@@ -689,7 +695,8 @@ void testLocalNameResolution() {
     = parseRegex(R"(/"([^"\\]|\\.)*"/)");
   RuleExprRegex dquoted_literal_rule{dquoted_literal_regex->clone()};
 
-  appendExprRule(ctx, string_literal_ident, dquoted_literal_rule, {}, rl);
+  appendExprRule(ctx, string_literal_ident, dquoted_literal_rule,
+                 lexopts, {}, rl);
 
   // Next, do the same thing, but don't give it a global name.
   unique_ptr<const Regex> squoted_literal_regex
@@ -711,10 +718,10 @@ void testLocalNameResolution() {
     .ruleExpr = make_unique<RuleExprRegex>(squoted_literal_regex->clone()),
   });
   appendExprRule(ctx, Ident::parseGenerated("u_squoted_literal"),
-                 u_quoted_rule, std::move(pattToRule), rl);
+                 u_quoted_rule, lexopts, std::move(pattToRule), rl);
 
   appendExprRule(ctx, Ident::parseGenerated("u_dquoted_literal"),
-                 u_quoted_rule, {}, rl);
+                 u_quoted_rule, lexopts, {}, rl);
 
   auto expected = makeVectorUnique<Rule>(
     RegexRule(dquoted_literal_regex->clone()),
@@ -759,7 +766,8 @@ void testRuleExprDuplicateIdent() {
 
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
-  appendExprRule(ctx, Ident::parseGenerated("asgn"), asgn_rule, {}, rl);
+  appendExprRule(ctx, Ident::parseGenerated("asgn"),
+                 asgn_rule, lexopts, {}, rl);
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "Duplicate identifier 'varname'");
 }
@@ -774,7 +782,7 @@ void testRuleExprCompilationAndParsing() {
 
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
-  appendExprRule(ctx, ident_part_name, rxpr_ident, {}, rl);
+  appendExprRule(ctx, ident_part_name, rxpr_ident, lexopts, {}, rl);
 
   RuleExprRepeat rxpr_main{
     move_to_unique(RuleExprIdent{ident_part_name}),
@@ -782,7 +790,7 @@ void testRuleExprCompilationAndParsing() {
   };
 
   ssize_t maini = appendExprRule(ctx, Ident::parseGenerated("hyphen_ident"),
-                                 rxpr_main, {}, rl);
+                                 rxpr_main, lexopts, {}, rl);
 
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
   RuleSet rs = rl.releaseRulesWith(regopts);

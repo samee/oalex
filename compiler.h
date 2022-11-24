@@ -227,6 +227,7 @@ appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 // The name is intentionally backwards: ExprRule is meant to mirror PatternRule.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
+               const LexDirective& lexOpts,
                std::vector<PatternToRuleBinding> pattToRule,
                RulesWithLocs& rl);
 

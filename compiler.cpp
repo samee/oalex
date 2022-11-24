@@ -896,6 +896,7 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
 
 static void
 compileLocalRules(DiagsDest ctx,
+                  const LexDirective& lexOpts,
                   const vector<PatternToRuleBinding>& pattToRule,
                   const map<Ident,PartPattern>& partPatterns,
                   const SymbolTable& symtab, RulesWithLocs& rl);
@@ -907,7 +908,7 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
                RulesWithLocs& rl) {
   SymbolTable symtab
     = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  compileLocalRules(ctx, pattToRule, partPatterns, symtab, rl);
+  compileLocalRules(ctx, lexopts, pattToRule, partPatterns, symtab, rl);
   vector<pair<Ident, string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) return;
@@ -1017,9 +1018,11 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
 
 class RuleExprCompiler {
  public:
-  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx, const SymbolTable& symtab,
+  RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx,
+                   const LexDirective& lexOpts, const SymbolTable& symtab,
                    const map<Ident,PartPattern>& partPatterns)
-    : rl_{&rl}, ctx_{ctx}, symtab_{&symtab}, partPatterns_{&partPatterns} {}
+    : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexOpts}, symtab_{&symtab},
+      partPatterns_{&partPatterns} {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   ssize_t process(const RuleExpr& rxpr);
@@ -1027,6 +1030,7 @@ class RuleExprCompiler {
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
+  const LexDirective* lexOpts_;
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
   const map<Ident,PartPattern>* partPatterns_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
@@ -1234,10 +1238,11 @@ compileLocalRules(DiagsDest ctx,
 // the type RuleExprCompiler has been defined.
 static void
 compileLocalRules(DiagsDest ctx,
+                  const LexDirective& lexOpts,
                   const vector<PatternToRuleBinding>& pattToRule,
                   const map<Ident,PartPattern>& partPatterns,
                   const SymbolTable& symtab, RulesWithLocs& rl) {
-  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
+  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
 }
 
@@ -1246,16 +1251,18 @@ compileLocalRules(DiagsDest ctx,
 // only be used for tests.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
+               const LexDirective& lexOpts,
                vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
   // Special-case: when we add lexopts parameter here, remember to pass it to
   // defineIdent, mapToRule, and assignRuleExpr.
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, JsonTmpl::Ellipsis{}, pattToRule);
-  RuleExprCompiler comp{rl, ctx, symtab, partPatterns};
+  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
+  ssize_t skipIndex = rl.addSkipper(lexOpts.skip);
   ssize_t newIndex = ruleName
-    ? rl.defineIdent(ctx, ruleName, Rule::removedContext)
+    ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
   if(newIndex != -1) assignRuleExpr(ctx, rxpr, comp, rl, newIndex);
   return newIndex;
