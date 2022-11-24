@@ -1104,9 +1104,25 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
       .lookidx = -1, .skipidx = -1}});
 }
 ssize_t
-RuleExprCompiler::processDquoted(const RuleExprDquoted&) {
-  Unimplemented("Double-quoted strings in rule expressions");
-  return -1;
+RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
+  optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
+                                                   *partPatterns_);
+  // Return dummy rule on error.
+  // Dev-note: I'm slightly surprised that this is the only error case in
+  // all of RuleExprCompiler::process();
+  if(!patt.has_value()) return rl_->appendAnonRule(StringRule{""});
+
+  vector<Ident> patternIdents = patternCollectIdent(*patt);
+  JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
+
+  ssize_t skipIndex = rl_->addSkipper(lexOpts_->skip);
+  PatternToRulesCompiler comp{ctx_, *rl_, *symtab_, {}, skipIndex};
+  ssize_t newIndex = comp.process(*patt);
+  return rl_->appendAnonRule(OutputTmpl{
+        /* childidx */ newIndex,
+        /* childName */ "",
+        /* outputTmpl */ std::move(jstmpl)
+  });
 }
 
 
@@ -1126,7 +1142,7 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprIdentCollection coll,
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(dynamic_cast<const RuleExprDquoted*>(&rxpr))
-    Unimplemented("Ident collection for RuleExprDquoted");
+    return;  // TODO proper rule collection
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     if(coll == RuleExprIdentCollection::inputsUsed)
       ruleExprCollectIdents(*mid->rhs, coll, output);

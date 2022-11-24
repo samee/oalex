@@ -1,0 +1,9 @@
+rule test: "func(param, ... , param)"
+where:
+  func, param ~ /[a-z_]+/
+
+example test:
+
+  print(x,y,z)
+
+outputs: {}
