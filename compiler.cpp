@@ -546,9 +546,13 @@ simpleListPlaceholder(DiagsDest ctx, const JsonTmpl& jstmpl) {
 // TODO generalize this to accept interlaced outputs.
 static bool
 desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
-                                 vector<WholeSegment>& listNames) {
+                                 vector<Ident>& listNames) {
   if(const JsonTmpl* p = simpleListPlaceholder(ctx, jstmpl)) {
-    listNames.emplace_back(p->stPos, p->enPos, p->getIfPlaceholder()->key);
+    Ident pid
+      = Ident::parse(ctx, StringLoc{p->getIfPlaceholder()->key, p->stPos});
+    // TODO: this needs to be fuzz-tested.
+    if(!pid) Bug("JsonTmpl placeholders should all be valid identifiers");
+    listNames.push_back(std::move(pid));
     jstmpl = *p;
     return true;
   }
@@ -575,17 +579,15 @@ desugarEllipsisPlaceholdersRecur(DiagsDest ctx, JsonTmpl& jstmpl,
 // continue compilation. Modifies jstmpl in-place to convert any
 // `[p, ...]` to just `p`. Returns all the converted placeholders
 // in an array, so caller can figure out which placeholders were converted.
-static vector<WholeSegment>
+static vector<Ident>
 desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
-  vector<WholeSegment> rv;
+  vector<Ident> rv;
   if(!desugarEllipsisPlaceholdersRecur(ctx, jstmpl, rv)) {
     jstmpl = JsonTmpl::Map{};
     rv.clear();
   }else {
-    sort(rv.begin(), rv.end(), [](auto& a, auto& b) { return *a < *b; });
-    rv.erase(unique(rv.begin(), rv.end(),
-                    [](auto& a, auto& b) { return *a == *b; }),
-             rv.end());
+    sort(rv.begin(), rv.end());
+    rv.erase(unique(rv.begin(), rv.end()), rv.end());
   }
   return rv;
 }
@@ -609,12 +611,12 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
 // constructs are absent in listNames. `repeat` indicates if we are currently
 // inside a fold or repeat pattern.
 static bool
-checkPlaceholderTypes(DiagsDest ctx, const vector<WholeSegment>& listNames,
+checkPlaceholderTypes(DiagsDest ctx, const vector<Ident>& listNames,
                       const Pattern& patt, bool repeat) {
   if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
   else if(auto* id = get_if_unique<Ident>(&patt)) {
     bool rv = !repeat;
-    for(auto& n : listNames) if(*n == id->preserveCase()) {
+    for(auto& n : listNames) if(n == *id) {
       rv = repeat;
       break;
     }
@@ -947,7 +949,7 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                                                    lexOpts, partPatterns);
   if(!patt.has_value()) return;
   if(!jstmpl.holdsEllipsis()) {
-    vector<WholeSegment> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
+    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
     if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
   }
   vector<Ident> patternIdents = patternCollectIdent(*patt);
