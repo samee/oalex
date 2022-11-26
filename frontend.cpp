@@ -1015,10 +1015,9 @@ parseExprRule(const Ident& ruleName, vector<ExprToken> linetoks,
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
   RuleStanzas stz = parseRuleStanzas(ctx, i);
-  if(stz.sawOutputsKw || stz.sawErrorsKw)
-    Unimplemented("'outputs' and 'errors' in expression rules");
   appendExprRule(ctx, ruleName, *rxpr, stz.lexopts,
-                 std::move(stz.local_decls), rl);
+                 std::move(stz.local_decls), std::move(stz.jstmpl),
+                 std::move(stz.errors), rl);
 }
 
 bool

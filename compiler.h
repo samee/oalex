@@ -229,6 +229,7 @@ ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexOpts,
                std::vector<PatternToRuleBinding> pattToRule,
+               JsonTmpl jstmpl, JsonLoc errors,
                RulesWithLocs& rl);
 
 // Internal functions, exposed for testing only

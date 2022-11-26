@@ -1312,7 +1312,8 @@ compileLocalRules(DiagsDest ctx,
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexOpts,
-               vector<PatternToRuleBinding> pattToRule, RulesWithLocs& rl) {
+               vector<PatternToRuleBinding> pattToRule, JsonTmpl,
+               JsonLoc, RulesWithLocs& rl) {
   // Special-case: when we add lexopts parameter here, remember to pass it to
   // defineIdent, mapToRule, and assignRuleExpr.
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
