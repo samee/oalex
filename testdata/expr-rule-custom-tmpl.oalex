@@ -1,0 +1,44 @@
+rule decl: "func(param, ... , param)"
+where:
+  func, param ~ /[a-z_]+/
+outputs: {
+  func,
+  params: param
+}
+
+example decl:
+
+  print(x,y,z)
+
+outputs: {
+  func: "print",
+  params: ["x", "y", "z"],
+}
+
+rule testparent:
+
+  f_header { }
+
+where:
+  f_header ~ decl
+
+example testparent:
+
+  myfunc(a,b) {}
+
+outputs: {
+  f_header: {
+    func: "myfunc",
+    params: ["a", "b"],
+  }
+}
+
+rule num: /[0-9]+/
+rule some_local_some_global: "var name = num"
+where:
+  name ~ /[a-z_]+/
+outputs: { name, num }
+
+example some_local_some_global:
+  var x = 5
+outputs: { name: "x", num: "5" }

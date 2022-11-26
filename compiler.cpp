@@ -1249,9 +1249,8 @@ ruleExprMakeOutputTmpl(DiagsDest ctx,
 // This function is used both for local rules and for the main expression
 // in an expression-rule.
 static void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
-               RuleExprCompiler& comp,
-               RulesWithLocs& rl, ssize_t ruleIndex) {
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RuleExprCompiler& comp,
+               JsonTmpl jstmpl, RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
   //    produces an empty vector. But that requires a new codegen Rule that
@@ -1267,10 +1266,12 @@ assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr,
   if(auto* id = getIfIdent(rxpr))
     return rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
   ssize_t flatRule = comp.process(rxpr);
+  if(jstmpl.holdsEllipsis())
+    jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
   rl.deferred_assign(ruleIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
-      ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr)  // outputTmpl
+      std::move(jstmpl), // outputTmpl
   });
 }
 
@@ -1289,7 +1290,8 @@ compileLocalRules(DiagsDest ctx,
   for(auto& binding : pattToRule) {
     ssize_t j = lookupSymbol(symtab, binding.localName);
     if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *binding.ruleExpr, comp, rl, j);
+      assignRuleExpr(ctx, *binding.ruleExpr, comp,
+                     JsonTmpl::Ellipsis{}, rl, j);
   }
 }
 
@@ -1307,25 +1309,31 @@ compileLocalRules(DiagsDest ctx,
 }
 
 // TODO: Refactor common parts between this and appendPatternRule().
-// Dev-note: Right now, this supports ruleName being empty. But this should
-// only be used for tests.
+// Dev-note: Right now, this supports ruleName being empty. But empty ruleName
+// should only be used for tests.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexOpts,
-               vector<PatternToRuleBinding> pattToRule, JsonTmpl,
-               JsonLoc, RulesWithLocs& rl) {
-  // Special-case: when we add lexopts parameter here, remember to pass it to
-  // defineIdent, mapToRule, and assignRuleExpr.
-  SymbolTable symtab = mapToRule(ctx, rl, pattToRule, {});
+               vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
+               JsonLoc errors, RulesWithLocs& rl) {
+  SymbolTable symtab = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
   map<Ident,PartPattern> partPatterns
-    = makePartPatterns(ctx, JsonTmpl::Ellipsis{}, pattToRule);
+    = makePartPatterns(ctx, jstmpl, pattToRule);
+
+  // In case of failure, keep going with default error messages.
+  vector<pair<Ident,string>> errmsg
+    = destructureErrors(ctx, std::move(errors));
+  if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
+  if(!errmsg.empty()) Unimplemented("Custom error messages");
+
   RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
   ssize_t skipIndex = rl.addSkipper(lexOpts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex != -1) assignRuleExpr(ctx, rxpr, comp, rl, newIndex);
+  if(newIndex != -1)
+    assignRuleExpr(ctx, rxpr, comp, std::move(jstmpl), rl, newIndex);
   return newIndex;
 }
 
