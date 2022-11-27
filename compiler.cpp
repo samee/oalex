@@ -904,32 +904,6 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
-static map<string, vector<IdentUsage>>
-compileLocalRules(DiagsDest ctx,
-                  const LexDirective& lexOpts,
-                  const vector<PatternToRuleBinding>& pattToRule,
-                  const map<Ident,PartPattern>& partPatterns,
-                  const SymbolTable& symtab, RulesWithLocs& rl);
-static void
-compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
-               const SymbolTable& symtab, const LexDirective& lexopts,
-               JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl) {
-  vector<pair<Ident, string>> errmsg
-    = destructureErrors(ctx, std::move(errors));
-  if(!requireValidIdents(ctx, errmsg, symtab)) return;
-
-  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
-  PatternToRulesCompiler comp{ctx, rl, std::move(symtab), errmsg, skipIndex};
-  ssize_t newIndex = comp.process(patt);
-  ssize_t newIndex2 = rl.defineIdent(ctx, ruleName, skipIndex);
-  if(newIndex2 == -1) return;
-  rl.deferred_assign(newIndex2, OutputTmpl{
-      /* childidx */ newIndex,
-      /* childName */ "",
-      /* outputTmpl */ std::move(jstmpl)
-  });
-}
-
 // Once we have extracted everything we need from InputDiags,
 // this is where we compile the extracted string fragments into a rule.
 // InputDiags is still used as a destination for error messages.
@@ -937,42 +911,14 @@ compilePattern(DiagsDest ctx, const Ident& ruleName, const Pattern& patt,
 // absense of an `outputs` stanza, where the template needs to be automatically
 // deduced.
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
-// Dev-note: in future, this function should be identical to calling
-//   appendExprRule() with a RuleExprDquoted. But for now, this function is a
-//   lot more featureful since it's been around for much longer.
-//   TODO: make it so.
 void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   GluedString patt_string, const LexDirective& lexOpts,
                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                   JsonLoc errors, RulesWithLocs& rl) {
-  map<Ident,PartPattern> partPatterns
-    = makePartPatterns(ctx, jstmpl, pattToRule);
-
-  optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
-                                                   lexOpts, partPatterns);
-  if(!patt.has_value()) return;
-  vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
-  if(!jstmpl.holdsEllipsis()) {
-    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-    if(!checkPlaceholderTypes(ctx, listNames, patternIdents)) return;
-  }
-  if(!checkMultipleUsage(ctx, patternIdents)) return;
-  // ruleExprMakeOutputTmpl() checks for multiple usage in each RuleExpr.
-
-  if(jstmpl.holdsEllipsis()) jstmpl = deduceOutputTmpl(patternIdents);
-
-  SymbolTable symtab
-    = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  const map<string,vector<IdentUsage>> localRulePatternIdents
-    = compileLocalRules(ctx, lexOpts, pattToRule, partPatterns, symtab, rl);
-
-  // Errors are not fatal. Unused fields stay unused.
-  checkUnusedParts(ctx, std::move(patternIdents), localRulePatternIdents,
-                   pattToRule, jstmpl);
-
-  compilePattern(ctx, ruleName, *patt, symtab, lexOpts,
-                 std::move(jstmpl), errors, rl);
+  RuleExprDquoted rxpr{std::move(patt_string)};
+  appendExprRule(ctx, ruleName, rxpr, lexOpts, std::move(pattToRule),
+                 std::move(jstmpl), std::move(errors), rl);
 }
 
 ssize_t
@@ -1308,19 +1254,6 @@ compileLocalRules(DiagsDest ctx,
       });
     }
   }
-}
-
-// This version exists so that it can be used by appendPatternRule(), before
-// the type RuleExprCompiler has been defined.
-static map<string, vector<IdentUsage>>
-compileLocalRules(DiagsDest ctx,
-                  const LexDirective& lexOpts,
-                  const vector<PatternToRuleBinding>& pattToRule,
-                  const map<Ident,PartPattern>& partPatterns,
-                  const SymbolTable& symtab, RulesWithLocs& rl) {
-  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
-  compileLocalRules(ctx, pattToRule, comp, symtab, rl);
-  return std::move(comp).patternIdents();
 }
 
 // TODO: Refactor common parts between this and appendPatternRule().

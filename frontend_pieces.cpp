@@ -106,6 +106,24 @@ oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
+oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::assertNotNull;
+  using oalex::JsonLoc;
+  using oalex::moveEltOrEmpty;
+  ssize_t oldi = i;
+  JsonLoc outfields = parseRule33(ctx, i);
+  if(outfields.holdsErrorValue()) return outfields;
+  auto* m = outfields.getIfMap();
+  assertNotNull(m, __func__, "needs a map");
+  JsonLoc rv = JsonLoc::Map{
+    {"external_name", moveEltOrEmpty(*m, "external_name")},
+    {"param", moveEltOrEmpty(*m, "param")},
+    {"rule_name", moveEltOrEmpty(*m, "rule_name")},
+  };
+  rv.stPos = oldi; rv.enPos = i;
+  return rv;
+}
+
 oalex::JsonLoc parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
   return oalex::match(ctx, i, defaultRegexOpts().word, "extern");
 }
@@ -510,30 +528,29 @@ oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::assertNotNull;
-  using oalex::JsonLoc;
-  using oalex::moveEltOrEmpty;
-  ssize_t oldi = i;
-  JsonLoc outfields = parseRule33(ctx, i);
-  if(outfields.holdsErrorValue()) return outfields;
-  auto* m = outfields.getIfMap();
-  assertNotNull(m, __func__, "needs a map");
-  JsonLoc rv = JsonLoc::Map{
-    {"external_name", moveEltOrEmpty(*m, "external_name")},
-    {"param", moveEltOrEmpty(*m, "param")},
-    {"rule_name", moveEltOrEmpty(*m, "rule_name")},
-  };
-  rv.stPos = oldi; rv.enPos = i;
-  return rv;
-}
-
 oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
 oalex::JsonLoc parseRule35(oalex::InputDiags& ctx, ssize_t& i) {
   return parseDoubleQuotedLiteral(ctx, i);
+}
+
+oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::assertNotNull;
+  using oalex::JsonLoc;
+  using oalex::moveEltOrEmpty;
+  ssize_t oldi = i;
+  JsonLoc outfields = parseRule41(ctx, i);
+  if(outfields.holdsErrorValue()) return outfields;
+  auto* m = outfields.getIfMap();
+  assertNotNull(m, __func__, "needs a map");
+  JsonLoc rv = JsonLoc::Map{
+    {"error_msg", moveEltOrEmpty(*m, "error_msg")},
+    {"ident", moveEltOrEmpty(*m, "ident")},
+  };
+  rv.stPos = oldi; rv.enPos = i;
+  return rv;
 }
 
 oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
@@ -637,18 +654,14 @@ oalex::JsonLoc parseRule41(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
+oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = parseRule41(ctx, i);
+  JsonLoc outfields = parseRule52(ctx, i);
   if(outfields.holdsErrorValue()) return outfields;
-  auto* m = outfields.getIfMap();
-  assertNotNull(m, __func__, "needs a map");
   JsonLoc rv = JsonLoc::Map{
-    {"error_msg", moveEltOrEmpty(*m, "error_msg")},
-    {"ident", moveEltOrEmpty(*m, "ident")},
   };
   rv.stPos = oldi; rv.enPos = i;
   return rv;
@@ -776,19 +789,6 @@ oalex::JsonLoc parseRule52(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
   i = j;
-  return rv;
-}
-
-oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::assertNotNull;
-  using oalex::JsonLoc;
-  using oalex::moveEltOrEmpty;
-  ssize_t oldi = i;
-  JsonLoc outfields = parseRule52(ctx, i);
-  if(outfields.holdsErrorValue()) return outfields;
-  JsonLoc rv = JsonLoc::Map{
-  };
-  rv.stPos = oldi; rv.enPos = i;
   return rv;
 }
 
