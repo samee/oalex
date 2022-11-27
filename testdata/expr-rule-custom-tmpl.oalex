@@ -3,7 +3,7 @@ where:
   func, param ~ /[a-z_]+/
 outputs: {
   func,
-  params: param
+  params: [param, ...],
 }
 
 example decl:

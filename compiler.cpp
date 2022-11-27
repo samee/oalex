@@ -1327,6 +1327,9 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
   if(!errmsg.empty()) Unimplemented("Custom error messages");
+  if(!jstmpl.holdsEllipsis()) {
+    desugarEllipsisPlaceholders(ctx, jstmpl);
+  }
 
   RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
