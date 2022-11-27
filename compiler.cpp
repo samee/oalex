@@ -611,46 +611,23 @@ makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
   return rv;
 }
 
-// Checks if all Ident Patterns nested in PatternRepeat or PatternFold
-// are in present listNames and, conversely, if Ident Patterns not in those
-// constructs are absent in listNames. `repeat` indicates if we are currently
-// inside a fold or repeat pattern.
+// Checks if all patternIdents with inList set also appear in tmplLists and,
+// conversely, if Ident Patterns with inList unset are absent in tmplLists.
 static bool
-checkPlaceholderTypes(DiagsDest ctx, const vector<Ident>& listNames,
-                      const Pattern& patt, bool repeat) {
-  if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return true;
-  else if(auto* id = get_if_unique<Ident>(&patt)) {
-    bool rv = !repeat;
-    for(auto& n : listNames) if(n == *id) {
-      rv = repeat;
-      break;
-    }
-    if(!rv) {
-      string msg = format(repeat ? "Should be list-expanded: [{}, ...]"
-                                 : "`{}` is a single element",
-                          id->preserveCase());
-      Error(ctx, id->stPos(), id->enPos(), msg);
-    }
-    return rv;
-  }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
-    for(auto& elt : seq->parts)
-      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
-        return false;
-    return true;
-  }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
-    for(auto& elt : ors->parts)
-      if(!checkPlaceholderTypes(ctx, listNames, elt, repeat))
-        return false;
-    return true;
-  }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, opt->part, repeat);
-  }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, rep->part, true);
-  }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
-    return checkPlaceholderTypes(ctx, listNames, fold->part, true) &&
-           checkPlaceholderTypes(ctx, listNames, fold->glue, true);
-  }else
-    Bug("Unknown pattern index in checkPlaceholderTypes() {}", patt.index());
+checkPlaceholderTypes(DiagsDest ctx, const vector<Ident>& tmplLists,
+                      const vector<IdentUsage>& patternIdents) {
+  bool rv = true;
+  for(auto& usage : patternIdents) {
+    bool found = false;
+    for(auto& tl : tmplLists) if(usage.id == tl) { found = true; break; }
+    if(usage.inList == found) continue;
+    rv = false;
+    string msg = format(usage.inList ? "Should be list-expanded: [{}, ...]"
+                                     : "`{}` is a single element",
+                        usage.id.preserveCase());
+    Error(ctx, usage.id.stPos(), usage.id.enPos(), msg);
+  }
+  return rv;
 }
 
 bool idlt(const IdentUsage& a, const IdentUsage& b) { return a.id < b.id; }
@@ -968,11 +945,11 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
   optional<Pattern> patt = parsePatternForLocalEnv(ctx, std::move(patt_string),
                                                    lexOpts, partPatterns);
   if(!patt.has_value()) return;
+  vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
   if(!jstmpl.holdsEllipsis()) {
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-    if(!checkPlaceholderTypes(ctx, listNames, *patt, false)) return;
+    if(!checkPlaceholderTypes(ctx, listNames, patternIdents)) return;
   }
-  vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
   if(!checkMultipleUsage(ctx, patternIdents)) return;
   // ruleExprMakeOutputTmpl() checks for multiple usage in each RuleExpr.
 
