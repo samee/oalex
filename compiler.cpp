@@ -1329,9 +1329,6 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
   if(!errmsg.empty()) Unimplemented("Custom error messages");
-  if(!jstmpl.holdsEllipsis()) {
-    desugarEllipsisPlaceholders(ctx, jstmpl);
-  }
 
   RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
@@ -1343,8 +1340,12 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
      || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return newIndex;
 
   ssize_t flatRule = comp.process(rxpr);
-  if(jstmpl.holdsEllipsis())
-    jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
+  if(!jstmpl.holdsEllipsis()) {
+    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
+    vector<IdentUsage> exprIdents;
+    ruleExprCollectOutputIdents(rxpr, comp.patternIdents(), exprIdents);
+    checkPlaceholderTypes(ctx, listNames, exprIdents);
+  } else jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
   rl.deferred_assign(newIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx

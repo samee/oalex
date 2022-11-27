@@ -1,0 +1,9 @@
+# expected-error: Should be list-expanded: [param, ...]
+
+rule decl: "func(param, ... , param)"
+where:
+  func, param ~ /[a-z_]+/
+outputs: {
+  func,
+  params: param,
+}
