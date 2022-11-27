@@ -38,6 +38,23 @@ namespace oalex {
 
 namespace {
 
+// TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
+ssize_t
+wrapErrorIfCustomized(ssize_t targetRule, const Ident& targetIdent,
+                      const vector<pair<Ident,string>>& errmsg,
+                      RulesWithLocs& rl) {
+  ssize_t i;
+  for(i=0; i<ssize(errmsg); ++i) if(targetIdent == errmsg.at(i).first) break;
+  if(i == ssize(errmsg)) return targetRule;
+  targetRule = rl.appendAnonRule(QuietMatch{targetRule});
+  ssize_t errRule = rl.appendAnonRule(ErrorRule{errmsg.at(i).second});
+
+  return rl.appendAnonRule(OrRule{ {
+      {.lookidx{-1}, .parseidx{targetRule}, .tmpl{passthroughTmpl}},
+      {.lookidx{-1}, .parseidx{errRule}, .tmpl{passthroughTmpl}},
+  }, true});
+}
+
 // This is used to look up rules in RulesWithLocs by name.
 // This usually represents all visible symbols in a certain context. When this
 // object is constructed, we have usually already resolved symbols to either
@@ -147,7 +164,6 @@ PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
   return appendOptionalRule(*rl_, this->process(optPatt.part));
 }
 
-// TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
 ssize_t
 PatternToRulesCompiler::processIdent(const Ident& ident) {
   size_t i;
@@ -158,16 +174,7 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
   ssize_t identRule = rl_->appendAnonRule(ConcatFlatRule{{
       {symtab_.at(i).second, ident.preserveCase()},
   }});
-
-  for(i=0; i<errmsg_->size(); ++i) if(ident == errmsg_->at(i).first) break;
-  if(i == errmsg_->size()) return identRule;
-  identRule = rl_->appendAnonRule(QuietMatch{identRule});
-  ssize_t errRule = rl_->appendAnonRule(ErrorRule{errmsg_->at(i).second});
-
-  return rl_->appendAnonRule(OrRule{ {
-      {.lookidx{-1}, .parseidx{identRule}, .tmpl{passthroughTmpl}},
-      {.lookidx{-1}, .parseidx{errRule}, .tmpl{passthroughTmpl}},
-  }, true});
+  return wrapErrorIfCustomized(identRule, ident, *errmsg_, *rl_);
 }
 
 ssize_t
@@ -1027,8 +1034,8 @@ class RuleExprCompiler {
                    const map<Ident,PartPattern>& partPatterns,
                    const vector<pair<Ident,string>>& errmsg)
     : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexOpts}, symtab_{&symtab},
-      partPatterns_{&partPatterns},
-      pattComp_{ctx_, *rl_, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip)}
+      partPatterns_{&partPatterns}, errmsg_{&errmsg},
+      pattComp_{ctx_, rl, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip)}
       {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
@@ -1043,6 +1050,7 @@ class RuleExprCompiler {
   const LexDirective* lexOpts_;
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
   const map<Ident,PartPattern>* partPatterns_;
+  const vector<pair<Ident,string>>* errmsg_;
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
@@ -1068,7 +1076,9 @@ RuleExprCompiler::lookupIdent(const Ident& id) const {
 ssize_t
 RuleExprCompiler::process(const RuleExpr& rxpr) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
-    return appendFlatIdent(id->ident, lookupIdent(id->ident));
+    const Ident& nm = id->ident;
+    return wrapErrorIfCustomized(appendFlatIdent(nm, lookupIdent(nm)),
+                                 nm, *errmsg_, *rl_);
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return appendLiteralOrError(*rl_, s->s);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
@@ -1089,19 +1099,21 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
 }
 ssize_t
 RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
+  ssize_t resultIndex = -1;
   if(auto* rhsid = dynamic_cast<const RuleExprIdent*>(midxpr.rhs.get())) {
     ssize_t targetIndex = lookupIdent(rhsid->ident);
-    return this->appendFlatIdent(midxpr.lhs, targetIndex);
+    resultIndex = this->appendFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->process(*midxpr.rhs);
-    return this->appendFlatIdent(midxpr.lhs, newIndex);
+    resultIndex = this->appendFlatIdent(midxpr.lhs, newIndex);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = this->processDquoted(*dq);
     newIndex = this->unflattenableWrapper(newIndex, dq->gs);
-    return this->appendFlatIdent(midxpr.lhs, newIndex);
+    resultIndex = this->appendFlatIdent(midxpr.lhs, newIndex);
   }else
     Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
+  return wrapErrorIfCustomized(resultIndex, midxpr.lhs, *errmsg_, *rl_);
 }
 ssize_t
 RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
@@ -1328,9 +1340,8 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   vector<pair<Ident,string>> errmsg
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
-  if(!errmsg.empty()) Unimplemented("Custom error messages");
 
-  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, {}};
+  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, errmsg};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
   ssize_t skipIndex = rl.addSkipper(lexOpts.skip);
   ssize_t newIndex = ruleName

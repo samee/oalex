@@ -20,3 +20,22 @@ outputs error with 'Expected a valid name for a new variable'
 example decl:
   var x = y;
 outputs error with 'This must be a simple non-negative integer'
+
+
+# Test this for expression rules too.
+
+rule decl_expr: "var new_name = num"
+where:
+  new_name ~ ident
+  num ~ int
+errors after failing:
+  new_name: "Expected a valid name for a new variable"
+  num: "This must be a simple non-negative integer, with digits only"
+
+example decl_expr:
+  var 42;
+outputs error with 'Expected a valid name for a new variable'
+
+example decl_expr:
+  var x = y;
+outputs error with 'This must be a simple non-negative integer'
