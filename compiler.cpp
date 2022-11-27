@@ -1044,6 +1044,7 @@ class RuleExprCompiler {
   const map<string,vector<IdentUsage>>& patternIdents() const {
     return patternIdents_;
   }
+  bool somePatternFailed() const { return somePatternFailed_; }
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1053,6 +1054,7 @@ class RuleExprCompiler {
   const vector<pair<Ident,string>>* errmsg_;
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
+  bool somePatternFailed_ = false;
   ssize_t appendFlatIdent(const Ident& ident, ssize_t ruleIndex);
   ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
   ssize_t processConcat(const RuleExprConcat& catxpr);
@@ -1159,7 +1161,10 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // Return dummy rule on error.
   // Dev-note: I'm slightly surprised that this is the only error case in
   // all of RuleExprCompiler::process();
-  if(!patt.has_value()) return rl_->appendAnonRule(StringRule{""});
+  if(!patt.has_value()) {
+    somePatternFailed_ = true;
+    return rl_->appendAnonRule(StringRule{""});
+  }
 
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
@@ -1351,6 +1356,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
      || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return newIndex;
 
   ssize_t flatRule = comp.process(rxpr);
+  if(comp.somePatternFailed()) return -1;
 
   // TODO: dedup Ident collection with ruleExprMakeOutputTmpl().
   vector<IdentUsage> exprIdents;

@@ -1,0 +1,5 @@
+# expected-error: Empty '|' branch is not supported
+
+rule test: "a | | b"
+where:
+  a, b ~ /[0-9]+/
