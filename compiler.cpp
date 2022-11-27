@@ -687,7 +687,7 @@ checkMultipleUsage(DiagsDest ctx, const vector<IdentUsage>& idents) {
   bool rv = true;
   for(ssize_t i=1; i<ssize(idents); ++i) if(idents[i].id == idents[i-1].id) {
       Error(ctx, idents[i].id.stPos(), idents[i].id.enPos(),
-            format("Duplicate part '{}' will be impossible "
+            format("Duplicate output '{}' will be impossible "
                    "to distinguish in the output.",
                    idents[i].id.preserveCase()));
       // TODO: change pattern.cpp to use locations of where the idents appear
@@ -1224,13 +1224,17 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
 }
 
-static void
-ruleExprCollectOutputIdents(
-      const RuleExpr& rxpr, const map<string,vector<IdentUsage>>& patternIdents,
-      vector<IdentUsage>& output) {
+static vector<IdentUsage>
+ruleExprOutputIdentsCheckUnique(
+      DiagsDest ctx, const RuleExpr& rxpr,
+      const map<string,vector<IdentUsage>>& patternIdents) {
+  vector<IdentUsage> rv;
   RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced,
                               &patternIdents, /* inList */ false };
-  ruleExprCollectIdents(rxpr, conf, output);
+  ruleExprCollectIdents(rxpr, conf, rv);
+  sort(rv.begin(), rv.end(), idlt);
+  checkMultipleUsage(ctx, rv);
+  return rv;
 }
 
 static void
@@ -1243,24 +1247,11 @@ ruleExprCollectInputIdents(
 }
 
 static JsonTmpl
-ruleExprMakeOutputTmpl(DiagsDest ctx,
-                       const map<string,vector<IdentUsage>>& patternIdents,
-                       const RuleExpr& rxpr) {
-  vector<IdentUsage> ids;
-  ruleExprCollectOutputIdents(rxpr, patternIdents, ids);
-  sort(ids.begin(), ids.end(), idlt);  // to skip over duplicates later
-
+ruleExprMakeOutputTmpl(const vector<IdentUsage>& outputIdents) {
   JsonTmpl::Map rv;
-  for(ssize_t i=0; i<ssize(ids); ++i) {
-    if(i>0 && ids[i].id == ids[i-1].id) {
-      Error(ctx, ids[i].id.stPos(), ids[i].id.enPos(),
-            format("Duplicate identifier '{}' will be impossible "
-                   "to distinguish in the output.", ids[i].id.preserveCase()));
-      Note(ctx, ids[i-1].id.stPos(), ids[i-1].id.enPos(),
-           "Previously found here");
-      continue;
-    }
-    string s = ids[i].id.preserveCase();
+  for(ssize_t i=0; i<ssize(outputIdents); ++i) {
+    if(i>0 && outputIdents[i].id == outputIdents[i-1].id) continue;
+    string s = outputIdents[i].id.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
@@ -1305,7 +1296,10 @@ compileLocalRules(DiagsDest ctx,
     if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
       const RuleExpr& rxpr = *binding.ruleExpr;
       if(assignNonMapRuleExpr(rxpr, comp, rl, j)) continue;
-      JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
+
+      vector<IdentUsage> ids
+        = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+      JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ids);
       ssize_t flatRule = comp.process(rxpr);
       rl.deferred_assign(j, OutputTmpl{
           flatRule,  // childidx
@@ -1358,9 +1352,8 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   ssize_t flatRule = comp.process(rxpr);
   if(comp.somePatternFailed()) return -1;
 
-  // TODO: dedup Ident collection with ruleExprMakeOutputTmpl().
-  vector<IdentUsage> exprIdents;
-  ruleExprCollectOutputIdents(rxpr, comp.patternIdents(), exprIdents);
+  vector<IdentUsage> exprIdents
+    = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
   // This error is not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
                    pattToRule, jstmpl);
@@ -1368,7 +1361,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(!jstmpl.holdsEllipsis()) {
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
     checkPlaceholderTypes(ctx, listNames, exprIdents);
-  } else jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
+  } else jstmpl = ruleExprMakeOutputTmpl(exprIdents);
   rl.deferred_assign(newIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx

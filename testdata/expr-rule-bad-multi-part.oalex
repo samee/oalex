@@ -2,6 +2,5 @@
 
 rule var: /[a-z]+/
 
-rule asgn:
-  var = var;
+rule asgn: "var = var;"
 outputs: { var }

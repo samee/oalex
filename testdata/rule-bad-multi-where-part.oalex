@@ -1,4 +1,4 @@
-# expected-error: Duplicate part 'var' will be impossible to distinguish
+# expected-error: 'var' will be impossible to distinguish
 
 rule var: /[a-z]+/
 

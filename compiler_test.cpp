@@ -772,7 +772,7 @@ void testRuleExprDuplicateIdent() {
   appendExprRule(ctx, Ident::parseGenerated("asgn"), asgn_rule, lexopts, {},
                  JsonTmpl::Ellipsis{}, JsonLoc::Map{}, rl);
   assertHasDiagWithSubstr(__func__, ctx.diags,
-                          "Duplicate identifier 'varname'");
+                          "Duplicate output 'varname'");
 }
 
 // Dev-note: we _might_ delete this test once
