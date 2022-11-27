@@ -1249,25 +1249,33 @@ ruleExprMakeOutputTmpl(DiagsDest ctx,
   return rv;
 }
 
-// This function is used both for local rules and for the main expression
-// in an expression-rule.
-static void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RuleExprCompiler& comp,
-               JsonTmpl jstmpl, RulesWithLocs& rl, ssize_t ruleIndex) {
+static bool
+assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
+                     RulesWithLocs& rl, ssize_t ruleIndex) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
   //    produces an empty vector. But that requires a new codegen Rule that
   //    collects and concatenates strings. Or it requires some strange
   //    regex surgery.
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
-    return assignRegexOrError(
+    assignRegexOrError(
         rl, ruleIndex, "Does not match expected pattern",
         regxpr->regex->clone());
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
-    return assignLiteralOrError(rl, ruleIndex, sq->s);
+    assignLiteralOrError(rl, ruleIndex, sq->s);
+  else if(auto* id = getIfIdent(rxpr))
+    rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
+  else return false;
+  return true;
+}
 
-  if(auto* id = getIfIdent(rxpr))
-    return rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
+// This function is used both for local rules and for the main expression
+// in an expression-rule.
+static void
+assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RuleExprCompiler& comp,
+               JsonTmpl jstmpl, RulesWithLocs& rl, ssize_t ruleIndex) {
+  if(assignNonMapRuleExpr(rxpr, comp, rl, ruleIndex)) return;
+
   ssize_t flatRule = comp.process(rxpr);
   if(jstmpl.holdsEllipsis())
     jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
