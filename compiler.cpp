@@ -1249,6 +1249,8 @@ ruleExprMakeOutputTmpl(DiagsDest ctx,
   return rv;
 }
 
+// This function is used both for local rules and for the main expression
+// in an expression-rule.
 static bool
 assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
                      RulesWithLocs& rl, ssize_t ruleIndex) {
@@ -1269,23 +1271,6 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
   return true;
 }
 
-// This function is used both for local rules and for the main expression
-// in an expression-rule.
-static void
-assignRuleExpr(DiagsDest ctx, const RuleExpr& rxpr, RuleExprCompiler& comp,
-               JsonTmpl jstmpl, RulesWithLocs& rl, ssize_t ruleIndex) {
-  if(assignNonMapRuleExpr(rxpr, comp, rl, ruleIndex)) return;
-
-  ssize_t flatRule = comp.process(rxpr);
-  if(jstmpl.holdsEllipsis())
-    jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
-  rl.deferred_assign(ruleIndex, OutputTmpl{
-      flatRule,  // childidx
-      {},        // childName, ignored for map-returning childidx
-      std::move(jstmpl), // outputTmpl
-  });
-}
-
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
 // _and_ comp. The RuleExprCompiler should, I think, be able to expose all of
 // that. Or hide it all in nice methods.
@@ -1300,9 +1285,17 @@ compileLocalRules(DiagsDest ctx,
                   RulesWithLocs& rl) {
   for(auto& binding : pattToRule) {
     ssize_t j = lookupSymbol(symtab, binding.localName);
-    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignRuleExpr(ctx, *binding.ruleExpr, comp,
-                     JsonTmpl::Ellipsis{}, rl, j);
+    if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
+      const RuleExpr& rxpr = *binding.ruleExpr;
+      if(assignNonMapRuleExpr(rxpr, comp, rl, j)) continue;
+      JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
+      ssize_t flatRule = comp.process(rxpr);
+      rl.deferred_assign(j, OutputTmpl{
+          flatRule,  // childidx
+          {},        // childName, ignored for map-returning childidx
+          std::move(jstmpl), // outputTmpl
+      });
+    }
   }
 }
 
@@ -1346,8 +1339,17 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex != -1)
-    assignRuleExpr(ctx, rxpr, comp, std::move(jstmpl), rl, newIndex);
+  if(newIndex == -1
+     || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return newIndex;
+
+  ssize_t flatRule = comp.process(rxpr);
+  if(jstmpl.holdsEllipsis())
+    jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
+  rl.deferred_assign(newIndex, OutputTmpl{
+      flatRule,  // childidx
+      {},        // childName, ignored for map-returning childidx
+      std::move(jstmpl), // outputTmpl
+  });
   return newIndex;
 }
 
