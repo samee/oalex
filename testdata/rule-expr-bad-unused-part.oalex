@@ -1,0 +1,7 @@
+# expected-error: 7:19-27: error: Output field 'int_value' was not found
+
+rule ident: /[_a-zA-Z]+/
+rule int_value: /-?[0-9]+/
+
+rule decl: "var ident;"
+outputs: { ident, int_value }

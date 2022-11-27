@@ -1,0 +1,6 @@
+# expected-error: 6:3-11: error: Local rule 'int_value' is not used in this rule
+
+rule decl: "var ident;"
+where:
+  ident ~ /[_a-zA-Z]+/
+  int_value ~ /-?[0-9]+/

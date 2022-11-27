@@ -713,7 +713,7 @@ checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
             format("Output field '{}' was not found in the rule pattern",
                    outid.preserveCase()));
   }
-  vector<IdentUsage> allIdents = patternIdents;
+  vector<IdentUsage> allIdents = std::move(patternIdents);
   for(auto& b: pattToRule)
     ruleExprCollectInputIdents(*b.ruleExpr, localRulePatternIdents, allIdents);
   sort(allIdents.begin(), allIdents.end(), idlt);
@@ -1340,10 +1340,16 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
      || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return newIndex;
 
   ssize_t flatRule = comp.process(rxpr);
+
+  // TODO: dedup Ident collection with ruleExprMakeOutputTmpl().
+  vector<IdentUsage> exprIdents;
+  ruleExprCollectOutputIdents(rxpr, comp.patternIdents(), exprIdents);
+  // This error is not fatal. Unused fields stay unused.
+  checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
+                   pattToRule, jstmpl);
+
   if(!jstmpl.holdsEllipsis()) {
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
-    vector<IdentUsage> exprIdents;
-    ruleExprCollectOutputIdents(rxpr, comp.patternIdents(), exprIdents);
     checkPlaceholderTypes(ctx, listNames, exprIdents);
   } else jstmpl = ruleExprMakeOutputTmpl(ctx, comp.patternIdents(), rxpr);
   rl.deferred_assign(newIndex, OutputTmpl{
