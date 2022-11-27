@@ -528,7 +528,7 @@ appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
 
 struct IdentUsage {
   Ident id;
-  // TODO bool inList
+  bool inList;
 };
 
 // Looks for [p, ...] for some `JsonTmpl::Placeholder p`. If found, returns
@@ -654,12 +654,18 @@ checkPlaceholderTypes(DiagsDest ctx, const vector<Ident>& listNames,
 }
 
 bool idlt(const IdentUsage& a, const IdentUsage& b) { return a.id < b.id; }
+void setInList(vector<IdentUsage>::iterator a, vector<IdentUsage>::iterator b) {
+  for(auto it=a; it!=b; ++it) it->inList=true;
+}
 
+// Dev-note: This setInList() pattern can sometimes be error-prone. Switch to
+// using a dedicated `Config` struct if we need to add more such state. See
+// ruleExprCollectIdents() as an example.
 static void
 patternCollectIdentRecur(const Pattern& patt, vector<IdentUsage>& output) {
   if(holds_one_of_unique<WordToken, OperToken, NewlineChar>(patt)) return;
   else if(auto* id = get_if_unique<Ident>(&patt)) {
-    output.push_back({*id});
+    output.push_back({*id, false});
   }else if(auto* seq = get_if_unique<PatternConcat>(&patt)) {
     for(auto& elt : seq->parts) patternCollectIdentRecur(elt, output);
   }else if(auto* ors = get_if_unique<PatternOrList>(&patt)) {
@@ -667,10 +673,14 @@ patternCollectIdentRecur(const Pattern& patt, vector<IdentUsage>& output) {
   }else if(auto* opt = get_if_unique<PatternOptional>(&patt)) {
     patternCollectIdentRecur(opt->part, output);
   }else if(auto* rep = get_if_unique<PatternRepeat>(&patt)) {
+    ssize_t oldsize = output.size();
     patternCollectIdentRecur(rep->part, output);
+    setInList(output.begin()+oldsize, output.end());
   }else if(auto* fold = get_if_unique<PatternFold>(&patt)) {
+    ssize_t oldsize = output.size();
     patternCollectIdentRecur(fold->part, output);
     patternCollectIdentRecur(fold->glue, output);
+    setInList(output.begin()+oldsize, output.end());
   }else
     Bug("Unknown pattern index in checkMultipleUsage() {}", patt.index());
 }
@@ -721,7 +731,7 @@ checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
   for(auto& [k,v]: jstmpl.allPlaceholders()) {
     const Ident outid = identOf(ctx, *v);
     if(!binary_search(patternIdents.begin(), patternIdents.end(),
-                      IdentUsage{outid}, idlt))
+                      IdentUsage{outid,false}, idlt))
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Output field '{}' was not found in the rule pattern",
                    outid.preserveCase()));
@@ -733,7 +743,7 @@ checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
   for(auto& b: pattToRule) {
     const Ident outid = b.localName;
     if(!binary_search(allIdents.begin(),allIdents.end(),
-                      IdentUsage{outid}, idlt))
+                      IdentUsage{outid,false}, idlt))
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Local rule '{}' is not used in this rule",
                    outid.preserveCase()));
@@ -893,7 +903,7 @@ requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
 static JsonTmpl
 deduceOutputTmpl(const vector<IdentUsage>& idents) {
   JsonTmpl::Map rv;
-  for(auto& [id] : idents) {
+  for(auto& [id, _] : idents) {
     string s = id.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
@@ -1176,13 +1186,14 @@ struct RuleExprCollectConfig {
     outputsProduced,
   } type;
   const map<string,vector<IdentUsage>>* patternIdents;
+  bool inList;
 };
 
 static void
 ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
                       vector<IdentUsage>& output) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr))
-    output.push_back({id->ident});
+    output.push_back({id->ident, conf.inList});
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
@@ -1194,7 +1205,7 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
     if(conf.type == RuleExprCollectConfig::Type::inputsUsed)
       ruleExprCollectIdents(*mid->rhs, conf, output);
     else if(conf.type == RuleExprCollectConfig::Type::outputsProduced)
-      output.push_back({mid->lhs});
+      output.push_back({mid->lhs, conf.inList});
     else Bug("Bad identifier collection config");
     if(!dynamic_cast<const RuleExprRegex*>(mid->rhs.get()) &&
        !dynamic_cast<const RuleExprSquoted*>(mid->rhs.get()) &&
@@ -1210,8 +1221,10 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
   else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr))
     ruleExprCollectIdents(*opt->part, conf, output);
   else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
+    conf.inList = true;
     ruleExprCollectIdents(*rep->part, conf, output);
     if(rep->glue) ruleExprCollectIdents(*rep->glue, conf, output);
+    conf.inList = false;
   }
   else
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
@@ -1222,7 +1235,7 @@ ruleExprCollectOutputIdents(
       const RuleExpr& rxpr, const map<string,vector<IdentUsage>>& patternIdents,
       vector<IdentUsage>& output) {
   RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced,
-                              &patternIdents };
+                              &patternIdents, /* inList */ false };
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
@@ -1231,7 +1244,7 @@ ruleExprCollectInputIdents(
       const RuleExpr& rxpr, const map<string,vector<IdentUsage>>& patternIdents,
       vector<IdentUsage>& output) {
   RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::inputsUsed,
-                              &patternIdents };
+                              &patternIdents, /* inList */ false };
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
