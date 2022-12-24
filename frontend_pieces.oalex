@@ -1,8 +1,6 @@
 # Copyright 2022 The oalex authors.
 
 # This file is the source that was used to generate frontend_pieces.{cpp,h}
-# TODO add tests that compare the output of building this file with the versions
-# already checked in.
 
 rule word: /[a-zA-Z_0-9]+/
 rule double_quoted_literal: /"([^"\\]|\\.)*"/
