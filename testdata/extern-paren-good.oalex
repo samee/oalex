@@ -8,4 +8,4 @@ rule dummy:
 where:
   hello ~ hello_with_parens
 
-extern rule hello_with_parens = oalexBuiltinHello();
+extern rule hello_with_parens = oalexBuiltinHello()

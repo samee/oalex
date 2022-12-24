@@ -1,5 +1,5 @@
 
-extern rule hello = oalexBuiltinHello;
+extern rule hello = oalexBuiltinHello()
 
 example hello:
   hello
@@ -22,7 +22,7 @@ rule list_item:
 where:
   var_name ~ ident
 
-extern rule var_list = oalexBuiltinIndentedList(list_leader, list_item);
+extern rule var_list = oalexBuiltinIndentedList(list_leader, list_item)
 
 # TODO allow lists with same indent as leader.
 # Either, first item misparsed exits, or make a separate builtin.

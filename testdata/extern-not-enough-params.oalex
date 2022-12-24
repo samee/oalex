@@ -1,5 +1,5 @@
 # expected-error: expects 2 parameters, but 1 was provided
 
-extern rule hello = oalexBuiltinIndentedList(ident);
+extern rule hello = oalexBuiltinIndentedList(ident)
 
 rule ident: /[a-z_]+/

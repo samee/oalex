@@ -19,17 +19,15 @@ outputs error with 'Does not match expected pattern'
 # TODO wrap this up in a haskell-like indentation-checker, that ensures that
 # every token is indented strictly more than the 'extern' keyword.
 # TODO: don't *require* spaces around metachars like this.
-# TODO: remove the semicolon when we can treat newlines as
-#       significant for a single rule
 rule extern_rule:
 
-  extern rule rule_name = external_name [ ( [param, ... ,param] ) ] ;
+  extern rule rule_name = external_name ( [param, ... ,param] )
 
 where:
   rule_name, external_name, param ~ word
 
 example extern_rule:
-  extern rule noparam = oalexPluginNoParam;
+  extern rule noparam = oalexPluginNoParam()
 outputs: {
   rule_name: "noparam",
   external_name: "oalexPluginNoParam",
@@ -37,14 +35,14 @@ outputs: {
 }
 
 example extern_rule:
-  extern rule one_param = oalexPluginOneParam(foo);
+  extern rule one_param = oalexPluginOneParam(foo)
 outputs: {
   rule_name: "one_param",
   external_name: "oalexPluginOneParam",
   param: ["foo"],
 }
 example extern_rule:
-  extern rule two_param = oalexPluginTwoParams(foo, bar);
+  extern rule two_param = oalexPluginTwoParams(foo, bar)
 outputs: {
   rule_name: "two_param",
   external_name: "oalexPluginTwoParams",
@@ -69,7 +67,7 @@ rule error_stanza_leader:
 outputs: {}
 
 extern rule error_stanza =
-  oalexBuiltinIndentedList(error_stanza_leader, error_stanza_line);
+  oalexBuiltinIndentedList(error_stanza_leader, error_stanza_line)
 
 example error_stanza:
   errors  after  failing:  # Extra space to check tokenization above

@@ -554,6 +554,7 @@ void testSkipBlankLines() {
     {"Foo bar", 0, 0},
     {"\n\n  Foo bar", 0, 4},
     {"foo bar", 3, string::npos},
+    {"line1 \n  line2", 5, 9},
   };
   size_t test_index = 0;
   for(auto& [msg, inpos, expected]: test_cases) {

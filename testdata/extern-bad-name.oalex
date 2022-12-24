@@ -3,5 +3,5 @@
 # Keyword rule appears on a separate line to ensure we don't need a space
 # after extern
 extern
-  rule hello = someOtherParser;
+  rule hello = someOtherParser()
 
