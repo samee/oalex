@@ -1,0 +1,5 @@
+# expected-error: 3:19: error: Expected end of line
+
+lexical defaults: more stuff
+  // comment
+  newlines: ignore_blank

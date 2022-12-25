@@ -1,0 +1,14 @@
+# expected-error: lexical defaults must be set before any rule or example
+
+example decl:
+  var x = 5
+outputs success
+
+lexical defaults:
+  // comment
+  newlines: ignore_blank
+
+rule decl: "var ident = rhs"
+where:
+  rhs ~ /-?[0-9]+/
+  ident ~ /[_a-zA-Z]+/

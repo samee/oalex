@@ -1,0 +1,21 @@
+# Tests that 'word:' is actually used when tokenizing patterns.
+
+# Intentionally excludes '_'
+lexical defaults:
+  // comment
+  newlines: ignore_blank
+  word: /[a-zA-Z]+/
+
+rule decl: "global_var ident = rhs"
+where:
+  rhs ~ /-?[0-9]+/
+  ident ~ /[_a-zA-Z]+/
+
+example decl:
+  global_var x = 5
+outputs success
+
+# Weird, but okay.
+example decl:
+  global _ var y = 9
+outputs success

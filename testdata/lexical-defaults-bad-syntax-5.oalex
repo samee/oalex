@@ -1,0 +1,9 @@
+# expected-error: lexical defaults can only be set once
+
+lexical defaults:
+  // comment
+  newlines: ignore_blank
+
+lexical defaults:
+  # comment
+  newlines: ignore_blank

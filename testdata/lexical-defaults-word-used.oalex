@@ -1,0 +1,10 @@
+# expected-error: run-on word
+
+lexical defaults:
+  // comment
+  newlines: ignore_blank
+  word: /[a-zA-Z_-]+/
+
+rule expr: "a-b"
+where:
+  a, b ~ /[a-z]+/

@@ -1,0 +1,5 @@
+# expected-error: tailcont is not allowed in 'lexical defaults'
+
+lexical defaults:
+  // comment
+  newlines: ignore_blank tailcont

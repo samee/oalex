@@ -1,0 +1,33 @@
+lexical defaults:
+  // comment
+  newlines: ignore_blank
+
+rule decl: "var ident = rhs"
+where:
+  rhs ~ /-?[0-9]+/
+  ident ~ /[_a-zA-Z]+/
+
+rule global_vars:
+  globals (
+    var x = 51  // This comment doesn't
+    ...         //   mess up repeat-detection.
+    var y = 71
+  )
+where:
+  "var...1" as decls ~ decl
+
+example global_vars:
+  globals (
+    var a = 1
+    var b = 2
+  )
+outputs: {
+  decls: [
+    { ident: "a", rhs: "1" },
+    { ident: "b", rhs: "2" },
+  ]
+}
+
+example global_vars:
+  globals ( var a = 1 )
+outputs error with 'Expected a newline'

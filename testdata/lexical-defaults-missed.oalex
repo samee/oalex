@@ -1,0 +1,35 @@
+# expected-error: repeating part must appear at least twice
+
+# This file is a copy of lexical-defaults-good.oalex, with the
+# important `lexical defaults:` section removed. This tests that
+# the section was actually important.
+
+rule decl: "var ident = rhs"
+where:
+  rhs ~ /-?[0-9]+/
+  ident ~ /[_a-zA-Z]+/
+
+rule global_vars:
+  globals (
+    var x = 51  // This comment doesn't
+    ...         //   mess up repeat-detection.
+    var y = 71
+  )
+where:
+  "var...1" as decls ~ decl
+
+example global_vars:
+  globals (
+    var a = 1
+    var b = 2
+  )
+outputs: {
+  decls: [
+    { ident: "a", rhs: "1" },
+    { ident: "b", rhs: "2" },
+  ]
+}
+
+example global_vars:
+  globals ( var a = 1 )
+outputs error with 'Expected a newline'

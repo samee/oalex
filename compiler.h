@@ -102,6 +102,8 @@ class RulesWithLocs {
   /* These Skipper objects are indexed to by SkipPoint{} */
   ssize_t addSkipper(Skipper skip);
 
+  /* The setter can only be called before any rule or skipper have been added.
+     If called any later, it returns -1 without any effect. */
   /* Dev-note: This is not part of the constructor, since we want to allow the
      user to set it somewhat late */
   ssize_t defaultSkipper(Skipper skip);

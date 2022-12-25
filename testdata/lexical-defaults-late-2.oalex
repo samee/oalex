@@ -1,0 +1,7 @@
+# expected-error: lexical defaults must be set before any rule or example
+
+extern rule hello = oalexBuiltinHello()
+
+lexical defaults:
+  // comment
+  newlines: ignore_blank

@@ -749,6 +749,36 @@ parseLexicalStanza(const LexDirective& defaultLexopts,
   return parseLexicalBlock(defaultLexopts, ctx, i, std::move(linetoks));
 }
 
+bool
+resemblesLexicalDefaults(const vector<ExprToken>& linetoks) {
+  return linetoks.size() >= 1 && isToken(linetoks[0], "lexical");
+}
+
+// Note: defaultLexopts is both an input and an output.
+void
+parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
+                     InputDiags& ctx, size_t& i, RulesWithLocs& rl,
+                     LexDirective& defaultLexopts) {
+  if(!matchesTokens(linetoks, 0, {"lexical", "defaults", ":"}))
+    Error(ctx, enPos(linetoks.back()), "Expected 'defaults', then ':'");
+  else requireEol(linetoks, 3, ctx);
+  // continue parsing even on error
+
+  ssize_t stPos = oalex::lex::stPos(linetoks[0]);
+  optional<LexDirective> lexopt =
+    parseLexicalBlock(defaultLexopts, ctx, i, std::move(linetoks));
+  if(!lexopt) return;
+
+  if(lexopt->tailcont) {
+    Error(ctx, stPos, "tailcont is not allowed in 'lexical defaults'");
+    lexopt->tailcont = false;
+  }
+  if(!examplesEmpty || rl.defaultSkipper(lexopt->skip) < 0)
+    Error(ctx, stPos, "lexical defaults must be set before any rule"
+                      " or example");
+  defaultLexopts = *lexopt;
+}
+
 // A complex component in this case is anything that cannot appear as a
 // component of RuleExprRepeat (either as .part or as .glue).
 size_t
@@ -1338,7 +1368,9 @@ parseOalexSource(InputDiags& ctx) {
     Skipper{ {}, {} },
     .tailcont = false,
   };
-  rl.defaultSkipper(defaultLexopts.skip);
+  if(rl.defaultSkipper(defaultLexopts.skip) < 0)
+    Bug("defaultSkipper() is not assignable on fresh RulesWithLocs");
+  bool lexoptsSet = false;
 
   while(ctx.input().sizeGt(i)) {
     i = skipBlankLines(ctx, i);
@@ -1373,6 +1405,13 @@ parseOalexSource(InputDiags& ctx) {
       parseMultiMatchRule(std::move(linetoks), defaultLexopts, ctx, i, rl);
     }else if(resemblesRule(linetoks)) {
       parseRule(std::move(linetoks), defaultLexopts, ctx, i, rl);
+    }else if(resemblesLexicalDefaults(linetoks)) {
+      if(lexoptsSet) {
+        Error(ctx, stPos(linetoks[0]),
+              "lexical defaults can only be set once");
+      }else lexoptsSet = true;
+      parseLexicalDefaults(std::move(linetoks), examples.empty(), ctx, i, rl,
+                           defaultLexopts);
     }else
       return Error(ctx, linetoks[0],
                    format("Unexpected '{}', was expecting 'example' or 'rule'",

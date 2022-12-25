@@ -483,8 +483,9 @@ RulesWithLocs::addSkipper(Skipper skip) {
 // saving the default index in a private member variable.
 ssize_t
 RulesWithLocs::defaultSkipper(Skipper skip) {
-  if(!skips_.empty()) Bug("Setting default skipper too late");
-  skips_.push_back(std::move(skip));
+  if(skips_.size() >= 2 || this->ssize() > 0) return -1;
+  if(skips_.empty()) skips_.resize(1);
+  skips_[0] = std::move(skip);
   return 0;
 }
 ssize_t

@@ -1,0 +1,5 @@
+# expected-error: Expected 'defaults'
+
+lexical:
+  // comment
+  newlines: ignore_blank
