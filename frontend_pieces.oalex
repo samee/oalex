@@ -2,6 +2,9 @@
 
 # This file is the source that was used to generate frontend_pieces.{cpp,h}
 
+lexical defaults:
+  # comment
+
 rule word: /[a-zA-Z_0-9]+/
 rule double_quoted_literal: /"([^"\\]|\\.)*"/
 
@@ -27,7 +30,8 @@ where:
   rule_name, external_name, param ~ word
 
 example extern_rule:
-  extern rule noparam = oalexPluginNoParam()
+  extern rule noparam      # Testing comments here
+    = oalexPluginNoParam()
 outputs: {
   rule_name: "noparam",
   external_name: "oalexPluginNoParam",

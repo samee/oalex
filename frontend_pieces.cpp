@@ -140,6 +140,7 @@ oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -167,6 +168,7 @@ oalex::JsonLoc parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -198,6 +200,7 @@ oalex::JsonLoc parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -221,6 +224,7 @@ oalex::JsonLoc parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -252,6 +256,7 @@ oalex::JsonLoc parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -275,6 +280,7 @@ oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -314,6 +320,7 @@ oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -379,6 +386,7 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_all,
@@ -510,6 +518,7 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_blank,
@@ -533,6 +542,7 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_blank,
@@ -620,6 +630,7 @@ oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_blank,
@@ -647,6 +658,7 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_blank,
@@ -674,6 +686,7 @@ oalex::JsonLoc parseRule45(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
+     { "#", "\n" },
     },
     .nestedComment{},
     .newlines = Skipper::Newlines::ignore_blank,
