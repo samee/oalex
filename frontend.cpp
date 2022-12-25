@@ -707,11 +707,11 @@ parseWordCharsDirective(DiagsDest ctx, const GluedString& s) {
 
 // Assumes linetoks.size() >= 1
 optional<LexDirective>
-parseLexicalStanza(const LexDirective& defaultLexopts,
-                   InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
-  if(!matchesTokens(linetoks, 1, {":"}))
-    Error(ctx, enPos(linetoks[0]), "Expected ':'"); // continue parsing
-  requireEol(linetoks, 2, ctx);  // continue parsing even on error
+parseLexicalBlock(const LexDirective& defaultLexopts,
+                  InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
+  size_t lastTok = linetoks.size()-1;
+  if(!matchesTokens(linetoks, lastTok, {":"}))
+    Error(ctx, enPos(linetoks[lastTok]), "Expected ':'"); // continue parsing
   optional<GluedString> lexblock = parseIndentedBlock(ctx, i,
       indent_of(ctx.input(), linetoks[0]), "lexical block");
   if(!lexblock) return nullopt;
@@ -739,6 +739,14 @@ parseLexicalStanza(const LexDirective& defaultLexopts,
   }
   if(optional<string> err = rv.skip.valid()) Error(ctx, linetoks[0], *err);
   return rv;
+}
+
+// Assumes linetoks.size() >= 1
+optional<LexDirective>
+parseLexicalStanza(const LexDirective& defaultLexopts,
+                   InputDiags& ctx, size_t& i, vector<ExprToken> linetoks) {
+  requireEol(linetoks, 2, ctx);  // continue parsing even on error.
+  return parseLexicalBlock(defaultLexopts, ctx, i, std::move(linetoks));
 }
 
 // A complex component in this case is anything that cannot appear as a
