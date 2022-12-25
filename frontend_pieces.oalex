@@ -50,21 +50,21 @@ outputs: {
 }
 
 # TODO add recovery rule to skip bad lines
-rule error_stanza_line:
-
-  ident: "error msg"
-
+rule error_stanza_line: "ident: \"error msg\""
 where:
   ident ~ word
   "\"error msg\"" as error_msg ~ double_quoted_literal
+lexical:
+  newlines: ignore_blank
 
 example error_stanza_line:
   foo: "Expected Foo here"
 outputs: { ident: "foo", error_msg: "\"Expected Foo here\"" }
 
-rule error_stanza_leader:
-  errors after failing:
+rule error_stanza_leader: "errors after failing:"
 outputs: {}
+lexical:
+  newlines: ignore_blank
 
 extern rule error_stanza =
   oalexBuiltinIndentedList(error_stanza_leader, error_stanza_line)
