@@ -8,10 +8,10 @@ const oalex::RegexOptions& defaultRegexOpts() {
   using oalex::RegexOptions;
   static const RegexOptions *opts = new RegexOptions{.word =
   RegexCharSet({
-      { '0', '9' },
-      { 'A', 'Z' },
-      { 'a', 'z' },
       { '_', '_' },
+      { 'a', 'z' },
+      { 'A', 'Z' },
+      { '0', '9' },
     }, false)
   };
   return *opts;

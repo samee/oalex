@@ -1321,11 +1321,6 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
 
 optional<ParsedSource>
 parseOalexSource(InputDiags& ctx) {
-  static const auto* userRegexOpts = new RegexOptions{
-    // Do not use user-supplied input. See regex_io.h for details.
-    .word = parseRegexCharSet("[0-9A-Za-z_]")
-  };
-
   size_t i = 0;
   vector<Example> examples;
   RulesWithLocs rl;
@@ -1377,7 +1372,9 @@ parseOalexSource(InputDiags& ctx) {
   }
   if(rl.ssize() == 0) return Error(ctx, 0, "File doesn't define any rule");
   if(rl.hasUndefinedRules(ctx)) return nullopt;
-  RuleSet rs = rl.releaseRulesWith(*userRegexOpts);
+  RuleSet rs = rl.releaseRulesWith(RegexOptions{
+    .word = defaultLexopts.wordChars,
+  });
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||
      hasError(ctx.diags)) return nullopt;
   fillInNames(rs.rules);
