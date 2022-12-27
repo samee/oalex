@@ -311,7 +311,7 @@ class StringRule final : public Rule {
 struct RuleSet {
   std::vector<std::unique_ptr<Rule>> rules;
   std::vector<Skipper> skips;
-  RegexOptions regexOpts;
+  std::vector<RegexOptions> regexOpts;
 };
 
 class OutputStream {

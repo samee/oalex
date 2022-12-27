@@ -396,13 +396,13 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   if(auto* s = dynamic_cast<const StringRule*>(&r))
     return match(ctx, i, s->val);
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&r))
-    return match(ctx, i, ruleset.regexOpts.word, **wp);
+    return match(ctx, i, ruleset.regexOpts.at(0).word, **wp);
   else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
     return eval(ctx, i, *ext, ruleset);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
     return skip(ctx, i, *sp, ruleset);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
-    return match(ctx, i, *regex->patt, ruleset.regexOpts);
+    return match(ctx, i, *regex->patt, ruleset.regexOpts.at(0));
   else if(auto* seq = dynamic_cast<const ConcatRule*>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r))
@@ -590,7 +590,7 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexOptions;\n");
   cppos("  static const RegexOptions *opts = new RegexOptions{.word =\n  ");
-  genRegexCharSet(ruleset.regexOpts.word, cppos, 4);
+  genRegexCharSet(ruleset.regexOpts.at(0).word, cppos, 4);
   cppos("\n  };\n");
   cppos("  return *opts;\n");
   cppos("}\n");
@@ -915,9 +915,10 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   const Rule& rule = ruleAt(ruleset, lidx);
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("ctx.input().hasPrefix(i, {})", dquoted(s->val)));
-  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule))
+  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
+  }
   // When adding a new branch here, remember to change needsName().
   else {
     if(const Ident* name = rule.nameOrNull())
@@ -1057,9 +1058,10 @@ codegenParserCall(const Rule& rule, string_view posVar,
                   const OutputStream& cppos) {
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
-  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule))
+  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
+  }
   else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
     if(err->msg.empty()) cppos("JsonLoc::ErrorValue{}");
     else cppos(format("oalex::errorValue(ctx, {}, {})",

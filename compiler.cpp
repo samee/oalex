@@ -437,7 +437,9 @@ RulesWithLocs::releaseRulesWith(RegexOptions regexOpts) {
   firstUseLocs_.clear();
   reservedLocalNames_.clear();
   // std::move() is guaranteed to clear vectors.
-  return RuleSet{std::move(rules_), std::move(skips_), std::move(regexOpts)};
+  return RuleSet{.rules = std::move(rules_),
+                 .skips = std::move(skips_),
+                 .regexOpts = {std::move(regexOpts)}};
 }
 
 // Bypasses Rule::nameOrNull() protections. Use with care!
