@@ -120,6 +120,28 @@ void runSingleRegexTest() {
   }
 }
 
+void runWordPreservingWithOverride() {
+  const pair<JsonLoc(*)(InputDiags&, ssize_t&), string> testcases[] = {
+    {parseWordHello1, "hello"},
+    {parseWordHello2, ""},
+    {parseWordHello3, ""},
+    {parseWordHello4, "hell"}
+  };
+  for(size_t i=0; i<sizeof(testcases)/sizeof(testcases[0]); ++i) {
+    auto& [parse, expectation] = testcases[i];
+    ssize_t spos = 0;
+    InputDiags ctx{Input{"hello-world"}};
+    JsonLoc jsloc = parse(ctx, spos);
+    if(expectation.empty()) {
+      if(!jsloc.holdsErrorValue())
+        BugMe("Was expecting an error on case {}. Got {}.", i,
+              jsloc.prettyPrint(0));
+    }else assertJsonLocIsString(
+            format("{}[{}]",__func__, i),
+            jsloc, expectation, 0, expectation.size());
+  }
+}
+
 void runConcatFlatTest() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"var x:int = 5; ignored_bits;"}};
@@ -510,6 +532,7 @@ int main() {
   runMatchOrErrorTest(&parseErrorRuleHelloWorld);
   runAliasRuleTest();
   runSingleRegexTest();
+  runWordPreservingWithOverride();
   runConcatFlatTest();
   runSingleWordTemplate();
   runConcatTest();

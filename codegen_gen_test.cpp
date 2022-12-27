@@ -16,6 +16,7 @@
 #include "codegen_test_util.h"
 
 #include "jsontmpl_parsers.h"
+#include "regex_io.h"
 #include "runtime/oalex.h"
 #include <cstdio>
 #include <cstring>
@@ -45,8 +46,10 @@ using oalex::OutputStream;
 using oalex::OutputTmpl;
 using oalex::OrRule;
 using oalex::parseJsonTmpl;
+using oalex::parseRegexCharSet;
 using oalex::passthroughTmpl;
 using oalex::QuietMatch;
+using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
 using oalex::StringRule;
@@ -153,6 +156,23 @@ void codegenNamedRules(const RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i]->nameOrNull() != nullptr) codegen(rs, i, cppos, hos);
+}
+
+void generateWordPreservingWithOverride(const OutputStream& cppos,
+                                        const OutputStream& hos) {
+  // First, try the normal rule. Then, ones with overrides.
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+               nmRule(WordPreserving{"hello", 0}, "WordHello1"),
+               nmRule(WordPreserving{"hello", 1}, "WordHello2"),
+               nmRule(WordPreserving{"hell", 0}, "WordHello3"),
+               nmRule(WordPreserving{"hell", 2}, "WordHello4")),
+    .skips{},
+    .regexOpts = {regexOpts, RegexOptions{parseRegexCharSet("[a-z-]")},
+                             RegexOptions{parseRegexCharSet("[e-l]")}
+                 },
+  };
+  codegenNamedRules(rs, cppos, hos);
 }
 
 void generateConcatFlatTest(const OutputStream& cppos,
@@ -514,6 +534,8 @@ int main(int argc, char* argv[]) {
   linebreaks();
   linebreaks();
   generateSingleRegexTest(cppos, hos);
+  linebreaks();
+  generateWordPreservingWithOverride(cppos, hos);
   linebreaks();
   generateConcatFlatTest(cppos, hos);
   linebreaks();

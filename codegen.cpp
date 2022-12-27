@@ -1026,10 +1026,19 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
 }
 
 static void
-codegen(const WordPreserving& wp, const OutputStream& cppos) {
-  if(wp.regexOptsIdx != 0) Unimplemented("Non-default regex in lookahead");
-  cppos(format("  return oalex::match(ctx, i, defaultRegexOpts().word, {});\n",
-               dquoted(*wp)));
+codegen(const RuleSet& ruleset, const WordPreserving& wp,
+        const OutputStream& cppos) {
+  if(wp.regexOptsIdx == 0) {
+    cppos(format("  return oalex::match(ctx, i, "
+                     "defaultRegexOpts().word, {});\n", dquoted(*wp)));
+    return;
+  }
+  cppos("  using oalex::match;\n");
+  cppos("  using oalex::RegexCharSet;\n");
+  cppos("  static const RegexCharSet* wordChars = new ");
+    genRegexCharSet(ruleset.regexOpts.at(wp.regexOptsIdx).word, cppos, 2);
+    cppos(";\n");
+  cppos(format("  return match(ctx, i, *wordChars, {});\n", dquoted(*wp)));
 }
 
 void
@@ -1106,7 +1115,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {
-    codegen(*wp, cppos);
+    codegen(ruleset, *wp, cppos);
   }else if(auto* regex = dynamic_cast<const RegexRule*>(&r)) {
     codegen(*regex, cppos);
   }else if(auto* sp = dynamic_cast<const SkipPoint*>(&r)) {
