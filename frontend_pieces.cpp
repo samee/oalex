@@ -6,13 +6,13 @@ using namespace std::string_literals;
 const oalex::RegexOptions& defaultRegexOpts() {
   using oalex::RegexCharSet;
   using oalex::RegexOptions;
-  static const RegexOptions *opts = new RegexOptions{.word =
-  RegexCharSet({
-      { '_', '_' },
-      { 'a', 'z' },
-      { 'A', 'Z' },
-      { '0', '9' },
-    }, false)
+  static const RegexOptions *opts = new RegexOptions{
+    .word = RegexCharSet({
+              { '_', '_' },
+              { 'a', 'z' },
+              { 'A', 'Z' },
+              { '0', '9' },
+            }, false)
   };
   return *opts;
 }
@@ -33,7 +33,6 @@ oalex::JsonLoc parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::RegexCharSet;
   using oalex::RegexConcat;
   using oalex::RegexOptional;
-  using oalex::RegexOptions;
   using oalex::RegexOrList;
   using oalex::RegexRepeat;
   using oalex::RegexString;
@@ -66,7 +65,6 @@ oalex::JsonLoc parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::RegexCharSet;
   using oalex::RegexConcat;
   using oalex::RegexOptional;
-  using oalex::RegexOptions;
   using oalex::RegexOrList;
   using oalex::RegexRepeat;
   using oalex::RegexString;

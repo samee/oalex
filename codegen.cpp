@@ -585,14 +585,24 @@ genRegexComponents(const Regex& regex, const OutputStream& cppos,
   }
 }
 
+// Requires using oalex::{RegexOptions, RegexCharSet}.
+static void
+codegenRegexOpts(const RegexOptions& regexOpts, const OutputStream& cppos,
+                 ssize_t indent) {
+  auto br = [&]() { linebreak(cppos, indent); };
+  cppos("RegexOptions{"); br();
+    cppos("  .word = ");
+    genRegexCharSet(regexOpts.word, cppos, indent+10); br();
+  cppos("}");
+}
+
 void
 codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("const oalex::RegexOptions& defaultRegexOpts() {\n");
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexOptions;\n");
-  cppos("  static const RegexOptions *opts = new RegexOptions{.word =\n  ");
-  genRegexCharSet(ruleset.regexOpts.at(0).word, cppos, 4);
-  cppos("\n  };\n");
+  cppos("  static const RegexOptions *opts = new ");
+    codegenRegexOpts(ruleset.regexOpts.at(0), cppos, 2); cppos(";\n");
   cppos("  return *opts;\n");
   cppos("}\n");
 }
@@ -615,7 +625,8 @@ parserHeaders(const Ident& rname,
 }
 
 static void
-codegen(const RegexRule& regex, const OutputStream& cppos) {
+codegen(const RuleSet& ruleset, const RegexRule& regex,
+        const OutputStream& cppos) {
   // TODO trim this down whenever possible.
   cppos("  using oalex::makeVector;\n");
   cppos("  using oalex::move_to_unique;\n");
@@ -624,7 +635,6 @@ codegen(const RegexRule& regex, const OutputStream& cppos) {
   cppos("  using oalex::RegexCharSet;\n");
   cppos("  using oalex::RegexConcat;\n");
   cppos("  using oalex::RegexOptional;\n");
-  cppos("  using oalex::RegexOptions;\n");
   cppos("  using oalex::RegexOrList;\n");
   cppos("  using oalex::RegexRepeat;\n");
   cppos("  using oalex::RegexString;\n");
@@ -633,7 +643,16 @@ codegen(const RegexRule& regex, const OutputStream& cppos) {
   cppos("  static const Regex *r = new ");
   genRegexComponents(*regex.patt, cppos, 4);
   cppos(";\n");
-  cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
+
+  if(regex.regexOptsIdx == 0) {
+    cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
+    return;
+  }
+  cppos("  using oalex::RegexOptions;\n");
+  cppos("  static const RegexOptions* regexOpts = new ");
+    codegenRegexOpts(ruleset.regexOpts.at(regex.regexOptsIdx), cppos, 2);
+    cppos(";\n");
+  cppos("  return oalex::match(ctx, i, *r, *regexOpts);\n");
 }
 
 // TODO: use sorted vector instead of map here too.
@@ -1117,7 +1136,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {
     codegen(ruleset, *wp, cppos);
   }else if(auto* regex = dynamic_cast<const RegexRule*>(&r)) {
-    codegen(*regex, cppos);
+    codegen(ruleset, *regex, cppos);
   }else if(auto* sp = dynamic_cast<const SkipPoint*>(&r)) {
     codegen(ruleset, *sp, cppos);
   }else if(auto* seq = dynamic_cast<const ConcatRule*>(&r)) {

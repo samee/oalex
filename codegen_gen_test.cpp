@@ -175,6 +175,23 @@ void generateWordPreservingWithOverride(const OutputStream& cppos,
   codegenNamedRules(rs, cppos, hos);
 }
 
+void generateRegexWordOverride(const OutputStream& cppos,
+                               const OutputStream& hos) {
+  // First, try the normal rule. Then, ones with overrides.
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+               nmRule(parseRegexRule("/[a-z]+\\b/"), "RegexWord1"),
+               nmRule(parseRegexRule("/[a-z]+\\b/", 1), "RegexWord2"),
+               nmRule(parseRegexRule("/[a-z]+\\b/", 2), "RegexWord3")),
+    .skips{},
+    .regexOpts = {regexOpts, RegexOptions{parseRegexCharSet("[a-z-]")},
+                             RegexOptions{parseRegexCharSet("[e-l]")}
+                 },
+  };
+  codegenNamedRules(rs, cppos, hos);
+}
+
+
 void generateConcatFlatTest(const OutputStream& cppos,
                             const OutputStream& hos) {
   const ssize_t varTypeIndex = 7;
@@ -536,6 +553,8 @@ int main(int argc, char* argv[]) {
   generateSingleRegexTest(cppos, hos);
   linebreaks();
   generateWordPreservingWithOverride(cppos, hos);
+  linebreaks();
+  generateRegexWordOverride(cppos, hos);
   linebreaks();
   generateConcatFlatTest(cppos, hos);
   linebreaks();

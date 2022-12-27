@@ -142,6 +142,24 @@ void runWordPreservingWithOverride() {
   }
 }
 
+void runRegexWordOverride() {
+  ssize_t spos = 0;
+  InputDiags ctx{Input{"hello-world"}};
+  JsonLoc jsloc = parseRegexWord1(ctx, spos);
+  assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+
+  spos = 0;
+  InputDiags ctx2{Input{"hello-world"}};
+  jsloc = parseRegexWord2(ctx, spos);
+  if(!jsloc.holdsErrorValue())
+    BugMe("Was expecting hyphen to be a word. Got {}", jsloc.prettyPrint(0));
+
+  spos = 0;
+  InputDiags ctx3{Input{"hello-world"}};
+  jsloc = parseRegexWord3(ctx, spos);
+  assertJsonLocIsString(__func__, jsloc, "hell", 0, sizeof("hell")-1);
+}
+
 void runConcatFlatTest() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"var x:int = 5; ignored_bits;"}};
@@ -533,6 +551,7 @@ int main() {
   runAliasRuleTest();
   runSingleRegexTest();
   runWordPreservingWithOverride();
+  runRegexWordOverride();
   runConcatFlatTest();
   runSingleWordTemplate();
   runConcatTest();
