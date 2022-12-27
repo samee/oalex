@@ -49,7 +49,7 @@ unique_ptr<const Regex> parseRegex(string_view s) {
 }
 
 RegexRule parseRegexRule(string_view s) {
-  return RegexRule{parseRegex(s)};
+  return RegexRule{parseRegex(s), 0};
 }
 
 void

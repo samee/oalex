@@ -181,7 +181,7 @@ void testSingleWordPreserving() {
   const string msg = "hello world";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  RuleSet rs = singletonRuleSet(WordPreserving{"hello"});
+  RuleSet rs = singletonRuleSet(WordPreserving{"hello", 0});
   JsonLoc jsloc = eval(ctx, pos, rs, 0);
   assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
 
@@ -360,7 +360,7 @@ void testLookaheads() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         SkipPoint{0},
-        WordPreserving{"var"},
+        WordPreserving{"var", 0},
         parseRegexRule("/[a-z]+/"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{

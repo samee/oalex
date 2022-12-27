@@ -234,8 +234,10 @@ class SkipPoint final : public Rule {
 class WordPreserving final : public Rule {
  public:
   std::string s;
+  ssize_t regexOptsIdx = -1;
   WordPreserving() {}
-  explicit WordPreserving(std::string_view init) : s(init) {}
+  explicit WordPreserving(std::string_view init, ssize_t roi)
+    : s(init), regexOptsIdx(roi) {}
   explicit operator std::string& () { return s; }
   explicit operator const std::string& () const { return s; }
   explicit operator std::string_view () const { return s; }
@@ -285,10 +287,11 @@ class ExternParser final : public Rule {
 
 class RegexRule final : public Rule {
  public:
-  explicit RegexRule(std::unique_ptr<const Regex> patt)
-    : patt(std::move(patt)) {}
+  explicit RegexRule(std::unique_ptr<const Regex> patt, ssize_t roi)
+    : patt(std::move(patt)), regexOptsIdx(roi) {}
   std::string specifics_typename() const override { return "RegexRule"; }
   std::unique_ptr<const Regex> patt;
+  ssize_t regexOptsIdx = -1;
 };
 
 class StringRule final : public Rule {

@@ -1127,7 +1127,7 @@ lookaheadRuleIndex(const LexDirective& lexopts, DiagsDest ctx,
     if(!isUserWord(lexopts, *s)) {
       Error(ctx, *s, "Non-word inline lookahead");
       return -1;
-    }else return rl.appendAnonRule(WordPreserving{*s});
+    }else return rl.appendAnonRule(WordPreserving{*s, 0});
   }
   const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
   if(!lookId) return -1;

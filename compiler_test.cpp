@@ -474,7 +474,7 @@ void testRuleExprCompilation() {
     = parseRegex(R"(/"([^"\\]|\\.)*"/)");
   RuleExprRegex string_literal_rule{string_literal_regex->clone()};
   auto string_literal_expected = makeVectorUnique<Rule>(
-    RegexRule(string_literal_regex->clone()),
+    RegexRule(string_literal_regex->clone(), 0),
     nmRule(MatchOrError{0, "Does not match expected pattern"},
            "string_literal")
   );
@@ -487,7 +487,7 @@ void testRuleExprCompilation() {
     move_to_unique(RuleExprRegex{ident_regex->clone()}),
   };
   auto newvar_expected = makeVectorUnique<Rule>(
-    RegexRule{ident_regex->clone()},
+    RegexRule{ident_regex->clone(), 0},
     MatchOrError{0, "Does not match expected pattern"},
     ConcatFlatRule{{ {1, "new_name"} }},
     nmRule(OutputTmpl{2, {}, JsonTmpl{JsonTmpl::Map{
@@ -508,7 +508,7 @@ void testRuleExprCompilation() {
     RuleExprSquoted{"\""}
   )};
   auto string_body_expected = makeVectorUnique<Rule>(
-    RegexRule{string_body_regex->clone()},
+    RegexRule{string_body_regex->clone(), 0},
     MatchOrError{0, "Does not match expected pattern"},
     ConcatFlatRule{{{1, "body"}}},
     StringRule{"\""},
@@ -542,11 +542,11 @@ void testRuleExprCompilation() {
     RuleExprIdent{Ident::parseGenerated(prefixed_string_quoted_part_name)}
   )};
   auto prefixed_string_expected = makeVectorUnique<Rule>(
-    RegexRule{prefixed_string_prefix_regex->clone()},
+    RegexRule{prefixed_string_prefix_regex->clone(), 0},
     nmRule(MatchOrError{0, "Does not match expected pattern"},
            "literal_prefix"),
     ConcatFlatRule{{{1, "literal_prefix"}}},
-    RegexRule{prefixed_string_quoted_part_regex->clone()},
+    RegexRule{prefixed_string_quoted_part_regex->clone(), 0},
     nmRule(MatchOrError{3, "Does not match expected pattern"},
            "quoted_part"),
     ConcatFlatRule{{{4, "quoted_part"}}},
@@ -573,10 +573,10 @@ void testRuleExprCompilation() {
         move_to_unique(RuleExprIdent{Ident::parseGenerated("int_value")})}
   )};
   auto signed_int_value_expected = makeVectorUnique<Rule>(
-    RegexRule{signed_int_int_regex->clone()},
+    RegexRule{signed_int_int_regex->clone(), 0},
     nmRule(MatchOrError{0, "Does not match expected pattern"}, "int_value"),
     ConcatFlatRule{{{1, "value"}}},
-    RegexRule{signed_int_value_regex->clone()},
+    RegexRule{signed_int_value_regex->clone(), 0},
     MatchOrError{3, "Does not match expected pattern"},
     ConcatFlatRule{{{4, "sign"}}},
     ConcatFlatRule{{ {5, {}}, {2, {}} }},
@@ -599,7 +599,7 @@ void testRuleExprCompilation() {
     move_to_unique(RuleExprSquoted{"-"})
   };
   auto hyphen_ident_expected = makeVectorUnique<Rule>(
-    RegexRule{hyphen_ident_part_regex->clone()},
+    RegexRule{hyphen_ident_part_regex->clone(), 0},
     nmRule(MatchOrError{0, "Does not match expected pattern"},
            "ident"),
     ConcatFlatRule{{{1, "ident"}}},
@@ -629,7 +629,7 @@ void testRuleExprCompilation() {
   auto keyword_or_ident_expected = makeVectorUnique<Rule>(
     StringRule{":"},
     MatchOrError{0, "Expected ':'"},
-    RegexRule{keyword_or_ident_regex->clone()},
+    RegexRule{keyword_or_ident_regex->clone(), 0},
     MatchOrError{2, "Does not match expected pattern"},
     ConcatFlatRule{{{1, "keyword_indicator"}}},
     ConcatFlatRule{{{3, "word"}}},
@@ -727,10 +727,10 @@ void testLocalNameResolution() {
                  JsonTmpl::Ellipsis{}, JsonLoc::Map{}, rl);
 
   auto expected = makeVectorUnique<Rule>(
-    RegexRule(dquoted_literal_regex->clone()),
+    RegexRule(dquoted_literal_regex->clone(), 0),
     nmRule(MatchOrError{0, "Does not match expected pattern"},
            "string_literal"),
-    RegexRule(squoted_literal_regex->clone()),
+    RegexRule(squoted_literal_regex->clone(), 0),
     MatchOrError{2, "Does not match expected pattern"},
     StringRule{"u"},
     MatchOrError{4, "Expected 'u'"},
@@ -800,7 +800,7 @@ void testRuleExprCompilationAndParsing() {
   RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
   RuleSet rs = rl.releaseRulesWith(regopts);
   auto expected_ruleset = makeVectorUnique<Rule>(
-      RegexRule{parseRegex(ident_part_regex)},
+      RegexRule{parseRegex(ident_part_regex), 0},
       nmRule(MatchOrError{0, "Does not match expected pattern"},
              "ident"),
       ConcatFlatRule{{{1, "ident"}}},

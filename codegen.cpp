@@ -396,13 +396,14 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   if(auto* s = dynamic_cast<const StringRule*>(&r))
     return match(ctx, i, s->val);
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&r))
-    return match(ctx, i, ruleset.regexOpts.at(0).word, **wp);
+    return match(ctx, i, ruleset.regexOpts.at(wp->regexOptsIdx).word, **wp);
   else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
     return eval(ctx, i, *ext, ruleset);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
     return skip(ctx, i, *sp, ruleset);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
-    return match(ctx, i, *regex->patt, ruleset.regexOpts.at(0));
+    return match(ctx, i, *regex->patt,
+                 ruleset.regexOpts.at(regex->regexOptsIdx));
   else if(auto* seq = dynamic_cast<const ConcatRule*>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r))
@@ -916,6 +917,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("ctx.input().hasPrefix(i, {})", dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
+    if(wp->regexOptsIdx != 0) Unimplemented("Non-default regex in lookahead");
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
   }
@@ -1025,6 +1027,7 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
 
 static void
 codegen(const WordPreserving& wp, const OutputStream& cppos) {
+  if(wp.regexOptsIdx != 0) Unimplemented("Non-default regex in lookahead");
   cppos(format("  return oalex::match(ctx, i, defaultRegexOpts().word, {});\n",
                dquoted(*wp)));
 }
@@ -1059,6 +1062,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
+    if(wp->regexOptsIdx != 0) Unimplemented("Non-default regex in parser call");
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
   }

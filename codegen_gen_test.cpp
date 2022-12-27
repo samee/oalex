@@ -129,7 +129,7 @@ void generateSingleStringTest(const OutputStream& cppos,
                               const OutputStream& hos) {
   RuleSet rs = singletonRuleSet(nmRule("hello", "HelloPrefix"));
   codegen(rs, 0, cppos, hos);
-  rs = singletonRuleSet(nmRule(WordPreserving{"hello"}, "HelloKeyword"));
+  rs = singletonRuleSet(nmRule(WordPreserving{"hello", 0}, "HelloKeyword"));
   codegen(rs, 0, cppos, hos);
 }
 
@@ -161,7 +161,7 @@ void generateConcatFlatTest(const OutputStream& cppos,
   const ssize_t declIndex = 8;
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
-               WordPreserving{"var"},
+               WordPreserving{"var", 0},
                nmRule(parseRegexRule("/[a-zA-Z]+/"), "FlatIdent"),
                StringRule{":"}, StringRule{"="},
                nmRule(parseRegexRule("/[0-9]+/"), "FlatNumber"),
@@ -199,7 +199,7 @@ void generateSingleWordTemplate(const OutputStream& cppos,
 void generateConcatTest(const OutputStream& cppos,
                         const OutputStream& hos) {
   RuleSet rs { oalex::makeVectorUnique<Rule>(
-    nmRule(WordPreserving{"int"}, "Type"),
+    nmRule(WordPreserving{"int", 0}, "Type"),
     nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "Identifier"),
     StringRule{"="},
     nmRule(parseRegexRule("/-?[0-9]+\\b/"), "IntegerLiteral"),
@@ -219,7 +219,7 @@ void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {}, Skipper::Newlines::keep_all };
   RuleSet rs { oalex::makeVectorUnique<Rule>(
-      WordPreserving{"let"},
+      WordPreserving{"let", 0},
       nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ExtTmplId"),
       StringRule{":"},
       nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
@@ -341,7 +341,7 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         nmRule(SkipPoint{0}, "lookahead_space"),
-        WordPreserving{"var"},
+        WordPreserving{"var", 0},
         nmRule(parseRegexRule("/[a-z]+/"), "lookahead_ident"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
