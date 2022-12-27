@@ -16,6 +16,7 @@
 #include "codegen_test_util.h"
 
 #include "jsontmpl_parsers.h"
+#include "regex_io.h"
 #include "fmt/core.h"
 #include "runtime/jsonloc_fmt.h"
 #include "runtime/test_util.h"
@@ -50,7 +51,9 @@ using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::parseJsonTmpl;
+using oalex::parseRegexCharSet;
 using oalex::passthroughTmpl;
+using oalex::RegexOptions;
 using oalex::QuietMatch;
 using oalex::Regex;
 using oalex::Rule;
@@ -192,6 +195,33 @@ void testSingleWordPreserving() {
     BugMe("Was expecting WordPreserving match to fail");
 }
 
+void testWordPreservingWithOverride() {
+  // First, try the normal rule. Then, ones with overrides.
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+               WordPreserving{"hello", 0},
+               WordPreserving{"hello", 1},
+               WordPreserving{"hell", 0},
+               WordPreserving{"hell", 2}),
+    .skips{},
+    .regexOpts = {regexOpts, RegexOptions{parseRegexCharSet("[a-z-]")},
+                             RegexOptions{parseRegexCharSet("[e-l]")}
+                 },
+  };
+  vector<string> expectations = {"hello", "", "", "hell"};
+  for(size_t i=0; i<expectations.size(); ++i) {
+    ssize_t spos = 0;
+    InputDiags ctx{Input{"hello-world"}};
+    JsonLoc jsloc = eval(ctx, spos, rs, i);
+    if(expectations[i].empty()) {
+      if(!jsloc.holdsErrorValue())
+        BugMe("Was expecting an error on case {}. Got {}.", i,
+              jsloc.prettyPrint(0));
+    }else assertJsonLocIsString(__func__, jsloc, expectations[i], 0,
+                                expectations[i].size());
+  }
+}
+
 void testRegexMatch() {
   RuleSet rs = singletonRuleSet(parseRegexRule("/[a-z]+/"));
   ssize_t spos = 0;
@@ -203,6 +233,36 @@ void testRegexMatch() {
   InputDiags ctx2{Input{"123"}};
   jsloc = eval(ctx2, spos, rs, 0);
   if(!jsloc.holdsErrorValue()) BugMe("Was expecting regex match to fail");
+}
+
+void testRegexWordOverride() {
+  // First, try the normal rule. Then, ones with overrides.
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+               parseRegexRule("/[a-z]+\\b/"),
+               parseRegexRule("/[a-z]+\\b/", 1),
+               parseRegexRule("/[a-z]+\\b/", 2)),
+    .skips{},
+    .regexOpts = {regexOpts, RegexOptions{parseRegexCharSet("[a-z-]")},
+                             RegexOptions{parseRegexCharSet("[e-l]")}
+                 },
+  };
+
+  ssize_t spos = 0;
+  InputDiags ctx{Input{"hello-world"}};
+  JsonLoc jsloc = eval(ctx, spos, rs, 0);
+  assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+
+  spos = 0;
+  InputDiags ctx2{Input{"hello-world"}};
+  jsloc = eval(ctx2, spos, rs, 1);
+  if(!jsloc.holdsErrorValue())
+    BugMe("Was expecting hyphen to be a word. Got {}", jsloc.prettyPrint(0));
+
+  spos = 0;
+  InputDiags ctx3{Input{"hello-world"}};
+  jsloc = eval(ctx3, spos, rs, 2);
+  assertJsonLocIsString(__func__, jsloc, "hell", 0, sizeof("hell")-1);
 }
 
 void testConcatMatch() {
@@ -616,8 +676,10 @@ int main() {
   testErrorRule();
   testSingleSkip();
   testSingleWordPreserving();
+  testWordPreservingWithOverride();
   testSkipFailsOnUnfinishedComment();
   testRegexMatch();
+  testRegexWordOverride();
   testConcatFlatMatch();
   testSingleWordTemplate();
   testConcatMatch();

@@ -24,7 +24,7 @@ inline const Skipper cskip{ {{"/*","*/"},{"//","\n"}}, {}};
 extern const RegexOptions regexOpts;
 
 std::unique_ptr<const Regex> parseRegex(std::string_view s);
-RegexRule parseRegexRule(std::string_view s);
+RegexRule parseRegexRule(std::string_view s, ssize_t regexOptsIdx = 0);
 
 inline StringRule nmRule(const char* s, std::string name) {
   return {s, Ident::parseGenerated(name)};

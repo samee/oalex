@@ -48,8 +48,8 @@ unique_ptr<const Regex> parseRegex(string_view s) {
   return rv;
 }
 
-RegexRule parseRegexRule(string_view s) {
-  return RegexRule{parseRegex(s), 0};
+RegexRule parseRegexRule(string_view s, ssize_t regexOptsIdx) {
+  return RegexRule{parseRegex(s), regexOptsIdx};
 }
 
 void
