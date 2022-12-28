@@ -918,7 +918,7 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule))
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
-  // When adding a new branch here, remember to change StringRule::needsName().
+  // When adding a new branch here, remember to change needsName().
   else {
     if(const Ident* name = rule.nameOrNull())
       cppos(format("oalex::peekMatch(ctx.input(), i, {})", parserName(*name)));
@@ -1043,12 +1043,10 @@ Rule::context_skipper(ssize_t skipper_index) {
 }
 
 bool needsName(const Rule& rule, bool isTentativeTarget) {
-  if(auto* rvar = dynamic_cast<const StringRule*>(&rule)) {
-    if(dynamic_cast<const StringRule*>(rvar) ||
-       dynamic_cast<const WordPreserving*>(rvar) ||
-       false) return false;
-    if(dynamic_cast<const ErrorRule*>(rvar)) return isTentativeTarget;
-  }
+  if(dynamic_cast<const StringRule*>(&rule) ||
+     dynamic_cast<const WordPreserving*>(&rule) ||
+     false) return false;
+  if(dynamic_cast<const ErrorRule*>(&rule)) return isTentativeTarget;
   return true;
 }
 
@@ -1072,7 +1070,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
     cppos(format("{}(ctx, {});", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull())
     cppos(format("{}(ctx, {})", parserName(*rname), posVar));
-  // When adding a new branch here, remember to change StringRule::needsName().
+  // When adding a new branch here, remember to change needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
 }
