@@ -916,8 +916,8 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   const Rule& rule = ruleAt(ruleset, lidx);
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("ctx.input().hasPrefix(i, {})", dquoted(s->val)));
-  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
-    if(wp->regexOptsIdx != 0) Unimplemented("Non-default regex in lookahead");
+  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
+          wp && wp->regexOptsIdx == 0) {
     cppos(format("oalex::peekMatch(ctx, i, defaultRegexOpts().word, {})",
                  dquoted(**wp)));
   }
@@ -1047,9 +1047,9 @@ Rule::context_skipper(ssize_t skipper_index) {
 }
 
 bool needsName(const Rule& rule, bool isTentativeTarget) {
-  if(dynamic_cast<const StringRule*>(&rule) ||
-     dynamic_cast<const WordPreserving*>(&rule) ||
-     false) return false;
+  if(dynamic_cast<const StringRule*>(&rule)) return false;
+  auto* wp = dynamic_cast<const WordPreserving*>(&rule);
+  if(wp && wp->regexOptsIdx == 0) return false;
   if(dynamic_cast<const ErrorRule*>(&rule)) return isTentativeTarget;
   return true;
 }
@@ -1061,8 +1061,8 @@ codegenParserCall(const Rule& rule, string_view posVar,
                   const OutputStream& cppos) {
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
-  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule)) {
-    if(wp->regexOptsIdx != 0) Unimplemented("Non-default regex in parser call");
+  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
+          wp && wp->regexOptsIdx == 0) {
     cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
                  posVar, dquoted(**wp)));
   }
