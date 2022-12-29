@@ -481,6 +481,34 @@ RulesWithLocs::addSkipper(Skipper skip) {
   return oalex::ssize(skips_)-1;
 }
 
+// Two charsets can be equal even if they have different representation.
+// This equality function will return true iff they have the exact same
+// representation.
+static bool
+isIdentical(const RegexOptions& r1, const RegexOptions& r2) {
+  if(r1.word.negated != r2.word.negated) return false;
+  if(r1.word.ranges.size() != r2.word.ranges.size()) return false;
+  ssize_t n = r1.word.ranges.size();
+  for(ssize_t i=0; i<n; ++i) {
+    if(r1.word.ranges[i].from != r2.word.ranges[i].from) return false;
+    if(r1.word.ranges[i].to != r2.word.ranges[i].to) return false;
+  }
+  return true;
+}
+
+// Does very simple deduplication.
+ssize_t
+RulesWithLocs::addRegexOpts(RegexOptions regexOpts) {
+  if(!regexOpts_.empty()) {
+    if(isIdentical(regexOpts_[0], regexOpts))
+      return 0;
+    if(isIdentical(regexOpts_.back(), regexOpts))
+      return oalex::ssize(regexOpts_)-1;
+  }
+  regexOpts_.push_back(std::move(regexOpts));
+  return oalex::ssize(regexOpts_)-1;
+}
+
 bool
 RulesWithLocs::defaultLexopts(LexDirective lexopts) {
   if(skips_.size() >= 2 || regexOpts_.size() >= 2 || this->ssize() > 0)

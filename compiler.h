@@ -102,6 +102,10 @@ class RulesWithLocs {
   /* These Skipper objects are indexed to by SkipPoint{} */
   ssize_t addSkipper(Skipper skip);
 
+  /* These RegexOptions objects are indexed
+     to by regexOptsIdx of various Rules. */
+  ssize_t addRegexOpts(RegexOptions regexOpts);
+
   /* The setter can only be called before any rule or skipper have been added.
      If called any later, it returns false without any effect. Otherwise it
      returns true, indicating success. */
