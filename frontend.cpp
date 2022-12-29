@@ -773,7 +773,7 @@ parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
     Error(ctx, stPos, "tailcont is not allowed in 'lexical defaults'");
     lexopt->tailcont = false;
   }
-  if(!examplesEmpty || rl.defaultSkipper(lexopt->skip) < 0)
+  if(!examplesEmpty || !rl.defaultSkipper(lexopt->skip))
     Error(ctx, stPos, "lexical defaults must be set before any rule"
                       " or example");
   defaultLexopts = *lexopt;
@@ -1368,7 +1368,7 @@ parseOalexSource(InputDiags& ctx) {
     Skipper{ {}, {} },
     .tailcont = false,
   };
-  if(rl.defaultSkipper(defaultLexopts.skip) < 0)
+  if(!rl.defaultSkipper(defaultLexopts.skip))
     Bug("defaultSkipper() is not assignable on fresh RulesWithLocs");
   bool lexoptsSet = false;
 

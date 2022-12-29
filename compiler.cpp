@@ -481,14 +481,12 @@ RulesWithLocs::addSkipper(Skipper skip) {
   return oalex::ssize(skips_)-1;
 }
 
-// For now, we can always return 0. If necessary, we can later switch into
-// saving the default index in a private member variable.
-ssize_t
+bool
 RulesWithLocs::defaultSkipper(Skipper skip) {
-  if(skips_.size() >= 2 || this->ssize() > 0) return -1;
+  if(skips_.size() >= 2 || this->ssize() > 0) return false;
   if(skips_.empty()) skips_.resize(1);
   skips_[0] = std::move(skip);
-  return 0;
+  return true;
 }
 ssize_t
 RulesWithLocs::defaultSkipper() const {

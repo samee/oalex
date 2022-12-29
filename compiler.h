@@ -103,10 +103,11 @@ class RulesWithLocs {
   ssize_t addSkipper(Skipper skip);
 
   /* The setter can only be called before any rule or skipper have been added.
-     If called any later, it returns -1 without any effect. */
+     If called any later, it returns false without any effect. Otherwise it
+     returns true, indicating success. */
   /* Dev-note: This is not part of the constructor, since we want to allow the
      user to set it somewhat late */
-  ssize_t defaultSkipper(Skipper skip);
+  bool defaultSkipper(Skipper skip);
   ssize_t defaultSkipper() const;
 
   /* This is checked just before producing rules as output */
