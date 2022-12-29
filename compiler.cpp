@@ -433,13 +433,13 @@ RulesWithLocs::resize_down(ssize_t n) noexcept {
 }
 
 RuleSet
-RulesWithLocs::releaseRulesWith(RegexOptions regexOpts) {
+RulesWithLocs::releaseRules() {
   firstUseLocs_.clear();
   reservedLocalNames_.clear();
   // std::move() is guaranteed to clear vectors.
   return RuleSet{.rules = std::move(rules_),
                  .skips = std::move(skips_),
-                 .regexOpts = {std::move(regexOpts)}};
+                 .regexOpts = std::move(regexOpts_)};
 }
 
 // Bypasses Rule::nameOrNull() protections. Use with care!
@@ -482,12 +482,16 @@ RulesWithLocs::addSkipper(Skipper skip) {
 }
 
 bool
-RulesWithLocs::defaultSkipper(Skipper skip) {
-  if(skips_.size() >= 2 || this->ssize() > 0) return false;
+RulesWithLocs::defaultLexopts(LexDirective lexopts) {
+  if(skips_.size() >= 2 || regexOpts_.size() >= 2 || this->ssize() > 0)
+    return false;
   if(skips_.empty()) skips_.resize(1);
-  skips_[0] = std::move(skip);
+  if(regexOpts_.empty()) regexOpts_.resize(1);
+  skips_[0] = std::move(lexopts.skip);
+  regexOpts_[0] = RegexOptions{.word = std::move(lexopts.wordChars)};
   return true;
 }
+
 ssize_t
 RulesWithLocs::defaultSkipper() const {
   if(skips_.empty()) Bug("defaultSkipper was never set");

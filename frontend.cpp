@@ -773,10 +773,11 @@ parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
     Error(ctx, stPos, "tailcont is not allowed in 'lexical defaults'");
     lexopt->tailcont = false;
   }
-  if(!examplesEmpty || !rl.defaultSkipper(lexopt->skip))
+
+  if(!examplesEmpty || !rl.defaultLexopts(*lexopt))
     Error(ctx, stPos, "lexical defaults must be set before any rule"
                       " or example");
-  defaultLexopts = *lexopt;
+  defaultLexopts = std::move(*lexopt);
 }
 
 // A complex component in this case is anything that cannot appear as a
@@ -1368,8 +1369,8 @@ parseOalexSource(InputDiags& ctx) {
     Skipper{ {}, {} },
     .tailcont = false,
   };
-  if(!rl.defaultSkipper(defaultLexopts.skip))
-    Bug("defaultSkipper() is not assignable on fresh RulesWithLocs");
+  if(!rl.defaultLexopts(defaultLexopts))
+    Bug("defaultLexopts() is not assignable on fresh RulesWithLocs");
   bool lexoptsSet = false;
 
   while(ctx.input().sizeGt(i)) {
@@ -1419,9 +1420,7 @@ parseOalexSource(InputDiags& ctx) {
   }
   if(rl.ssize() == 0) return Error(ctx, 0, "File doesn't define any rule");
   if(rl.hasUndefinedRules(ctx)) return nullopt;
-  RuleSet rs = rl.releaseRulesWith(RegexOptions{
-    .word = defaultLexopts.wordChars,
-  });
+  RuleSet rs = rl.releaseRules();
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||
      hasError(ctx.diags)) return nullopt;
   fillInNames(rs.rules);

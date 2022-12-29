@@ -675,19 +675,21 @@ void testRuleExprCompilation() {
   for(const TestCase& testcase : cases) {
     InputDiags ctx{Input{""}};
     RulesWithLocs rl;
+    rl.defaultLexopts(lexopts);
     for(auto& [name, rxpr] : testcase.rxprs) {
       appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, lexopts, {},
                      JsonTmpl::Ellipsis{}, JsonLoc::Map{}, rl);
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
-      rl.releaseRulesWith({}).rules, *testcase.expected);
+      rl.releaseRules().rules, *testcase.expected);
   }
 }
 
 void testLocalNameResolution() {
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
+  rl.defaultLexopts(lexopts);
 
   // First, define a global with this name, "string_literal"
   const char* string_literal_name = "string_literal";
@@ -749,7 +751,7 @@ void testLocalNameResolution() {
              JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}
           }}}, "u_squoted_literal")
   );
-  auto observed = rl.releaseRulesWith({}).rules;
+  auto observed = rl.releaseRules().rules;
   assertValidAndEqualRuleList(__func__, observed, expected);
 }
 
@@ -782,6 +784,11 @@ void testRuleExprCompilationAndParsing() {
   string_view ident_part_regex = "/[a-zA-Z]+/";
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
+  rl.defaultLexopts(LexDirective{
+      .wordChars = parseRegexCharSet("[0-9A-Za-z]"),
+      .skip = lexopts.skip,
+      .tailcont = false,
+  });
 
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
@@ -797,8 +804,7 @@ void testRuleExprCompilationAndParsing() {
                                  rxpr_main, lexopts, {}, JsonTmpl::Ellipsis{},
                                  JsonLoc::Map{}, rl);
 
-  RegexOptions regopts{.word = parseRegexCharSet("[0-9A-Za-z]")};
-  RuleSet rs = rl.releaseRulesWith(regopts);
+  RuleSet rs = rl.releaseRules();
   auto expected_ruleset = makeVectorUnique<Rule>(
       RegexRule{parseRegex(ident_part_regex), 0},
       nmRule(MatchOrError{0, "Does not match expected pattern"},

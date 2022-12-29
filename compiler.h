@@ -107,8 +107,8 @@ class RulesWithLocs {
      returns true, indicating success. */
   /* Dev-note: This is not part of the constructor, since we want to allow the
      user to set it somewhat late */
-  bool defaultSkipper(Skipper skip);
-  ssize_t defaultSkipper() const;
+  bool defaultLexopts(LexDirective lexopts);
+  ssize_t defaultSkipper() const;  // Added by defaultLexOpts(...).
 
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
@@ -116,7 +116,7 @@ class RulesWithLocs {
   /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
   void resize_down(ssize_t n) noexcept;
 
-  RuleSet releaseRulesWith(RegexOptions regexOpts);
+  RuleSet releaseRules();
 
  private:
   // Invariant: these two must have equal sizes at all times.
@@ -125,6 +125,7 @@ class RulesWithLocs {
 
   std::vector<Ident> reservedLocalNames_;
   std::vector<Skipper> skips_;
+  std::vector<RegexOptions> regexOpts_;
 };
 
 // We generalize the ruleName in PatternToRuleBinding to the more general
