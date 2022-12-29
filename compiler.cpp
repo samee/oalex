@@ -37,7 +37,13 @@ using std::vector;
 namespace oalex {
 
 static ssize_t
+appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
+static ssize_t
 appendWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx);
+static void
+assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal);
+static ssize_t
+appendLiteralOrError(RulesWithLocs& rl, string_view literal);
 
 namespace {
 
@@ -529,14 +535,14 @@ RulesWithLocs::defaultSkipper() const {
   return 0;
 }
 
-void
+static void
 assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex, string_view literal) {
   string expectation = format("Expected '{}'", literal);
   if(literal == "\n") expectation = "Expected a newline";
   rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), expectation});
   rl.appendAnonRule(StringRule(string(literal)));
 }
-ssize_t
+static ssize_t
 appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   ssize_t newIndex = rl.ssize();
   rl.appendAnonRule(DefinitionInProgress{});
@@ -552,7 +558,9 @@ appendWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
   return newIndex + 1;
 }
 
-void
+// TODO: Change regexOptsIdx for WordPreserving and RegexRule.
+// Requires us to pass in the index or the lexopts.
+static void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    string errmsg, unique_ptr<const Regex> regex,
                    ssize_t regexOptsIdx) {
@@ -959,7 +967,7 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                  std::move(jstmpl), std::move(errors), rl);
 }
 
-ssize_t
+static ssize_t
 appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
   OrRule orRule{{}, /* flattenOnDemand */ true};
 

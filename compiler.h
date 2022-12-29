@@ -206,18 +206,6 @@ struct PatternToRuleBinding {
 };
 
 void
-assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
-		     std::string_view literal);
-ssize_t
-appendLiteralOrError(RulesWithLocs& rl, std::string_view literal);
-void
-assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                   std::string errmsg, std::unique_ptr<const Regex> regex);
-
-ssize_t
-appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
-
-void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   lex::GluedString patt_string, const LexDirective& lexOpts,
                   std::vector<PatternToRuleBinding> pattToRule,
