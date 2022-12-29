@@ -210,13 +210,9 @@ assignLiteralOrError(RulesWithLocs& rl, size_t ruleIndex,
 		     std::string_view literal);
 ssize_t
 appendLiteralOrError(RulesWithLocs& rl, std::string_view literal);
-ssize_t
-appendWordOrError(RulesWithLocs& rl, std::string_view word);
 void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
                    std::string errmsg, std::unique_ptr<const Regex> regex);
-ssize_t
-appendRegexOrError(RulesWithLocs& rl, std::unique_ptr<const Regex> regex);
 
 ssize_t
 appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);

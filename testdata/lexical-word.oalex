@@ -1,0 +1,110 @@
+# Test that WordPreserving uses word characters properly.
+
+# This rule uses the default word charcters,
+# with comma not being a word character.
+rule hello1: "oh, hello"
+
+example hello1:
+  oh, hello
+outputs success
+
+# TODO: Support "part" examples, where the test string in question is embedded
+# in a larger string. E.g. for word-boundary detection. I would have liked a
+# test that would have succesfully parsed the prefix of "oh, hello world".
+
+# We expect "hello" to end at a word boundary
+example hello1:
+  oh, helloWorld
+outputs error with 'Expected \'hello\''
+
+# A comma is not a word character, so it is not attached to the "oh" keyword.
+example hello1:
+  oh ,hello
+outputs success
+
+# Even without spaces, we can correctly tokenize this.
+example hello1:
+  oh,hello
+outputs success
+
+
+# Same as before, but the comma is now attached. 'oh,' is now a single token.
+rule hello2: "oh, hello"
+lexical:
+  word: /[a-zA-Z,]+/
+
+example hello2:
+  oh, hello
+outputs success
+
+example hello2:
+  oh, helloWorld
+outputs error with 'Expected \'hello\''
+
+# TODO: Either allow double-quoted quotes, or change default errors to emit
+# double-quotes. The common error tests shouldn't require backslashes.
+example hello2:
+  oh ,hello
+outputs error with 'Expected \'oh,\''
+
+example hello2:
+  oh,hello
+outputs error with 'Expected \'oh,\''
+
+
+# Test that RegexRule uses word characters properly.
+
+rule hello3: "hello, name!"
+where:
+  name ~ /\b[a-zA-Z]+\b/
+
+example hello3:
+  hello, bert!
+outputs: { name: "bert" }
+
+# Test that ',' is not a word character, and that \b can detect that.
+example hello3:
+  hello,bert!
+outputs: { name: "bert" }
+
+example hello3:
+  hello ,bert!
+outputs: { name: "bert" }
+
+
+# Now try the same thing again, with a different sense of "word"
+rule hello4: "hello, name !"
+where:
+  name ~ /\b[a-zA-Z]+\b/
+lexical:
+  word: /[a-zA-Z,!]+/
+
+example hello4:
+  hello, bert !
+outputs: { name: "bert" }
+
+example hello4:
+  hello,bert !
+outputs error with 'Expected \'hello,\''
+
+example hello4:
+  hello, bert!
+outputs error with 'Does not match expected pattern'
+
+example hello4:
+  hello, bert!
+outputs error with 'Does not match expected pattern'
+
+# Test the same for mapped rule expression.
+rule greeting_1: ((first_word ~ /\b[Hh]ello\b/) '!')
+rule greeting_2: ((first_word ~ /\b[Hh]ello\b/) '!')
+lexical:
+  word: /[a-zA-Z!]+/
+
+example greeting_1:
+  Hello!
+outputs success
+
+example greeting_2:
+  Hello!
+outputs error with 'Does not match expected pattern'

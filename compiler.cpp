@@ -36,6 +36,9 @@ using std::vector;
 
 namespace oalex {
 
+static ssize_t
+appendWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx);
+
 namespace {
 
 // TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
@@ -109,7 +112,7 @@ class PatternToRulesCompiler {
   // with recovery rules and alternate branches. The Idents here are assumed
   // to be a subset of those in symtab_ above.
   const vector<pair<Ident,string>>* errmsg_;
-  ssize_t skipIndex_;
+  ssize_t skipIndex_, regexOptsIdx_;
   ssize_t processConcat(const PatternConcat& concatPatt);
   ssize_t processOrList(const PatternOrList& orPatt);
   ssize_t processOptional(const PatternOptional& optPatt);
@@ -120,9 +123,9 @@ class PatternToRulesCompiler {
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
                          SymbolTable symtab,
                          const vector<pair<Ident,string>>& errmsg,
-                         ssize_t skipIndex) :
+                         ssize_t skipIndex, ssize_t regexOptsIdx) :
     ctx_(ctx), rl_(&rl), symtab_(std::move(symtab)),
-    errmsg_(&errmsg), skipIndex_(skipIndex) {}
+    errmsg_(&errmsg), skipIndex_(skipIndex), regexOptsIdx_(regexOptsIdx) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
   ssize_t process(const Pattern& patt);
@@ -199,7 +202,7 @@ PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
 ssize_t
 PatternToRulesCompiler::process(const Pattern& patt) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
-    return appendWordOrError(*rl_, **word);
+    return appendWordOrError(*rl_, **word, regexOptsIdx_);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
     return appendLiteralOrError(*rl_, **oper);
   }else if(get_if_unique<NewlineChar>(&patt)) {
@@ -541,25 +544,27 @@ appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   return newIndex;
 }
 
-ssize_t
-appendWordOrError(RulesWithLocs& rl, string_view word) {
+static ssize_t
+appendWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(WordPreserving{word, 0});
+  rl.appendAnonRule(WordPreserving{word, regexOptsIdx});
   rl.appendAnonRule(MatchOrError{newIndex, format("Expected '{}'", word)});
   return newIndex + 1;
 }
 
 void
 assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                   string errmsg, unique_ptr<const Regex> regex) {
+                   string errmsg, unique_ptr<const Regex> regex,
+                   ssize_t regexOptsIdx) {
   rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.appendAnonRule(RegexRule{std::move(regex), 0});
+  rl.appendAnonRule(RegexRule{std::move(regex), regexOptsIdx});
 }
 
-ssize_t
-appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex) {
+static ssize_t
+appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
+                   ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
-  rl.appendAnonRule(RegexRule{std::move(regex), 0});
+  rl.appendAnonRule(RegexRule{std::move(regex), regexOptsIdx});
   rl.appendAnonRule(MatchOrError{newIndex, "Does not match expected pattern"});
   return newIndex + 1;
 }
@@ -1014,7 +1019,9 @@ class RuleExprCompiler {
                    const vector<pair<Ident,string>>& errmsg)
     : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexOpts}, symtab_{&symtab},
       partPatterns_{&partPatterns}, errmsg_{&errmsg},
-      pattComp_{ctx_, rl, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip)}
+      regexOptsIdx_{rl_->addRegexOpts(RegexOptions{lexOpts_->wordChars})},
+      pattComp_{ctx_, rl, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip),
+                regexOptsIdx_}
       {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
@@ -1024,6 +1031,7 @@ class RuleExprCompiler {
     return patternIdents_;
   }
   bool somePatternFailed() const { return somePatternFailed_; }
+  ssize_t regexOptsIdx() const { return regexOptsIdx_; }
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1031,6 +1039,7 @@ class RuleExprCompiler {
   const SymbolTable* symtab_;  // Assumed to not have duplicates.
   const map<Ident,PartPattern>* partPatterns_;
   const vector<pair<Ident,string>>* errmsg_;
+  ssize_t regexOptsIdx_;
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
   bool somePatternFailed_ = false;
@@ -1065,7 +1074,7 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
     return this->processDquoted(*dq);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
-    return appendRegexOrError(*rl_, regex->regex->clone());
+    return appendRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_);
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     return this->processMappedIdent(*mid);
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
@@ -1249,7 +1258,7 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
     assignRegexOrError(
         rl, ruleIndex, "Does not match expected pattern",
-        regxpr->regex->clone());
+        regxpr->regex->clone(), comp.regexOptsIdx());
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     assignLiteralOrError(rl, ruleIndex, sq->s);
   else if(auto* id = getIfIdent(rxpr))
