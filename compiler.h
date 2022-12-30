@@ -208,7 +208,7 @@ struct PatternToRuleBinding {
 
 void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
-                  lex::GluedString patt_string, const LexDirective& lexOpts,
+                  lex::GluedString patt_string, const LexDirective& lexopts,
                   std::vector<PatternToRuleBinding> pattToRule,
                   JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
 
@@ -220,7 +220,7 @@ appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
 // The name is intentionally backwards: ExprRule is meant to mirror PatternRule.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexOpts,
+               const LexDirective& lexopts,
                std::vector<PatternToRuleBinding> pattToRule,
                JsonTmpl jstmpl, JsonLoc errors,
                RulesWithLocs& rl);

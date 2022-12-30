@@ -955,8 +955,8 @@ deduceOutputTmpl(const vector<IdentUsage>& idents) {
 // various local definitions.
 static optional<Pattern>
 parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
-    const LexDirective& lexOpts, const map<Ident,PartPattern>& partPatterns) {
-  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexOpts);
+    const LexDirective& lexopts, const map<Ident,PartPattern>& partPatterns) {
+  auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexopts);
   if(!patt_string.empty() && toks.empty()) return std::nullopt;
   return parsePattern(ctx, std::move(toks));
 }
@@ -970,11 +970,11 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
 // Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
 void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
-                  GluedString patt_string, const LexDirective& lexOpts,
+                  GluedString patt_string, const LexDirective& lexopts,
                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                   JsonLoc errors, RulesWithLocs& rl) {
   RuleExprDquoted rxpr{std::move(patt_string)};
-  appendExprRule(ctx, ruleName, rxpr, lexOpts, std::move(pattToRule),
+  appendExprRule(ctx, ruleName, rxpr, lexopts, std::move(pattToRule),
                  std::move(jstmpl), std::move(errors), rl);
 }
 
@@ -1033,10 +1033,10 @@ appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
 class RuleExprCompiler {
  public:
   RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx,
-                   const LexDirective& lexOpts, const SymbolTable& symtab,
+                   const LexDirective& lexopts, const SymbolTable& symtab,
                    const map<Ident,PartPattern>& partPatterns,
                    const vector<pair<Ident,string>>& errmsg)
-    : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexOpts}, symtab_{&symtab},
+    : rl_{&rl}, ctx_{ctx}, lexOpts_{&lexopts}, symtab_{&symtab},
       partPatterns_{&partPatterns}, errmsg_{&errmsg},
       regexOptsIdx_{rl_->addRegexOpts(RegexOptions{lexOpts_->wordChars})},
       pattComp_{ctx_, rl, *symtab_, errmsg, rl_->addSkipper(lexOpts_->skip),
@@ -1322,7 +1322,7 @@ compileLocalRules(DiagsDest ctx,
 // should only be used for tests.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexOpts,
+               const LexDirective& lexopts,
                vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
                JsonLoc errors, RulesWithLocs& rl) {
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
@@ -1334,9 +1334,9 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     = destructureErrors(ctx, std::move(errors));
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
 
-  RuleExprCompiler comp{rl, ctx, lexOpts, symtab, partPatterns, errmsg};
+  RuleExprCompiler comp{rl, ctx, lexopts, symtab, partPatterns, errmsg};
   compileLocalRules(ctx, pattToRule, comp, symtab, rl);
-  ssize_t skipIndex = rl.addSkipper(lexOpts.skip);
+  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
