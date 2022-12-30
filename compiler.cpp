@@ -529,6 +529,17 @@ RulesWithLocs::defaultLexopts(LexDirective lexopts) {
   return true;
 }
 
+// Dev-note: This is copying a bit too much. Keep an internal cache if
+// performance becomes a problem.
+LexDirective
+RulesWithLocs::defaultLexopts() const {
+  return LexDirective{
+    .wordChars = regexOpts_.at(0).word,
+    .skip = skips_.at(0),
+    .tailcont = false,
+  };
+}
+
 ssize_t
 RulesWithLocs::defaultSkipper() const {
   if(skips_.empty()) Bug("defaultSkipper was never set");

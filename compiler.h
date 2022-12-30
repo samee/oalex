@@ -112,6 +112,7 @@ class RulesWithLocs {
   /* Dev-note: This is not part of the constructor, since we want to allow the
      user to set it somewhat late */
   bool defaultLexopts(LexDirective lexopts);
+  LexDirective defaultLexopts() const;
   ssize_t defaultSkipper() const;  // Added by defaultLexOpts(...).
 
   /* This is checked just before producing rules as output */

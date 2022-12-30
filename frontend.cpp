@@ -757,8 +757,7 @@ resemblesLexicalDefaults(const vector<ExprToken>& linetoks) {
 // Note: defaultLexopts is both an input and an output.
 void
 parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
-                     InputDiags& ctx, size_t& i, RulesWithLocs& rl,
-                     LexDirective& defaultLexopts) {
+                     InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   if(!matchesTokens(linetoks, 0, {"lexical", "defaults", ":"}))
     Error(ctx, enPos(linetoks.back()), "Expected 'defaults', then ':'");
   else requireEol(linetoks, 3, ctx);
@@ -766,7 +765,7 @@ parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
 
   ssize_t stPos = oalex::lex::stPos(linetoks[0]);
   optional<LexDirective> lexopt =
-    parseLexicalBlock(defaultLexopts, ctx, i, std::move(linetoks));
+    parseLexicalBlock(rl.defaultLexopts(), ctx, i, std::move(linetoks));
   if(!lexopt) return;
 
   if(lexopt->tailcont) {
@@ -777,7 +776,6 @@ parseLexicalDefaults(vector<ExprToken> linetoks, bool examplesEmpty,
   if(!examplesEmpty || !rl.defaultLexopts(*lexopt))
     Error(ctx, stPos, "lexical defaults must be set before any rule"
                       " or example");
-  defaultLexopts = std::move(*lexopt);
 }
 
 // A complex component in this case is anything that cannot appear as a
@@ -1039,12 +1037,11 @@ makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
 // Assumes linetoks.size() >= 4
 void
 parseExprRule(const Ident& ruleName, vector<ExprToken> linetoks,
-              const LexDirective& defaultLexopts,
               InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   requireEol(linetoks, 4, ctx);
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
-  RuleStanzas stz = parseRuleStanzas(defaultLexopts, ctx, i);
+  RuleStanzas stz = parseRuleStanzas(rl.defaultLexopts(), ctx, i);
   appendExprRule(ctx, ruleName, *rxpr, stz.lexopts,
                  std::move(stz.local_decls), std::move(stz.jstmpl),
                  std::move(stz.errors), rl);
@@ -1068,13 +1065,12 @@ resemblesRule(const vector<ExprToken>& linetoks) {
 
 // Assumes i == ctx.input().bol(i), as we just finished lexNextLine().
 void
-parseRule(vector<ExprToken> linetoks, const LexDirective& defaultLexopts,
-          InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
+parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
+          RulesWithLocs& rl) {
   if(!requireColon(linetoks, 2, ctx)) return;
   const Ident ident = requireIdent(linetoks[1], ctx);
   if(linetoks.size() > 3) {
-    if(ident) parseExprRule(ident, std::move(linetoks), defaultLexopts,
-                            ctx, i, rl);
+    if(ident) parseExprRule(ident, std::move(linetoks), ctx, i, rl);
     return;
   }
   // TODO: refactor out the next part into a parsePatternRule(), instead of
@@ -1083,7 +1079,7 @@ parseRule(vector<ExprToken> linetoks, const LexDirective& defaultLexopts,
       parseIndentedBlock(ctx, i, indent_of(ctx.input(), linetoks[0]),
                          "pattern");
   if(!patt.has_value()) return;
-  RuleStanzas stz = parseRuleStanzas(defaultLexopts, ctx, i);
+  RuleStanzas stz = parseRuleStanzas(rl.defaultLexopts(), ctx, i);
 
   if(!ident) return;
   if(!stz.sawOutputsKw && !stz.sawWhereKw) {
@@ -1210,7 +1206,6 @@ resemblesMultiMatchRule(const vector<ExprToken>& linetoks) {
 
 void
 parseMultiMatchRule(vector<ExprToken> linetoks,
-                    const LexDirective& defaultLexopts,
                     InputDiags& ctx, size_t& i, RulesWithLocs& rl) {
   if(!requireColonEol(linetoks, 3, ctx)) return;
   vector<vector<ExprToken>> branches = lexListEntries(ctx, i, '|');
@@ -1227,7 +1222,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
     ssize_t lookidx = -1;
     ssize_t actionPos = 1;
     if(resemblesLookaheadBranch(branch)) {
-      lookidx = lookaheadRuleIndex(defaultLexopts, ctx, branch, 1, rl);
+      lookidx = lookaheadRuleIndex(rl.defaultLexopts(), ctx, branch, 1, rl);
       if(lookidx == -1) continue;
       actionPos += 2;   // Skip over "->"
     }
@@ -1235,8 +1230,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
       continue;
   }
   if(!ruleName) return;
-  ssize_t orIndex = rl.defineIdent(ctx, ruleName,
-                                   rl.addSkipper(defaultLexopts.skip));
+  ssize_t orIndex = rl.defineIdent(ctx, ruleName, rl.defaultSkipper());
   if(orIndex != -1) rl.deferred_assign(orIndex, std::move(orRule));
 }
 
@@ -1367,12 +1361,12 @@ parseOalexSource(InputDiags& ctx) {
   vector<Example> examples;
   RulesWithLocs rl;
 
-  LexDirective defaultLexopts = {
+  bool defaultSet = rl.defaultLexopts(LexDirective{
     parseRegexCharSet("[_a-zA-Z0-9]"),
     Skipper{ {}, {} },
     .tailcont = false,
-  };
-  if(!rl.defaultLexopts(defaultLexopts))
+  });
+  if(!defaultSet)
     Bug("defaultLexopts() is not assignable on fresh RulesWithLocs");
   bool lexoptsSet = false;
 
@@ -1406,16 +1400,15 @@ parseOalexSource(InputDiags& ctx) {
       if(auto ex = parseExample(std::move(linetoks), ctx, i))
         examples.push_back(std::move(*ex));
     }else if(resemblesMultiMatchRule(linetoks)) {
-      parseMultiMatchRule(std::move(linetoks), defaultLexopts, ctx, i, rl);
+      parseMultiMatchRule(std::move(linetoks), ctx, i, rl);
     }else if(resemblesRule(linetoks)) {
-      parseRule(std::move(linetoks), defaultLexopts, ctx, i, rl);
+      parseRule(std::move(linetoks), ctx, i, rl);
     }else if(resemblesLexicalDefaults(linetoks)) {
       if(lexoptsSet) {
         Error(ctx, stPos(linetoks[0]),
               "lexical defaults can only be set once");
       }else lexoptsSet = true;
-      parseLexicalDefaults(std::move(linetoks), examples.empty(), ctx, i, rl,
-                           defaultLexopts);
+      parseLexicalDefaults(std::move(linetoks), examples.empty(), ctx, i, rl);
     }else
       return Error(ctx, linetoks[0],
                    format("Unexpected '{}', was expecting 'example' or 'rule'",
