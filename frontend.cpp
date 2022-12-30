@@ -1295,8 +1295,6 @@ parseExample(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i) {
 
 const JsonTmpl*
 getTemplate(const Rule& rule) {
-  if(auto* concat = dynamic_cast<const ConcatRule*>(&rule))
-    return &concat->outputTmpl;
   if(auto* tmpl = dynamic_cast<const OutputTmpl*>(&rule))
     return &tmpl->outputTmpl;
   return nullptr;

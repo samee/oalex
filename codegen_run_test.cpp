@@ -190,8 +190,6 @@ void runSingleWordTemplate() {
   assertEqual(__func__, observed, expected);
 }
 
-// Dev-note: do not delete when replacing ConcatRule with ConcatFlatRule.
-// Rewrite to make the test instead to make it use ConcatFlatRule.
 void runConcatTest() {
   InputDiags ctx{Input{"int x = 5;  // A declaration"}};
   ssize_t pos = 0;

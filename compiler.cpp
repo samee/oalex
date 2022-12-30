@@ -408,7 +408,6 @@ template ssize_t RulesWithLocs::appendAnonRule(StringRule);
 template ssize_t RulesWithLocs::appendAnonRule(WordPreserving);
 template ssize_t RulesWithLocs::appendAnonRule(RegexRule);
 template ssize_t RulesWithLocs::appendAnonRule(SkipPoint);
-template ssize_t RulesWithLocs::appendAnonRule(ConcatRule);
 template ssize_t RulesWithLocs::appendAnonRule(ConcatFlatRule);
 template ssize_t RulesWithLocs::appendAnonRule(OutputTmpl);
 template ssize_t RulesWithLocs::appendAnonRule(LoopRule);
@@ -472,7 +471,6 @@ RulesWithLocs::deferred_assign(ssize_t idx, X x) {
 }
 
 template void RulesWithLocs::deferred_assign(ssize_t idx, SkipPoint);
-template void RulesWithLocs::deferred_assign(ssize_t idx, ConcatRule);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OutputTmpl);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OrRule);
 template void RulesWithLocs::deferred_assign(ssize_t idx, MatchOrError);

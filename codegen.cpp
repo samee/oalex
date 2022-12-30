@@ -170,20 +170,6 @@ eval(InputDiags& ctx, ssize_t& i,
 }
 
 static JsonLoc
-eval(InputDiags& ctx, ssize_t& i, const ConcatRule& seq, const RuleSet& rs) {
-  vector<pair<string, JsonLoc>> subs;
-  ssize_t j = i;
-  for(auto& [idx, outname] : seq.comps) {
-    JsonLoc out = eval(ctx, j, rs, idx);
-    if(out.holdsErrorValue()) return out;
-    if(!outname.empty()) subs.emplace_back(outname, std::move(out));
-  }
-  // TODO std::move this into substitute in the common case.
-  JsonLoc rv = seq.outputTmpl.substituteAll(subs);
-  return JsonLoc::withPos(std::move(rv), std::exchange(i, j), j);
-}
-
-static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
   JsonLoc outfields = eval(ctx, i, rs, out.childidx);
   if(outfields.holdsErrorValue()) return outfields;
@@ -404,8 +390,6 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
     return match(ctx, i, *regex->patt,
                  ruleset.regexOpts.at(regex->regexOptsIdx));
-  else if(auto* seq = dynamic_cast<const ConcatRule*>(&r))
-    return eval(ctx, i, *seq, ruleset);
   else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
@@ -708,36 +692,6 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  rv.stPos = i; rv.enPos = j;\n");
   cppos("  i = j;\n");
   cppos("  return rv;\n");
-}
-
-static void
-codegen(const RuleSet& ruleset, const ConcatRule& concatRule,
-        const OutputStream& cppos) {
-  cppos("  using oalex::JsonLoc;\n");
-  cppos("  ssize_t j = i;\n\n");
-  map<string,string> placeholders;
-  cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
-  for(auto& comp : concatRule.comps) {
-    const string resvar = "res" + comp.outputPlaceholder;
-    const char* decl = comp.outputPlaceholder.empty() ? "" : "JsonLoc ";
-
-    if(!comp.outputPlaceholder.empty() &&
-       !placeholders.insert({comp.outputPlaceholder,
-                             format("std::move({})", resvar)}).second)
-      // This uniqueness is also used in codegen(JsonLoc).
-      Bug("Duplicate placeholders at codegen: ", comp.outputPlaceholder);
-
-    cppos(format("\n  {}{} = ", decl, resvar));
-      codegenParserCall(ruleAt(ruleset, comp.idx), "j", cppos);
-      cppos(";\n");
-    cppos(format("  if({0}.holdsErrorValue()) return {0};\n", resvar));
-  }
-  cppos("\n  res = ");
-    codegen(concatRule.outputTmpl, cppos, placeholders, 2);
-    cppos(";\n");
-  cppos("  res.stPos = i; res.enPos = j;\n");
-  cppos("  i = j;\n");
-  cppos("  return res;\n");
 }
 
 // TODO Make it possible to figure out at compile-time whether a rule produces
@@ -1139,8 +1093,6 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     codegen(ruleset, *regex, cppos);
   }else if(auto* sp = dynamic_cast<const SkipPoint*>(&r)) {
     codegen(ruleset, *sp, cppos);
-  }else if(auto* seq = dynamic_cast<const ConcatRule*>(&r)) {
-    codegen(ruleset, *seq, cppos);
   }else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r)) {
     // TODO suppress hos output, produce static forward decls.
     codegen(ruleset, *seq, cppos);

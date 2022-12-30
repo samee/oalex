@@ -31,7 +31,6 @@ using oalex::AliasRule;
 using oalex::Bug;
 using oalex::codegenDefaultRegexOptions;
 using oalex::ConcatFlatRule;
-using oalex::ConcatRule;
 using oalex::ErrorRule;
 using oalex::ExternParser;
 using oalex::Ident;
@@ -242,11 +241,12 @@ void generateConcatTest(const OutputStream& cppos,
     nmRule(parseRegexRule("/-?[0-9]+\\b/"), "IntegerLiteral"),
     StringRule{";"},
     nmRule(SkipPoint{0}, "CommentsAndWhitespace"),
-    nmRule(ConcatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
-                       {3,"value"}, {5,""}, {4,""}},
-                      *parseJsonTmpl("{id, value}")}, "Definition"),
-    nmRule(ConcatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
-                       {4,""}}, *parseJsonTmpl("{rhs, lhs}")}, "Assignment")
+    nmRule(ConcatFlatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
+                           {3,"value"}, {5,""}, {4,""}}}, "DefinitionFields"),
+    nmRule(ConcatFlatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
+                           {4,""}}}, "AssignmentFields"),
+    nmRule(OutputTmpl{6, {}, *parseJsonTmpl("{id, value}")}, "Definition"),
+    nmRule(OutputTmpl{7, {}, *parseJsonTmpl("{rhs, lhs}")}, "Assignment")
     ), {cskip}, {regexOpts}
   };
   codegenNamedRules(rs, cppos, hos);
@@ -261,8 +261,9 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       StringRule{":"},
       nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
       nmRule(SkipPoint{0}, "ExtSpace"),
-      nmRule(ConcatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
-                         {3,"tmpl"}}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
+      nmRule(ConcatFlatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
+                             {3,"tmpl"}},}, "ExtTmplFields"),
+      nmRule(OutputTmpl{5, {}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
     ), {shskip}, {regexOpts}
   };
   codegenNamedRules(rs, cppos, hos);

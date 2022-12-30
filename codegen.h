@@ -87,26 +87,11 @@ bool needsName(const Rule& rule, bool isTentativeTarget);
 class ConcatFlatRule final : public Rule {
  public:
   // outputPlaceholder can be empty if you never need to refer to the result.
-  // For ConcatFlatRule, but not ConcatRule, it is required to be empty for
-  // rules returning a JsonLoc::Map.
+  // It is also required to be empty for components returning a flattenable map.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
   explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
   std::string specifics_typename() const override { return "ConcatFlatRule"; }
   std::vector<Component> comps;
-};
-
-// Mostly deprecated. It is still kept around in case I need concatenation
-// without flattening. For the most part, use ConcatFlatRule with OutputTmpl.
-// E.g. This doesn't tolerate missing optional fields.
-class ConcatRule final : public Rule {
- public:
-  // empty outputPlaceholder means the component is discarded.
-  struct Component { ssize_t idx; std::string outputPlaceholder; };
-  explicit ConcatRule(std::vector<Component> c, JsonTmpl outputTmpl)
-    : comps{std::move(c)}, outputTmpl{std::move(outputTmpl)} {}
-  std::string specifics_typename() const override { return "ConcatRule"; }
-  std::vector<Component> comps;
-  JsonTmpl outputTmpl;
 };
 
 // This is typically used to organize the components of a ConcatFlatRule. The
@@ -329,7 +314,6 @@ Return types are either an ErrorValue or:
   * UnassignedRule: Doesn't return, not to be used in eval or codegen.
   * string, WordPreserving, RegexRule: Returns string.
   * SkipPoint: Something dummy (to be checked).
-  * ConcatRule: Depends on outputtmpl, not used by pattern-compilation.
   * ConcatFlatRule: Returns Map, flattenable.
   * OutputTmpl: Returns Map, not flattenable.
   * LoopRule: Returns Map, flattenable.

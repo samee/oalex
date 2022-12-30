@@ -37,7 +37,6 @@ using oalex::AliasRule;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::ConcatFlatRule;
-using oalex::ConcatRule;
 using oalex::ErrorRule;
 using oalex::Input;
 using oalex::InputDiags;
@@ -271,10 +270,12 @@ void testConcatMatch() {
                parseRegexRule("/[a-zA-Z]+/"), StringRule{"="},
                parseRegexRule("/[0-9]+/"), StringRule{";"},
                SkipPoint{0},
-               nmRule(ConcatRule{
+               ConcatFlatRule{
                  { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
                    {3, ""}
-                 }, *parseJsonTmpl(R"({ stmt: 'asgn', lhs, rhs })")}, "asgn")),
+                 } },
+               nmRule(OutputTmpl{5, {},
+                      *parseJsonTmpl("{ stmt: 'asgn', lhs, rhs }")}, "asgn")),
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
