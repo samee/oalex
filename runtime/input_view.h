@@ -20,6 +20,9 @@
 
 namespace oalex {
 
+using LocPair = std::pair<ssize_t,ssize_t>;
+constexpr LocPair nrange{-1,-1};
+
 class InputPiece {
  public:
   static constexpr auto npos = size_t(-1);

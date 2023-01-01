@@ -28,9 +28,6 @@
 #include "pattern.h"
 
 namespace oalex {
-using LocPair = std::pair<ssize_t,ssize_t>;
-constexpr LocPair nrange{-1,-1};
-
 // This class keeps location information around while we are still building
 // up the vector<Rule>. This allows us to provide error messages such as
 // "variable used here but never defined". Once we are sure there is no error,

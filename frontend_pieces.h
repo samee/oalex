@@ -16,6 +16,15 @@ oalex::JsonLoc parseRule4(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i);
 
+struct ParsedExternRule {
+  oalex::LocPair loc;
+  struct Fields {
+    oalex::JsonLoc external_name;
+    oalex::JsonLoc param;
+    oalex::JsonLoc rule_name;
+  } fields;
+};
+
 oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule6(oalex::InputDiags& ctx, ssize_t& i);
@@ -64,6 +73,14 @@ oalex::JsonLoc parseRule27(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i);
 
+struct ParsedErrorStanzaLine {
+  oalex::LocPair loc;
+  struct Fields {
+    oalex::JsonLoc error_msg;
+    oalex::JsonLoc ident;
+  } fields;
+};
+
 oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i);
@@ -77,6 +94,12 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i);
 oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i);
+
+struct ParsedErrorStanzaLeader {
+  oalex::LocPair loc;
+  struct Fields {
+  } fields;
+};
 
 oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i);
 

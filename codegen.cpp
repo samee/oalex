@@ -478,8 +478,8 @@ static string anchorName(const RegexAnchor& a) {
   }
 }
 
-static void linebreak(const OutputStream& cppos, ssize_t indent) {
-  cppos("\n" + string(indent, ' '));
+static void linebreak(const OutputStream& os, ssize_t indent) {
+  os("\n" + string(indent, ' '));
 }
 
 static const char* alphabool(bool b) { return b ? "true" : "false"; }
@@ -589,6 +589,11 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
     codegenRegexOpts(ruleset.regexOpts.at(0), cppos, 2); cppos(";\n");
   cppos("  return *opts;\n");
   cppos("}\n");
+}
+
+static string
+parserResultName(const Ident& rname) {
+  return "Parsed" + rname.toUCamelCase();
 }
 
 static string
@@ -1070,6 +1075,45 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
              "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 
+static void
+genOutputFields(const JsonTmpl& t, const Ident& fieldName, ssize_t indent,
+                const OutputStream& hos) {
+  if(const JsonTmpl::String* s = t.getIfString())
+    hos(format("std::string {} = {};", fieldName.toSnakeCase(),
+               dquoted(*s)));
+  else if(t.holdsPlaceholder())
+    hos(format("oalex::JsonLoc {};", fieldName.toSnakeCase()));
+  else if(t.holdsEllipsis())
+    Bug("The compiler was supposed to have removed ellipsis");
+  else if(t.holdsVector())
+    hos(format("std::vector<oalex::JsonLoc> {};", fieldName.toSnakeCase()));
+  else if(const JsonTmpl::Map* m = t.getIfMap()) {
+    hos(format("struct {} {{", fieldName.toUCamelCase()));
+      linebreak(hos, indent);  // not indent+2, in case the next line is '}'
+    for(auto& [k,child]: *m) {
+      hos("  ");
+      genOutputFields(child, Ident::parseGenerated(k), indent+2, hos);
+      linebreak(hos, indent);
+    }
+    hos(format("}} {};", fieldName.toSnakeCase()));
+  }else Bug("Don't know how to generate field for type {}", t.tagName());
+}
+
+static void
+genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
+                  const OutputStream& hos) {
+  const Rule& r = ruleAt(ruleset, ruleIndex);
+  auto* out = dynamic_cast<const OutputTmpl*>(&r);
+  const Ident* rname = r.nameOrNull();
+  if(!rname || !out) return;  // TODO implement other rules
+  hos("struct " + parserResultName(*rname) + " {\n");
+  hos("  oalex::LocPair loc;\n");
+  hos("  ");
+    genOutputFields(out->outputTmpl, Ident::parseGenerated("fields"), 2, hos);
+    hos("\n");
+  hos("};\n\n");
+}
+
 // TODO make OutputStream directly accept format() strings. Perhaps with
 // an OutputStream::unfmt() for brace-heavy output. Additionally, figure out
 // nested formatters.  I.e.
@@ -1084,6 +1128,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
     genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
+  genTypeDefinition(ruleset, ruleIndex, hos);
   parserHeaders(rname, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
