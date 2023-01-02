@@ -37,6 +37,10 @@ add_executable(skipper_test skipper_test.cpp
 target_link_libraries(skipper_test oalex)
 add_test(skipper_test skipper_test)
 
+add_executable(any_of_test any_of_test.cpp
+               $<TARGET_OBJECTS:test_util>)
+target_link_libraries(any_of_test oalex)
+
 add_executable(builtins_test builtins_test.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(builtins_test oalex)
