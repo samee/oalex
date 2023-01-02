@@ -15,6 +15,7 @@
 #pragma once
 
 #include <limits>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -154,5 +155,14 @@ inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
     if(m[i].first == key) return std::move(m[i].second);
   return JsonLoc::Map{};
 }
+
+// TODO: This is to help the migration process, while some parsers are still
+// expecting JsonLoc while others have moved away to more specific types.
+// The hope is that we will eventually delete this (and #include <optional>).
+template <class T> JsonLoc toJsonLoc(std::optional<T> opt) {
+  if(!opt) return JsonLoc::ErrorValue{};
+  else return JsonLoc{std::move(*opt)};
+}
+inline JsonLoc toJsonLoc(JsonLoc jsloc) { return jsloc; }
 
 }  // namespace oalex

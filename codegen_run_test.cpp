@@ -171,7 +171,7 @@ void runConcatFlatTest() {
   expected = *parseJsonLoc("{var_name: 'x', "
                             "init_value: {type: 'int', value: '5'}}");
   ctx.diags.clear();
-  observed = parseFlatThenAssembled(ctx, pos);
+  observed = *parseFlatThenAssembled(ctx, pos);
   assertEqual(__func__, observed, expected);
   assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1, observed);
 
@@ -185,7 +185,7 @@ void runConcatFlatTest() {
 void runSingleWordTemplate() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"word and ignored"}};
-  JsonLoc observed = parseWordTmpl(ctx, pos);
+  JsonLoc observed = *parseWordTmpl(ctx, pos);
   JsonLoc expected = JsonLoc::Map{{"keyword", JsonLoc{"word"}}};
   assertEqual(__func__, observed, expected);
 }
@@ -193,7 +193,7 @@ void runSingleWordTemplate() {
 void runConcatTest() {
   InputDiags ctx{Input{"int x = 5;  // A declaration"}};
   ssize_t pos = 0;
-  JsonLoc jsloc = parseDefinition(ctx, pos);
+  JsonLoc jsloc = *parseDefinition(ctx, pos);
   string expected = R"({
     id: "x",
     value: "5"
@@ -203,12 +203,12 @@ void runConcatTest() {
 
   ctx = InputDiags{Input{"intx = 5;"}};
   pos = 0;
-  jsloc = parseAssignment(ctx, pos);
-  if(!jsloc.holdsErrorValue()) BugMe("run-on word matched unexpectedly");
+  optional<ParsedAssignment> asgn = parseAssignment(ctx, pos);
+  if(asgn.has_value()) BugMe("run-on word matched unexpectedly");
 
   ctx = InputDiags{Input{"y=x;"}};
   pos = 0;
-  jsloc = parseAssignment(ctx, pos);
+  jsloc = *parseAssignment(ctx, pos);
   expected = R"({
     lhs: "y",
     rhs: "x"
@@ -276,7 +276,7 @@ JsonLoc oalexPluginBulletedList(
         Error(ctx, j, "Expected a list item");
       break;
     }
-    JsonLoc entry = parseEntry(ctx, j);
+    JsonLoc entry{parseEntry(ctx, j)};
     if(!entry.holdsErrorValue()) outvec.push_back(std::move(entry));
     else break;  // Simple parser, no error recovery.
     if(!pluginBulletedListSkipToBolOrEof(ctx, j)) break;
@@ -302,7 +302,7 @@ void runExternParserDeclaration() {
   )";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  JsonLoc jsloc = parseExtTmpl(ctx, pos);
+  JsonLoc jsloc = *parseExtTmpl(ctx, pos);
   string expected = R"({
     id: "some_text",
     tmpl: "loren\nipsum\n\n"

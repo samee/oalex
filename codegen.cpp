@@ -591,9 +591,22 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("}\n");
 }
 
+static bool
+producesGeneratedStruct(const Rule& r) {
+  auto* out = dynamic_cast<const OutputTmpl*>(&r);
+  return out && out->nameOrNull();
+}
+
 static string
 parserResultName(const Ident& rname) {
   return "Parsed" + rname.toUCamelCase();
+}
+
+static string
+parserResultOptional(const Rule& rule) {
+  if(producesGeneratedStruct(rule))
+    return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
+  else return "oalex::JsonLoc";
 }
 
 static string
@@ -602,15 +615,15 @@ parserName(const Ident& rname) {
 }
 
 static void
-parserHeaders(const Ident& rname,
+parserHeaders(const Rule& rule,
               const OutputStream& cppos, const OutputStream& hos) {
-  hos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             parserName(rname)));
+  const Ident& rname = *rule.nameOrNull();
+  hos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i);\n",
+             parserResultOptional(rule), parserName(rname)));
 
   // TODO complex parsers should have comments with the source line.
-  cppos(format("oalex::JsonLoc {}(oalex::InputDiags& ctx, "
-                                      "ssize_t& i) ",
-               parserName(rname)));
+  cppos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i) ",
+               parserResultOptional(rule), parserName(rname)));
 }
 
 static void
@@ -745,7 +758,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  JsonLoc outfields = ");
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
-  cppos("  if(outfields.holdsErrorValue()) return outfields;\n");
+  cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
   map<string,string> placeholders;
   // Dev-note: we only produce Bug() if reaching a given control path indicates
   // a bug in the code *generator*.
@@ -905,7 +918,10 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
   for(const auto& param : extRule.params()) {
     const Ident& name = externParamName(ruleset, param);
-    cppos(format("  const static Parser* {}Wrapper = new ParserPtr(&{});\n",
+    cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
+                 "    +[](InputDiags& ctx, ssize_t& i) {{\n"
+                 "      return oalex::toJsonLoc({}(ctx, i));\n"
+                 "    }});\n",
           name.toLCamelCase(), parserName(name)));
   }
   cppos(format("  return {}(ctx, i{});\n", extRule.externalName(),
@@ -1101,8 +1117,12 @@ codegenParserCall(const Rule& rule, string_view posVar,
   else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
           ext && ext->params().empty())
     cppos(format("{}(ctx, {});", ext->externalName(), posVar));
-  else if(const Ident* rname = rule.nameOrNull())
-    cppos(format("{}(ctx, {})", parserName(*rname), posVar));
+  else if(const Ident* rname = rule.nameOrNull()) {
+    if(producesGeneratedStruct(rule))
+      cppos(format("oalex::toJsonLoc({}(ctx, {}))",
+            parserName(*rname), posVar));
+    else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
+  }
   // When adding a new branch here, remember to change needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
@@ -1205,7 +1225,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
   genTypeDefinition(ruleset, ruleIndex, cppos, hos);
-  parserHeaders(rname, cppos, hos); cppos("{\n");
+  parserHeaders(r, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {

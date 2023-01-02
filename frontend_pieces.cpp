@@ -112,13 +112,13 @@ ParsedExternRule::operator JsonLoc() const {
   }, loc.first, loc.second);
 }
 
-oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   JsonLoc outfields = parseRule26(ctx, i);
-  if(outfields.holdsErrorValue()) return outfields;
+  if(outfields.holdsErrorValue()) return std::nullopt;
   auto* m = outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
   ParsedExternRule rv{
@@ -488,13 +488,13 @@ ParsedErrorStanzaLine::operator JsonLoc() const {
   }, loc.first, loc.second);
 }
 
-oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   JsonLoc outfields = parseRule34(ctx, i);
-  if(outfields.holdsErrorValue()) return outfields;
+  if(outfields.holdsErrorValue()) return std::nullopt;
   auto* m = outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
   ParsedErrorStanzaLine rv{
@@ -615,13 +615,13 @@ ParsedErrorStanzaLeader::operator JsonLoc() const {
   }, loc.first, loc.second);
 }
 
-oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   JsonLoc outfields = parseRule42(ctx, i);
-  if(outfields.holdsErrorValue()) return outfields;
+  if(outfields.holdsErrorValue()) return std::nullopt;
   ParsedErrorStanzaLeader rv{
     .loc{oldi, i},
     .fields{
@@ -752,8 +752,14 @@ oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Parser;
   using oalex::ParserPtr;
   extern JsonLoc oalexBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
-  const static Parser* errorStanzaLeaderWrapper = new ParserPtr(&parseErrorStanzaLeader);
-  const static Parser* errorStanzaLineWrapper = new ParserPtr(&parseErrorStanzaLine);
+  const static Parser* errorStanzaLeaderWrapper = new ParserPtr(
+    +[](InputDiags& ctx, ssize_t& i) {
+      return oalex::toJsonLoc(parseErrorStanzaLeader(ctx, i));
+    });
+  const static Parser* errorStanzaLineWrapper = new ParserPtr(
+    +[](InputDiags& ctx, ssize_t& i) {
+      return oalex::toJsonLoc(parseErrorStanzaLine(ctx, i));
+    });
   return oalexBuiltinIndentedList(ctx, i, *errorStanzaLeaderWrapper, *errorStanzaLineWrapper);
 }
 

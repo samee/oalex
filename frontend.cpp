@@ -1378,7 +1378,7 @@ parseOalexSource(InputDiags& ctx) {
     ssize_t is = i;
     bool tok_needed = false, parse_error = false;
     if(resemblesExternRule(ctx, is)) {
-      if(JsonLoc jsloc = parseExternRule(ctx, is))
+      if(JsonLoc jsloc = toJsonLoc(parseExternRule(ctx, is)))
         appendExternRule(jsloc, ctx, rl);
       else parse_error = true;
     }else {
