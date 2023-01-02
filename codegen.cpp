@@ -699,6 +699,37 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  return rv;\n");
 }
 
+// TODO: use sorted vector instead of map here too.
+static void
+genStructValues(const JsonTmpl& outputTmpl,
+                const map<string,string>& placeholders, ssize_t indent,
+                const OutputStream& cppos) {
+  if(auto* s = outputTmpl.getIfString()) {
+    cppos(" = "); cppos(dquoted(*s));
+  }else if(auto* p = outputTmpl.getIfPlaceholder()) {
+    auto v = placeholders.find(p->key);
+    if(v == placeholders.end())
+      Bug("Undefined placeholder in codegen: {}", p->key);
+    cppos(" = ");
+    cppos(v->second);
+  }else if(auto* v = outputTmpl.getIfVector()) {
+    cppos(" = ");
+    genMakeVector("JsonLoc", *v, [&](auto& child) {
+                   genStructValues(child, placeholders, indent+2, cppos);
+                 }, [&]{ linebreak(cppos, indent); }, cppos);
+  }else if(auto* m = outputTmpl.getIfMap()) {
+    cppos("{"); linebreak(cppos, indent);
+    for(auto& [k,v] : *m) {
+      cppos("  ."); cppos(Ident::parseGenerated(k).toSnakeCase());
+      genStructValues(v, placeholders, indent+2, cppos);
+      cppos(","); linebreak(cppos, indent);
+    }
+    cppos("}");
+  }else if(outputTmpl.holdsEllipsis())
+    Bug("{}: compiler should have removed ellipsis", __func__);
+  else Bug("{}: Unknown type {}", __func__, outputTmpl.tagName());
+}
+
 // TODO Make it possible to figure out at compile-time whether a rule produces
 // a JsonLoc::Map. E.g. by having OrRule also autobox its non-map branches.
 // TODO Once we can figure out at compile-time whether something produces a
@@ -724,20 +755,29 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     else {
       cppos("  if(m == nullptr) {\n");
-      cppos("    return ");
-        codegen(out.outputTmpl, cppos,
-                map<string,string>{{out.childName, "std::move(outfields)"}}, 4);
-        cppos(";\n");
+      cppos(format("    return {}{{\n",
+                   parserResultName(*out.nameOrNull())));
+      cppos("      .loc{oldi, i},\n");
+      cppos("      .fields");
+        genStructValues(
+            out.outputTmpl,
+            map<string,string>{{out.childName, "std::move(outfields)"}},
+            6, cppos);
+        cppos(",\n");
+      cppos("    };\n");
       cppos("  }\n");
     }
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
                                        dquoted(key))});
   }
-  cppos("  JsonLoc rv = ");
-    codegen(out.outputTmpl, cppos, placeholders, 2);
-    cppos(";\n");
-  cppos("  rv.stPos = oldi; rv.enPos = i;\n");
+  // TODO the out.childName branch above.
+  cppos(format("  {} rv{{\n", parserResultName(*out.nameOrNull())));
+  cppos("    .loc{oldi, i},\n");
+  cppos("    .fields");
+    genStructValues(out.outputTmpl, placeholders, 4, cppos);
+    cppos(",\n");
+  cppos("  };\n");
   cppos("  return rv;\n");
 }
 
