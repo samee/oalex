@@ -27,6 +27,8 @@
 #include "codegen.h"
 #include "pattern.h"
 
+struct ParsedExternRule;  // bootstrapped
+
 namespace oalex {
 // This class keeps location information around while we are still building
 // up the vector<Rule>. This allows us to provide error messages such as
@@ -210,7 +212,7 @@ appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
 
 void
-appendExternRule(JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl);
+appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
 
 // Don't use this for local rules. This function takes in a global name for a
 // new rule. Local rules are added implicitly using pattToRule parameters.

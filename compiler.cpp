@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <map>
 #include <utility>
+#include <frontend_pieces.h>
 #include "fmt/core.h"
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"
@@ -1002,12 +1003,11 @@ identFrom(const JsonLoc& jsloc, string_view desc, DiagsDest ctx) {
 // TODO revisit all error-handling from Ident::parse() in the repo.
 //   It may return empty. findOrAppendIdent() and friends don't expect it.
 void
-appendExternRule(const JsonLoc ruletoks, DiagsDest ctx, RulesWithLocs& rl) {
-  if(ruletoks.holdsErrorValue()) return;  // Diags already populated in parser
-  MapFields fields{ruletoks.getIfMap(), "extern_rule"};
-  auto& rname    = fields.get<JsonLoc>("rule_name");
-  auto ext_name  = fields.get_copy<StringLoc>("external_name");
-  auto* params   = fields.get<JsonLoc::Vector*>("param");
+appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
+                 RulesWithLocs& rl) {
+  const JsonLoc& rname = ext.fields.rule_name;
+  StringLoc ext_name = ext.fields.external_name.getIfStringLoc();
+  const JsonLoc::Vector* params = ext.fields.param.getIfVector();
 
   vector<ssize_t> ruleIndices;
   if(params) for(auto& p: *params) {
