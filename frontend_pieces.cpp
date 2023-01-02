@@ -104,6 +104,14 @@ oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
+ParsedExternRule::operator JsonLoc() const {
+  return JsonLoc::withPos(JsonLoc::Map{
+    {"external_name", fields.external_name},
+    {"param", fields.param},
+    {"rule_name", fields.rule_name},
+  }, loc.first, loc.second);
+}
+
 oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
@@ -471,6 +479,13 @@ oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
   return parseDoubleQuotedLiteral(ctx, i);
 }
 
+ParsedErrorStanzaLine::operator JsonLoc() const {
+  return JsonLoc::withPos(JsonLoc::Map{
+    {"error_msg", fields.error_msg},
+    {"ident", fields.ident},
+  }, loc.first, loc.second);
+}
+
 oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::assertNotNull;
   using oalex::JsonLoc;
@@ -589,6 +604,11 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   rv.stPos = i; rv.enPos = j;
   i = j;
   return rv;
+}
+
+ParsedErrorStanzaLeader::operator JsonLoc() const {
+  return JsonLoc::withPos(JsonLoc::Map{
+  }, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {

@@ -1099,19 +1099,55 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName, ssize_t indent,
   }else Bug("Don't know how to generate field for type {}", t.tagName());
 }
 
+// TODO: see if we can refactor parts of this with codegen(JsonTmpl) above.
+// TODO: make move conversion.
+// TODO: Eliminate parseGenerated() by keeping them as idents.
+static void
+genFieldConversion(const JsonTmpl& t, string field_prefix,
+                   const OutputStream& cppos, ssize_t indent) {
+  if(t.holdsString() || t.holdsPlaceholder()) cppos(field_prefix);
+  else if(t.holdsEllipsis())
+    Bug("{}: ellipsis should have been desugared in the compiler", __func__);
+  else if(const JsonTmpl::Vector* v = t.getIfVector()) {
+    cppos("JsonLoc::Vector{"); linebreak(cppos, indent);
+    for(ssize_t i=0; i<ssize(*v); ++i) {
+      cppos(format("  {}[{}],", field_prefix, i)); linebreak(cppos, indent);
+    }
+    cppos("}");
+  }else if(const JsonTmpl::Map* m = t.getIfMap()) {
+    cppos("JsonLoc::Map{"); linebreak(cppos, indent);
+    for(const auto& [k, v] : *m) {
+      cppos(format("  {{{}, ", dquoted(k)));
+      genFieldConversion(
+          v, format("{}.{}", field_prefix,
+                    Ident::parseGenerated(k).toSnakeCase()),
+          cppos, indent+2);
+      cppos("},"); linebreak(cppos, indent);
+    }
+    cppos("}");
+  }
+}
 static void
 genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
-                  const OutputStream& hos) {
+                  const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
   auto* out = dynamic_cast<const OutputTmpl*>(&r);
   const Ident* rname = r.nameOrNull();
   if(!rname || !out) return;  // TODO implement other rules
-  hos("struct " + parserResultName(*rname) + " {\n");
+  string className = parserResultName(*rname);
+  hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
     genOutputFields(out->outputTmpl, Ident::parseGenerated("fields"), 2, hos);
     hos("\n");
+  hos("  operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
+
+  cppos(format("{}::operator JsonLoc() const {{\n", className));
+  cppos("  return JsonLoc::withPos(");
+    genFieldConversion(out->outputTmpl, "fields", cppos, 2);
+    cppos(", loc.first, loc.second);\n");
+  cppos("}\n\n");
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
@@ -1128,7 +1164,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   if(auto* ext = dynamic_cast<const ExternParser*>(&r)) {
     genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
-  genTypeDefinition(ruleset, ruleIndex, hos);
+  genTypeDefinition(ruleset, ruleIndex, cppos, hos);
   parserHeaders(rname, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));

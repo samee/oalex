@@ -23,6 +23,7 @@ struct ParsedExternRule {
     oalex::JsonLoc param;
     oalex::JsonLoc rule_name;
   } fields;
+  operator oalex::JsonLoc() const;
 };
 
 oalex::JsonLoc parseExternRule(oalex::InputDiags& ctx, ssize_t& i);
@@ -79,6 +80,7 @@ struct ParsedErrorStanzaLine {
     oalex::JsonLoc error_msg;
     oalex::JsonLoc ident;
   } fields;
+  operator oalex::JsonLoc() const;
 };
 
 oalex::JsonLoc parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i);
@@ -99,6 +101,7 @@ struct ParsedErrorStanzaLeader {
   oalex::LocPair loc;
   struct Fields {
   } fields;
+  operator oalex::JsonLoc() const;
 };
 
 oalex::JsonLoc parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i);
