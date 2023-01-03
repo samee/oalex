@@ -26,15 +26,12 @@ namespace oalex {
   class ParserPtr : public Parser {
    public:
     using callback_type = JsonLike (*)(InputDiags&, ssize_t&);
-    using old_callback_type = JsonLoc (*)(InputDiags&, ssize_t&);
     ParserPtr(callback_type cb) : cb_{cb} {}  // implicit
-    ParserPtr(old_callback_type ocb) : ocb_{ocb} {}  // implicit
     JsonLike operator()(InputDiags& ctx, ssize_t& pos) const override {
-      return cb_ ? cb_(ctx, pos) : JsonLike{ocb_(ctx, pos)};
+      return cb_(ctx, pos);
     }
    private:
     callback_type cb_ = nullptr;
-    old_callback_type ocb_ = nullptr;
   };
 }
 
