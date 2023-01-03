@@ -316,8 +316,8 @@ eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
 
 // TODO move this to runtime/ directory if we want to use this in
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
-static JsonLoc
-oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
+static JsonLike
+oalexNewBuiltinHello(InputDiags& ctx, ssize_t& i) {
   if(ctx.input().substr(i, 5) == "hello") {
     i += 5;
     return JsonLoc::String{"hello"};
@@ -325,6 +325,10 @@ oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
     Error(ctx, i, "Expected 'hello'");
     return JsonLoc::ErrorValue{};
   }
+}
+static JsonLoc
+oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
+  return oalexNewBuiltinHello(ctx, i);
 }
 
 class ExternParserParam : public Parser {
@@ -910,12 +914,25 @@ static void
 codegen(const RuleSet& ruleset, const ExternParser& extRule,
         const OutputStream& cppos) {
   cppos("  using oalex::InputDiags;\n");
+  cppos("  using oalex::JsonLike;\n");
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::Parser;\n");
   cppos("  using oalex::ParserPtr;\n");
   cppos(format(
         "  extern JsonLoc {}(InputDiags& ctx, ssize_t& i{});\n",
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
+
+  // "oalexNewBuiltin" hack. Used for transition only. TODO delete hack.
+  // It generates calls to oalexNewBuiltinIndentedList even if the user
+  // asked for oalexBuiltinIndentedList.
+  string newExtName = extRule.externalName();
+  if(newExtName.find("oalexBuiltin") == 0) {
+    newExtName = "oalexNewBuiltin"
+      + newExtName.substr(sizeof("oalexBuiltin")-1);
+    cppos(format(
+          "  extern JsonLike {}(InputDiags& ctx, ssize_t& i{});\n",
+          newExtName, parserCallbacksTail(extRule.params().size())));
+  }
   for(const auto& param : extRule.params()) {
     const Ident& name = externParamName(ruleset, param);
     cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
@@ -924,7 +941,7 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
                  "    }});\n",
           name.toLCamelCase(), parserName(name)));
   }
-  cppos(format("  return {}(ctx, i{});\n", extRule.externalName(),
+  cppos(format("  return {}(ctx, i{});\n", newExtName,
                parserNamesJoinTail(ruleset, extRule.params())));
 }
 

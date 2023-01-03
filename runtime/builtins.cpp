@@ -14,6 +14,7 @@
 
 #include "builtins.h"
 #include "indent.h"
+#include "jsonlike.h"
 #include "skipper.h"
 #include "util.h"
 using oalex::Bug;
@@ -22,6 +23,7 @@ using oalex::IndentCmp;
 using oalex::indentCmp;
 using oalex::InputDiags;
 using oalex::InputPiece;
+using oalex::JsonLike;
 using oalex::JsonLoc;
 using oalex::Parser;
 using oalex::Skipper;
@@ -50,8 +52,8 @@ static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
 // Consumes malformed list entries until an indent that's less or equal to
 // the leader indent. If the leader itself is malformed, nothing is consumed.
 // TODO fix error-handling.
-JsonLoc
-oalexBuiltinIndentedList(
+JsonLike
+oalexNewBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
     const Parser& leader, const Parser& lineItem) {
   const InputPiece& input = ctx.input();
@@ -120,4 +122,11 @@ oalexBuiltinIndentedList(
     {"leader", std::move(jsloc_h)},
     {"items", JsonLoc{std::move(lines)}},
   };
+}
+
+JsonLoc
+oalexBuiltinIndentedList(
+    InputDiags& ctx, ssize_t& i,
+    const Parser& leader, const Parser& lineItem) {
+  return oalexNewBuiltinIndentedList(ctx, i, leader, lineItem);
 }
