@@ -122,6 +122,6 @@ oalex::JsonLoc parseRule41(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i);
 
-extern oalex::JsonLoc oalexBuiltinIndentedList(oalex::InputDiags& ctx, ssize_t& j, const oalex::Parser&, const oalex::Parser&);
-oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i);
+extern oalex::JsonLike oalexBuiltinIndentedList(oalex::InputDiags& ctx, ssize_t& j, const oalex::Parser&, const oalex::Parser&);
+oalex::JsonLike parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i);
 

@@ -105,7 +105,7 @@ namespace oalex {
   string of spaces and tabs. If two lines have no prefix relationship between
   their indentation, they are deemed incomparable and we raise an error.
 */
-oalex::JsonLoc
+oalex::JsonLike
 oalexBuiltinIndentedList(
     oalex::InputDiags& ctx, ssize_t& i,
     const oalex::Parser& leader, const oalex::Parser& lineItem);

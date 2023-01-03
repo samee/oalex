@@ -316,7 +316,7 @@ eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
 
 // TODO move this to runtime/ directory if we want to use this in
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
-static JsonLoc
+static JsonLike
 oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
   if(ctx.input().substr(i, 5) == "hello") {
     i += 5;
@@ -606,6 +606,8 @@ static string
 parserResultOptional(const Rule& rule) {
   if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
+  else if(dynamic_cast<const ExternParser*>(&rule))
+    return "oalex::JsonLike";
   else return "oalex::JsonLoc";
 }
 
@@ -910,12 +912,13 @@ static void
 codegen(const RuleSet& ruleset, const ExternParser& extRule,
         const OutputStream& cppos) {
   cppos("  using oalex::InputDiags;\n");
-  cppos("  using oalex::JsonLoc;\n");
+  cppos("  using oalex::JsonLike;\n");
   cppos("  using oalex::Parser;\n");
   cppos("  using oalex::ParserPtr;\n");
   cppos(format(
-        "  extern JsonLoc {}(InputDiags& ctx, ssize_t& i{});\n",
+        "  extern JsonLike {}(InputDiags& ctx, ssize_t& i{});\n",
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
+
   for(const auto& param : extRule.params()) {
     const Ident& name = externParamName(ruleset, param);
     cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
@@ -1131,7 +1134,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
 static void
 genExternDeclaration(const OutputStream& hos, string_view extName,
                      ssize_t paramCount) {
-  hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, "
+  hos(format("extern oalex::JsonLike {}(oalex::InputDiags& ctx, "
              "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 
