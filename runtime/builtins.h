@@ -109,8 +109,3 @@ oalex::JsonLike
 oalexNewBuiltinIndentedList(
     oalex::InputDiags& ctx, ssize_t& i,
     const oalex::Parser& leader, const oalex::Parser& lineItem);
-
-oalex::JsonLoc
-oalexBuiltinIndentedList(
-    oalex::InputDiags& ctx, ssize_t& i,
-    const oalex::Parser& leader, const oalex::Parser& lineItem);

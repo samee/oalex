@@ -29,6 +29,14 @@ using oalex::match;
 using oalex::ParserPtr;
 using oalex::showDiags;
 
+// TODO delete this. Temporary extern to migrate return values.
+// Hidden here from the header file so as to not conflict with old
+// bootstrapped frontend_pieces.cpp.
+extern oalex::JsonLike
+oalexBuiltinIndentedList(
+    oalex::InputDiags& ctx, ssize_t& i,
+    const oalex::Parser& leader, const oalex::Parser& lineItem);
+
 namespace {
 
 const ParserPtr simpleLeader = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {

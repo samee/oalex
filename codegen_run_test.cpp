@@ -34,6 +34,7 @@ using oalex::Bug;
 using oalex::Input;
 using oalex::InputDiags;
 using oalex::InputPiece;
+using oalex::JsonLike;
 using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::Parser;
@@ -220,7 +221,7 @@ void runConcatTest() {
 }  // namespace
 
 // This one needs to be extern for linking to generated code.
-JsonLoc oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
+JsonLike oalexPluginIndentedTmpl(InputDiags& ctx, ssize_t& i) {
   static const Skipper *shskip = new Skipper{ {{"#", "\n"}}, {} };
   const InputPiece& input = ctx.input();
   ssize_t j = shskip->whitespace(ctx.input(), i);
@@ -263,7 +264,7 @@ bool pluginBulletedListSkipToBolOrEof(InputDiags& ctx, ssize_t& i) {
   return true;
 }
 
-JsonLoc oalexPluginBulletedList(
+JsonLike oalexPluginBulletedList(
     InputDiags& ctx, ssize_t& i, const Parser& parseEntry) {
   JsonLoc::Vector outvec;
   ssize_t j=i, fallback_point=i;

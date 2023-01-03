@@ -35,6 +35,14 @@ using std::string_view;
 using std::unique_ptr;
 using std::vector;
 
+// TODO delete this. Temporary extern to migrate return values.
+// Hidden here from the header file so as to not conflict with old
+// bootstrapped frontend_pieces.cpp.
+extern oalex::JsonLike
+oalexBuiltinIndentedList(
+    oalex::InputDiags& ctx, ssize_t& i,
+    const oalex::Parser& leader, const oalex::Parser& lineItem);
+
 namespace oalex {
 
 static bool validExtName(string_view name) {
@@ -326,7 +334,7 @@ oalexNewBuiltinHello(InputDiags& ctx, ssize_t& i) {
     return JsonLoc::ErrorValue{};
   }
 }
-static JsonLoc
+static JsonLike
 oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
   return oalexNewBuiltinHello(ctx, i);
 }
@@ -915,11 +923,10 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
         const OutputStream& cppos) {
   cppos("  using oalex::InputDiags;\n");
   cppos("  using oalex::JsonLike;\n");
-  cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::Parser;\n");
   cppos("  using oalex::ParserPtr;\n");
   cppos(format(
-        "  extern JsonLoc {}(InputDiags& ctx, ssize_t& i{});\n",
+        "  extern JsonLike {}(InputDiags& ctx, ssize_t& i{});\n",
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
 
   // "oalexNewBuiltin" hack. Used for transition only. TODO delete hack.
@@ -1148,7 +1155,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
 static void
 genExternDeclaration(const OutputStream& hos, string_view extName,
                      ssize_t paramCount) {
-  hos(format("extern oalex::JsonLoc {}(oalex::InputDiags& ctx, "
+  hos(format("extern oalex::JsonLike {}(oalex::InputDiags& ctx, "
              "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 

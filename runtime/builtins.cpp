@@ -124,7 +124,7 @@ oalexNewBuiltinIndentedList(
   };
 }
 
-JsonLoc
+JsonLike
 oalexBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
     const Parser& leader, const Parser& lineItem) {

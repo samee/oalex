@@ -749,10 +749,9 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
 oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::InputDiags;
   using oalex::JsonLike;
-  using oalex::JsonLoc;
   using oalex::Parser;
   using oalex::ParserPtr;
-  extern JsonLoc oalexBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
+  extern JsonLike oalexBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
   extern JsonLike oalexNewBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
   const static Parser* errorStanzaLeaderWrapper = new ParserPtr(
     +[](InputDiags& ctx, ssize_t& i) {
