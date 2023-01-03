@@ -331,7 +331,7 @@ class ExternParserParam : public Parser {
  public:
   ExternParserParam(const RuleSet& rs, ssize_t ruleIndex)
     : rs_{rs}, ruleIndex_{ruleIndex} {}
-  JsonLoc operator()(InputDiags& ctx, ssize_t& i) const override {
+  JsonLike operator()(InputDiags& ctx, ssize_t& i) const override {
     return eval(ctx, i, rs_, ruleIndex_);
   }
  private:
@@ -920,7 +920,7 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
     const Ident& name = externParamName(ruleset, param);
     cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
                  "    +[](InputDiags& ctx, ssize_t& i) {{\n"
-                 "      return oalex::toJsonLoc({}(ctx, i));\n"
+                 "      return oalex::toJsonLike({}(ctx, i));\n"
                  "    }});\n",
           name.toLCamelCase(), parserName(name)));
   }
@@ -1119,7 +1119,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
     cppos(format("{}(ctx, {});", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
     if(producesGeneratedStruct(rule))
-      cppos(format("oalex::toJsonLoc({}(ctx, {}))",
+      cppos(format("oalex::toJsonLike({}(ctx, {}))",
             parserName(*rname), posVar));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }

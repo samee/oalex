@@ -16,12 +16,14 @@
 
 #include "runtime/diags.h"
 #include "runtime/jsonloc.h"
+#include "runtime/jsonlike.h"
 #include "runtime/parser_helpers.h"
 #include "runtime/test_util.h"
 #include <string_view>
 using oalex::assertEqual;
 using oalex::Input;
 using oalex::InputDiags;
+using oalex::JsonLike;
 using oalex::JsonLoc;
 using oalex::match;
 using oalex::ParserPtr;
@@ -29,10 +31,10 @@ using oalex::showDiags;
 
 namespace {
 
-const ParserPtr simpleLeader = +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+const ParserPtr simpleLeader = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
   return match(ctx, i, "my_list:");
 };
-const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
   JsonLoc res = match(ctx, i, "item");
   if(res.holdsErrorValue()) {
     Error(ctx, i, "Expected 'item'");
@@ -40,7 +42,7 @@ const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
   return res;
 };
 const ParserPtr leaderBadLocation =
-  +[](InputDiags& ctx, ssize_t& i) -> JsonLoc {
+  +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
   JsonLoc rv = match(ctx, i, "my_list:");
   rv.stPos = rv.enPos = Input::npos;
   return rv;

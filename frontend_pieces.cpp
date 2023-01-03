@@ -754,11 +754,11 @@ oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
   extern JsonLoc oalexBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
   const static Parser* errorStanzaLeaderWrapper = new ParserPtr(
     +[](InputDiags& ctx, ssize_t& i) {
-      return oalex::toJsonLoc(parseErrorStanzaLeader(ctx, i));
+      return oalex::toJsonLike(parseErrorStanzaLeader(ctx, i));
     });
   const static Parser* errorStanzaLineWrapper = new ParserPtr(
     +[](InputDiags& ctx, ssize_t& i) {
-      return oalex::toJsonLoc(parseErrorStanzaLine(ctx, i));
+      return oalex::toJsonLike(parseErrorStanzaLine(ctx, i));
     });
   return oalexBuiltinIndentedList(ctx, i, *errorStanzaLeaderWrapper, *errorStanzaLineWrapper);
 }

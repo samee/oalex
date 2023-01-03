@@ -15,23 +15,26 @@
 #pragma once
 
 #include "diags.h"
-#include "jsonloc.h"
+#include "jsonlike.h"
 
 namespace oalex {
   class Parser {
    public:
-    virtual JsonLoc operator()(InputDiags& ctx, ssize_t& pos) const = 0;
+    virtual JsonLike operator()(InputDiags& ctx, ssize_t& pos) const = 0;
     virtual ~Parser() {}
   };
   class ParserPtr : public Parser {
    public:
-    using callback_type = JsonLoc (*)(InputDiags&, ssize_t&);
+    using callback_type = JsonLike (*)(InputDiags&, ssize_t&);
+    using old_callback_type = JsonLoc (*)(InputDiags&, ssize_t&);
     ParserPtr(callback_type cb) : cb_{cb} {}  // implicit
-    JsonLoc operator()(InputDiags& ctx, ssize_t& pos) const override {
-      return cb_(ctx, pos);
+    ParserPtr(old_callback_type ocb) : ocb_{ocb} {}  // implicit
+    JsonLike operator()(InputDiags& ctx, ssize_t& pos) const override {
+      return cb_ ? cb_(ctx, pos) : JsonLike{ocb_(ctx, pos)};
     }
    private:
-    callback_type cb_;
+    callback_type cb_ = nullptr;
+    old_callback_type ocb_ = nullptr;
   };
 }
 

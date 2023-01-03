@@ -86,4 +86,13 @@ class JsonLike {
   any_of<internal::JsonLikeWrapper> data_;
 };
 
+// TODO: This is to help the migration process, while some parsers are still
+// expecting JsonLoc while others have moved away to more specific types.
+// The hope is that we will eventually delete this (and #include <optional>).
+template <class T> JsonLike toJsonLike(std::optional<T> opt) {
+  if(!opt) return JsonLoc::ErrorValue{};
+  else return {std::move(*opt)};
+}
+inline JsonLike toJsonLike(JsonLike jslike) { return jslike; }
+
 }  // namespace oalex
