@@ -35,14 +35,6 @@ using std::string_view;
 using std::unique_ptr;
 using std::vector;
 
-// TODO delete this. Temporary extern to migrate return values.
-// Hidden here from the header file so as to not conflict with old
-// bootstrapped frontend_pieces.cpp.
-extern oalex::JsonLike
-oalexBuiltinIndentedList(
-    oalex::InputDiags& ctx, ssize_t& i,
-    const oalex::Parser& leader, const oalex::Parser& lineItem);
-
 namespace oalex {
 
 static bool validExtName(string_view name) {
@@ -325,7 +317,7 @@ eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
 // TODO move this to runtime/ directory if we want to use this in
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
 static JsonLike
-oalexNewBuiltinHello(InputDiags& ctx, ssize_t& i) {
+oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
   if(ctx.input().substr(i, 5) == "hello") {
     i += 5;
     return JsonLoc::String{"hello"};
@@ -333,10 +325,6 @@ oalexNewBuiltinHello(InputDiags& ctx, ssize_t& i) {
     Error(ctx, i, "Expected 'hello'");
     return JsonLoc::ErrorValue{};
   }
-}
-static JsonLike
-oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
-  return oalexNewBuiltinHello(ctx, i);
 }
 
 class ExternParserParam : public Parser {
@@ -929,17 +917,6 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
         "  extern JsonLike {}(InputDiags& ctx, ssize_t& i{});\n",
         extRule.externalName(), parserCallbacksTail(extRule.params().size())));
 
-  // "oalexNewBuiltin" hack. Used for transition only. TODO delete hack.
-  // It generates calls to oalexNewBuiltinIndentedList even if the user
-  // asked for oalexBuiltinIndentedList.
-  string newExtName = extRule.externalName();
-  if(newExtName.find("oalexBuiltin") == 0) {
-    newExtName = "oalexNewBuiltin"
-      + newExtName.substr(sizeof("oalexBuiltin")-1);
-    cppos(format(
-          "  extern JsonLike {}(InputDiags& ctx, ssize_t& i{});\n",
-          newExtName, parserCallbacksTail(extRule.params().size())));
-  }
   for(const auto& param : extRule.params()) {
     const Ident& name = externParamName(ruleset, param);
     cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
@@ -948,7 +925,7 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
                  "    }});\n",
           name.toLCamelCase(), parserName(name)));
   }
-  cppos(format("  return {}(ctx, i{});\n", newExtName,
+  cppos(format("  return {}(ctx, i{});\n", extRule.externalName(),
                parserNamesJoinTail(ruleset, extRule.params())));
 }
 

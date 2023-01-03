@@ -752,7 +752,6 @@ oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Parser;
   using oalex::ParserPtr;
   extern JsonLike oalexBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
-  extern JsonLike oalexNewBuiltinIndentedList(InputDiags& ctx, ssize_t& i, const oalex::Parser&, const oalex::Parser&);
   const static Parser* errorStanzaLeaderWrapper = new ParserPtr(
     +[](InputDiags& ctx, ssize_t& i) {
       return oalex::toJsonLike(parseErrorStanzaLeader(ctx, i));
@@ -761,6 +760,6 @@ oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
     +[](InputDiags& ctx, ssize_t& i) {
       return oalex::toJsonLike(parseErrorStanzaLine(ctx, i));
     });
-  return oalexNewBuiltinIndentedList(ctx, i, *errorStanzaLeaderWrapper, *errorStanzaLineWrapper);
+  return oalexBuiltinIndentedList(ctx, i, *errorStanzaLeaderWrapper, *errorStanzaLineWrapper);
 }
 

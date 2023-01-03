@@ -106,6 +106,6 @@ namespace oalex {
   their indentation, they are deemed incomparable and we raise an error.
 */
 oalex::JsonLike
-oalexNewBuiltinIndentedList(
+oalexBuiltinIndentedList(
     oalex::InputDiags& ctx, ssize_t& i,
     const oalex::Parser& leader, const oalex::Parser& lineItem);
