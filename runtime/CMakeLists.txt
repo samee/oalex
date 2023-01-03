@@ -41,6 +41,10 @@ add_executable(any_of_test any_of_test.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(any_of_test oalex)
 
+add_executable(jsonlike_test jsonlike_test.cpp
+               $<TARGET_OBJECTS:test_util>)
+target_link_libraries(jsonlike_test oalex)
+
 add_executable(builtins_test builtins_test.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(builtins_test oalex)
