@@ -606,6 +606,8 @@ static string
 parserResultOptional(const Rule& rule) {
   if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
+  else if(dynamic_cast<const ExternParser*>(&rule))
+    return "oalex::JsonLike";
   else return "oalex::JsonLoc";
 }
 

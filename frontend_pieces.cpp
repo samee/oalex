@@ -746,7 +746,7 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-oalex::JsonLoc parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
+oalex::JsonLike parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::InputDiags;
   using oalex::JsonLike;
   using oalex::Parser;

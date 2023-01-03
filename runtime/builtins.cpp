@@ -53,7 +53,7 @@ static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
 // the leader indent. If the leader itself is malformed, nothing is consumed.
 // TODO fix error-handling.
 JsonLike
-oalexNewBuiltinIndentedList(
+oalexBuiltinIndentedList(
     InputDiags& ctx, ssize_t& i,
     const Parser& leader, const Parser& lineItem) {
   const InputPiece& input = ctx.input();
@@ -122,11 +122,4 @@ oalexNewBuiltinIndentedList(
     {"leader", std::move(jsloc_h)},
     {"items", JsonLoc{std::move(lines)}},
   };
-}
-
-JsonLike
-oalexBuiltinIndentedList(
-    InputDiags& ctx, ssize_t& i,
-    const Parser& leader, const Parser& lineItem) {
-  return oalexNewBuiltinIndentedList(ctx, i, leader, lineItem);
 }
