@@ -899,15 +899,14 @@ lookupSymbol(const SymbolTable& symtab, const Ident& name) {
    Output: { {"id1", "msg1"}, {"id2", "msg2"}, ... },
      converted from JsonLoc to C++ standard structures. */
 vector<pair<Ident, string>>
-destructureErrors(DiagsDest ctx, JsonLoc errors) {
-  MapFields fields{errors.getIfMap(), "errors of a rule"};
-  const auto* rname = fields.get<JsonLoc::Vector*>("items");
-  if(!rname) return {};
+destructureErrors(DiagsDest ctx, ParsedIndentedList errors) {
+  // TODO that reference version of the cast.
   vector<pair<Ident, string>> rv;
-  for(auto& pair_jsloc : *rname) {
-    MapFields pair{pair_jsloc.getIfMap(), "custom errors"};
-    auto part_name = pair.get_copy<StringLoc>("ident");
-    auto msgq = pair.get_copy<StringLoc>("error_msg");
+  for(auto& item : errors.items) {
+    const auto* line = item.try_cast<ParsedErrorStanzaLine>();
+    if(!line) Bug("Error line has the wrong type: {}", item.type().name());
+    auto part_name = line->fields.ident.getIfStringLoc();
+    auto msgq = line->fields.error_msg.getIfStringLoc();
     optional<GluedString> msg = unquote(msgq, ctx);
     if(!msg) continue;
     rv.push_back({Ident::parse(ctx, part_name), string{*msg}});
@@ -971,7 +970,7 @@ void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   GluedString patt_string, const LexDirective& lexopts,
                   vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-                  JsonLoc errors, RulesWithLocs& rl) {
+                  ParsedIndentedList errors, RulesWithLocs& rl) {
   RuleExprDquoted rxpr{std::move(patt_string)};
   appendExprRule(ctx, ruleName, rxpr, lexopts, std::move(pattToRule),
                  std::move(jstmpl), std::move(errors), rl);
@@ -1322,7 +1321,7 @@ ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexopts,
                vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-               JsonLoc errors, RulesWithLocs& rl) {
+               ParsedIndentedList errors, RulesWithLocs& rl) {
   SymbolTable symtab = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, jstmpl, pattToRule);

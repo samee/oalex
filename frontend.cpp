@@ -826,7 +826,7 @@ struct RuleStanzas {
   JsonTmpl jstmpl = JsonTmpl::Ellipsis{};
   vector<PatternToRuleBinding> local_decls = {};
   LexDirective lexopts;
-  JsonLoc errors = JsonLoc::Map{};
+  ParsedIndentedList errors = {};
   explicit RuleStanzas(LexDirective lo) : lexopts{std::move(lo)} {}
 };
 
@@ -854,8 +854,9 @@ parseRuleStanzas(const LexDirective& defaultLexopts,
     }else if(**leader == "errors") {
       if(skipStanzaIfSeen(rv.sawErrorsKw, *leader, ctx, i)) continue;
       ssize_t is = leader->stPos;  // Don't use i. That's at the end of line.
-      JsonLoc errors = parseErrorStanza(ctx, is);
-      if(!errors.holdsErrorValue()) rv.errors = std::move(errors);
+      JsonLike error_spec = parseErrorStanza(ctx, is);
+      if(error_spec) rv.errors =
+        std::move(*error_spec.try_cast<ParsedIndentedList>());
       else continue;
       i = skipBlankLines(ctx, is);
     }else if(**leader == "lexical") {

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "runtime/diags.h"
+#include "runtime/jsonlike.h"
 #include "codegen.h"
 #include "pattern.h"
 
@@ -194,6 +195,9 @@ class RuleExprOptional final : public RuleExpr {
   std::unique_ptr<const RuleExpr> part;
 };
 
+// Forward decl from runtime/builtins.h
+struct ParsedIndentedList;
+
 // These are the usual entries in a `where:` stanza of a rule. An entry:
 //
 //   "patt" as var ~ lhs
@@ -209,7 +213,8 @@ void
 appendPatternRule(DiagsDest ctx, const Ident& ruleName,
                   lex::GluedString patt_string, const LexDirective& lexopts,
                   std::vector<PatternToRuleBinding> pattToRule,
-                  JsonTmpl jstmpl, JsonLoc errors, RulesWithLocs& rl);
+                  JsonTmpl jstmpl, ParsedIndentedList errors,
+                  RulesWithLocs& rl);
 
 void
 appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
@@ -221,7 +226,7 @@ ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexopts,
                std::vector<PatternToRuleBinding> pattToRule,
-               JsonTmpl jstmpl, JsonLoc errors,
+               JsonTmpl jstmpl, ParsedIndentedList errors,
                RulesWithLocs& rl);
 
 // Internal functions, exposed for testing only
@@ -230,6 +235,6 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
 class Ident;
 class JsonLoc;
 std::vector<std::pair<Ident, std::string>>
-destructureErrors(DiagsDest ctx, JsonLoc errors);
+destructureErrors(DiagsDest ctx, ParsedIndentedList errors);
 
 }  // namespace oalex
