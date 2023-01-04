@@ -25,9 +25,27 @@ using oalex::InputDiags;
 using oalex::InputPiece;
 using oalex::JsonLike;
 using oalex::JsonLoc;
+using oalex::LocPair;
 using oalex::Parser;
 using oalex::Skipper;
 using oalex::StringLoc;
+using std::vector;
+
+namespace oalex {
+
+ParsedIndentedList::operator JsonLoc() const {
+  vector<JsonLoc> items_loc;
+  for(auto& item : this->items) items_loc.push_back(JsonLoc{item});
+  return JsonLoc::withPos(
+      JsonLoc::Map{
+        {"leader", JsonLoc{this->leader}},
+        {"items", JsonLoc{std::move(items_loc)}},
+      },
+      this->loc.first,
+      this->loc.second);
+}
+
+}  // namespace oalex
 
 static size_t skipToNextLine(InputDiags& ctx, size_t i, const Skipper& skip) {
   // TODO: refactor with eval(SkipPoint).
@@ -58,21 +76,19 @@ oalexBuiltinIndentedList(
     const Parser& leader, const Parser& lineItem) {
   const InputPiece& input = ctx.input();
   ssize_t j = i;
-  JsonLoc jsloc_h = leader(ctx, j);
-  if(jsloc_h.holdsErrorValue()) return jsloc_h;
+  JsonLike jslike_h = leader(ctx, j);
+  if(!jslike_h) return jslike_h;
 
   StringLoc hindent = indent_of(input, i);
 
   // TODO make this a parameter, instead of hardcoding it. When we do, remember
   // to disallow comments before lineItem() on each non-blank line.
-  // In the normal case, when this skipper is provided, skip over spaces in
-  // unexpectedly deep indentation below.
   const Skipper skip{{{"#", "\n"}}, {}};
   if(skip.newlines != Skipper::Newlines::ignore_all)
     oalex::Unimplemented("Skipper::Newlines::{} in oalexBuiltinIndentedList",
                          to_string(skip.newlines));
 
-  JsonLoc::Vector lines;
+  vector<JsonLike> lines;
   j = skipToNextLine(ctx, j, skip);
   if(!input.sizeGt(j)) {
     // TODO make this error customizable from oalex source.
@@ -91,8 +107,8 @@ oalexBuiltinIndentedList(
   }
 
   while(input.sizeGt(j)) {
-    JsonLoc item = lineItem(ctx, j);
-    if(item.holdsErrorValue()) return item;
+    JsonLike item = lineItem(ctx, j);
+    if(!item) return item;
     lines.push_back(std::move(item));
 
     // See if there is another item next, and advance j only if so.
@@ -117,9 +133,11 @@ oalexBuiltinIndentedList(
     j = k;
   }
 
+  LocPair loc{i, j};
   i = j;
-  return JsonLoc::Map{
-    {"leader", std::move(jsloc_h)},
-    {"items", JsonLoc{std::move(lines)}},
+  return oalex::ParsedIndentedList{
+    .loc = std::move(loc),
+    .leader = std::move(jslike_h),
+    .items = std::move(lines),
   };
 }

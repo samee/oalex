@@ -33,6 +33,13 @@ namespace oalex {
    private:
     callback_type cb_ = nullptr;
   };
+
+  struct ParsedIndentedList {
+    LocPair loc;
+    JsonLike leader;
+    std::vector<JsonLike> items;
+    explicit operator JsonLoc() const;
+  };
 }
 
 /* While we have only one function declared below, more can be added later.
