@@ -1203,7 +1203,7 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   hos("  ");
     genOutputFields(out->outputTmpl, Ident::parseGenerated("fields"), 2, hos);
     hos("\n");
-  hos("  operator oalex::JsonLoc() const;\n");
+  hos("  explicit operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
 
   cppos(format("{}::operator JsonLoc() const {{\n", className));
