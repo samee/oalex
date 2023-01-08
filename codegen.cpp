@@ -923,7 +923,7 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
     const Ident& name = externParamName(ruleset, param);
     cppos(format("  const static Parser* {}Wrapper = new ParserPtr(\n"
                  "    +[](InputDiags& ctx, ssize_t& i) {{\n"
-                 "      return oalex::toJsonLike({}(ctx, i));\n"
+                 "      return JsonLike({}(ctx, i));\n"
                  "    }});\n",
           name.toLCamelCase(), parserName(name)));
   }
@@ -1122,7 +1122,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
     cppos(format("{}(ctx, {});", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
     if(producesGeneratedStruct(rule))
-      cppos(format("oalex::toJsonLike({}(ctx, {}))",
+      cppos(format("oalex::JsonLike({}(ctx, {}))",
             parserName(*rname), posVar));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }

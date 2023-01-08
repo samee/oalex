@@ -38,8 +38,17 @@ namespace oalex {
 
 namespace internal {
 
+template <class V> constexpr bool is_optional = false;
+template <class V> constexpr bool is_optional<std::optional<V>> = true;
+
 class JsonLikeWrapper {
+ protected:
+  static void assertNotError(const JsonLoc& jsloc);
  public:
+  // This is assumed to never return ErrorValue. Instead, we choose to
+  // not store a Wrapper at all. If we change that, we'll need all generated
+  // structs to implement operator bool() and wrap them here, just like operator
+  // JsonLoc().
   virtual operator JsonLoc() const = 0;
   virtual const std::type_info& type() const = 0;
   virtual ~JsonLikeWrapper() {}
@@ -50,7 +59,11 @@ class JsonLikeWrapperSpecific : public JsonLikeWrapper {
   V value_;
  public:
   explicit JsonLikeWrapperSpecific(V value) : value_{std::move(value)} {}
-  operator JsonLoc() const override { return JsonLoc{value_}; }
+  operator JsonLoc() const override {
+    JsonLoc rv{value_};
+    assertNotError(rv);
+    return rv;
+  }
   V& value() { return value_; }
   const V& value() const { return value_; }
   const std::type_info& type() const override { return typeid(value_); }
@@ -62,7 +75,12 @@ class JsonLike {
   template <class V> using wrapper = internal::JsonLikeWrapperSpecific<V>;
  public:
   JsonLike() {}
-  template <class V> JsonLike(V value) : data_{wrapper<V>(std::move(value))} {}
+  template <class V> JsonLike(V value) {
+    if constexpr (internal::is_optional<V>) {
+      if(value.has_value())
+        data_ = wrapper<typename V::value_type>(std::move(*value));
+    }else data_ = wrapper<V>(std::move(value));
+  }
   void reset() { data_.reset(); }
 
   // Forwarding methods to JsonLikeWrapper interface.
@@ -72,6 +90,7 @@ class JsonLike {
   const std::type_info& type() const {
     return data_ ? data_->type() : typeid(JsonLoc::ErrorValue);
   }
+  operator bool() const { return data_; }
 
   // downcast
   template <class V> V* try_cast() {
@@ -86,13 +105,8 @@ class JsonLike {
   any_of<internal::JsonLikeWrapper> data_;
 };
 
-// TODO: This is to help the migration process, while some parsers are still
-// expecting JsonLoc while others have moved away to more specific types.
-// The hope is that we will eventually delete this (and #include <optional>).
-template <class T> JsonLike toJsonLike(std::optional<T> opt) {
-  if(!opt) return JsonLoc::ErrorValue{};
-  else return {std::move(*opt)};
-}
-inline JsonLike toJsonLike(JsonLike jslike) { return jslike; }
+// Specializations that act different.
+template <> inline JsonLike::JsonLike(JsonLoc::ErrorValue) : data_{} {}
+template <> JsonLike::JsonLike(JsonLoc jsloc);
 
 }  // namespace oalex
