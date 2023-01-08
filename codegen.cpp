@@ -1190,6 +1190,143 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
     cppos("}");
   }
 }
+
+// Semantics: This function abuses the RuleField type to represent a
+// single-layer of relationship, before we've managed to resolve a component to
+// its ultimate source. So it only lists direct components, like
+// ConcatFlatRule. The semantics are also analogous to ConcatFlatRule.
+//
+//   .field_name is empty for flattened components,
+//     but must be provided for other components.
+//   .schema_source is abused to represent a direct component.
+//   .container represents information we gleaned at this level. I.e.
+//     LoopRule will introduce vector, OrRule introduce optional.
+static vector<RuleField>
+flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
+  const Rule& r = ruleAt(rs, ruleidx);
+  if(dynamic_cast<const StringRule*>(&r) ||
+     dynamic_cast<const WordPreserving*>(&r) ||
+     dynamic_cast<const ExternParser*>(&r) ||
+     dynamic_cast<const SkipPoint*>(&r) ||
+     dynamic_cast<const RegexRule*>(&r) ||
+     dynamic_cast<const OutputTmpl*>(&r) ||
+     dynamic_cast<const ErrorRule*>(&r)) return {};
+  else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r)) {
+    vector<RuleField> rv;
+    // Note: comp.outputPlaceholder may be empty. That's okay.
+    for(auto& comp : seq->comps)
+      rv.push_back({.field_name = comp.outputPlaceholder,
+                    .schema_source = comp.idx,
+                    .container = RuleField::single});
+    return rv;
+  }
+  else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
+    vector<RuleField> rv{ {loop->partname, loop->partidx, RuleField::vector},
+                          {loop->gluename, loop->glueidx, RuleField::vector} };
+    if(loop->glueidx == -1 || loop->gluename.empty()) rv.pop_back();
+    return rv;
+  }else if(auto* mor = dynamic_cast<const MatchOrError*>(&r))
+    return flatDirectComps(rs, mor->compidx);
+  else if(auto* qm = dynamic_cast<const QuietMatch*>(&r))
+    return flatDirectComps(rs, qm->compidx);
+  else if(auto* alias = dynamic_cast<const AliasRule*>(&r))
+    return flatDirectComps(rs, alias->targetidx);
+  else if(auto* ors = dynamic_cast<const OrRule*>(&r)) {
+    if(!ors->flattenOnDemand) return {};
+    vector<RuleField> rv;
+    for(auto& comp : ors->comps)
+      rv.push_back({.field_name{},
+                    .schema_source = comp.parseidx,
+                    .container = RuleField::optional});
+    return rv;
+  }
+  Bug("Unknown rule type {} in flatDirectComps", r.specifics_typename());
+}
+
+// Used only for Bug(). Not formatted for users.
+static string
+listCycle(const RuleSet& ruleset, const vector<ssize_t>& edges_remaining) {
+  string rv;
+  for(ssize_t i=0; i<ssize(edges_remaining); ++i) {
+    if(edges_remaining[i] == 0) continue;
+    if(!rv.empty()) rv += ", ";
+    if(const Ident* name = ruleAt(ruleset, i).nameOrNull())
+      rv += name->preserveCase();
+    else rv += format("rules[{}]", i);
+  }
+  return rv;
+}
+
+static RuleField::Container
+flexContainer(RuleField::Container a, RuleField::Container b) {
+  if(a == RuleField::vector || b == RuleField::vector) return RuleField::vector;
+  if(a == RuleField::optional || b == RuleField::optional)
+    return RuleField::optional;
+  return RuleField::single;
+}
+
+// This function is only used in the context of the toposort in
+// populateFlatFields(). We assume flatFields[i] is already populated
+// for all i in flatDirectComps(ruleset,ruleIndex)[*].schema_source.
+// The rest are ignored.
+//
+// Remember that the semantics of "directs" is a bit different, and is described
+// in the comment for flatDirectComps().
+static vector<RuleField>
+gatherFlatComps(const RuleSet& ruleset, ssize_t ruleIndex,
+                const vector<vector<RuleField>>& flatFields) {
+  const vector<RuleField> directs = flatDirectComps(ruleset, ruleIndex);
+  vector<RuleField> rv;
+  for(auto& field: directs) {
+    if(!field.field_name.empty()) {
+      rv.push_back(field);
+      if(resultFlattenableOrError(ruleset, field.schema_source))
+        Bug("Compiler should not provide a field name for flattenable fields.");
+    }else {
+      if(!resultFlattenableOrError(ruleset, field.schema_source))
+        continue;  // Non-flat unnamed fields are discarded.
+      for(auto& child: flatFields[field.schema_source]) {
+        rv.push_back(child);
+        rv.back().container = flexContainer(field.container, child.container);
+      }
+    }
+  }
+  // TODO: check for duplicate names.
+  return rv;
+}
+
+void
+populateFlatFields(RuleSet& ruleset) {
+  ssize_t n = ssize(ruleset.rules);
+  vector<vector<ssize_t>> revedge(n);
+  vector<ssize_t> pending;
+  vector<ssize_t> edges_remaining(n);
+  for(ssize_t i=0; i<n; ++i) {
+    vector<RuleField> fwd = flatDirectComps(ruleset, i);
+    edges_remaining[i] = ssize(fwd);
+    if(edges_remaining[i] == 0) pending.push_back(i);
+    for(auto& field: fwd) revedge[field.schema_source].push_back(i);
+  }
+
+  vector<vector<RuleField>> flatFields(n);
+  while(!pending.empty()) {
+    ssize_t ruleIndex = pending.back();
+    pending.pop_back();
+
+    for(ssize_t parentIndex : revedge[ruleIndex])
+      if(--edges_remaining[parentIndex] == 0) pending.push_back(parentIndex);
+
+    flatFields[ruleIndex] = gatherFlatComps(ruleset, ruleIndex, flatFields);
+  }
+
+  for(ssize_t i=0; i<n; ++i) if(edges_remaining[i] != 0)
+    Bug("The compiler produced a cycle in flattenable rules. {}",
+        listCycle(ruleset, edges_remaining));
+
+  for(ssize_t i=0; i<n; ++i)
+    ruleset.rules[i]->flatFields(std::move(flatFields[i]));
+}
+
 static void
 genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                   const OutputStream& cppos, const OutputStream& hos) {

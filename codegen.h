@@ -27,6 +27,23 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
+struct RuleField {
+  std::string field_name;  // Never empty. We might turn it into an Ident.
+
+  // The schema_source must have a valid index of a non-flattenable rule that
+  // defines the output type for this field. Output types:
+  //
+  //   * string rules: StringLoc
+  //   * OutputTmpl: a generated struct
+  //   * ExternParser: JsonLike
+  //   * OrRule, non-flattenable: JsonLike
+  ssize_t schema_source;
+
+  // Says whether the output type derived from schema_source needs to be
+  // wrapped in optional (sz::any_of, really) or std::vector.
+  enum Container { single, optional, vector } container;
+};
+
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
 // a separate UnassignedRule to represent an empty rule.
@@ -42,6 +59,8 @@ class Rule {
   void deferred_name(Ident name);
   void context_skipper(ssize_t skipper_index);
   ssize_t context_skipper() const { return contextSkipper_; }
+  void flatFields(std::vector<RuleField> ff) { flatFields_ = std::move(ff); }
+  const std::vector<RuleField>& flatFields() const { return flatFields_; }
 
   // Used for debugging/logging.
   virtual std::string specifics_typename() const = 0;
@@ -56,6 +75,14 @@ class Rule {
   // This is index of the Skipper to use if this rule is used by itself,
   // not as part of some other rule.
   ssize_t contextSkipper_ = helperRuleNoContext;
+
+  // Used iff resultFlattenableOrError() is true for this rule.
+  // If we define a struct for this Rule's return value, flatFields_ gives us
+  // the names and types.
+  //
+  // Note that OutputTmpl is not flattenable.
+  // Therefore this is always empty for OutputTmpl rules.
+  std::vector<RuleField> flatFields_;
 };
 
 // UnassignedRule really means used but not defined. It is used when we have
@@ -304,6 +331,11 @@ struct RuleSet {
   std::vector<Skipper> skips;
   std::vector<RegexOptions> regexOpts;
 };
+
+// Populates ruleset.rules[].flatFields(). This is used after a RuleSet
+// object is completed by the compiler, but before it is passed on to a backend.
+// Currently it is only used by the codegen() backend, and not eval().
+void populateFlatFields(RuleSet& ruleset);
 
 class OutputStream {
  public:
