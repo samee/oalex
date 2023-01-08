@@ -36,7 +36,6 @@ class Rule {
   explicit Rule(Ident name) : name_(std::move(name)) {}
   virtual ~Rule() {}
 
-  // Returns optional to make it harder to forget the empty case.
   const Ident* nameOrNull() const {
     if(!name_) return nullptr; else return &name_;
   }
