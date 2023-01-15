@@ -12,19 +12,22 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-/* This file implements any_of<Base>. It's just like std::any, but it only
- * accepts values that derive from Base. Just like std::any, they need to be
- * copyable. The Base class methods can be used without any cast, using the
- * usual pointer operators ('*' and '->').
- *
- * See any_of_test for common usage patterns.
+/* This file implements any_of<Base>. It's meant to be like std::any, but it
+   only accepts values that derive from Base. Just like std::any, they need to
+   be copyable. The Base class methods can be used without any cast, using the
+   usual pointer operators ('*' and '->').
+
+   Right now, it only implements the small API that I need for my own projects.
+   It is easy enough to extend it if needed.
+
+   See any_of_test.cpp for common usage patterns.
  */
 #pragma once
-#include <type_traits>
+#include <type_traits>  // for std::is_base_of
 #include <typeinfo>
-#include <utility>
+#include <utility>  // for std::move()
 
-namespace oalex {
+namespace sz {
 
 namespace internal {
 
@@ -56,10 +59,13 @@ template <class Base>
 class any_of {
  public:
   any_of() : ptr_{nullptr} {}
+
+  // This checks is_base_of, but we can relax this if needed.
+  // In the worst case, just delete the second type parameter.
   template <class Derived,
             class = std::enable_if_t<std::is_base_of_v<Base,Derived>>>
   any_of(Derived d)  // can't be noexcept, because 'new'
-  : ptr_{new internal::any_of_dispatcher<Base,Derived>(std::move(d))} {}
+    : ptr_{new internal::any_of_dispatcher<Base,Derived>(std::move(d))} {}
   any_of(const any_of& that) : ptr_(that.ptr_->copy()) {}
   any_of(any_of&& that) noexcept { ptr_ = that.ptr_; that.ptr_ = nullptr; }
   ~any_of() { delete ptr_; }
@@ -70,14 +76,15 @@ class any_of {
     return *this;
   }
   any_of& operator=(any_of&& that) noexcept {
+    reset();
     this->ptr_ = that.ptr_;
     that.ptr_ = nullptr;
     return *this;
   }
 
-  void reset() { delete ptr_; ptr_ = nullptr; }
-  bool has_value() const { return ptr_ != nullptr; }
-  operator bool() const { return ptr_ != nullptr; }
+  void reset() noexcept { delete ptr_; ptr_ = nullptr; }
+  bool has_value() const noexcept { return ptr_ != nullptr; }
+  operator bool() const noexcept { return ptr_ != nullptr; }
   const std::type_info& type() const {
     return ptr_ ? typeid(*ptr_->get()) : typeid(void);
   }
@@ -97,18 +104,18 @@ class any_of {
 
 template <class D, class B>
 D* any_of_cast(any_of<B>* a) {
-  if (!a || !*a) return nullptr;
+  if (!a || !a->ptr_) return nullptr;
   auto* d = dynamic_cast<internal::any_of_dispatcher<B,D>*>(a->ptr_);
   return d ? d->get() : nullptr;
 }
 template <class D, class B>
 const D* any_of_cast(const any_of<B>* a) {
-  if (!a || !*a) return nullptr;
+  if (!a || !a->ptr_) return nullptr;
   auto* d = dynamic_cast<const internal::any_of_dispatcher<B,D>*>(a->ptr_);
   return d ? d->get() : nullptr;
 }
 
 // Dev-note: add reference versions of any_of_cast if we need them.
-// Use the pointer versions to implement. No need to add new friends.
+// Use the pointer versions to implement them. No need to add new friends.
 
-}  // namespace oalex
+}  // namespace sz

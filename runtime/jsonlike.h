@@ -94,15 +94,15 @@ class JsonLike {
 
   // downcast
   template <class V> V* try_cast() {
-    auto* p = any_of_cast<wrapper<V>>(&data_);
+    auto* p = sz::any_of_cast<wrapper<V>>(&data_);
     return p ? &p->value(): nullptr;
   }
   template <class V> const V* try_cast() const {
-    auto* p = any_of_cast<wrapper<V>>(&data_);
+    auto* p = sz::any_of_cast<wrapper<V>>(&data_);
     return p ? &p->value(): nullptr;
   }
  private:
-  any_of<internal::JsonLikeWrapper> data_;
+  sz::any_of<internal::JsonLikeWrapper> data_;
 };
 
 // Specializations that act different.

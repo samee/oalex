@@ -15,11 +15,11 @@
 #include "runtime/any_of.h"
 #include "runtime/test_util.h"
 #include <string>
-using oalex::any_of;
-using oalex::any_of_cast;
 using oalex::assertEqual;
 using oalex::Bug;
 using std::string;
+using sz::any_of;
+using sz::any_of_cast;
 
 class Greeter {
  public:
