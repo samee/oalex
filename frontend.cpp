@@ -1352,6 +1352,32 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
       rules[i]->deferred_name(Ident::parseGenerated("rule" + itos(nc++)));
 }
 
+string
+debug_field(const RuleField& rf) {
+  string_view c = rf.container == 0 ? "single"
+                : rf.container == 1 ? "optional"
+                : rf.container == 2 ? "vector"
+                : "garbage";
+  return format("{{ .field_name = {}, .schema_source = {}, .container = {} }}",
+                rf.field_name, rf.schema_source, c);
+}
+
+[[maybe_unused]] void
+debugNamedRuleFields(const vector<unique_ptr<Rule>>& rules) {
+  for(ssize_t i=0; i<ssize(rules); ++i)
+    if(auto* nm = rules[i]->nameOrNull()) {
+      auto* out = dynamic_cast<OutputTmpl*>(rules[i].get());
+      if(!out) continue;
+      ssize_t j = out->childidx;
+      // It's all empty since OutputTmpl doesn't have fields you can
+      // flatten.
+      oalex::Debug("rule {}: {{", nm->preserveCase());
+      for(auto& field : rules[j]->flatFields())
+        oalex::Debug("  {}", debug_field(field));
+      oalex::Debug("}}");
+    }
+}
+
 }  // namespace
 
 optional<ParsedSource>
@@ -1418,6 +1444,7 @@ parseOalexSource(InputDiags& ctx) {
   RuleSet rs = rl.releaseRules();
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||
      hasError(ctx.diags)) return nullopt;
+  populateFlatFields(rs);
   fillInNames(rs.rules);
   return ParsedSource{std::move(rs), std::move(examples)};
 }
