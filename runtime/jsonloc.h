@@ -156,4 +156,13 @@ inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
   return JsonLoc::Map{};
 }
 
+template <class V> JsonLoc toJsonLoc(const std::optional<V>& v) {
+  return v.has_value() ? JsonLoc{v.value()} : JsonLoc::ErrorValue{};
+}
+template <class V> JsonLoc toJsonLoc(const std::vector<V>& v) {
+  JsonLoc::Vector rv;
+  for(auto& e: v) rv.push_back(JsonLoc{e});
+  return rv;
+}
+
 }  // namespace oalex

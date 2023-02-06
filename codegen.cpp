@@ -1196,6 +1196,22 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
   }
 }
 
+// TODO: Make an std::move version
+static void
+genFieldConversion(const vector<RuleField>& fields, string field_prefix,
+                   const OutputStream& cppos, ssize_t indent) {
+  cppos("JsonLoc::Map{"); linebreak(cppos, indent);
+  for(auto& field: fields) {
+    cppos(format("  {{{}, ", dquoted(field.field_name)));
+    if(field.container == RuleField::single)
+      cppos(format("JsonLoc{{{}.{}}}", field_prefix, field.field_name));
+    else
+      cppos(format("oalex::toJsonLoc({}.{})", field_prefix, field.field_name));
+    cppos("},"); linebreak(cppos, indent);
+  }
+  cppos("}");
+}
+
 // Semantics: This function abuses the RuleField type to represent a
 // single-layer of relationship, before we've managed to resolve a component to
 // its ultimate source. So it only lists direct components, like
@@ -1357,6 +1373,52 @@ populateFlatFields(RuleSet& ruleset) {
     ruleset.rules[i]->flatFields(std::move(flatFields[i]));
 }
 
+static string
+flatFieldType(const RuleSet& ruleset, const RuleField& field) {
+  string vtype;
+  const Rule& source = ruleAt(ruleset, field.schema_source);
+  if(dynamic_cast<const StringRule*>(&source) ||
+     dynamic_cast<const RegexRule*>(&source) ||
+     dynamic_cast<const WordPreserving*>(&source)) vtype = "oalex::StringLoc";
+  else if(dynamic_cast<const OutputTmpl*>(&source))
+    vtype = parserResultName(*source.nameOrNull());
+  else if(dynamic_cast<const ExternParser*>(&source) ||
+          dynamic_cast<const OrRule*>(&source)) vtype = "oalex::JsonLike";
+  else Bug("Bad schema_source type {}", source.specifics_typename());
+
+  if(field.container == RuleField::single) return vtype;
+  else if(field.container == RuleField::optional)
+    return format("std::optional<{}>", vtype);
+  else if(field.container == RuleField::vector)
+    return format("std::vector<{}>", vtype);
+  else Bug("Bad container type {}", int(field.container));
+}
+
+// TODO: refactor out repetitions between this and genOutputTmplTypeDefinition.
+static void
+genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
+                      const OutputStream& cppos, const OutputStream& hos) {
+  const Rule& r = ruleAt(ruleset, ruleIndex);
+  const Ident* rname = r.nameOrNull();
+  if(!rname) return;
+  string className = parserResultName(*rname);
+  hos("struct " + className + " {\n");
+  hos("  oalex::LocPair loc;\n");
+  hos("  struct Fields {\n");
+  for(const RuleField& field : r.flatFields())
+    hos(format("    {} {};\n", flatFieldType(ruleset, field),
+               field.field_name));
+  hos("  } fields;\n");
+  hos("  explicit operator oalex::JsonLoc() const;\n");
+  hos("};\n\n");
+
+  cppos(format("{}::operator JsonLoc() const {{\n", className));
+  cppos("  return JsonLoc::withPos(");
+    genFieldConversion(r.flatFields(), "fields", cppos, 2);
+    cppos(", loc.first, loc.second);\n");
+  cppos("}\n\n");
+}
+
 static void
 genOutputTmplTypeDefinition(const OutputTmpl& out, const OutputStream& cppos,
                             const OutputStream& hos) {
@@ -1384,6 +1446,8 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   const Rule& r = ruleAt(ruleset, ruleIndex);
   if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
     genOutputTmplTypeDefinition(*out, cppos, hos);
+  else if(resultFlattenableOrError(ruleset, ruleIndex))
+    genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
