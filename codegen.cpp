@@ -1358,26 +1358,32 @@ populateFlatFields(RuleSet& ruleset) {
 }
 
 static void
-genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
-                  const OutputStream& cppos, const OutputStream& hos) {
-  const Rule& r = ruleAt(ruleset, ruleIndex);
-  auto* out = dynamic_cast<const OutputTmpl*>(&r);
-  const Ident* rname = r.nameOrNull();
-  if(!rname || !out) return;  // TODO implement other rules
+genOutputTmplTypeDefinition(const OutputTmpl& out, const OutputStream& cppos,
+                            const OutputStream& hos) {
+  const Ident* rname = out.nameOrNull();
+  if(!rname) return;
   string className = parserResultName(*rname);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
-    genOutputFields(out->outputTmpl, Ident::parseGenerated("fields"), 2, hos);
+    genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"), 2, hos);
     hos("\n");
   hos("  explicit operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
 
   cppos(format("{}::operator JsonLoc() const {{\n", className));
   cppos("  return JsonLoc::withPos(");
-    genFieldConversion(out->outputTmpl, "fields", cppos, 2);
+    genFieldConversion(out.outputTmpl, "fields", cppos, 2);
     cppos(", loc.first, loc.second);\n");
   cppos("}\n\n");
+}
+
+static void
+genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
+                  const OutputStream& cppos, const OutputStream& hos) {
+  const Rule& r = ruleAt(ruleset, ruleIndex);
+  if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
+    genOutputTmplTypeDefinition(*out, cppos, hos);
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
