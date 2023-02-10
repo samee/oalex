@@ -755,6 +755,27 @@ void testFlatFieldsForNestedList() {
   }
 }
 
+void testFlatWrappers() {
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+        AliasRule{1},
+        WordPreserving{"hello", 0},
+        ConcatFlatRule{{ {0, "kw"} }},
+        ErrorRule{"Was expecting a hello"},
+        OrRule{{ {-1, 2, passthroughTmpl}, {-1, 3, passthroughTmpl} },
+               true /* flattenOnDemand */ }
+    ),
+    .skips{cskip},
+    .regexOpts = {regexOpts},
+  };
+  populateFlatFields(rs);
+  for(const RuleField& f: rs.rules[4]->flatFields()) {
+    if(dynamic_cast<const AliasRule*>(rs.rules[f.schema_source].get()))
+      Bug("Rule 4 points to flat wrapper AliasRule at position {}",
+          f.schema_source);
+  }
+}
+
 }  // namespace
 
 int main() {
@@ -782,5 +803,6 @@ int main() {
   testGluePartSwapped();
   testFlatFieldsForNonFlatRules();
   testFlatFieldsForNestedList();
+  testFlatWrappers();
 }
 
