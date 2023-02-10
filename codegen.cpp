@@ -117,17 +117,22 @@ ruleAtImpl(const RuleSet& rs, ssize_t ruleidx, const char* context) {
 }
 #define ruleAt(rs, idx) ruleAtImpl(rs, idx, __func__)
 
+static ssize_t
+flatWrapperTarget(const Rule& rule) {
+  if(auto* mor = dynamic_cast<const MatchOrError*>(&rule)) return mor->compidx;
+  if(auto* qm = dynamic_cast<const QuietMatch*>(&rule)) return qm->compidx;
+  if(auto* alias = dynamic_cast<const AliasRule*>(&rule))
+    return alias->targetidx;
+  return -1;
+}
+
 static bool
 resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
   const Rule& rule = ruleAt(rs, ruleidx);
   if(auto* orRule = dynamic_cast<const OrRule*>(&rule))
     return orRule->flattenOnDemand;
-  if(auto* mor = dynamic_cast<const MatchOrError*>(&rule))
-    return resultFlattenableOrError(rs, mor->compidx);
-  if(auto* qm = dynamic_cast<const QuietMatch*>(&rule))
-    return resultFlattenableOrError(rs, qm->compidx);
-  if(auto* alias = dynamic_cast<const AliasRule*>(&rule))
-    return resultFlattenableOrError(rs, alias->targetidx);
+  if(ssize_t target = flatWrapperTarget(rule); target != -1)
+    return resultFlattenableOrError(rs, target);
   else {
     auto& t = typeid(rule);
     return t == typeid(ConcatFlatRule) || t == typeid(LoopRule)
@@ -1225,12 +1230,12 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
                           {loop->gluename, loop->glueidx, RuleField::vector} };
     if(loop->glueidx == -1 || loop->gluename.empty()) rv.pop_back();
     return rv;
-  }else if(auto* mor = dynamic_cast<const MatchOrError*>(&r))
-    return flatDirectComps(rs, mor->compidx);
-  else if(auto* qm = dynamic_cast<const QuietMatch*>(&r))
-    return flatDirectComps(rs, qm->compidx);
-  else if(auto* alias = dynamic_cast<const AliasRule*>(&r))
-    return flatDirectComps(rs, alias->targetidx);
+  }
+  else if(ssize_t target = flatWrapperTarget(r); target != -1) {
+    return {{
+      .field_name{}, .schema_source = target, .container = RuleField::single
+    }};
+  }
   else if(auto* ors = dynamic_cast<const OrRule*>(&r)) {
     if(!ors->flattenOnDemand) return {};
     vector<RuleField> rv;
