@@ -56,6 +56,7 @@ class JsonLikeWrapper {
 
 template <class V>
 class JsonLikeWrapperSpecific : public JsonLikeWrapper {
+  static_assert(std::is_constructible_v<JsonLoc,V>);
   V value_;
  public:
   explicit JsonLikeWrapperSpecific(V value) : value_{std::move(value)} {}
