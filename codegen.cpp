@@ -135,10 +135,13 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
     return resultFlattenableOrError(rs, target);
   else {
     auto& t = typeid(rule);
+    // ConcatFlatRule: pass all fields through.
+    // LoopRule: wrap all fields in vector.
+    // ErrorRule and SkipPoint: has no output field, but can be used
+    //   in a flattenable context.
     return t == typeid(ConcatFlatRule) || t == typeid(LoopRule)
         || t == typeid(ErrorRule) || t == typeid(SkipPoint);
   }
-  // FIXME fix OrList
 }
 
 static string
