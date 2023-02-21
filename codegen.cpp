@@ -620,7 +620,8 @@ parserResultName(const Ident& rname) {
 }
 
 static string
-parserResultOptional(const Rule& rule) {
+parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
+  const Rule& rule = ruleAt(ruleset, ruleidx);
   if(producesString(rule)) return "std::optional<oalex::StringLoc>";
   else if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
@@ -635,15 +636,16 @@ parserName(const Ident& rname) {
 }
 
 static void
-parserHeaders(const Rule& rule,
+parserHeaders(const RuleSet& ruleset, ssize_t ruleidx,
               const OutputStream& cppos, const OutputStream& hos) {
+  const Rule& rule = ruleAt(ruleset, ruleidx);
   const Ident& rname = *rule.nameOrNull();
   hos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             parserResultOptional(rule), parserName(rname)));
+             parserResultOptional(ruleset, ruleidx), parserName(rname)));
 
   // TODO complex parsers should have comments with the source line.
   cppos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i) ",
-               parserResultOptional(rule), parserName(rname)));
+               parserResultOptional(ruleset, ruleidx), parserName(rname)));
 }
 
 static void
@@ -1490,7 +1492,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
   genTypeDefinition(ruleset, ruleIndex, cppos, hos);
-  parserHeaders(r, cppos, hos); cppos("{\n");
+  parserHeaders(ruleset, ruleIndex, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {
