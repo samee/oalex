@@ -446,8 +446,8 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
 // ---------
 
 // Forward declaration.
-static void codegenParserCall(const Rule& rule, string_view posVar,
-                              const OutputStream& cppos);
+static void codegenParserCallToJsonLoc(const Rule& rule, string_view posVar,
+                                       const OutputStream& cppos);
 
 static string cEscaped(char c) {
   switch(c) {
@@ -707,7 +707,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  JsonLoc res = JsonLoc::ErrorValue{};\n");
   for(auto& [childid, key] : cfrule.comps) {
     cppos("\n  res = ");
-      codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
+      codegenParserCallToJsonLoc(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
     cppos("  if(res.holdsErrorValue()) return res;\n");
     // TODO Check for duplicate keys at compile-time.
@@ -766,7 +766,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  ssize_t oldi = i;\n");
   cppos("  JsonLoc outfields = ");
-    codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
+    codegenParserCallToJsonLoc(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
   cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
   map<string,string> placeholders;
@@ -842,7 +842,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.glueidx == -1) {
     // TODO resolve this `first` case at compile-time.
     cppos("    if(first) res = ");
-      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
+      codegenParserCallToJsonLoc(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos(format("    else res = quietMatch(ctx.input(), j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
@@ -852,7 +852,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    }\n");
   }else {
     cppos("    res = ");
-      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
+      codegenParserCallToJsonLoc(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos("    if(res.holdsErrorValue()) return res;\n");
   }
@@ -874,7 +874,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     recordComponent(loop.glueidx, loop.gluename);
     if(loop.skipidx != -1) {
       cppos("    res = ");
-        codegenParserCall(ruleAt(ruleset, loop.skipidx), "j", cppos);
+        codegenParserCallToJsonLoc(ruleAt(ruleset, loop.skipidx), "j", cppos);
         cppos(";\n");
       cppos("    if(res.holdsErrorValue())\n");
       cppos("      return oalex::errorValue(ctx, j, "
@@ -1002,7 +1002,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
           ruleDebugId(ruleset, pidx));
     if(lidx == -1) {
       cppos("  res = ");
-        codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
+        codegenParserCallToJsonLoc(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
       cppos("  if(!res.holdsErrorValue())\n");
       cppos("    return JsonLoc::withPos(");
@@ -1013,7 +1013,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         codegenLookahead(ruleset, lidx, cppos);
         cppos(") {\n");
       cppos("    res = ");
-        codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
+        codegenParserCallToJsonLoc(ruleAt(ruleset, pidx), "i", cppos);
         cppos(";\n");
       codegenReturnErrorOrTmpl("res", tmpl, cppos);
       cppos("  }\n");
@@ -1027,7 +1027,7 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
         const OutputStream& cppos) {
   cppos("  using oalex::Error;\n");
   cppos("  JsonLoc  res = ");
-    codegenParserCall(ruleAt(ruleset, me.compidx), "i", cppos);
+    codegenParserCallToJsonLoc(ruleAt(ruleset, me.compidx), "i", cppos);
     cppos(";\n");
   cppos("  if(res.holdsErrorValue())\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
@@ -1038,7 +1038,7 @@ static void
 codegen(const RuleSet& ruleset, const AliasRule& alias,
         const OutputStream& cppos) {
   cppos("  return ");
-    codegenParserCall(ruleAt(ruleset, alias.targetidx), "i", cppos);
+    codegenParserCallToJsonLoc(ruleAt(ruleset, alias.targetidx), "i", cppos);
     cppos(";\n");
 }
 
@@ -1110,9 +1110,11 @@ bool needsName(const Rule& rule, bool isTentativeTarget) {
 
 // Generate an inlined call to oalex::match() when possible, but falls back to
 // the main parser for other cases.
+// TODO: delete this function when the code has been migrated to not require
+// conversion to JsonLoc anywhere.
 static void
-codegenParserCall(const Rule& rule, string_view posVar,
-                  const OutputStream& cppos) {
+codegenParserCallToJsonLoc(const Rule& rule, string_view posVar,
+                           const OutputStream& cppos) {
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
