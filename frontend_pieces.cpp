@@ -17,10 +17,11 @@ const oalex::RegexOptions& defaultRegexOpts() {
   return *opts;
 }
 
-oalex::JsonLoc parseWord(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseWord(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(parseRule1(ctx, i));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = parseRule1(ctx, i);
+  if(holdsErrorValue(res))
     Error(ctx, i, "Does not match expected pattern");
   return res;
 }
@@ -49,10 +50,11 @@ std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
   return oalex::match(ctx, i, *r, defaultRegexOpts());
 }
 
-oalex::JsonLoc parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(parseRule2(ctx, i));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = parseRule2(ctx, i);
+  if(holdsErrorValue(res))
     Error(ctx, i, "Does not match expected pattern");
   return res;
 }
@@ -92,15 +94,15 @@ std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
   return oalex::match(ctx, i, *r, defaultRegexOpts());
 }
 
-oalex::JsonLoc parseRule3(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule3(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
-oalex::JsonLoc parseRule4(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule4(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
-oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
@@ -132,10 +134,11 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
   return rv;
 }
 
-oalex::JsonLoc parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, defaultRegexOpts().word, "extern"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "extern");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected 'extern'");
   return res;
 }
@@ -161,10 +164,11 @@ oalex::JsonLoc parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, defaultRegexOpts().word, "rule"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "rule");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected 'rule'");
   return res;
 }
@@ -203,7 +207,7 @@ oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule3(ctx, j);
+  res = oalex::toJsonLoc(parseRule3(ctx, j));
   if(res.holdsErrorValue()) return res;
   m.emplace_back("rule_name", std::move(res));
   JsonLoc rv{std::move(m)};
@@ -233,10 +237,11 @@ oalex::JsonLoc parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, "="));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, "=");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected '='");
   return res;
 }
@@ -275,7 +280,7 @@ oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule4(ctx, j);
+  res = oalex::toJsonLoc(parseRule4(ctx, j));
   if(res.holdsErrorValue()) return res;
   m.emplace_back("external_name", std::move(res));
   JsonLoc rv{std::move(m)};
@@ -305,10 +310,11 @@ oalex::JsonLoc parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, "("));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, "(");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected '('");
   return res;
 }
@@ -347,7 +353,7 @@ oalex::JsonLoc parseRule18(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule5(ctx, j);
+  res = oalex::toJsonLoc(parseRule5(ctx, j));
   if(res.holdsErrorValue()) return res;
   m.emplace_back("param", std::move(res));
   JsonLoc rv{std::move(m)};
@@ -356,10 +362,11 @@ oalex::JsonLoc parseRule18(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, ","));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ",");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected ','");
   return res;
 }
@@ -432,8 +439,7 @@ ParsedRule22::operator JsonLoc() const {
 }
 
 oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
-  return oalex::toJsonLoc(
-    oalex::quietMatch(ctx.input(), i, parseRule21));
+  return oalex::quietMatch(ctx.input(), i, parseRule21);
 }
 
 ParsedRule23::operator JsonLoc() const {
@@ -476,10 +482,11 @@ oalex::JsonLoc parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule25(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, ")"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ")");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected ')'");
   return res;
 }
@@ -499,14 +506,14 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule6(ctx, j);
+  res = oalex::toJsonLoc(parseRule6(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule7(ctx, j);
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule8(ctx, j);
+  res = oalex::toJsonLoc(parseRule8(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule9(ctx, j);
@@ -521,7 +528,7 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule12(ctx, j);
+  res = oalex::toJsonLoc(parseRule12(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule13(ctx, j);
@@ -536,7 +543,7 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule16(ctx, j);
+  res = oalex::toJsonLoc(parseRule16(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule17(ctx, j);
@@ -551,7 +558,7 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule25(ctx, j);
+  res = oalex::toJsonLoc(parseRule25(ctx, j));
   if(res.holdsErrorValue()) return res;
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;
@@ -559,11 +566,11 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-oalex::JsonLoc parseRule27(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule27(oalex::InputDiags& ctx, ssize_t& i) {
   return parseWord(ctx, i);
 }
 
-oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
   return parseDoubleQuotedLiteral(ctx, i);
 }
 
@@ -606,7 +613,7 @@ oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule27(ctx, j);
+  res = oalex::toJsonLoc(parseRule27(ctx, j));
   if(res.holdsErrorValue()) return res;
   m.emplace_back("ident", std::move(res));
   JsonLoc rv{std::move(m)};
@@ -636,10 +643,11 @@ oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule31(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, ":"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ":");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected ':'");
   return res;
 }
@@ -678,7 +686,7 @@ oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule28(ctx, j);
+  res = oalex::toJsonLoc(parseRule28(ctx, j));
   if(res.holdsErrorValue()) return res;
   m.emplace_back("error_msg", std::move(res));
   JsonLoc rv{std::move(m)};
@@ -709,7 +717,7 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule31(ctx, j);
+  res = oalex::toJsonLoc(parseRule31(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule32(ctx, j);
@@ -745,10 +753,11 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
   return rv;
 }
 
-oalex::JsonLoc parseRule35(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule35(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, defaultRegexOpts().word, "errors"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "errors");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected 'errors'");
   return res;
 }
@@ -774,10 +783,11 @@ oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule37(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, defaultRegexOpts().word, "after"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "after");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected 'after'");
   return res;
 }
@@ -803,10 +813,11 @@ oalex::JsonLoc parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, defaultRegexOpts().word, "failing"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "failing");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected 'failing'");
   return res;
 }
@@ -832,10 +843,11 @@ oalex::JsonLoc parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
   }else return oalex::JsonLoc::ErrorValue();
 }
 
-oalex::JsonLoc parseRule41(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = oalex::toJsonLoc(oalex::match(ctx, i, ":"));
-  if(res.holdsErrorValue())
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ":");
+  if(holdsErrorValue(res))
     Error(ctx, i, "Expected ':'");
   return res;
 }
@@ -852,28 +864,28 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule35(ctx, j);
+  res = oalex::toJsonLoc(parseRule35(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule36(ctx, j);
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule37(ctx, j);
+  res = oalex::toJsonLoc(parseRule37(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule38(ctx, j);
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule39(ctx, j);
+  res = oalex::toJsonLoc(parseRule39(ctx, j));
   if(res.holdsErrorValue()) return res;
 
   res = parseRule40(ctx, j);
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule41(ctx, j);
+  res = oalex::toJsonLoc(parseRule41(ctx, j));
   if(res.holdsErrorValue()) return res;
   JsonLoc rv{std::move(m)};
   rv.stPos = i; rv.enPos = j;

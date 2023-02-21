@@ -2,19 +2,19 @@
 #include <cstdint>
 #include <oalex.h>
 
-oalex::JsonLoc parseWord(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseWord(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule3(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule3(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule4(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule4(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule5(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedExternRule {
   oalex::LocPair loc;
@@ -28,7 +28,7 @@ struct ParsedExternRule {
 
 std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule6(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule6(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule7 {
   oalex::LocPair loc;
@@ -39,7 +39,7 @@ struct ParsedRule7 {
 
 oalex::JsonLoc parseRule7(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule8(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule9 {
   oalex::LocPair loc;
@@ -69,7 +69,7 @@ struct ParsedRule11 {
 
 oalex::JsonLoc parseRule11(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule12(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule13 {
   oalex::LocPair loc;
@@ -99,7 +99,7 @@ struct ParsedRule15 {
 
 oalex::JsonLoc parseRule15(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule16(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule17 {
   oalex::LocPair loc;
@@ -120,7 +120,7 @@ struct ParsedRule18 {
 
 oalex::JsonLoc parseRule18(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule19(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule20 {
   oalex::LocPair loc;
@@ -170,7 +170,7 @@ struct ParsedRule24 {
 
 oalex::JsonLoc parseRule24(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule25(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule26 {
   oalex::LocPair loc;
@@ -184,9 +184,9 @@ struct ParsedRule26 {
 
 oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule27(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule27(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule28(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedErrorStanzaLine {
   oalex::LocPair loc;
@@ -218,7 +218,7 @@ struct ParsedRule30 {
 
 oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule31(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule32 {
   oalex::LocPair loc;
@@ -259,7 +259,7 @@ struct ParsedErrorStanzaLeader {
 
 std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule35(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule35(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule36 {
   oalex::LocPair loc;
@@ -270,7 +270,7 @@ struct ParsedRule36 {
 
 oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule37(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule38 {
   oalex::LocPair loc;
@@ -281,7 +281,7 @@ struct ParsedRule38 {
 
 oalex::JsonLoc parseRule38(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule39(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule40 {
   oalex::LocPair loc;
@@ -292,7 +292,7 @@ struct ParsedRule40 {
 
 oalex::JsonLoc parseRule40(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule41(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule42 {
   oalex::LocPair loc;

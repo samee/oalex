@@ -144,6 +144,13 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
   }
 }
 
+static ssize_t
+resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
+  ssize_t nxt = flatWrapperTarget(ruleAt(ruleset, target));
+  if(nxt == -1) return target;
+  else return resolveIfWrapper(ruleset, nxt);
+}
+
 static string
 ruleDebugId(const RuleSet& rs, ssize_t i) {
   if(const Ident* opt = ruleAt(rs, i).nameOrNull())
@@ -450,6 +457,8 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
 static void codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
                                        string_view posVar,
                                        const OutputStream& cppos);
+static void codegenParserCallNoConversion(const Rule& rule, string_view posVar,
+                                          const OutputStream& cppos);
 
 static string cEscaped(char c) {
   switch(c) {
@@ -621,7 +630,7 @@ parserResultName(const Ident& rname) {
 
 static string
 parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
-  const Rule& rule = ruleAt(ruleset, ruleidx);
+  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
   if(producesString(rule)) return "std::optional<oalex::StringLoc>";
   else if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
@@ -963,8 +972,7 @@ static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
   if(const Ident* name = ruleAt(ruleset, qm.compidx).nameOrNull())
-    cppos(format("  return oalex::toJsonLoc(\n"
-                 "    oalex::quietMatch(ctx.input(), i, {}));\n",
+    cppos(format("  return oalex::quietMatch(ctx.input(), i, {});\n",
                  parserName(*name)));
   else Bug("QuietMatch::compidx targets need to have names");
 }
@@ -1040,10 +1048,11 @@ static void
 codegen(const RuleSet& ruleset, const MatchOrError& me,
         const OutputStream& cppos) {
   cppos("  using oalex::Error;\n");
-  cppos("  JsonLoc  res = ");
-    codegenParserCallToJsonLoc(ruleset, me.compidx, "i", cppos);
-    cppos(";\n");
-  cppos("  if(res.holdsErrorValue())\n");
+  cppos("  using oalex::holdsErrorValue;\n");
+  cppos(format("  {} res = ", parserResultOptional(ruleset, me.compidx)));
+     codegenParserCallNoConversion(ruleAt(ruleset, me.compidx), "i", cppos);
+     cppos(";\n");
+  cppos("  if(holdsErrorValue(res))\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
   cppos("  return res;\n");
 }
@@ -1052,7 +1061,7 @@ static void
 codegen(const RuleSet& ruleset, const AliasRule& alias,
         const OutputStream& cppos) {
   cppos("  return ");
-    codegenParserCallToJsonLoc(ruleset, alias.targetidx, "i", cppos);
+    codegenParserCallNoConversion(ruleAt(ruleset, alias.targetidx), "i", cppos);
     cppos(";\n");
 }
 
@@ -1153,13 +1162,42 @@ codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
           ext && ext->params().empty())
     cppos(format("{}(ctx, {})", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
-    if(producesGeneratedStruct(rule))
+    const Rule& restype = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+    if(producesGeneratedStruct(restype))
       cppos(format("oalex::JsonLike({}(ctx, {}))",
             parserName(*rname), posVar));
-    else if(producesString(rule))
+    else if(producesString(restype))
       cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
+  // When adding a new branch here, remember to change needsName().
+  else Unimplemented("nameless component of type {}",
+                     rule.specifics_typename());
+}
+
+// TODO: Rename this and remove the NoConversion suffix when we have completed
+// the migration.
+static void
+codegenParserCallNoConversion(const Rule& rule, string_view posVar,
+                              const OutputStream& cppos) {
+  if(auto* s = dynamic_cast<const StringRule*>(&rule))
+    cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
+  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
+          wp && wp->regexOptsIdx == 0) {
+    cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
+                 posVar, dquoted(**wp)));
+  }
+  else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
+    if(err->msg.empty()) cppos("JsonLoc::ErrorValue{}");
+    else cppos(format("oalex::errorValue(ctx, {}, {})",
+                      posVar, dquoted(err->msg)));
+  }
+  else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
+          ext && ext->params().empty())
+    cppos(format("{}(ctx, {})", ext->externalName(), posVar));
+  else if(const Ident* rname = rule.nameOrNull())
+    cppos(format("{}(ctx, {})", parserName(*rname), posVar));
+
   // When adding a new branch here, remember to change needsName().
   else Unimplemented("nameless component of type {}",
                      rule.specifics_typename());
@@ -1324,13 +1362,6 @@ flexContainer(RuleField::Container a, RuleField::Container b) {
   if(a == RuleField::optional || b == RuleField::optional)
     return RuleField::optional;
   return RuleField::single;
-}
-
-static ssize_t
-resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
-  ssize_t nxt = flatWrapperTarget(ruleAt(ruleset, target));
-  if(nxt == -1) return target;
-  else return resolveIfWrapper(ruleset, nxt);
 }
 
 // This function is only used in the context of the toposort in
