@@ -58,15 +58,15 @@ void runSingleStringTest() {
   string msg = "hello";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  JsonLoc jsloc = parseHelloKeyword(ctx, pos);
+  optional<StringLoc> sloc = parseHelloKeyword(ctx, pos);
 
-  assertJsonLocIsString(__func__, jsloc, msg, 0, msg.size());
+  assertEqual(__func__, **sloc, msg);
 
   msg = "goodbye";
   ctx = InputDiags{Input{msg}};
   pos = 0;
-  jsloc = parseHelloKeyword(ctx, pos);
-  if(!jsloc.holdsErrorValue()) BugMe("Was expecting string match to fail");
+  sloc = parseHelloKeyword(ctx, pos);
+  if(sloc.has_value()) BugMe("Was expecting string match to fail");
 }
 
 void runMatchOrErrorTest(JsonLoc (*parse)(InputDiags&, ssize_t&)) {
@@ -135,11 +135,11 @@ void runSingleRegexTest() {
 }
 
 void runWordPreservingWithOverride() {
-  const pair<JsonLoc(*)(InputDiags&, ssize_t&), string> testcases[] = {
-    {parseWordHello1, "hello"},
-    {parseWordHello2, ""},
-    {parseWordHello3, ""},
-    {parseWordHello4, "hell"}
+  const pair<function<JsonLoc(InputDiags&, ssize_t&)>, string> testcases[] = {
+    {generic(parseWordHello1), "hello"},
+    {generic(parseWordHello2), ""},
+    {generic(parseWordHello3), ""},
+    {generic(parseWordHello4), "hell"}
   };
   for(size_t i=0; i<sizeof(testcases)/sizeof(testcases[0]); ++i) {
     auto& [parse, expectation] = testcases[i];

@@ -608,8 +608,9 @@ producesGeneratedStruct(const Rule& r) {
 static bool
 producesString(const Rule& r) {
   return dynamic_cast<const StringRule*>(&r) ||
-         dynamic_cast<const RegexRule*>(&r);
-  // TODO: add WordPreserving and passthrough wrappers
+         dynamic_cast<const RegexRule*>(&r) ||
+         dynamic_cast<const WordPreserving*>(&r);
+  // TODO: add passthrough wrappers
 }
 
 static string
@@ -1084,8 +1085,8 @@ static void
 codegen(const RuleSet& ruleset, const WordPreserving& wp,
         const OutputStream& cppos) {
   if(wp.regexOptsIdx == 0) {
-    cppos(format("  return oalex::toJsonLoc(oalex::match(ctx, i, "
-                     "defaultRegexOpts().word, {}));\n", dquoted(*wp)));
+    cppos(format("  return oalex::match(ctx, i, "
+                     "defaultRegexOpts().word, {});\n", dquoted(*wp)));
     return;
   }
   cppos("  using oalex::match;\n");
@@ -1094,7 +1095,7 @@ codegen(const RuleSet& ruleset, const WordPreserving& wp,
   cppos("  static const RegexCharSet* wordChars = new ");
     genRegexCharSet(ruleset.regexOpts.at(wp.regexOptsIdx).word, cppos, 2);
     cppos(";\n");
-  cppos(format("  return toJsonLoc(match(ctx, i, *wordChars, {}));\n",
+  cppos(format("  return match(ctx, i, *wordChars, {});\n",
                dquoted(*wp)));
 }
 
