@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <string_view>
 #include "diags.h"
@@ -24,17 +25,19 @@ namespace oalex {
 
 JsonLoc::ErrorValue errorValue(DiagsDest ctx, ssize_t i, std::string msg);
 
-JsonLoc match(InputDiags& ctx, ssize_t& i, std::string_view s);
-JsonLoc match(InputDiags& ctx, ssize_t& i, const Regex& regex,
-              const RegexOptions& ropts);
+std::optional<StringLoc> match(InputDiags& ctx, ssize_t& i, std::string_view s);
+std::optional<StringLoc> match(InputDiags& ctx, ssize_t& i, const Regex& regex,
+                               const RegexOptions& ropts);
 
 // This version discards matches if it is appearing to split a word into two.
 // Providing an empty wordChars {} here is equivalent to calling it without
 // wordChars.
 bool peekMatch(InputDiags& ctx, ssize_t i, const RegexCharSet& wordChars,
                std::string_view s);
-JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
-              std::string_view s);
+
+std::optional<StringLoc> match(InputDiags& ctx, ssize_t& i,
+                               const RegexCharSet& wordChars,
+                               std::string_view s);
 
 std::unique_ptr<InputPiece> unowned(const InputPiece& input);
 

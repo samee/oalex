@@ -388,16 +388,17 @@ JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
   if(auto* s = dynamic_cast<const StringRule*>(&r))
-    return match(ctx, i, s->val);
+    return toJsonLoc(match(ctx, i, s->val));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&r))
-    return match(ctx, i, ruleset.regexOpts.at(wp->regexOptsIdx).word, **wp);
+    return toJsonLoc(match(ctx, i, ruleset.regexOpts.at(wp->regexOptsIdx).word,
+                           **wp));
   else if(auto* ext = dynamic_cast<const ExternParser*>(&r))
     return eval(ctx, i, *ext, ruleset);
   else if(auto* sp = dynamic_cast<const SkipPoint*>(&r))
     return skip(ctx, i, *sp, ruleset);
   else if(auto* regex = dynamic_cast<const RegexRule*>(&r))
-    return match(ctx, i, *regex->patt,
-                 ruleset.regexOpts.at(regex->regexOptsIdx));
+    return toJsonLoc(match(ctx, i, *regex->patt,
+                           ruleset.regexOpts.at(regex->regexOptsIdx)));
   else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&r))
     return eval(ctx, i, *seq, ruleset);
   else if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
@@ -657,14 +658,15 @@ codegen(const RuleSet& ruleset, const RegexRule& regex,
   cppos(";\n");
 
   if(regex.regexOptsIdx == 0) {
-    cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
+    cppos("  return toJsonLoc(oalex::match(ctx, i, *r, "
+                             "defaultRegexOpts()));\n");
     return;
   }
   cppos("  using oalex::RegexOptions;\n");
   cppos("  static const RegexOptions* regexOpts = new ");
     codegenRegexOpts(ruleset.regexOpts.at(regex.regexOptsIdx), cppos, 2);
     cppos(";\n");
-  cppos("  return oalex::match(ctx, i, *r, *regexOpts);\n");
+  cppos("  return oalex::toJsonLoc(oalex::match(ctx, i, *r, *regexOpts));\n");
 }
 
 // TODO: use sorted vector instead of map here too.
@@ -1074,16 +1076,18 @@ static void
 codegen(const RuleSet& ruleset, const WordPreserving& wp,
         const OutputStream& cppos) {
   if(wp.regexOptsIdx == 0) {
-    cppos(format("  return oalex::match(ctx, i, "
-                     "defaultRegexOpts().word, {});\n", dquoted(*wp)));
+    cppos(format("  return oalex::toJsonLoc(oalex::match(ctx, i, "
+                     "defaultRegexOpts().word, {}));\n", dquoted(*wp)));
     return;
   }
   cppos("  using oalex::match;\n");
   cppos("  using oalex::RegexCharSet;\n");
+  cppos("  using oalex::toJsonLoc;\n");
   cppos("  static const RegexCharSet* wordChars = new ");
     genRegexCharSet(ruleset.regexOpts.at(wp.regexOptsIdx).word, cppos, 2);
     cppos(";\n");
-  cppos(format("  return match(ctx, i, *wordChars, {});\n", dquoted(*wp)));
+  cppos(format("  return toJsonLoc(match(ctx, i, *wordChars, {}));\n",
+               dquoted(*wp)));
 }
 
 void
@@ -1116,10 +1120,12 @@ static void
 codegenParserCallToJsonLoc(const Rule& rule, string_view posVar,
                            const OutputStream& cppos) {
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
-    cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
+    cppos(format("oalex::toJsonLoc(oalex::match(ctx, {}, {}))", posVar,
+                 dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
           wp && wp->regexOptsIdx == 0) {
-    cppos(format("oalex::match(ctx, {}, defaultRegexOpts().word, {})",
+    cppos(format("oalex::toJsonLoc(oalex::match(ctx, {}, "
+                                  "defaultRegexOpts().word, {}))",
                  posVar, dquoted(**wp)));
   }
   else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
@@ -1472,7 +1478,8 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   genTypeDefinition(ruleset, ruleIndex, cppos, hos);
   parserHeaders(r, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
-    cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
+    cppos(format("  return oalex::toJsonLoc(oalex::match(ctx, i, {}));\n",
+                 dquoted(s->val)));
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {
     codegen(ruleset, *wp, cppos);
   }else if(auto* regex = dynamic_cast<const RegexRule*>(&r)) {

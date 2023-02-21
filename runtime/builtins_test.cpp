@@ -28,6 +28,7 @@ using oalex::JsonLoc;
 using oalex::match;
 using oalex::ParserPtr;
 using oalex::showDiags;
+using oalex::toJsonLoc;
 
 namespace {
 
@@ -35,7 +36,7 @@ const ParserPtr simpleLeader = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
   return match(ctx, i, "my_list:");
 };
 const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
-  JsonLoc res = match(ctx, i, "item");
+  JsonLoc res = toJsonLoc(match(ctx, i, "item"));
   if(res.holdsErrorValue()) {
     Error(ctx, i, "Expected 'item'");
   }
@@ -43,7 +44,7 @@ const ParserPtr simpleItem = +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
 };
 const ParserPtr leaderBadLocation =
   +[](InputDiags& ctx, ssize_t& i) -> JsonLike {
-  JsonLoc rv = match(ctx, i, "my_list:");
+  JsonLoc rv = toJsonLoc(match(ctx, i, "my_list:"));
   rv.stPos = rv.enPos = Input::npos;
   return rv;
 };
