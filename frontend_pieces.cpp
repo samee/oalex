@@ -396,6 +396,7 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::mapCreateOrAppend;
   using oalex::mapCreateOrAppendAllElts;
   using oalex::quietMatch;
+  using oalex::toJsonLoc;
   ssize_t j = i, fallback_point = i;
 
   JsonLoc::Map m;
@@ -409,9 +410,9 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
       std::move(*res.getIfMap()), first);
     fallback_point = j;
 
-    res = quietMatch(ctx.input(), j, parseRule20);
+    res = toJsonLoc(quietMatch(ctx.input(), j, parseRule20));
     if(res.holdsErrorValue()) break;
-    res = quietMatch(ctx.input(), j, parseRule19);
+    res = toJsonLoc(quietMatch(ctx.input(), j, parseRule19));
     if(res.holdsErrorValue()) break;
     res = parseRule20(ctx, j);
     if(res.holdsErrorValue())
@@ -431,7 +432,8 @@ ParsedRule22::operator JsonLoc() const {
 }
 
 oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
-  return oalex::quietMatch(ctx.input(), i, parseRule21);
+  return oalex::toJsonLoc(
+    oalex::quietMatch(ctx.input(), i, parseRule21));
 }
 
 ParsedRule23::operator JsonLoc() const {

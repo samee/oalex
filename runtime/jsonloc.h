@@ -164,5 +164,7 @@ template <class V> JsonLoc toJsonLoc(const std::vector<V>& v) {
   for(auto& e: v) rv.push_back(JsonLoc{e});
   return rv;
 }
+// TODO: improve codegen so this overload isn't necessary.
+inline JsonLoc toJsonLoc(JsonLoc v) { return v; }
 
 }  // namespace oalex

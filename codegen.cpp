@@ -613,7 +613,9 @@ parserResultName(const Ident& rname) {
 
 static string
 parserResultOptional(const Rule& rule) {
-  if(producesGeneratedStruct(rule))
+  if(dynamic_cast<const StringRule*>(&rule))
+    return "std::optional<oalex::StringLoc>";
+  else if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
   else if(dynamic_cast<const ExternParser*>(&rule))
     return "oalex::JsonLike";
@@ -835,6 +837,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  using oalex::mapCreateOrAppend;\n");
   cppos("  using oalex::mapCreateOrAppendAllElts;\n");
   cppos("  using oalex::quietMatch;\n");
+  cppos("  using oalex::toJsonLoc;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos("  JsonLoc::Map m;\n");
   cppos("  bool first = true;\n");
@@ -846,7 +849,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    if(first) res = ");
       codegenParserCallToJsonLoc(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos(format("    else res = quietMatch(ctx.input(), j, {});\n",
+    cppos(format("    else res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
     cppos("    if(res.holdsErrorValue()) {\n");
     cppos("      if(first) return res;\n");
@@ -863,13 +866,13 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
-    cppos(format("    res = quietMatch(ctx.input(), j, {});\n",
+    cppos(format("    res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
                  parserName(skipname)));
     cppos("    if(res.holdsErrorValue()) break;\n");
   }
   if(loop.glueidx != -1) {
     if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
-      cppos(format("    res = quietMatch(ctx.input(), j, {});\n",
+      cppos(format("    res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
                    parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
     cppos("    if(res.holdsErrorValue()) break;\n");
@@ -952,7 +955,8 @@ static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
   if(const Ident* name = ruleAt(ruleset, qm.compidx).nameOrNull())
-    cppos(format("  return oalex::quietMatch(ctx.input(), i, {});\n",
+    cppos(format("  return oalex::toJsonLoc(\n"
+                 "    oalex::quietMatch(ctx.input(), i, {}));\n",
                  parserName(*name)));
   else Bug("QuietMatch::compidx targets need to have names");
 }
@@ -1478,8 +1482,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
   genTypeDefinition(ruleset, ruleIndex, cppos, hos);
   parserHeaders(r, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
-    cppos(format("  return oalex::toJsonLoc(oalex::match(ctx, i, {}));\n",
-                 dquoted(s->val)));
+    cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));
   }else if(auto* wp = dynamic_cast<const WordPreserving*>(&r)) {
     codegen(ruleset, *wp, cppos);
   }else if(auto* regex = dynamic_cast<const RegexRule*>(&r)) {
