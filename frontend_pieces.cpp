@@ -19,13 +19,13 @@ const oalex::RegexOptions& defaultRegexOpts() {
 
 oalex::JsonLoc parseWord(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = parseRule1(ctx, i);
+  JsonLoc  res = oalex::toJsonLoc(parseRule1(ctx, i));
   if(res.holdsErrorValue())
     Error(ctx, i, "Does not match expected pattern");
   return res;
 }
 
-oalex::JsonLoc parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::makeVector;
   using oalex::move_to_unique;
   using oalex::Regex;
@@ -46,18 +46,18 @@ oalex::JsonLoc parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
         { '0', '9' },
       }, false)
     ));
-  return toJsonLoc(oalex::match(ctx, i, *r, defaultRegexOpts()));
+  return oalex::match(ctx, i, *r, defaultRegexOpts());
 }
 
 oalex::JsonLoc parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Error;
-  JsonLoc  res = parseRule2(ctx, i);
+  JsonLoc  res = oalex::toJsonLoc(parseRule2(ctx, i));
   if(res.holdsErrorValue())
     Error(ctx, i, "Does not match expected pattern");
   return res;
 }
 
-oalex::JsonLoc parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
+std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::makeVector;
   using oalex::move_to_unique;
   using oalex::Regex;
@@ -89,7 +89,7 @@ oalex::JsonLoc parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
       ))),
       move_to_unique(RegexString("\""))
     )});
-  return toJsonLoc(oalex::match(ctx, i, *r, defaultRegexOpts()));
+  return oalex::match(ctx, i, *r, defaultRegexOpts());
 }
 
 oalex::JsonLoc parseRule3(oalex::InputDiags& ctx, ssize_t& i) {

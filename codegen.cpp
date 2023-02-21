@@ -605,6 +605,12 @@ producesGeneratedStruct(const Rule& r) {
   auto* out = dynamic_cast<const OutputTmpl*>(&r);
   return out && out->nameOrNull();
 }
+static bool
+producesString(const Rule& r) {
+  return dynamic_cast<const StringRule*>(&r) ||
+         dynamic_cast<const RegexRule*>(&r);
+  // TODO: add WordPreserving and passthrough wrappers
+}
 
 static string
 parserResultName(const Ident& rname) {
@@ -613,8 +619,7 @@ parserResultName(const Ident& rname) {
 
 static string
 parserResultOptional(const Rule& rule) {
-  if(dynamic_cast<const StringRule*>(&rule))
-    return "std::optional<oalex::StringLoc>";
+  if(producesString(rule)) return "std::optional<oalex::StringLoc>";
   else if(producesGeneratedStruct(rule))
     return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
   else if(dynamic_cast<const ExternParser*>(&rule))
@@ -660,15 +665,14 @@ codegen(const RuleSet& ruleset, const RegexRule& regex,
   cppos(";\n");
 
   if(regex.regexOptsIdx == 0) {
-    cppos("  return toJsonLoc(oalex::match(ctx, i, *r, "
-                             "defaultRegexOpts()));\n");
+    cppos("  return oalex::match(ctx, i, *r, defaultRegexOpts());\n");
     return;
   }
   cppos("  using oalex::RegexOptions;\n");
   cppos("  static const RegexOptions* regexOpts = new ");
     codegenRegexOpts(ruleset.regexOpts.at(regex.regexOptsIdx), cppos, 2);
     cppos(";\n");
-  cppos("  return oalex::toJsonLoc(oalex::match(ctx, i, *r, *regexOpts));\n");
+  cppos("  return oalex::match(ctx, i, *r, *regexOpts);\n");
 }
 
 // TODO: use sorted vector instead of map here too.
@@ -1116,6 +1120,9 @@ bool needsName(const Rule& rule, bool isTentativeTarget) {
   return true;
 }
 
+static string
+wrapToJsonLoc(string s) { return format("oalex::toJsonLoc({})", std::move(s)); }
+
 // Generate an inlined call to oalex::match() when possible, but falls back to
 // the main parser for other cases.
 // TODO: delete this function when the code has been migrated to not require
@@ -1144,6 +1151,8 @@ codegenParserCallToJsonLoc(const Rule& rule, string_view posVar,
     if(producesGeneratedStruct(rule))
       cppos(format("oalex::JsonLike({}(ctx, {}))",
             parserName(*rname), posVar));
+    else if(producesString(rule))
+      cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
   // When adding a new branch here, remember to change needsName().

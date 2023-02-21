@@ -20,6 +20,7 @@
 #include "codegen_generated.h"
 #include "codegen_test_util.h"
 
+#include <functional>
 #include <string>
 #include <utility>
 #include "fmt/core.h"
@@ -38,11 +39,14 @@ using oalex::JsonLike;
 using oalex::JsonLoc;
 using oalex::parseJsonLoc;
 using oalex::Parser;
-using oalex::Skipper;
 using oalex::sign_cast;
+using oalex::Skipper;
+using oalex::StringLoc;
+using oalex::toJsonLoc;
 using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::assertLocPairEqual;
+using std::function;
 using std::optional;
 using std::pair;
 using std::string;
@@ -89,14 +93,22 @@ void runAliasRuleTest() {
   assertJsonLocIsString(__func__, jsloc, msg.substr(1), 1, msg.size());
 }
 
+template <class T> function<JsonLoc(InputDiags&, ssize_t&)>
+generic(T (*parser)(InputDiags&, ssize_t&)) {
+  return [parser](InputDiags& ctx, ssize_t& i) {
+    return toJsonLoc(parser(ctx, i));
+  };
+}
+
 void runSingleRegexTest() {
-  const tuple<string, JsonLoc(*)(InputDiags&, ssize_t&), size_t> inputs[] = {
-    {"fox", parseFooOrFox, 3},
-    {"foood", parseLongFood, 5},
-    {"abcde", parseAbcXyz, 3},
-    {"xyyyz", parseAbcXyz, 5},
-    {"abc", parseAbcWholeLine, 3},
-    {"abc+", parseAbcWord, 3},
+  const tuple<string, function<JsonLoc(InputDiags&, ssize_t&)>, size_t>
+    inputs[] = {
+    {"fox", generic(parseFooOrFox), 3},
+    {"foood", generic(parseLongFood), 5},
+    {"abcde", generic(parseAbcXyz), 3},
+    {"xyyyz", generic(parseAbcXyz), 5},
+    {"abc", generic(parseAbcWholeLine), 3},
+    {"abc+", generic(parseAbcWord), 3},
   };
   for(auto& [msg, parseMsg, len] : inputs) {
     InputDiags ctx{Input{msg}};
@@ -106,17 +118,18 @@ void runSingleRegexTest() {
   }
 
 
-  const pair<string, JsonLoc(*)(InputDiags&, ssize_t&)> bad_inputs[] = {
-    {"fort", parseFooOrFox},
-    {"fod", parseFooOrFox},
-    {"abxyz", parseAbcXyz},
-    {"abcd", parseAbcWholeLine},
-    {"abc+", parseAbcWholeLine},
+  const pair<string, function<JsonLoc(InputDiags&, ssize_t&)>>
+    bad_inputs[] = {
+    {"fort", generic(parseFooOrFox)},
+    {"fod", generic(parseFooOrFox)},
+    {"abxyz", generic(parseAbcXyz)},
+    {"abcd", generic(parseAbcWholeLine)},
+    {"abc+", generic(parseAbcWholeLine)},
   };
   for(auto& [msg, parseMsg] : bad_inputs) {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
-    JsonLoc jsloc = parseFooOrFox(ctx, pos);
+    JsonLoc jsloc = toJsonLoc(parseFooOrFox(ctx, pos));
     if(!jsloc.holdsErrorValue()) BugMe("Was expecting regex match to fail");
   }
 }
@@ -146,19 +159,19 @@ void runWordPreservingWithOverride() {
 void runRegexWordOverride() {
   ssize_t spos = 0;
   InputDiags ctx{Input{"hello-world"}};
-  JsonLoc jsloc = parseRegexWord1(ctx, spos);
-  assertJsonLocIsString(__func__, jsloc, "hello", 0, sizeof("hello")-1);
+  optional<StringLoc> sloc = parseRegexWord1(ctx, spos);
+  assertEqual(__func__, **sloc, "hello");
 
   spos = 0;
   InputDiags ctx2{Input{"hello-world"}};
-  jsloc = parseRegexWord2(ctx, spos);
-  if(!jsloc.holdsErrorValue())
-    BugMe("Was expecting hyphen to be a word. Got {}", jsloc.prettyPrint(0));
+  sloc = parseRegexWord2(ctx, spos);
+  if(sloc.has_value())
+    BugMe("Was expecting hyphen to be a word. Got '{}'", **sloc);
 
   spos = 0;
   InputDiags ctx3{Input{"hello-world"}};
-  jsloc = parseRegexWord3(ctx, spos);
-  assertJsonLocIsString(__func__, jsloc, "hell", 0, sizeof("hell")-1);
+  sloc = parseRegexWord3(ctx, spos);
+  assertEqual(__func__, **sloc, "hell");
 }
 
 void runConcatFlatTest() {

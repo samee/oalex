@@ -4,11 +4,11 @@
 
 oalex::JsonLoc parseWord(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule1(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i);
 
-oalex::JsonLoc parseRule2(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i);
 
 oalex::JsonLoc parseRule3(oalex::InputDiags& ctx, ssize_t& i);
 
