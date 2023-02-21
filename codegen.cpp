@@ -1402,10 +1402,8 @@ static string
 flatFieldType(const RuleSet& ruleset, const RuleField& field) {
   string vtype;
   const Rule& source = ruleAt(ruleset, field.schema_source);
-  if(dynamic_cast<const StringRule*>(&source) ||
-     dynamic_cast<const RegexRule*>(&source) ||
-     dynamic_cast<const WordPreserving*>(&source)) vtype = "oalex::StringLoc";
-  else if(dynamic_cast<const OutputTmpl*>(&source))
+  if(producesString(source)) vtype = "oalex::StringLoc";
+  else if(producesGeneratedStruct(source))
     vtype = parserResultName(*source.nameOrNull());
   else if(dynamic_cast<const ExternParser*>(&source) ||
           dynamic_cast<const OrRule*>(&source)) vtype = "oalex::JsonLike";
