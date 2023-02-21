@@ -29,7 +29,7 @@ void testQuietSkipAtNewline() {
   InputDiags ctx{Input{msg}};
   ssize_t pos = 3;
 
-  oalex::GeneratedParser skipEval = +[](InputDiags& ctx, ssize_t& i) {
+  auto skipEval = +[](InputDiags& ctx, ssize_t& i) {
     const Skipper skip{ {{"#","\n"}}, {}, Skipper::Newlines::ignore_blank};
     i = skip.next(ctx.input(), i);
     return JsonLoc{JsonLoc::Map{}};

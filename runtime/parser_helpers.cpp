@@ -94,22 +94,6 @@ unique_ptr<InputPiece> unowned(const InputPiece& input) {
   return make_unique<InputUnowned>(input);
 }
 
-bool peekMatch(const InputPiece& input, ssize_t i, GeneratedParser parser) {
-  // The only difference between this and quietMatch() is that
-  // peekMatch() accepts `i` by value.
-  return !quietMatch(input, i, parser).holdsErrorValue();
-}
-
-// Dev-note: It feels wrong to have a small heap allocation in a function
-// that is called *more* frequently than normal parsers.
-// TODO: consider an RAII-controlled flag in InputDiags that disables
-// appending errors temporarily.
-JsonLoc quietMatch(const InputPiece& input, ssize_t& i,
-                   GeneratedParser parser) {
-  InputDiags proxy{unowned(input)};
-  return parser(proxy, i);
-}
-
 void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2) {
   m1.insert(m1.end(), std::make_move_iterator(m2.begin()),
                       std::make_move_iterator(m2.end()));

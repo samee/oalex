@@ -38,10 +38,28 @@ JsonLoc match(InputDiags& ctx, ssize_t& i, const RegexCharSet& wordChars,
 
 std::unique_ptr<InputPiece> unowned(const InputPiece& input);
 
-// Converts a parser into a resemblance-checker.
-using GeneratedParser = JsonLoc(*)(InputDiags& ctx, ssize_t& i);
-bool peekMatch(const InputPiece& input, ssize_t i, GeneratedParser parser);
-JsonLoc quietMatch(const InputPiece& input, ssize_t& i, GeneratedParser parser);
+// Dev-note: It feels wrong to have a small heap allocation in a function
+// that is called *more* frequently than normal parsers.
+// TODO: consider an RAII-controlled flag in InputDiags that disables
+// appending errors temporarily.
+template <class ParserCallback>
+auto quietMatch(const InputPiece& input, ssize_t& i, ParserCallback parser) {
+  InputDiags proxy{unowned(input)};
+  return parser(proxy, i);
+}
+
+template <class V>
+bool holdsErrorValue(const std::optional<V>& v) { return !v.has_value(); }
+
+inline bool holdsErrorValue(const JsonLoc& jsloc)
+  { return jsloc.holdsErrorValue(); }
+
+template <class ParserCallback>
+bool peekMatch(const InputPiece& input, ssize_t i, ParserCallback parser) {
+  // The only difference between this and quietMatch() is that
+  // peekMatch() accepts `i` by value and returns a bool.
+  return !holdsErrorValue(quietMatch(input, i, parser));
+}
 
 
 void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2);

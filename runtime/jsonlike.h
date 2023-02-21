@@ -106,6 +106,8 @@ class JsonLike {
   sz::any_of<internal::JsonLikeWrapper> data_;
 };
 
+inline bool holdsErrorValue(const JsonLike& jslike) { return !jslike; }
+
 // Specializations that act different.
 template <> inline JsonLike::JsonLike(JsonLoc::ErrorValue) : data_{} {}
 template <> JsonLike::JsonLike(JsonLoc jsloc);
