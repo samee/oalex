@@ -1124,7 +1124,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
   }
   else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
           ext && ext->params().empty())
-    cppos(format("{}(ctx, {});", ext->externalName(), posVar));
+    cppos(format("{}(ctx, {})", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
     if(producesGeneratedStruct(rule))
       cppos(format("oalex::JsonLike({}(ctx, {}))",
