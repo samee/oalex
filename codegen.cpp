@@ -635,16 +635,20 @@ producesString(const Rule& r) {
 }
 
 static string
-parserResultName(const Ident& rname) {
-  return "Parsed" + rname.toUCamelCase();
+parserResultName(const Rule& rule) {
+  if(producesString(rule)) return "oalex::StringLoc";
+  else if(producesGeneratedStruct(rule))
+   return "Parsed" + rule.nameOrNull()->toUCamelCase();
+  else if(dynamic_cast<const ExternParser*>(&rule) ||
+          dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
+  else return "oalex::JsonLoc";
 }
 
 static string
 parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
   const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-  if(producesString(rule)) return "std::optional<oalex::StringLoc>";
-  else if(producesGeneratedStruct(rule))
-    return format("std::optional<{}>", parserResultName(*rule.nameOrNull()));
+  if(producesGeneratedStruct(rule) || producesString(rule))
+    return format("std::optional<{}>", parserResultName(rule));
   else if(dynamic_cast<const ExternParser*>(&rule))
     return "oalex::JsonLike";
   else return "oalex::JsonLoc";
@@ -810,8 +814,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     else {
       cppos("  if(m == nullptr) {\n");
-      cppos(format("    return {}{{\n",
-                   parserResultName(*out.nameOrNull())));
+      cppos(format("    return {}{{\n", parserResultName(out)));
       cppos("      .loc{oldi, i},\n");
       cppos("      .fields");
         genStructValues(
@@ -827,7 +830,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
                                        dquoted(key))});
   }
   // TODO the out.childName branch above.
-  cppos(format("  {} rv{{\n", parserResultName(*out.nameOrNull())));
+  cppos(format("  {} rv{{\n", parserResultName(out)));
   cppos("    .loc{oldi, i},\n");
   cppos("    .fields");
     genStructValues(out.outputTmpl, placeholders, 4, cppos);
@@ -1174,10 +1177,7 @@ codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
     cppos(format("{}(ctx, {})", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
     const Rule& restype = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-    if(producesGeneratedStruct(restype))
-      cppos(format("oalex::toJsonLoc({}(ctx, {}))",
-                   parserName(*rname), posVar));
-    else if(producesString(restype))
+    if(producesGeneratedStruct(restype) || producesString(restype))
       cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
@@ -1459,16 +1459,18 @@ populateFlatFields(RuleSet& ruleset) {
     ruleset.rules[i]->flatFields(std::move(flatFields[i]));
 }
 
+// TODO replace this with parserResultName() when we can properly use structs in
+// ConcatFlatRule return values. This function is forked from an old version of
+// that function to begin with.
+static string
+flatStructName(const Rule& rule) {
+  return "Parsed" + rule.nameOrNull()->toUCamelCase();
+}
+
 static string
 flatFieldType(const RuleSet& ruleset, const RuleField& field) {
-  string vtype;
   const Rule& source = ruleAt(ruleset, field.schema_source);
-  if(producesString(source)) vtype = "oalex::StringLoc";
-  else if(producesGeneratedStruct(source))
-    vtype = parserResultName(*source.nameOrNull());
-  else if(dynamic_cast<const ExternParser*>(&source) ||
-          dynamic_cast<const OrRule*>(&source)) vtype = "oalex::JsonLike";
-  else Bug("Bad schema_source type {}", source.specifics_typename());
+  string vtype = parserResultName(source);
 
   if(field.container == RuleField::single) return vtype;
   else if(field.container == RuleField::optional)
@@ -1479,13 +1481,16 @@ flatFieldType(const RuleSet& ruleset, const RuleField& field) {
 }
 
 // TODO: refactor out repetitions between this and genOutputTmplTypeDefinition.
+// Dev-note: the use of flatStructName() vs flatFieldType() is very
+// inconsistent right now. This is because we are now producing struct
+// definitions for parsers that can't yet use them. For field names,
+// we can paper over missing definitions with JsonLoc field types.
 static void
 genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                       const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
-  const Ident* rname = r.nameOrNull();
-  if(!rname) return;
-  string className = parserResultName(*rname);
+  if(r.nameOrNull() == nullptr) return;
+  string className = flatStructName(r);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  struct Fields {\n");
@@ -1508,9 +1513,8 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
 static void
 genOutputTmplTypeDefinition(const OutputTmpl& out, const OutputStream& cppos,
                             const OutputStream& hos) {
-  const Ident* rname = out.nameOrNull();
-  if(!rname) return;
-  string className = parserResultName(*rname);
+  if(out.nameOrNull() == nullptr) return;
+  string className = parserResultName(out);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
