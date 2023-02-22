@@ -664,12 +664,13 @@ parserHeaders(const RuleSet& ruleset, ssize_t ruleidx,
               const OutputStream& cppos, const OutputStream& hos) {
   const Rule& rule = ruleAt(ruleset, ruleidx);
   const Ident& rname = *rule.nameOrNull();
-  hos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i);\n",
-             parserResultOptional(ruleset, ruleidx), parserName(rname)));
+  string header = format("{} {}(oalex::InputDiags& ctx, ssize_t& i)",
+                         parserResultOptional(ruleset, ruleidx),
+                         parserName(rname));
+  hos(header + ";\n");
 
   // TODO complex parsers should have comments with the source line.
-  cppos(format("{} {}(oalex::InputDiags& ctx, ssize_t& i) ",
-               parserResultOptional(ruleset, ruleidx), parserName(rname)));
+  cppos(header + " ");
 }
 
 static void
