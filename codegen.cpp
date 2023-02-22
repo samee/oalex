@@ -1164,8 +1164,8 @@ codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
   else if(const Ident* rname = rule.nameOrNull()) {
     const Rule& restype = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
     if(producesGeneratedStruct(restype))
-      cppos(format("oalex::JsonLike({}(ctx, {}))",
-            parserName(*rname), posVar));
+      cppos(format("oalex::toJsonLoc({}(ctx, {}))",
+                   parserName(*rname), posVar));
     else if(producesString(restype))
       cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
