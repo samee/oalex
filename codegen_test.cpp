@@ -763,6 +763,9 @@ void testFlatWrappers() {
         ConcatFlatRule{{ {0, "kw"} }},
         ErrorRule{"Was expecting a hello"},
         OrRule{{ {-1, 2, passthroughTmpl}, {-1, 3, passthroughTmpl} },
+               true /* flattenOnDemand */ },
+        OrRule{{ {-1, 0, JsonTmpl::Map{ std::pair{"s", passthroughTmpl} } },
+                 {-1, 3, passthroughTmpl} },
                true /* flattenOnDemand */ }
     ),
     .skips{cskip},
@@ -773,6 +776,7 @@ void testFlatWrappers() {
     if(dynamic_cast<const AliasRule*>(rs.rules[f.schema_source].get()))
       Bug("Rule 4 points to flat wrapper AliasRule at position {}",
           f.schema_source);
+  assertEqual("Rule 5 needs a field", rs.rules[5]->flatFields().size(), 1u);
   }
 }
 

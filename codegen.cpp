@@ -296,6 +296,17 @@ orBranchFlattenableOrError(const RuleSet& rs, ssize_t partidx,
   return isPassthroughTmpl(tmpl) && resultFlattenableOrError(rs, partidx);
 }
 
+// See if it's of the type { key: "child" } with a single key. Return that key.
+static string
+orBranchSimpleTmpl(const RuleSet& rs, ssize_t partidx, const JsonTmpl& tmpl) {
+  if(resultFlattenableOrError(rs, partidx)) return "";
+  const JsonTmpl::Map* m = tmpl.getIfMap();
+  if(!m) return "";
+  if(m->size() == 0) return "";
+  if(m->size() == 1) return m->at(0).first;
+  return "";
+}
+
 // TODO we need an `eval test -v` that produces verbose debug logs.
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
@@ -1323,7 +1334,9 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
     if(!ors->flattenOnDemand) return {};
     vector<RuleField> rv;
     for(auto& comp : ors->comps)
-      rv.push_back({.field_name{},
+      rv.push_back({.field_name{
+                       orBranchSimpleTmpl(rs, comp.parseidx, comp.tmpl)
+                    },
                     .schema_source = comp.parseidx,
                     .container = RuleField::optional});
     return rv;
