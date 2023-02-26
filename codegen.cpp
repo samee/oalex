@@ -644,6 +644,19 @@ parserResultName(const Rule& rule) {
   else return "oalex::JsonLoc";
 }
 
+// TODO replace this function with parserResultName().
+// This is yet another fork of parserResultName().
+static string
+parserResultNameAspirational(const Rule& rule, bool flattenable) {
+  if(producesString(rule)) return "oalex::StringLoc";
+  else if(flattenable) return "Parsed" + rule.nameOrNull()->toUCamelCase();
+  else if(dynamic_cast<const ExternParser*>(&rule) ||
+          dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
+  else return "Parsed" + rule.nameOrNull()->toUCamelCase();
+}
+
+static string flatStructName(const Rule& rule);
+
 static string
 parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
   const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
@@ -1024,6 +1037,108 @@ codegenReturnErrorOrTmpl(string_view resvar, const JsonTmpl& tmpl,
       codegen(tmpl, cppos, {{"child", string(resvar)}}, 4);
       cppos(format(", {0}.stPos, {0}.enPos);\n", resvar));
   }
+}
+
+static bool isEmptyMap(const JsonTmpl& jstmpl) {
+  const JsonTmpl::Map* m = jstmpl.getIfMap();
+  return m && m->empty();
+}
+
+static string_view getIfSingleKeyBranch(const JsonTmpl& jstmpl) {
+  const JsonTmpl::Map* m = jstmpl.getIfMap();
+  if(!m || m->size() != 1 || !isPassthroughTmpl(m->at(0).second)) return {};
+  else return m->at(0).first;
+}
+
+static void
+genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
+                const OutputStream& cppos) {
+  if(!orRule.flattenOnDemand)
+    Bug("{}: caller should directly return components without merger helpers",
+        __func__);
+
+  ssize_t branchNumber = 0;
+  string outType = flatStructName(orRule);
+  for(auto& comp: orRule.comps) {
+    string funName = format("convertBranch{}Into{}", branchNumber++, outType);
+    const Rule& compRule = ruleAt(ruleset, comp.parseidx);
+    string compType = parserResultNameAspirational(compRule, true);
+    bool flatBranch = resultFlattenableOrError(ruleset, comp.parseidx);
+    if(isEmptyMap(comp.tmpl)
+       || (isPassthroughTmpl(comp.tmpl) && compRule.flatFields().empty())) {
+      cppos(format("[[maybe_unused]]\n"
+                   "static {} {}(const {}&) {{ return {{}}; }}\n",
+                   outType, funName, compType));
+      continue;
+    }
+
+    cppos(format("[[maybe_unused]]\n"  // TODO remove attribute
+                 "static {} {}({} src) {{\n", outType, funName, compType));
+    cppos(format("  {} dest = {{}};\n", outType));
+    if(string_view field = getIfSingleKeyBranch(comp.tmpl); !field.empty())
+      cppos(format("  dest.fields.{} = std::move(src);\n", field));
+    else if(isPassthroughTmpl(comp.tmpl)) {
+      if(!flatBranch) Bug("Conflicting branch flattening requirements");
+      for(const auto& field: compRule.flatFields()) {
+        cppos(format("  dest.fields.{0} = std::move(src.fields.{0});\n",
+                     field.field_name));
+      }
+    }
+    cppos("  return dest;\n");
+    cppos("}\n\n");
+  }
+}
+
+// TODO: resolveIfWrapper() feels inconsistently used. Make a rule about when
+// it's resolved on the caller side vs. callee side.
+static void
+genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
+    string_view funName, string_view outType, string_view outField,
+    string_view nonFlatMergeTmpl, string_view flatMergeTmpl,
+    const OutputStream& cppos) {
+  const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
+  const bool flat = resultFlattenableOrError(ruleset, compidx);
+  string compType = parserResultNameAspirational(compRule, flat);
+  const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
+  if(emptyFun) {
+    cppos(format("[[maybe_unused]]\n"
+        "static void {}({} /*src*/, {}& /*dest*/) {{}}\n",
+        funName, compType, outType));
+    return;
+  }
+  string funHeader = format("[[maybe_unused]]\n"
+      "static void {}({} src, {}& dest)", funName, compType, outType);
+
+  cppos(funHeader + " {\n");
+  if(!flat) cppos(format("  {};\n", format(nonFlatMergeTmpl, outField)));
+  else for(auto& field: compRule.flatFields())
+    cppos(format("  {};\n", format(flatMergeTmpl, field.field_name)));
+  cppos("}\n\n");
+}
+
+static void
+genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
+                const OutputStream& cppos) {
+  ssize_t partNumber = 0;
+  string outType = flatStructName(seq);
+  for(auto& comp: seq.comps) {
+    string funName = format("mergePart{}Into{}", partNumber++, outType);
+    genMergeHelperCatPart(
+        ruleset, comp.idx, funName, outType, comp.outputPlaceholder,
+        "dest.fields.{} = std::move(src)",
+        "dest.fields.{0} = std::move(src.fields.{0})", cppos);
+  }
+}
+
+static void
+genMergeHelpers(const RuleSet& ruleset, ssize_t ruleidx,
+                const OutputStream& cppos) {
+  const Rule& rule = ruleAt(ruleset, ruleidx);
+  if(auto* ors = dynamic_cast<const OrRule*>(&rule);
+     ors && ors->flattenOnDemand)
+    genMergeHelpers(ruleset, *ors, cppos);
+  else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&rule))
+    genMergeHelpers(ruleset, *seq, cppos);
 }
 
 static void
@@ -1556,6 +1671,7 @@ codegen(const RuleSet& ruleset, ssize_t ruleIndex,
     genExternDeclaration(hos, ext->externalName(),  ext->params().size());
   }
   genTypeDefinition(ruleset, ruleIndex, cppos, hos);
+  genMergeHelpers(ruleset, ruleIndex, cppos);
   parserHeaders(ruleset, ruleIndex, cppos, hos); cppos("{\n");
   if(auto* s = dynamic_cast<const StringRule*>(&r)) {
     cppos(format("  return oalex::match(ctx, i, {});\n", dquoted(s->val)));

@@ -114,6 +114,8 @@ class ConcatFlatRule final : public Rule {
  public:
   // outputPlaceholder can be empty if you never need to refer to the result.
   // It is also required to be empty for components returning a flattenable map.
+  // TODO: change outputPlaceholder type to ident,
+  // since they go into struct fields.
   struct Component { ssize_t idx; std::string outputPlaceholder; };
   explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
   std::string specifics_typename() const override { return "ConcatFlatRule"; }
