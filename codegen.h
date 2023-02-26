@@ -195,7 +195,10 @@ inline bool isPassthroughTmpl(const JsonTmpl& jstmpl) {
 class OrRule final : public Rule {
   // The tmpl must have at most a single placeholder, called 'child'.
   // This is what takes the successful child's value. It is possible to
-  // pass the child's result unchanged by using passthroughTmpl.
+  // pass the child's result unchanged by using passthroughTmpl. We support
+  // only three different output templates: passthroughTmpl (i.e. `child`),
+  // JsonTmpl::Map{} (empty map), and a single kv-pair (`{ key: child }` for
+  // some valid placeholder `key`.
   //
   // If flattenOnDemand is true, and some ConcatFlatRule considers this OrRule
   // to be a child component, this needs to always return a JsonLoc::Map.
@@ -205,8 +208,31 @@ class OrRule final : public Rule {
   // Setting lookidx to -1 makes this rule not do a separate lookahead.
   // parseidx must always be a valid index.
   //
+  // In codegen, the return value will either be JsonLike or a custom generated
+  // struct convertible to JsonLoc, based on the value of flattenOnDemand.
+  //
+  // For each component, the tmpl field is only allowed certain values.
+  //
+  //   An empty JsonTmpl::Map{} is always allowed.
+  //   else if (flattenOnDemand == true) {
+  //     // Return type is now a generated struct.
+  //     if(branchFlattenable)
+  //       either passthroughTmpl or kv-pair tmpl are allowed.
+  //     else
+  //       require tmpl kv-pair, not passthroughTmpl.
+  //       // We can disallow this too in future and,
+  //       // switch to using OutputTmpl instead.
+  //   }else {
+  //     // Return type is now JsonLike
+  //     require branchFlattenable == false and passthroughTmpl.
+  //   }
+  //
+  // Above, we take care to not allow any case that requires the user to cast
+  // from JsonLike to some internal type that the user cannot name.
+  //
   // Dev-note: When we need more complicated templates, the plan is to use
-  // passthroughTmpl with an OutputTmpl target.
+  // passthroughTmpl with an OutputTmpl target. The template constraints above
+  // aren't yet uniformly enforced in code.
  public:
   struct Component { ssize_t lookidx, parseidx; JsonTmpl tmpl; };
   explicit OrRule(std::vector<Component> comps, bool fod)
