@@ -424,6 +424,13 @@ ParsedRule21::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
+[[maybe_unused]]
+static void mergePartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
+  dest.fields.param.push_back(std::move(src.fields.param));
+}
+
+[[maybe_unused]]
+static void mergeGlueIntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
 oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::JsonLoc;
   using oalex::mapCreateOrAppend;

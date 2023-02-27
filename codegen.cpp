@@ -1131,6 +1131,26 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 }
 
 static void
+genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
+                const OutputStream& cppos) {
+  string outType = flatStructName(rep);
+  string funName = "mergePartInto" + outType;
+  genMergeHelperCatPart(
+      ruleset, rep.partidx,
+      funName,  outType, rep.partname,
+      "dest.fields.{}.push_back(std::move(src))",
+      "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
+
+  if(rep.glueidx == -1) return;
+  funName = "mergeGlueInto" + outType;
+  genMergeHelperCatPart(
+      ruleset, rep.glueidx,
+      funName,  outType, rep.gluename,
+      "dest.fields.{}.push_back(std::move(src))",
+      "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
+}
+
+static void
 genMergeHelpers(const RuleSet& ruleset, ssize_t ruleidx,
                 const OutputStream& cppos) {
   const Rule& rule = ruleAt(ruleset, ruleidx);
@@ -1139,6 +1159,8 @@ genMergeHelpers(const RuleSet& ruleset, ssize_t ruleidx,
     genMergeHelpers(ruleset, *ors, cppos);
   else if(auto* seq = dynamic_cast<const ConcatFlatRule*>(&rule))
     genMergeHelpers(ruleset, *seq, cppos);
+  else if(auto* rep = dynamic_cast<const LoopRule*>(&rule))
+    genMergeHelpers(ruleset, *rep, cppos);
 }
 
 static void
