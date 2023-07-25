@@ -119,7 +119,7 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = parseRule26(ctx, i);
+  JsonLoc outfields = oalex::toJsonLoc(parseRule26(ctx, i));
   if(outfields.holdsErrorValue()) return std::nullopt;
   auto* m = outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
@@ -444,7 +444,7 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   while(true) {
     JsonLoc res = JsonLoc::ErrorValue{};
 
-    res = parseRule18(ctx, j);
+    res = oalex::toJsonLoc(parseRule18(ctx, j));
     if(res.holdsErrorValue()) return res;
     mapCreateOrAppendAllElts(m,
       std::move(*res.getIfMap()), first);
@@ -454,7 +454,7 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
     if(res.holdsErrorValue()) break;
     res = toJsonLoc(quietMatch(ctx.input(), j, parseRule19));
     if(res.holdsErrorValue()) break;
-    res = parseRule20(ctx, j);
+    res = oalex::toJsonLoc(parseRule20(ctx, j));
     if(res.holdsErrorValue())
       return oalex::errorValue(ctx, j, "Unfinished comment");
     first = false;
@@ -495,7 +495,7 @@ static ParsedRule23 convertBranch1IntoParsedRule23(const oalex::StringLoc&) { re
 oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
   using std::literals::string_literals::operator""s;
   JsonLoc res{JsonLoc::ErrorValue{}};
-  res = parseRule22(ctx, i);
+  res = oalex::toJsonLoc(parseRule22(ctx, i));
   if(!res.holdsErrorValue())
     return JsonLoc::withPos(res, res.stPos, res.enPos);
   res = oalex::toJsonLoc(oalex::match(ctx, i, ""));
@@ -594,52 +594,52 @@ oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   res = oalex::toJsonLoc(parseRule6(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule7(ctx, j);
+  res = oalex::toJsonLoc(parseRule7(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule8(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule9(ctx, j);
+  res = oalex::toJsonLoc(parseRule9(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule10(ctx, j);
+  res = oalex::toJsonLoc(parseRule10(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule11(ctx, j);
+  res = oalex::toJsonLoc(parseRule11(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule12(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule13(ctx, j);
+  res = oalex::toJsonLoc(parseRule13(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule14(ctx, j);
+  res = oalex::toJsonLoc(parseRule14(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule15(ctx, j);
+  res = oalex::toJsonLoc(parseRule15(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule16(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule17(ctx, j);
+  res = oalex::toJsonLoc(parseRule17(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule23(ctx, j);
+  res = oalex::toJsonLoc(parseRule23(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule24(ctx, j);
+  res = oalex::toJsonLoc(parseRule24(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
@@ -671,7 +671,7 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = parseRule34(ctx, i);
+  JsonLoc outfields = oalex::toJsonLoc(parseRule34(ctx, i));
   if(outfields.holdsErrorValue()) return std::nullopt;
   auto* m = outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
@@ -825,22 +825,22 @@ oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   JsonLoc::Map m;
   JsonLoc res = JsonLoc::ErrorValue{};
 
-  res = parseRule29(ctx, j);
+  res = oalex::toJsonLoc(parseRule29(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule30(ctx, j);
+  res = oalex::toJsonLoc(parseRule30(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule31(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule32(ctx, j);
+  res = oalex::toJsonLoc(parseRule32(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
-  res = parseRule33(ctx, j);
+  res = oalex::toJsonLoc(parseRule33(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
   JsonLoc rv{std::move(m)};
@@ -859,7 +859,7 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = parseRule42(ctx, i);
+  JsonLoc outfields = oalex::toJsonLoc(parseRule42(ctx, i));
   if(outfields.holdsErrorValue()) return std::nullopt;
   ParsedErrorStanzaLeader rv{
     .loc{oldi, i},
@@ -1001,21 +1001,21 @@ oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   res = oalex::toJsonLoc(parseRule35(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule36(ctx, j);
+  res = oalex::toJsonLoc(parseRule36(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule37(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule38(ctx, j);
+  res = oalex::toJsonLoc(parseRule38(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 
   res = oalex::toJsonLoc(parseRule39(ctx, j));
   if(res.holdsErrorValue()) return res;
 
-  res = parseRule40(ctx, j);
+  res = oalex::toJsonLoc(parseRule40(ctx, j));
   if(res.holdsErrorValue()) return res;
   oalex::mapAppend(m, std::move(*res.getIfMap()));
 

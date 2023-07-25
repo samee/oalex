@@ -622,10 +622,12 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
 }
 
 static bool
-producesGeneratedStruct(const Rule& r) {
+producesGeneratedStruct(const Rule& r, bool flattenable) {
+  if(flattenable) return true;
   auto* out = dynamic_cast<const OutputTmpl*>(&r);
   return out && out->nameOrNull();
 }
+
 static bool
 producesString(const Rule& r) {
   return dynamic_cast<const StringRule*>(&r) ||
@@ -634,10 +636,13 @@ producesString(const Rule& r) {
   // TODO: add passthrough wrappers
 }
 
+// TODO: Too many functions (correctly) hardcode this `flattenable` parameter,
+// making this function error-prone. Accept RuleSet and idx instead, so we
+// can look up flattenable directly.
 static string
-parserResultName(const Rule& rule) {
+parserResultName(const Rule& rule, bool flattenable) {
   if(producesString(rule)) return "oalex::StringLoc";
-  else if(producesGeneratedStruct(rule))
+  else if(producesGeneratedStruct(rule, flattenable))
    return "Parsed" + rule.nameOrNull()->toUCamelCase();
   else if(dynamic_cast<const ExternParser*>(&rule) ||
           dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
@@ -662,8 +667,8 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
              .optional = "oalex::JsonLoc",
            };
   }
-  if(producesGeneratedStruct(rule) || producesString(rule)) {
-    string restype = parserResultName(rule);
+  if(producesGeneratedStruct(rule, isflat) || producesString(rule)) {
+    string restype = parserResultName(rule, isflat);
     return { .type = restype,
              .optional = format("std::optional<{}>", restype),
            };
@@ -843,7 +848,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     else {
       cppos("  if(m == nullptr) {\n");
-      cppos(format("    return {}{{\n", parserResultName(out)));
+      cppos(format("    return {}{{\n", parserResultName(out, false)));
       cppos("      .loc{oldi, i},\n");
       cppos("      .fields");
         genStructValues(
@@ -859,7 +864,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
                                        dquoted(key))});
   }
   // TODO the out.childName branch above.
-  cppos(format("  {} rv{{\n", parserResultName(out)));
+  cppos(format("  {} rv{{\n", parserResultName(out, false)));
   cppos("    .loc{oldi, i},\n");
   cppos("    .fields");
     genStructValues(out.outputTmpl, placeholders, 4, cppos);
@@ -1330,7 +1335,8 @@ codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
     cppos(format("{}(ctx, {})", ext->externalName(), posVar));
   else if(const Ident* rname = rule.nameOrNull()) {
     const Rule& restype = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-    if(producesGeneratedStruct(restype) || producesString(restype))
+    bool isflat = resultFlattenableOrError(ruleset, ruleidx);
+    if(producesGeneratedStruct(restype, isflat) || producesString(restype))
       cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
     else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
   }
@@ -1623,7 +1629,7 @@ flatStructName(const Rule& rule) {
 static string
 flatFieldType(const RuleSet& ruleset, const RuleField& field) {
   const Rule& source = ruleAt(ruleset, field.schema_source);
-  string vtype = parserResultName(source);
+  string vtype = parserResultName(source, false);
 
   if(field.container == RuleField::single) return vtype;
   else if(field.container == RuleField::optional)
@@ -1667,7 +1673,7 @@ static void
 genOutputTmplTypeDefinition(const OutputTmpl& out, const OutputStream& cppos,
                             const OutputStream& hos) {
   if(out.nameOrNull() == nullptr) return;
-  string className = parserResultName(out);
+  string className = parserResultName(out, false);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
