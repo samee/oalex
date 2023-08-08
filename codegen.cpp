@@ -465,9 +465,6 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
 // ---------
 
 // Forward declaration.
-static void codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
-                                       string_view posVar,
-                                       const OutputStream& cppos);
 static void codegenParserCallNoConversion(const Rule& rule, string_view posVar,
                                           const OutputStream& cppos);
 
@@ -836,9 +833,9 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  ssize_t oldi = i;\n");
-  cppos("  JsonLoc outfields = ");
-    codegenParserCallToJsonLoc(ruleset, out.childidx, "i", cppos);
-    cppos(";\n");
+  cppos("  JsonLoc outfields = oalex::toJsonLoc(");
+    codegenParserCallNoConversion(ruleAt(ruleset, out.childidx), "i", cppos);
+    cppos(");\n");
   cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
   map<string,string> placeholders;
   // Dev-note: we only produce Bug() if reaching a given control path indicates
@@ -1320,46 +1317,6 @@ bool needsName(const Rule& rule, bool isTentativeTarget) {
   if(wp && wp->regexOptsIdx == 0) return false;
   if(dynamic_cast<const ErrorRule*>(&rule)) return isTentativeTarget;
   return true;
-}
-
-static string
-wrapToJsonLoc(string s) { return format("oalex::toJsonLoc({})", std::move(s)); }
-
-// Generate an inlined call to oalex::match() when possible, but falls back to
-// the main parser for other cases.
-// TODO: delete this function when the code has been migrated to not require
-// conversion to JsonLoc anywhere.
-static void
-codegenParserCallToJsonLoc(const RuleSet& ruleset, ssize_t ruleidx,
-                           string_view posVar, const OutputStream& cppos) {
-  const Rule& rule = ruleAt(ruleset, ruleidx);
-  if(auto* s = dynamic_cast<const StringRule*>(&rule))
-    cppos(format("oalex::toJsonLoc(oalex::match(ctx, {}, {}))", posVar,
-                 dquoted(s->val)));
-  else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
-          wp && wp->regexOptsIdx == 0) {
-    cppos(format("oalex::toJsonLoc(oalex::match(ctx, {}, "
-                                  "defaultRegexOpts().word, {}))",
-                 posVar, dquoted(**wp)));
-  }
-  else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
-    if(err->msg.empty()) cppos("JsonLoc::ErrorValue{}");
-    else cppos(format("JsonLoc{{oalex::errorValue(ctx, {}, {})}}",
-                      posVar, dquoted(err->msg)));
-  }
-  else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
-          ext && ext->params().empty())
-    cppos(format("{}(ctx, {})", ext->externalName(), posVar));
-  else if(const Ident* rname = rule.nameOrNull()) {
-    const Rule& restype = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-    bool isflat = resultFlattenableOrError(ruleset, ruleidx);
-    if(producesGeneratedStruct(restype, isflat) || producesString(restype))
-      cppos(wrapToJsonLoc(format("{}(ctx, {})", parserName(*rname), posVar)));
-    else cppos(format("{}(ctx, {})", parserName(*rname), posVar));
-  }
-  // When adding a new branch here, remember to change needsName().
-  else Unimplemented("nameless component of type {}",
-                     rule.specifics_typename());
 }
 
 // TODO: Rename this and remove the NoConversion suffix when we have completed
