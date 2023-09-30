@@ -23,7 +23,7 @@ using std::unique_ptr;
 
 namespace oalex {
 
-JsonLoc errorValue(DiagsDest ctx, ssize_t i, string msg) {
+JsonLoc::ErrorValue errorValue(DiagsDest ctx, ssize_t i, string msg) {
   Error(ctx, i, std::move(msg));
   return JsonLoc::ErrorValue{};
 }

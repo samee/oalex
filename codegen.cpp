@@ -1124,7 +1124,7 @@ codegenParserCallToJsonLoc(const Rule& rule, string_view posVar,
   }
   else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
     if(err->msg.empty()) cppos("JsonLoc::ErrorValue{}");
-    else cppos(format("oalex::errorValue(ctx, {}, {})",
+    else cppos(format("JsonLoc{{oalex::errorValue(ctx, {}, {})}}",
                       posVar, dquoted(err->msg)));
   }
   else if(auto* ext = dynamic_cast<const ExternParser*>(&rule);
