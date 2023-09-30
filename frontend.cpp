@@ -537,7 +537,7 @@ parseRuleLocalDecls(InputDiags& ctx, size_t& i,
   if(!requireGoodIndent(ctx, "Local declaration", leaderIndent, lineIndent))
     return rv;
   StringLoc refIndent = lineIndent;
-  IndentCmp cmpres;
+  IndentCmp cmpres = IndentCmp::eq;
   do {
     i = j;
     // We can assume !line.empty()
