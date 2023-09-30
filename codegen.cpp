@@ -465,8 +465,8 @@ trimAndEval(InputDiags& ctx, ssize_t& i,
 // ---------
 
 // Forward declaration.
-static void codegenParserCallNoConversion(const Rule& rule, string_view posVar,
-                                          const OutputStream& cppos);
+static void codegenParserCall(const Rule& rule, string_view posVar,
+                              const OutputStream& cppos);
 
 static string cEscaped(char c) {
   switch(c) {
@@ -778,7 +778,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     // TODO Check for duplicate keys at compile-time.
     string rescomp = format("res{}", comp_serial);
     cppos(format("\n  {} {} = ", resdeets.optional, rescomp));
-      codegenParserCallNoConversion(ruleAt(ruleset, childid), "j", cppos);
+      codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
     cppos(format("  if(!{}) return std::nullopt;\n", rescomp));
     cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
@@ -834,7 +834,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  ssize_t oldi = i;\n");
   cppos("  JsonLoc outfields = oalex::toJsonLoc(");
-    codegenParserCallNoConversion(ruleAt(ruleset, out.childidx), "i", cppos);
+    codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(");\n");
   cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
   map<string,string> placeholders;
@@ -905,7 +905,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   if(loop.glueidx == -1) {
     // TODO resolve this `first` case at compile-time.
     cppos("    if(first) part = ");
-      codegenParserCallNoConversion(ruleAt(ruleset, loop.partidx), "j", cppos);
+      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos(format("    else part = quietMatch(ctx.input(), j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
@@ -915,7 +915,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    }\n");
   }else {
     cppos("    part = ");
-      codegenParserCallNoConversion(ruleAt(ruleset, loop.partidx), "j", cppos);
+      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
     cppos("    if(!part) return std::nullopt;\n");
   }
@@ -941,7 +941,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
                  gluedeets.value("glue")));
     if(loop.skipidx != -1) {
       cppos("    skipres = ");
-        codegenParserCallNoConversion(ruleAt(ruleset, loop.skipidx),
+        codegenParserCall(ruleAt(ruleset, loop.skipidx),
                                       "j", cppos);
         cppos(";\n");
       cppos("    if(!skipres) {\n");
@@ -1185,7 +1185,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
       string resvar = format("res{}", branchNum);
       if(lidx == -1) {
         cppos(format("  {} {} = ", brDeets.optional, resvar));
-          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
         cppos(format("  if({}) return convertBranch{}Into{}({});\n", resvar,
               branchNum, outType, brDeets.value(resvar)));
@@ -1194,7 +1194,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
           codegenLookahead(ruleset, lidx, cppos);
           cppos(") {\n");
         cppos(format("    {} {} = ", brDeets.optional, resvar));
-          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
         cppos(format("    if(!{}) return std::nullopt;\n", resvar));
         cppos(format("    return convertBranch{}Into{}({});\n",
@@ -1213,7 +1213,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
             ruleDebugId(ruleset, pidx));
       if(lidx == -1) {
         cppos("  res = ");
-          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
         cppos("  if(res) return res;\n");
       }else {
@@ -1221,7 +1221,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
           codegenLookahead(ruleset, lidx, cppos);
           cppos(") {\n");
         cppos("    return ");
-          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
         cppos("  }\n");
       }
@@ -1236,7 +1236,7 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
   cppos("  using oalex::Error;\n");
   cppos("  using oalex::holdsErrorValue;\n");
   cppos(format("  {} res = ", parserResultOptional(ruleset, me.compidx)));
-     codegenParserCallNoConversion(ruleAt(ruleset, me.compidx), "i", cppos);
+     codegenParserCall(ruleAt(ruleset, me.compidx), "i", cppos);
      cppos(";\n");
   cppos("  if(holdsErrorValue(res))\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
@@ -1247,7 +1247,7 @@ static void
 codegen(const RuleSet& ruleset, const AliasRule& alias,
         const OutputStream& cppos) {
   cppos("  return ");
-    codegenParserCallNoConversion(ruleAt(ruleset, alias.targetidx), "i", cppos);
+    codegenParserCall(ruleAt(ruleset, alias.targetidx), "i", cppos);
     cppos(";\n");
 }
 
@@ -1319,11 +1319,9 @@ bool needsName(const Rule& rule, bool isTentativeTarget) {
   return true;
 }
 
-// TODO: Rename this and remove the NoConversion suffix when we have completed
-// the migration.
 static void
-codegenParserCallNoConversion(const Rule& rule, string_view posVar,
-                              const OutputStream& cppos) {
+codegenParserCall(const Rule& rule, string_view posVar,
+                  const OutputStream& cppos) {
   if(auto* s = dynamic_cast<const StringRule*>(&rule))
     cppos(format("oalex::match(ctx, {}, {})", posVar, dquoted(s->val)));
   else if(auto* wp = dynamic_cast<const WordPreserving*>(&rule);
