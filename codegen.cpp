@@ -657,14 +657,32 @@ parserResultNameAspirational(const Rule& rule, bool flattenable) {
 
 static string flatStructName(const Rule& rule);
 
+struct ParserResultTraits {
+  string type;
+  string optional;
+};
+
+static ParserResultTraits
+parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
+  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+  if(producesGeneratedStruct(rule) || producesString(rule)) {
+    string restype = parserResultName(rule);
+    return { .type = restype,
+             .optional = format("std::optional<{}>", restype),
+           };
+  }
+  else if(dynamic_cast<const ExternParser*>(&rule))
+    return { .type = "oalex::JsonLike",
+             .optional = "oalex::JsonLike",
+           };
+  else return { .type = "oalex::JsonLoc",
+                .optional = "oalex::JsonLoc",
+              };
+}
+
 static string
 parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
-  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-  if(producesGeneratedStruct(rule) || producesString(rule))
-    return format("std::optional<{}>", parserResultName(rule));
-  else if(dynamic_cast<const ExternParser*>(&rule))
-    return "oalex::JsonLike";
-  else return "oalex::JsonLoc";
+  return parserResultTraits(ruleset, ruleidx).optional;
 }
 
 static string
