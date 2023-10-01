@@ -1091,9 +1091,9 @@ getPrecomputedOrDie(const map<string,vector<IdentUsage>>& precomp,
 ssize_t
 RuleExprCompiler::unflattenableWrapper(ssize_t targetPattRule,
                                        const string& patt) {
-  const vector<IdentUsage>& patternIdents
-    = getPrecomputedOrDie(patternIdents_, patt);
-  JsonTmpl jstmpl = deduceOutputTmpl(patternIdents);
+  const vector<IdentUsage>* patternIdents
+    = &getPrecomputedOrDie(patternIdents_, patt);
+  JsonTmpl jstmpl = deduceOutputTmpl(*patternIdents);
   return rl_->appendAnonRule(OutputTmpl{
         /* childidx */ targetPattRule,
         /* childName */ "",
@@ -1137,9 +1137,9 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
-    const vector<IdentUsage>& patternIdents =
-      getPrecomputedOrDie(*conf.patternIdents, string(dq->gs));
-    output.insert(output.end(), patternIdents.begin(), patternIdents.end());
+    const vector<IdentUsage>* patternIdents =
+      &getPrecomputedOrDie(*conf.patternIdents, string(dq->gs));
+    output.insert(output.end(), patternIdents->begin(), patternIdents->end());
   }
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     if(conf.type == RuleExprCollectConfig::Type::inputsUsed)

@@ -111,8 +111,12 @@ CmdLineOpts parseCmdLine(int argc, char* argv[]) {
                      .hPathAsIncluded = pathSplitSuffix(rv+".h", 1).second};
 }
 
-auto fopenw(const string& s) -> unique_ptr<FILE, decltype(&fclose)> {
-  unique_ptr<FILE, decltype(&fclose)> fp(fopen(s.c_str(), "w"), fclose);
+struct fcloser {
+  void operator()(FILE* fp) const noexcept { fclose(fp); }
+};
+
+auto fopenw(const string& s) -> unique_ptr<FILE,fcloser> {
+  unique_ptr<FILE,fcloser> fp(fopen(s.c_str(), "w"));
   if(!fp) UserError("Couldn't write to file {}", s);
   return fp;
 }

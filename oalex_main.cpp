@@ -266,10 +266,14 @@ void fillOutputFilenames(CmdlineOptions& opts) {
     opts.testOutFilename = std::move(sansExt) + "_test.cpp";
 }
 
+// There's a duplicate in codegen_gen_test.cpp. Move to a utility file if the
+// dependency on FILE becomes common.
+struct fcloser {
+  void operator()(FILE* fp) const noexcept { fclose(fp); }
+};
+
 optional<string> fileContents(const string& filename) {
-  unique_ptr<FILE, decltype(&fclose)> fp(
-      fopen(filename.c_str(), "r"), &fclose
-  );
+  unique_ptr<FILE,fcloser> fp(fopen(filename.c_str(), "r"));
   if(!fp) {
     fprintf(stderr, "Could not open %s for reading\n", filename.c_str());
     return nullopt;
