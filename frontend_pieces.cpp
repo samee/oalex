@@ -144,8 +144,9 @@ std::optional<oalex::StringLoc> parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule7::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
@@ -174,8 +175,9 @@ std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule9::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
@@ -195,9 +197,10 @@ oalex::JsonLoc parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule10::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"rule_name", JsonLoc{fields.rule_name}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
@@ -217,8 +220,9 @@ oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule11::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
@@ -247,8 +251,9 @@ std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule13::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
@@ -268,9 +273,10 @@ oalex::JsonLoc parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule14::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"external_name", JsonLoc{fields.external_name}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
@@ -290,8 +296,9 @@ oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule15::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
@@ -320,8 +327,9 @@ std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule17::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
@@ -341,9 +349,10 @@ oalex::JsonLoc parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule18::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"param", JsonLoc{fields.param}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule18(oalex::InputDiags& ctx, ssize_t& i) {
@@ -372,8 +381,9 @@ std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule20::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
@@ -393,9 +403,10 @@ oalex::JsonLoc parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule21::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
@@ -433,9 +444,10 @@ oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule22::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
@@ -443,9 +455,10 @@ oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule23::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
@@ -462,8 +475,9 @@ oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule24::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
@@ -492,11 +506,12 @@ std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule26::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"rule_name", JsonLoc{fields.rule_name}},
     {"external_name", JsonLoc{fields.external_name}},
     {"param", oalex::toJsonLoc(fields.param)},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
@@ -601,9 +616,10 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
 }
 
 ParsedRule29::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"ident", JsonLoc{fields.ident}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
@@ -623,8 +639,9 @@ oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule30::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
@@ -653,8 +670,9 @@ std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule32::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
@@ -674,9 +692,10 @@ oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule33::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"error_msg", JsonLoc{fields.error_msg}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
@@ -696,10 +715,11 @@ oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
 }
 
 ParsedRule34::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::Map{
     {"ident", JsonLoc{fields.ident}},
     {"error_msg", JsonLoc{fields.error_msg}},
-  }, loc.first, loc.second);
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
@@ -763,8 +783,9 @@ std::optional<oalex::StringLoc> parseRule35(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule36::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
@@ -793,8 +814,9 @@ std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule38::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
@@ -823,8 +845,9 @@ std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule40::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
@@ -853,8 +876,9 @@ std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) 
 }
 
 ParsedRule42::operator JsonLoc() const {
-  return JsonLoc::withPos(JsonLoc::Map{
-  }, loc.first, loc.second);
+  auto rv = JsonLoc::Map{
+  };
+  return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
 oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i) {

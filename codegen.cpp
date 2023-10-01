@@ -1275,19 +1275,32 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
 }
 
 // TODO: Make an std::move version
+// TODO: indent is always 2. Remove it.
 static void
-genFieldConversion(const vector<RuleField>& fields, string field_prefix,
-                   const OutputStream& cppos, ssize_t indent) {
+genRequiredFieldsConversion(
+    const vector<RuleField>& fields,
+    const OutputStream& cppos, ssize_t indent) {
   cppos("JsonLoc::Map{"); linebreak(cppos, indent);
-  for(auto& field: fields) {
+  for(auto& field: fields) if(field.container != RuleField::optional) {
     cppos(format("  {{{}, ", dquoted(field.field_name)));
     if(field.container == RuleField::single)
-      cppos(format("JsonLoc{{{}.{}}}", field_prefix, field.field_name));
+      cppos(format("JsonLoc{{fields.{}}}", field.field_name));
     else
-      cppos(format("oalex::toJsonLoc({}.{})", field_prefix, field.field_name));
+      cppos(format("oalex::toJsonLoc(fields.{})", field.field_name));
     cppos("},"); linebreak(cppos, indent);
   }
   cppos("}");
+}
+static void
+genOptionalFieldAppends(
+    const vector<RuleField>& fields,
+    string_view resvar,
+    const OutputStream& cppos) {
+  for(auto& field: fields) if(field.container == RuleField::optional) {
+    cppos(format("  if(fields.{})\n", field.field_name));
+    cppos(format("    {}.emplace_back({}, oalex::toJsonLoc(fields.{}));\n",
+                 resvar, dquoted(field.field_name), field.field_name));
+  }
 }
 
 // Semantics: This function abuses the RuleField type to represent a
@@ -1484,9 +1497,11 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   hos("};\n\n");
 
   cppos(format("{}::operator JsonLoc() const {{\n", className));
-  cppos("  return JsonLoc::withPos(");
-    genFieldConversion(r.flatFields(), "fields", cppos, 2);
-    cppos(", loc.first, loc.second);\n");
+  cppos("  auto rv = ");
+    genRequiredFieldsConversion(r.flatFields(), cppos, 2);
+    cppos(";\n");
+  genOptionalFieldAppends(r.flatFields(), "rv", cppos);
+  cppos("  return JsonLoc::withPos(rv, loc.first, loc.second);\n");
   cppos("}\n\n");
 }
 

@@ -151,8 +151,9 @@ void generateSingleRegexTest(const OutputStream& cppos,
   }
 }
 
-void codegenNamedRules(const RuleSet& rs,
+void codegenNamedRules(RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
+  populateFlatFields(rs);
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i]->nameOrNull() != nullptr) codegen(rs, i, cppos, hos);
 }

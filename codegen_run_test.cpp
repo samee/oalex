@@ -391,6 +391,18 @@ void runFlattenOnDemand() {
     JsonLoc observed = parseUnflattenSingleConcat(ctx, pos);
     assertEqual(__func__, expected, observed);
   }
+
+  // Test conversion to JsonLoc. This test may become redundant once we start
+  // using the generated structs in parsing.
+  ParsedFlattenKeywordOrNumber parsed = {
+    .loc{},
+    .fields{
+      .keyword = StringLoc{"let", 0},
+      .number = std::nullopt,
+    },
+  };
+  assertEqual(__func__, JsonLoc{parsed}, *parseJsonLoc("{keyword: 'let'}"));
+
   const pair<string, JsonLoc> flatData[] = {
     {"let", *parseJsonLoc("{keyword: 'let'}")},
     {"42", *parseJsonLoc("{number: '42'}")},
