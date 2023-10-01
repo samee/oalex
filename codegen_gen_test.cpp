@@ -302,8 +302,8 @@ void generateOrTest(const OutputStream& cppos, const OutputStream& hos) {
         StringRule{"if"}, StringRule{"while"},
         nmRule(parseRegexRule("/[0-9]+/"), "OrCompNumber"),
         nmRule(OrRule{{
-          {-1, 0, JsonTmpl{"if"}}, {-1, 1, JsonTmpl{"while"}},
-          {-1, 2, *parseJsonTmpl("{number: child}")},
+          {-1, 0, passthroughTmpl}, {-1, 1, passthroughTmpl},
+          {-1, 2, passthroughTmpl},
         }, /* flattenOnDemand */ false}, "OneWordOrList")),
     .skips{},
     .regexOpts = {regexOpts},
@@ -343,7 +343,7 @@ void generateErrorRuleTest(const OutputStream& cppos,
         StringRule{"hello-world"},
         ErrorRule{"Was expecting a greeting"},
         nmRule(OrRule{
-          {{-1, 0, passthroughTmpl}, {-1, 1, JsonTmpl::String{"ignored"}}},
+          {{-1, 0, passthroughTmpl}, {-1, 1, passthroughTmpl}},
           /* flattenOnDemand */ false,
         }, "ErrorRuleHelloWorld")),
     .skips{},
@@ -355,20 +355,21 @@ void generateErrorRuleTest(const OutputStream& cppos,
 void generateFlattenOnDemand(const OutputStream& cppos,
                              const OutputStream& hos) {
   OrRule orrule{{
+    {-1, 4, passthroughTmpl},
     {-1, 3, passthroughTmpl},
-    {-1, 1, *parseJsonTmpl("{number: child}")},
   }, /* flattenOnDemand */ false};
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"let"}, nmRule(parseRegexRule("/[0-9]+/"), "FlattenNumber"),
         nmRule(ConcatFlatRule{{ {0, "keyword"} }}, "FlattenKeywordQuiet"),
+        nmRule(ConcatFlatRule{{ {1, "number"} }}, "FlattenNumberTagged"),
         nmRule(MatchOrError{2, "Expected keyword 'let'"}, "FlattenKeyword"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ false},
                "UnflattenKeywordOrNumber"),
-        nmRule(ConcatFlatRule{{{4, "next_token"}}}, "UnflattenSingleConcat"),
+        nmRule(ConcatFlatRule{{{5, "next_token"}}}, "UnflattenSingleConcat"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ true},
                "FlattenKeywordOrNumber"),
-        nmRule(ConcatFlatRule{{{6, ""}}}, "FlattenSingleConcat")
+        nmRule(ConcatFlatRule{{{7, ""}}}, "FlattenSingleConcat")
       ), .skips{}, .regexOpts = {regexOpts},
   };
 
