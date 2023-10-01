@@ -1451,7 +1451,7 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
   else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
     vector<RuleField> rv{ {loop->partname, loop->partidx, RuleField::vector},
                           {loop->gluename, loop->glueidx, RuleField::vector} };
-    if(loop->glueidx == -1 || loop->gluename.empty()) rv.pop_back();
+    if(loop->glueidx == -1) rv.pop_back();
     return rv;
   }
   else if(ssize_t target = flatWrapperTarget(r); target != -1) {
