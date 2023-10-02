@@ -644,17 +644,6 @@ parserResultName(const Rule& rule) {
   else return "oalex::JsonLoc";
 }
 
-// TODO replace this function with parserResultName().
-// This is yet another fork of parserResultName().
-static string
-parserResultNameAspirational(const Rule& rule, bool flattenable) {
-  if(producesString(rule)) return "oalex::StringLoc";
-  else if(flattenable) return "Parsed" + rule.nameOrNull()->toUCamelCase();
-  else if(dynamic_cast<const ExternParser*>(&rule) ||
-          dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
-  else return "Parsed" + rule.nameOrNull()->toUCamelCase();
-}
-
 static string flatStructName(const Rule& rule);
 
 struct ParserResultTraits {
@@ -665,6 +654,14 @@ struct ParserResultTraits {
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
   const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+  bool isflat = resultFlattenableOrError(ruleset, ruleidx);
+  if(isflat) {
+    // TODO: remove this special case when we can *return* structs for
+    // all flattenable types. Right now, they are generated but not used.
+    return { .type = "Parsed" + rule.nameOrNull()->toUCamelCase(),
+             .optional = "oalex::JsonLoc",
+           };
+  }
   if(producesGeneratedStruct(rule) || producesString(rule)) {
     string restype = parserResultName(rule);
     return { .type = restype,
@@ -1080,7 +1077,7 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
   for(auto& comp: orRule.comps) {
     string funName = format("convertBranch{}Into{}", branchNumber++, outType);
     const Rule& compRule = ruleAt(ruleset, comp.parseidx);
-    string compType = parserResultNameAspirational(compRule, true);
+    string compType = parserResultTraits(ruleset, comp.parseidx).type;
     bool flatBranch = resultFlattenableOrError(ruleset, comp.parseidx);
     if(isEmptyMap(comp.tmpl)
        || (isPassthroughTmpl(comp.tmpl) && compRule.flatFields().empty())) {
@@ -1116,7 +1113,7 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     const OutputStream& cppos) {
   const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
   const bool flat = resultFlattenableOrError(ruleset, compidx);
-  string compType = parserResultNameAspirational(compRule, flat);
+  string compType = parserResultTraits(ruleset, compidx).type;
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
   if(emptyFun) {
     cppos(format("[[maybe_unused]]\n"

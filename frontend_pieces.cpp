@@ -484,7 +484,7 @@ ParsedRule23::operator JsonLoc() const {
 }
 
 [[maybe_unused]]
-static ParsedRule23 convertBranch0IntoParsedRule23(ParsedRule22 src) {
+static ParsedRule23 convertBranch0IntoParsedRule23(ParsedRule21 src) {
   ParsedRule23 dest = {};
   dest.fields.param = std::move(src.fields.param);
   return dest;
