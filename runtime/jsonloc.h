@@ -73,8 +73,11 @@ class JsonLoc {
   static const JsonLoc* mapScanForValue(const Map& m, std::string_view k);
   static void mapSort(Map& m);
 
+  // TODO: delete this constructor once we are no longer generating
+  // JsonLoc as fields of generated structs.
+  JsonLoc() : JsonLoc(ErrorValue{}) {}
+
   // conversion constructors.
-  JsonLoc() = delete;
   JsonLoc(ErrorValue) : tag_{Tag::ErrorValue}, errorValue_{} {}
   JsonLoc(String s) : tag_{Tag::String}, stringValue_{std::move(s)} {}
   JsonLoc(StringLoc s) :

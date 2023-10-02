@@ -37,7 +37,7 @@ struct ParsedRule7 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule7(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule7> parseRule7(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -48,7 +48,7 @@ struct ParsedRule9 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule9(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule9> parseRule9(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule10 {
   oalex::LocPair loc;
@@ -58,7 +58,7 @@ struct ParsedRule10 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule10(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule10> parseRule10(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule11 {
   oalex::LocPair loc;
@@ -67,7 +67,7 @@ struct ParsedRule11 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule11(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule11> parseRule11(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -78,7 +78,7 @@ struct ParsedRule13 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule13(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule13> parseRule13(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule14 {
   oalex::LocPair loc;
@@ -88,7 +88,7 @@ struct ParsedRule14 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule14(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule14> parseRule14(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule15 {
   oalex::LocPair loc;
@@ -97,7 +97,7 @@ struct ParsedRule15 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule15(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule15> parseRule15(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -108,7 +108,7 @@ struct ParsedRule17 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule17(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule17> parseRule17(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule18 {
   oalex::LocPair loc;
@@ -118,7 +118,7 @@ struct ParsedRule18 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule18(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule18> parseRule18(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -129,7 +129,7 @@ struct ParsedRule20 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule20(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule20> parseRule20(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule21 {
   oalex::LocPair loc;
@@ -139,7 +139,7 @@ struct ParsedRule21 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule21(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule22 {
   oalex::LocPair loc;
@@ -149,7 +149,7 @@ struct ParsedRule22 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule22(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule21> parseRule22(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule23 {
   oalex::LocPair loc;
@@ -159,7 +159,7 @@ struct ParsedRule23 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule23(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule23> parseRule23(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule24 {
   oalex::LocPair loc;
@@ -168,7 +168,7 @@ struct ParsedRule24 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule24(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule24> parseRule24(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -182,7 +182,7 @@ struct ParsedRule26 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule26(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule27(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -207,7 +207,7 @@ struct ParsedRule29 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule29(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule29> parseRule29(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule30 {
   oalex::LocPair loc;
@@ -216,7 +216,7 @@ struct ParsedRule30 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule30(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule30> parseRule30(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -227,7 +227,7 @@ struct ParsedRule32 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule32(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule32> parseRule32(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule33 {
   oalex::LocPair loc;
@@ -237,7 +237,7 @@ struct ParsedRule33 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule33(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule33> parseRule33(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule34 {
   oalex::LocPair loc;
@@ -248,7 +248,7 @@ struct ParsedRule34 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule34(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedErrorStanzaLeader {
   oalex::LocPair loc;
@@ -268,7 +268,7 @@ struct ParsedRule36 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule36(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule36> parseRule36(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -279,7 +279,7 @@ struct ParsedRule38 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule38(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule38> parseRule38(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -290,7 +290,7 @@ struct ParsedRule40 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule40(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule40> parseRule40(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i);
 
@@ -301,7 +301,7 @@ struct ParsedRule42 {
   explicit operator oalex::JsonLoc() const;
 };
 
-oalex::JsonLoc parseRule42(oalex::InputDiags& ctx, ssize_t& i);
+std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i);
 
 extern oalex::JsonLike oalexBuiltinIndentedList(oalex::InputDiags& ctx, ssize_t& j, const oalex::Parser&, const oalex::Parser&);
 oalex::JsonLike parseErrorStanza(oalex::InputDiags& ctx, ssize_t& i);

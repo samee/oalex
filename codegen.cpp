@@ -654,31 +654,31 @@ static string flatStructName(const Rule& rule);
 struct ParserResultTraits {
   string type;
   string optional;
+
+  string get_value_tmpl;
+  string value(string_view xpr) const { return format(get_value_tmpl, xpr); }
 };
 
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
   const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
   bool isflat = resultFlattenableOrError(ruleset, ruleidx);
-  if(isflat) {
-    // TODO: remove this special case when we can *return* structs for
-    // all flattenable types. Right now, they are generated but not used.
-    return { .type = "Parsed" + rule.nameOrNull()->toUCamelCase(),
-             .optional = "oalex::JsonLoc",
-           };
-  }
   if(producesGeneratedStruct(rule, isflat) || producesString(rule)) {
     string restype = parserResultName(rule, isflat);
     return { .type = restype,
              .optional = format("std::optional<{}>", restype),
+             .get_value_tmpl = "{}.value()",
            };
   }
-  else if(dynamic_cast<const ExternParser*>(&rule))
+  else if(dynamic_cast<const ExternParser*>(&rule) ||
+          dynamic_cast<const OrRule*>(&rule))
     return { .type = "oalex::JsonLike",
              .optional = "oalex::JsonLike",
+             .get_value_tmpl = "{}",
            };
   else return { .type = "oalex::JsonLoc",
                 .optional = "oalex::JsonLoc",
+                .get_value_tmpl = "{}",
               };
 }
 
@@ -771,23 +771,24 @@ codegen(const JsonTmpl& jstmpl, const OutputStream& cppos,
 static void
 codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
+  ssize_t comp_serial = 0;
+  string outType = flatStructName(cfrule);
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
-  cppos("  JsonLoc::Map m;\n");
-  cppos("  JsonLoc res = JsonLoc::ErrorValue{};\n");
+  cppos(format("  {} rv;\n", outType));
   for(auto& [childid, key] : cfrule.comps) {
-    cppos("\n  res = ");
-      codegenParserCallToJsonLoc(ruleset, childid, "j", cppos);
-      cppos(";\n");
-    cppos("  if(res.holdsErrorValue()) return res;\n");
+    ParserResultTraits resdeets = parserResultTraits(ruleset, childid);
     // TODO Check for duplicate keys at compile-time.
-    if(resultFlattenableOrError(ruleset,childid))
-      cppos("  oalex::mapAppend(m, std::move(*res.getIfMap()));\n");
-    else if(!key.empty())
-      cppos(format("  m.emplace_back({}, std::move(res));\n", dquoted(key)));
+    string rescomp = format("res{}", comp_serial);
+    cppos(format("\n  {} {} = ", resdeets.optional, rescomp));
+      codegenParserCallNoConversion(ruleAt(ruleset, childid), "j", cppos);
+      cppos(";\n");
+    cppos(format("  if(!{}) return std::nullopt;\n", rescomp));
+    cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
+                 comp_serial, outType, resdeets.value(rescomp)));
+    comp_serial++;
   }
-  cppos("  JsonLoc rv{std::move(m)};\n");
-  cppos("  rv.stPos = i; rv.enPos = j;\n");
+  cppos("  rv.loc.first = i; rv.loc.second = j;\n");
   cppos("  i = j;\n");
   cppos("  return rv;\n");
 }
@@ -877,16 +878,6 @@ static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
   if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-  auto recordComponent =
-    [&ruleset, &cppos](ssize_t idx, const string& name) {
-      if(resultFlattenableOrError(ruleset,idx)) {
-        cppos("    mapCreateOrAppendAllElts(m,\n");
-        cppos("      std::move(*res.getIfMap()), first);\n");
-      }else if(!name.empty()) {
-        cppos(format("    mapCreateOrAppend(m, {}, std::move(res), first);\n",
-                     dquoted(name)));
-      }// else drop this component.
-    };
 
   Ident skipname;
   if(loop.skipidx != -1) {
@@ -897,6 +888,10 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     else Bug("LoopRule skipidx {} rule needs a name",
              ruleDebugId(ruleset, loop.skipidx));
   }
+  string outType = flatStructName(loop);
+  ParserResultTraits partdeets = parserResultTraits(ruleset, loop.partidx),
+                     gluedeets;
+  if(loop.glueidx != -1) gluedeets = parserResultTraits(ruleset, loop.glueidx);
 
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::mapCreateOrAppend;\n");
@@ -904,57 +899,64 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("  using oalex::quietMatch;\n");
   cppos("  using oalex::toJsonLoc;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
-  cppos("  JsonLoc::Map m;\n");
-  cppos("  bool first = true;\n");
+  cppos(format("  {} rv;\n", outType));
+  if(loop.glueidx == -1)
+    cppos("  bool first = true;\n");
   cppos("  while(true) {\n");
-  cppos("    JsonLoc res = JsonLoc::ErrorValue{};\n\n");
+  cppos(format("    {} part;\n\n", partdeets.optional));
 
   if(loop.glueidx == -1) {
     // TODO resolve this `first` case at compile-time.
-    cppos("    if(first) res = ");
-      codegenParserCallToJsonLoc(ruleset, loop.partidx, "j", cppos);
+    cppos("    if(first) part = ");
+      codegenParserCallNoConversion(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos(format("    else res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
+    cppos(format("    else part = quietMatch(ctx.input(), j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
-    cppos("    if(res.holdsErrorValue()) {\n");
-    cppos("      if(first) return res;\n");
+    cppos("    if(!part) {\n");
+    cppos("      if(first) return std::nullopt;\n");
     cppos("      else break;\n");
     cppos("    }\n");
   }else {
-    cppos("    res = ");
-      codegenParserCallToJsonLoc(ruleset, loop.partidx, "j", cppos);
+    cppos("    part = ");
+      codegenParserCallNoConversion(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos("    if(res.holdsErrorValue()) return res;\n");
+    cppos("    if(!part) return std::nullopt;\n");
   }
-  recordComponent(loop.partidx, loop.partname);
+  cppos(format("    mergePartInto{}(std::move({}), rv);\n", outType,
+               partdeets.value("part")));
 
   cppos("    fallback_point = j;\n");
   cppos("\n");
   if(loop.skipidx != -1) {
-    cppos(format("    res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
+    // TODO: Replace this `auto` with `bool` when the return-type migration
+    // is done.
+    cppos(format("    auto skipres = quietMatch(ctx.input(), j, {});\n",
                  parserName(skipname)));
-    cppos("    if(res.holdsErrorValue()) break;\n");
+    cppos("    if(!skipres) break;\n");
   }
   if(loop.glueidx != -1) {
     if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
-      cppos(format("    res = toJsonLoc(quietMatch(ctx.input(), j, {}));\n",
-                   parserName(*gluename)));
+      cppos(format("    {} glue = quietMatch(ctx.input(), j, {});\n",
+                   gluedeets.optional, parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
-    cppos("    if(res.holdsErrorValue()) break;\n");
-    recordComponent(loop.glueidx, loop.gluename);
+    cppos("    if(!glue) break;\n");
+    cppos(format("    mergeGlueInto{}(std::move({}), rv);\n", outType,
+                 gluedeets.value("glue")));
     if(loop.skipidx != -1) {
-      cppos("    res = ");
-        codegenParserCallToJsonLoc(ruleset, loop.skipidx, "j", cppos);
+      cppos("    skipres = ");
+        codegenParserCallNoConversion(ruleAt(ruleset, loop.skipidx),
+                                      "j", cppos);
         cppos(";\n");
-      cppos("    if(res.holdsErrorValue())\n");
-      cppos("      return oalex::errorValue(ctx, j, "
-                                            "\"Unfinished comment\");\n");
+      cppos("    if(!skipres) {\n");
+      cppos("      oalex::Error(ctx, j, \"Unfinished comment\");\n");
+      cppos("      return std::nullopt;\n");
+      cppos("    }\n");
     }
   }
-  cppos("    first = false;\n");
+  if(loop.glueidx == -1)
+    cppos("    first = false;\n");
   cppos("  }\n");
-  cppos("  JsonLoc rv{std::move(m)};\n");
-  cppos("  rv.stPos = i; rv.enPos = fallback_point;\n");
+  cppos("  rv.loc.first = i; rv.loc.second = fallback_point;\n");
   cppos("  i = fallback_point;\n");
   cppos("  return rv;\n");
 }
@@ -1045,20 +1047,6 @@ codegenLookahead(const RuleSet& ruleset, ssize_t lidx,
   }
 }
 
-static void
-codegenReturnErrorOrTmpl(string_view resvar, const JsonTmpl& tmpl,
-                         const OutputStream& cppos) {
-  if(isPassthroughTmpl(tmpl)) {
-    cppos(format("    return {};\n", resvar));
-  }else {
-    // TODO test this code path.
-    cppos(format("    if({0}.holdsErrorValue()) return {0};\n", resvar));
-    cppos(       "    return JsonLoc::withPos(");
-      codegen(tmpl, cppos, {{"child", string(resvar)}}, 4);
-      cppos(format(", {0}.stPos, {0}.enPos);\n", resvar));
-  }
-}
-
 static bool isEmptyMap(const JsonTmpl& jstmpl) {
   const JsonTmpl::Map* m = jstmpl.getIfMap();
   return m && m->empty();
@@ -1118,7 +1106,7 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     const OutputStream& cppos) {
   const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
   const bool flat = resultFlattenableOrError(ruleset, compidx);
-  string compType = parserResultTraits(ruleset, compidx).type;
+  string compType = parserResultName(compRule, flat);
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
   if(emptyFun) {
     cppos(format("[[maybe_unused]]\n"
@@ -1187,33 +1175,62 @@ static void
 codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
-  cppos("  JsonLoc res{JsonLoc::ErrorValue{}};\n");
-  for(auto& [lidx, pidx, tmpl] : orRule.comps) {
-    // Frontend should make sure even string-producing rules are
-    // wrapped in empty maps.
-    if(orRule.flattenOnDemand && !orBranchFlattenableOrError(ruleset,pidx,tmpl))
-      Bug("OrRule branch {} does not produce a map",
-          ruleDebugId(ruleset, pidx));
-    if(lidx == -1) {
-      cppos("  res = ");
-        codegenParserCallToJsonLoc(ruleset, pidx, "i", cppos);
-        cppos(";\n");
-      cppos("  if(!res.holdsErrorValue())\n");
-      cppos("    return JsonLoc::withPos(");
-        codegen(tmpl, cppos, {{"child", "res"}}, 4);
-        cppos(", res.stPos, res.enPos);\n");
-    }else {
-      cppos("  if(");
-        codegenLookahead(ruleset, lidx, cppos);
-        cppos(") {\n");
-      cppos("    res = ");
-        codegenParserCallToJsonLoc(ruleset, pidx, "i", cppos);
-        cppos(";\n");
-      codegenReturnErrorOrTmpl("res", tmpl, cppos);
-      cppos("  }\n");
+  if(orRule.flattenOnDemand) {
+    ssize_t branchNum = 0;
+    string outType = flatStructName(orRule);
+    for(auto& [lidx, pidx, tmpl] : orRule.comps) {
+      // Frontend should make sure even string-producing rules are
+      // wrapped in empty maps.
+      if(!orBranchFlattenableOrError(ruleset,pidx,tmpl))
+        Bug("OrRule branch {} does not produce a map",
+            ruleDebugId(ruleset, pidx));
+      ParserResultTraits brDeets = parserResultTraits(ruleset, pidx);
+      string resvar = format("res{}", branchNum);
+      if(lidx == -1) {
+        cppos(format("  {} {} = ", brDeets.optional, resvar));
+          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          cppos(";\n");
+        cppos(format("  if({}) return convertBranch{}Into{}({});\n", resvar,
+              branchNum, outType, brDeets.value(resvar)));
+      }else {
+        cppos("  if(");
+          codegenLookahead(ruleset, lidx, cppos);
+          cppos(") {\n");
+        cppos(format("    {} {} = ", brDeets.optional, resvar));
+          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          cppos(";\n");
+        cppos(format("    if(!{}) return std::nullopt;\n", resvar));
+        cppos(format("    return convertBranch{}Into{}({});\n",
+                     branchNum, outType, brDeets.value(resvar)));
+        cppos("  }\n");
+      }
+      branchNum++;
     }
+    cppos("  return std::nullopt;\n");
   }
-  cppos("  return res;\n");
+  else {
+    cppos("  oalex::JsonLike res;\n");
+    for(auto& [lidx, pidx, tmpl] : orRule.comps) {
+      if(!isPassthroughTmpl(tmpl))
+        Bug("Non-flattenable or-branch {} must pass values along unmodified",
+            ruleDebugId(ruleset, pidx));
+      if(lidx == -1) {
+        cppos("  res = ");
+          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          cppos(";\n");
+        cppos("  if(res) return res;\n");
+      }else {
+        cppos("  if(");
+          codegenLookahead(ruleset, lidx, cppos);
+          cppos(") {\n");
+        cppos("    return ");
+          codegenParserCallNoConversion(ruleAt(ruleset, pidx), "i", cppos);
+          cppos(";\n");
+        cppos("  }\n");
+      }
+    }
+    cppos("  return res;\n");
+  }
 }
 
 static void
@@ -1261,8 +1278,8 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos("  ssize_t j = skip->next(ctx.input(), i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
-  cppos("    return oalex::JsonLoc::Map();  // dummy non-error value\n");
-  cppos("  }else return oalex::JsonLoc::ErrorValue();\n");
+  cppos(format("    return {}{{}};\n", parserResultName(sp, true)));
+  cppos("  }else return std::nullopt;\n");
 }
 
 static void

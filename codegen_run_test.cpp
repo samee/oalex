@@ -22,6 +22,7 @@
 
 #include <functional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include "fmt/core.h"
 #include "lexer.h"
@@ -177,23 +178,25 @@ void runRegexWordOverride() {
 void runConcatFlatTest() {
   ssize_t pos = 0;
   InputDiags ctx{Input{"var x:int = 5; ignored_bits;"}};
-  JsonLoc observed = parseFlatDefn(ctx, pos);
+  optional<ParsedFlatDefn> observed = parseFlatDefn(ctx, pos);
   JsonLoc expected = *parseJsonLoc("{var_name: 'x', type: 'int', rhs: '5'}");
-  assertEqual(__func__, observed, expected);
+  assertEqual(__func__, toJsonLoc(observed), expected);
 
   pos = 0;
   expected = *parseJsonLoc("{var_name: 'x', "
                             "init_value: {type: 'int', value: '5'}}");
   ctx.diags.clear();
-  observed = JsonLoc{*parseFlatThenAssembled(ctx, pos)};
-  assertEqual(__func__, observed, expected);
-  assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1, observed);
+  optional<ParsedFlatThenAssembled> observed2
+    = parseFlatThenAssembled(ctx, pos);
+  assertEqual(__func__, toJsonLoc(observed2), expected);
+  assertLocPairEqual(__func__, 0, ctx.input().find(';',0)+1,
+                     toJsonLoc(observed2));
 
   pos = 0;
   ctx = InputDiags{Input{"var y = 9;"}};
   observed = parseFlatDefn(ctx, pos);
-  if(!observed.holdsErrorValue())
-    BugMe("Was expecting failure on missing type. Got {}", observed);
+  if(observed.has_value())
+    BugMe("Was expecting failure on missing type. Got {}", toJsonLoc(observed));
 }
 
 void runSingleWordTemplate() {
@@ -388,8 +391,9 @@ void runFlattenOnDemand() {
   for(auto& [msg, expected] : unflatData) {
     ssize_t pos = 0;
     InputDiags ctx{Input{msg}};
-    JsonLoc observed = parseUnflattenSingleConcat(ctx, pos);
-    assertEqual(__func__, expected, observed);
+    optional<ParsedUnflattenSingleConcat> observed
+      = parseUnflattenSingleConcat(ctx, pos);
+    assertEqual(__func__, expected, toJsonLoc(observed));
   }
 
   // Test conversion to JsonLoc. This test may become redundant once we start
@@ -410,8 +414,9 @@ void runFlattenOnDemand() {
   for(auto& [msg, expected] : flatData) {
     ssize_t pos = 0;
     InputDiags ctx{Input{msg}};
-    JsonLoc observed = parseFlattenSingleConcat(ctx, pos);
-    assertEqual(__func__, expected, observed);
+    optional<ParsedFlattenSingleConcat> observed
+      = parseFlattenSingleConcat(ctx, pos);
+    assertEqual(__func__, expected, toJsonLoc(observed));
   }
 }
 
@@ -429,11 +434,12 @@ void runLookaheads() {
   for(auto& [msg, expected] : testdata) {
     ssize_t pos = 1;
     InputDiags ctx{Input{msg}};
-    JsonLoc observed = parseLookaheadSimpleStmt(ctx, pos);
+    optional<ParsedLookaheadSimpleStmt> observed
+      = parseLookaheadSimpleStmt(ctx, pos);
     if(expected.holdsErrorValue()) {
-      if(!observed.holdsErrorValue())
-        BugMe("Expected error on '{}', got {}", msg, observed);
-    }else assertEqual(__func__, expected, observed);
+      if(observed.has_value())
+        BugMe("Expected error on '{}', got {}", msg, toJsonLoc(observed));
+    }else assertEqual(__func__, expected, toJsonLoc(observed));
   }
 }
 
@@ -452,26 +458,26 @@ void runMiscFlatteningTest() {
   string msg = "hellohello";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;
-  JsonLoc observed = parseFlatHelloFlat3(ctx, pos);
-  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
+  optional<ParsedFlatHelloFlat3> observed3 = parseFlatHelloFlat3(ctx, pos);
+  if(!observed3.has_value() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
   assertEqual(__func__, pos, ssize_t(msg.size()));
-  assertEqual(__func__, observed, *parseJsonLoc(
+  assertEqual(__func__, toJsonLoc(observed3), *parseJsonLoc(
         R"({hello_for_qm: 'hello',
             hello_for_mor: 'hello'})"));
 
   // Drop test.
   ctx.diags.clear();
   pos = 0;
-  observed = parseFlatHelloFlat4(ctx, pos);
-  if(observed.holdsErrorValue() || !ctx.diags.empty()) {
+  optional<ParsedFlatHelloFlat4> observed4 = parseFlatHelloFlat4(ctx, pos);
+  if(!observed4.has_value() || !ctx.diags.empty()) {
     if(!ctx.diags.empty()) showDiags(ctx.diags);
     BugMe("Expected to succeed without diags");
   }
   assertEqual(__func__, pos, ssize_t(msg.size()));
-  assertEqual(__func__, observed, JsonLoc{JsonLoc::Map{}});
+  static_assert(std::is_empty_v<ParsedFlatHelloFlat4::Fields>);
 }
 
 // TODO make these tests quiet.
@@ -487,8 +493,8 @@ void runLoopRuleTest() {
   for(auto& [msg, expectedJsloc, expectedEnd] : goodcases) {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
-    JsonLoc observed = parseLoopSum(ctx, pos);
-    assertEqual(__func__, expectedJsloc, observed);
+    optional<ParsedLoopSum> observed = parseLoopSum(ctx, pos);
+    assertEqual(__func__, expectedJsloc, toJsonLoc(observed));
     if(expectedEnd == -1) expectedEnd = msg.size()-1;
     assertEqual(__func__, expectedEnd, pos);
     assertEmptyDiags(format("{}-with-glue", __func__), ctx.diags);
@@ -501,60 +507,65 @@ void runLoopRuleTest() {
   for(auto& [msg, expectedDiag] : badcases) {
     InputDiags ctx{Input{msg}};
     ssize_t pos = 0;
-    JsonLoc observed = parseLoopSum(ctx, pos);
-    if(!observed.holdsErrorValue())
-      Bug("Was expecting an error on input '{}'. Got {}", msg, observed);
+    optional<ParsedLoopSum> observed = parseLoopSum(ctx, pos);
+    if(observed.has_value())
+      Bug("Was expecting an error on input '{}'. Got {}",
+          msg, toJsonLoc(observed));
     assertHasDiagWithSubstr(__func__, ctx.diags, expectedDiag);
   }
 
   // Parsers for glueidx == -1
   InputDiags ctx{Input{"a, b,"}};
   ssize_t pos = 0;
-  JsonLoc observed = parseListPrefix(ctx, pos);
+  optional<ParsedListPrefix> observed = parseListPrefix(ctx, pos);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__, pos, ssize_t(5));
-  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"), observed);
+  assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b']}"),
+              toJsonLoc(observed));
   assertEmptyDiags(format("{}-no-glue", __func__), ctx.diags);
 
   // Flattenable child.
   ctx = InputDiags{Input{"!"}};
   pos = 0;
   observed = parseListPrefix(ctx, pos);
-  if(!observed.holdsErrorValue())
-    Bug("Was expecting an error on mandatory repeats. Got {}", observed);
+  if(observed.has_value())
+    Bug("Was expecting an error on mandatory repeats. Got {}",
+        toJsonLoc(observed));
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
 
   // TODO codegen should have a verbose mode for debugging these.
   const string msg = "[+a, -b]";
   ctx = InputDiags{Input{msg}};
   pos = 0;
-  observed = parseSignedList(ctx, pos);
+  optional<ParsedSignedList> slobserved = parseSignedList(ctx, pos);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__, pos, ssize_t(msg.size()));
   assertEqual(__func__, *parseJsonLoc("{elements: ['a', 'b'],"
-                                      " sign: ['+', '-']}"), observed);
+                                      " sign: ['+', '-']}"),
+                        toJsonLoc(slobserved));
 }
 
 void runGluePartSwappedTest() {
   InputDiags ctx{Input{"-greetings-earth-"}};
   ssize_t pos = 0;
-  JsonLoc observed = parseGpSwappedString(ctx, pos);
+  optional<ParsedGpSwappedString> observed = parseGpSwappedString(ctx, pos);
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Expected empty diags");
   }
   assertEqual(__func__, pos, ssize_t(17));
   assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
-                        observed);
+                        toJsonLoc(observed));
   pos = 0;
-  observed = parseGpSwappedInlineString(ctx, pos);
+  optional<ParsedGpSwappedInlineString> observed2
+    = parseGpSwappedInlineString(ctx, pos);
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Expected empty diags");
   }
   assertEqual(__func__, pos, ssize_t(17));
   assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
-                        observed);
+                        toJsonLoc(observed2));
 }
 
 }  // namespace
