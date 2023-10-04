@@ -38,7 +38,7 @@ def outfileFromCmdLine(cmdline):
 outfile = outfileFromCmdLine(sys.argv)
 
 start = time.time()
-subprocess.run(['g++'] + sys.argv[1:])
+subprocess.run(['g++'] + sys.argv[1:], check=True)
 end = time.time()
 
 if outfile is not None:
