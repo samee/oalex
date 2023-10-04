@@ -203,7 +203,6 @@ ParsedRule10::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule10(oalex::StringLoc src, ParsedRule10& dest) {
   dest.fields.rule_name = std::move(src);
 }
@@ -282,7 +281,6 @@ ParsedRule14::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule14(oalex::StringLoc src, ParsedRule14& dest) {
   dest.fields.external_name = std::move(src);
 }
@@ -361,7 +359,6 @@ ParsedRule18::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule18(oalex::StringLoc src, ParsedRule18& dest) {
   dest.fields.param = std::move(src);
 }
@@ -418,12 +415,10 @@ ParsedRule21::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
   dest.fields.param.push_back(std::move(src.fields.param));
 }
 
-[[maybe_unused]]
 static void mergeGlueIntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
 std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::JsonLoc;
@@ -476,14 +471,12 @@ ParsedRule23::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static ParsedRule23 convertBranch0IntoParsedRule23(ParsedRule21 src) {
   ParsedRule23 dest = {};
   dest.fields.param = std::move(src.fields.param);
   return dest;
 }
 
-[[maybe_unused]]
 static ParsedRule23 convertBranch1IntoParsedRule23(const oalex::StringLoc&) { return {}; }
 std::optional<ParsedRule23> parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
   using std::literals::string_literals::operator""s;
@@ -534,44 +527,29 @@ ParsedRule26::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart1IntoParsedRule26(ParsedRule7 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart2IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart3IntoParsedRule26(ParsedRule9 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart4IntoParsedRule26(ParsedRule10 src, ParsedRule26& dest) {
   dest.fields.rule_name = std::move(src.fields.rule_name);
 }
 
-[[maybe_unused]]
 static void mergePart5IntoParsedRule26(ParsedRule11 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart6IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart7IntoParsedRule26(ParsedRule13 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart8IntoParsedRule26(ParsedRule14 src, ParsedRule26& dest) {
   dest.fields.external_name = std::move(src.fields.external_name);
 }
 
-[[maybe_unused]]
 static void mergePart9IntoParsedRule26(ParsedRule15 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart10IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart11IntoParsedRule26(ParsedRule17 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart12IntoParsedRule26(ParsedRule23 src, ParsedRule26& dest) {
   dest.fields.param = std::move(src.fields.param);
 }
 
-[[maybe_unused]]
 static void mergePart13IntoParsedRule26(ParsedRule24 /*src*/, ParsedRule26& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart14IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
 std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::JsonLoc;
@@ -684,7 +662,6 @@ ParsedRule29::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule29(oalex::StringLoc src, ParsedRule29& dest) {
   dest.fields.ident = std::move(src);
 }
@@ -763,7 +740,6 @@ ParsedRule33::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule33(oalex::StringLoc src, ParsedRule33& dest) {
   dest.fields.error_msg = std::move(src);
 }
@@ -790,18 +766,13 @@ ParsedRule34::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule34(ParsedRule29 src, ParsedRule34& dest) {
   dest.fields.ident = std::move(src.fields.ident);
 }
 
-[[maybe_unused]]
 static void mergePart1IntoParsedRule34(ParsedRule30 /*src*/, ParsedRule34& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart2IntoParsedRule34(oalex::StringLoc /*src*/, ParsedRule34& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart3IntoParsedRule34(ParsedRule32 /*src*/, ParsedRule34& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart4IntoParsedRule34(ParsedRule33 src, ParsedRule34& dest) {
   dest.fields.error_msg = std::move(src.fields.error_msg);
 }
@@ -964,19 +935,12 @@ ParsedRule42::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-[[maybe_unused]]
 static void mergePart0IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart1IntoParsedRule42(ParsedRule36 /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart2IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart3IntoParsedRule42(ParsedRule38 /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart4IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart5IntoParsedRule42(ParsedRule40 /*src*/, ParsedRule42& /*dest*/) {}
-[[maybe_unused]]
 static void mergePart6IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
 std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::JsonLoc;

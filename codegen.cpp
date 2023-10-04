@@ -1071,14 +1071,12 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
     bool flatBranch = resultFlattenableOrError(ruleset, comp.parseidx);
     if(isEmptyMap(comp.tmpl)
        || (isPassthroughTmpl(comp.tmpl) && compRule.flatFields().empty())) {
-      cppos(format("[[maybe_unused]]\n"
-                   "static {} {}(const {}&) {{ return {{}}; }}\n",
+      cppos(format("static {} {}(const {}&) {{ return {{}}; }}\n",
                    outType, funName, compType));
       continue;
     }
 
-    cppos(format("[[maybe_unused]]\n"  // TODO remove attribute
-                 "static {} {}({} src) {{\n", outType, funName, compType));
+    cppos(format("static {} {}({} src) {{\n", outType, funName, compType));
     cppos(format("  {} dest = {{}};\n", outType));
     if(string_view field = getIfSingleKeyBranch(comp.tmpl); !field.empty())
       cppos(format("  dest.fields.{} = std::move(src);\n", field));
@@ -1106,13 +1104,12 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
   string compType = parserResultName(compRule, flat);
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
   if(emptyFun) {
-    cppos(format("[[maybe_unused]]\n"
-        "static void {}({} /*src*/, {}& /*dest*/) {{}}\n",
-        funName, compType, outType));
+    cppos(format("static void {}({} /*src*/, {}& /*dest*/) {{}}\n",
+                 funName, compType, outType));
     return;
   }
-  string funHeader = format("[[maybe_unused]]\n"
-      "static void {}({} src, {}& dest)", funName, compType, outType);
+  string funHeader = format("static void {}({} src, {}& dest)", funName,
+                            compType, outType);
 
   cppos(funHeader + " {\n");
   if(!flat) cppos(format("  {};\n", format(nonFlatMergeTmpl, outField)));
