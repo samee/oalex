@@ -1440,7 +1440,8 @@ genOptionalFieldAppends(
 // ConcatFlatRule. The semantics are also analogous to ConcatFlatRule.
 //
 //   .field_name is empty for flattened components or flatWrapperTarget(),
-//     but must be provided for other components.
+//     but must be provided for other components. Non-flattenable components
+//     with no names will be discarded.
 //   .schema_source is abused to represent a direct component.
 //   .container represents information we gleaned at this level. I.e.
 //     LoopRule will introduce vector, OrRule introduce optional.
