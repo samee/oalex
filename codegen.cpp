@@ -1541,8 +1541,13 @@ gatherFlatComps(const RuleSet& ruleset, ssize_t ruleIndex,
       if(!field.field_name.empty())
         Bug("Compiler should not provide a field name for flattenable fields."
             "Got `{}`", field.field_name);
-      for(auto& child: flatFields[field.schema_source]) {
+      for(const RuleField& child: flatFields[field.schema_source]) {
         rv.push_back(child);
+        if(field.container == RuleField::vector &&
+           child.container == RuleField::optional)
+          Bug("The frontend shouldn't allow optional field {} inside "
+              "LoopRule. Makes it impossible to line up indices of a "
+              "result.", child.field_name);
         rv.back().container = flexContainer(field.container, child.container);
       }
     }
