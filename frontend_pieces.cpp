@@ -130,6 +130,7 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
       .param = moveEltOrEmpty(*m, "param"),
       .rule_name = moveEltOrEmpty(*m, "rule_name"),
     },
+    .typed_fields{},
   };
   return rv;
 }
@@ -651,6 +652,7 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
       .error_msg = moveEltOrEmpty(*m, "error_msg"),
       .ident = moveEltOrEmpty(*m, "ident"),
     },
+    .typed_fields{},
   };
   return rv;
 }
@@ -823,6 +825,7 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
     .loc{oldi, i},
     .fields{
     },
+    .typed_fields{},
   };
   return rv;
 }

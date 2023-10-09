@@ -854,6 +854,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
             map<string,string>{{out.childName, "std::move(outfields)"}},
             6, cppos);
         cppos(",\n");
+      cppos("      .typed_fields{},\n");
       cppos("    };\n");
       cppos("  }\n");
     }
@@ -867,6 +868,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("    .fields");
     genStructValues(out.outputTmpl, placeholders, 4, cppos);
     cppos(",\n");
+  cppos("    .typed_fields{},\n");
   cppos("  };\n");
   cppos("  return rv;\n");
 }
@@ -1373,6 +1375,67 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName, ssize_t indent,
   }else Bug("Don't know how to generate field for type {}", t.tagName());
 }
 
+// TODO replace this with parserResultName() when we can properly use structs in
+// ConcatFlatRule return values. This function is forked from an old version of
+// that function to begin with.
+static string
+flatStructName(const Rule& rule) {
+  return "Parsed" + rule.nameOrNull()->toUCamelCase();
+}
+
+static string
+flatFieldType(const RuleSet& ruleset, const RuleField& field) {
+  const Rule& source = ruleAt(ruleset, field.schema_source);
+  string vtype = parserResultName(source, false);
+
+  if(field.container == RuleField::single) return vtype;
+  else if(field.container == RuleField::optional)
+    return format("std::optional<{}>", vtype);
+  else if(field.container == RuleField::vector)
+    return format("std::vector<{}>", vtype);
+  else Bug("Bad container type {}", int(field.container));
+}
+
+// TODO: Eliminate parseGenerated() by keeping them as idents.
+static void
+genTypedOutputFields(const JsonTmpl& t, const Ident& fieldName,
+  const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
+  const OutputStream& hos) {
+  auto findField = [&](string_view qname) -> const RuleField& {
+    for(const RuleField& f: ruleset.rules[childidx]->flatFields())
+      if(f.field_name == qname) return f;
+    Bug("Cannot field for placeholder {} among {} fields", qname,
+        ruleset.rules[childidx]->flatFields().size());
+  };
+  if(const JsonTmpl::String* s = t.getIfString())
+    hos(format("std::string {} = {};", fieldName.toSnakeCase(),
+               dquoted(*s)));
+  else if(const JsonTmpl::Placeholder* p = t.getIfPlaceholder()) {
+    string vtype;
+    if(!resultFlattenableOrError(ruleset, childidx))
+      vtype = parserResultName(ruleAt(ruleset, childidx), false);
+    else vtype = flatFieldType(ruleset, findField(p->key));
+    hos(format("{} {};", vtype, fieldName.toSnakeCase()));
+  }
+  else if(t.holdsEllipsis())
+    Bug("The compiler was supposed to have removed ellipsis");
+  else if(t.holdsVector())
+    // This one is for vectors that stay vectors after desugaring.
+    // I'm not sure if this should become JsonLike, actually.
+    hos(format("std::vector<oalex::JsonLoc> {};", fieldName.toSnakeCase()));
+  else if(const JsonTmpl::Map* m = t.getIfMap()) {
+    hos(format("struct {} {{", fieldName.toUCamelCase()));
+      linebreak(hos, indent);  // not indent+2, in case the next line is '}'
+    for(auto& [k,child]: *m) {
+      hos("  ");
+      genTypedOutputFields(child, Ident::parseGenerated(k), ruleset, childidx,
+                           indent+2, hos);
+      linebreak(hos, indent);
+    }
+    hos(format("}} {};", fieldName.toSnakeCase()));
+  }else Bug("Don't know how to generate field for type {}", t.tagName());
+}
+
 // TODO: see if we can refactor parts of this with codegen(JsonTmpl) above.
 // TODO: make move conversion.
 // TODO: Eliminate parseGenerated() by keeping them as idents.
@@ -1593,27 +1656,6 @@ populateFlatFields(RuleSet& ruleset) {
     ruleset.rules[i]->flatFields(std::move(flatFields[i]));
 }
 
-// TODO replace this with parserResultName() when we can properly use structs in
-// ConcatFlatRule return values. This function is forked from an old version of
-// that function to begin with.
-static string
-flatStructName(const Rule& rule) {
-  return "Parsed" + rule.nameOrNull()->toUCamelCase();
-}
-
-static string
-flatFieldType(const RuleSet& ruleset, const RuleField& field) {
-  const Rule& source = ruleAt(ruleset, field.schema_source);
-  string vtype = parserResultName(source, false);
-
-  if(field.container == RuleField::single) return vtype;
-  else if(field.container == RuleField::optional)
-    return format("std::optional<{}>", vtype);
-  else if(field.container == RuleField::vector)
-    return format("std::vector<{}>", vtype);
-  else Bug("Bad container type {}", int(field.container));
-}
-
 // TODO: refactor out repetitions between this and genOutputTmplTypeDefinition.
 // Dev-note: the use of flatStructName() vs flatFieldType() is very
 // inconsistent right now. This is because we are now producing struct
@@ -1644,15 +1686,21 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   cppos("}\n\n");
 }
 
+// TODO: renamed typed_fields to just fields, once the current version of
+// fields have been deleted.
 static void
-genOutputTmplTypeDefinition(const OutputTmpl& out, const OutputStream& cppos,
-                            const OutputStream& hos) {
+genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
+    const OutputStream& cppos, const OutputStream& hos) {
   if(out.nameOrNull() == nullptr) return;
   string className = parserResultName(out, false);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
     genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"), 2, hos);
+    hos("\n");
+  hos("  ");
+    genTypedOutputFields(out.outputTmpl, Ident::parseGenerated("typed_fields"),
+                         ruleset, out.childidx, 2, hos);
     hos("\n");
   hos("  explicit operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
@@ -1669,7 +1717,7 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                   const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
   if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
-    genOutputTmplTypeDefinition(*out, cppos, hos);
+    genOutputTmplTypeDefinition(ruleset, *out, cppos, hos);
   else if(resultFlattenableOrError(ruleset, ruleIndex))
     genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
 }
