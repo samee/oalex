@@ -1440,13 +1440,15 @@ genTypedOutputFields(const JsonTmpl& t, const Ident& fieldName,
 static void
 genFieldConversion(const JsonTmpl& t, string field_prefix,
                    const OutputStream& cppos, ssize_t indent) {
-  if(t.holdsString() || t.holdsPlaceholder()) cppos(field_prefix);
+  if(t.holdsString()) cppos(field_prefix);
+  else if(t.holdsPlaceholder()) cppos(format("toJsonLoc({})", field_prefix));
   else if(t.holdsEllipsis())
     Bug("{}: ellipsis should have been desugared in the compiler", __func__);
   else if(const JsonTmpl::Vector* v = t.getIfVector()) {
     cppos("JsonLoc::Vector{"); linebreak(cppos, indent);
     for(ssize_t i=0; i<ssize(*v); ++i) {
-      cppos(format("  {}[{}],", field_prefix, i)); linebreak(cppos, indent);
+      cppos(format("  toJsonLoc({}[{}]),", field_prefix, i));
+        linebreak(cppos, indent);
     }
     cppos("}");
   }else if(const JsonTmpl::Map* m = t.getIfMap()) {
@@ -1704,8 +1706,9 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   hos("};\n\n");
 
   cppos(format("{}::operator JsonLoc() const {{\n", className));
+  cppos("  using oalex::toJsonLoc;\n");
   cppos("  return JsonLoc::withPos(");
-    genFieldConversion(out.outputTmpl, "fields", cppos, 2);
+    genFieldConversion(out.outputTmpl, "typed_fields", cppos, 2);
     cppos(", loc.first, loc.second);\n");
   cppos("}\n\n");
 }
