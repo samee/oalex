@@ -119,9 +119,10 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = oalex::toJsonLoc(parseRule26(ctx, i));
-  if(outfields.holdsErrorValue()) return std::nullopt;
-  auto* m = outfields.getIfMap();
+  std::optional<ParsedRule26> outfields = parseRule26(ctx, i);
+  if(oalex::holdsErrorValue(outfields)) return std::nullopt;
+  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
+  auto* m = jsloc_outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
   ParsedExternRule rv{
     .loc{oldi, i},
@@ -130,7 +131,11 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
       .param = moveEltOrEmpty(*m, "param"),
       .rule_name = moveEltOrEmpty(*m, "rule_name"),
     },
-    .typed_fields{},
+    .typed_fields{
+      .external_name = std::move(outfields->fields.external_name),
+      .param = std::move(outfields->fields.param),
+      .rule_name = std::move(outfields->fields.rule_name),
+    },
   };
   return rv;
 }
@@ -642,9 +647,10 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = oalex::toJsonLoc(parseRule34(ctx, i));
-  if(outfields.holdsErrorValue()) return std::nullopt;
-  auto* m = outfields.getIfMap();
+  std::optional<ParsedRule34> outfields = parseRule34(ctx, i);
+  if(oalex::holdsErrorValue(outfields)) return std::nullopt;
+  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
+  auto* m = jsloc_outfields.getIfMap();
   assertNotNull(m, __func__, "needs a map");
   ParsedErrorStanzaLine rv{
     .loc{oldi, i},
@@ -652,7 +658,10 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
       .error_msg = moveEltOrEmpty(*m, "error_msg"),
       .ident = moveEltOrEmpty(*m, "ident"),
     },
-    .typed_fields{},
+    .typed_fields{
+      .error_msg = std::move(outfields->fields.error_msg),
+      .ident = std::move(outfields->fields.ident),
+    },
   };
   return rv;
 }
@@ -819,13 +828,15 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
   using oalex::JsonLoc;
   using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
-  JsonLoc outfields = oalex::toJsonLoc(parseRule42(ctx, i));
-  if(outfields.holdsErrorValue()) return std::nullopt;
+  std::optional<ParsedRule42> outfields = parseRule42(ctx, i);
+  if(oalex::holdsErrorValue(outfields)) return std::nullopt;
+  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
   ParsedErrorStanzaLeader rv{
     .loc{oldi, i},
     .fields{
     },
-    .typed_fields{},
+    .typed_fields{
+    },
   };
   return rv;
 }

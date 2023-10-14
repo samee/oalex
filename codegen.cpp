@@ -833,31 +833,40 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   cppos("  using oalex::JsonLoc;\n");
   cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  ssize_t oldi = i;\n");
-  cppos("  JsonLoc outfields = oalex::toJsonLoc(");
+  cppos(format("  {} outfields = ",
+               parserResultOptional(ruleset, out.childidx)));
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
-    cppos(");\n");
-  cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
-  map<string,string> placeholders;
+    cppos(";\n");
+  cppos("  if(oalex::holdsErrorValue(outfields)) return std::nullopt;\n");
+  cppos("  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);\n");
+  map<string,string> placeholders, typed_placeholders;
   if(resultFlattenableOrError(ruleset, out.childidx)) {
     // Dev-note: we only produce Bug() if reaching a given control path
     // indicates a bug in the code *generator*.
     if(out.outputTmpl.substitutionsNeeded()) {
-      cppos("  auto* m = outfields.getIfMap();\n");
+      cppos("  auto* m = jsloc_outfields.getIfMap();\n");
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
     }
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
                                        dquoted(key))});
+    for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
+      typed_placeholders.insert({key,
+          format("std::move(outfields->fields.{})",
+                 Ident::parseGenerated(key).toSnakeCase()) });
   }
   else if(!out.childName.empty()) {
-    placeholders.insert({{ out.childName, "std::move(outfields)" }});
+    placeholders.insert({{ out.childName, "std::move(jsloc_outfields)" }});
+    typed_placeholders.insert({{ out.childName, "std::move(*outfields)" }});
   }
   cppos(format("  {} rv{{\n", parserResultName(out, false)));
   cppos("    .loc{oldi, i},\n");
   cppos("    .fields");
     genStructValues(out.outputTmpl, placeholders, 4, cppos);
     cppos(",\n");
-  cppos("    .typed_fields{},\n");
+  cppos("    .typed_fields");
+    genStructValues(out.outputTmpl, typed_placeholders, 4, cppos);
+    cppos(",\n");
   cppos("  };\n");
   cppos("  return rv;\n");
 }
