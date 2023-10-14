@@ -838,31 +838,20 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     cppos(");\n");
   cppos("  if(outfields.holdsErrorValue()) return std::nullopt;\n");
   map<string,string> placeholders;
-  // Dev-note: we only produce Bug() if reaching a given control path indicates
-  // a bug in the code *generator*.
-  if(out.outputTmpl.substitutionsNeeded()) {
-    cppos("  auto* m = outfields.getIfMap();\n");
-    if(out.childName.empty())
+  if(resultFlattenableOrError(ruleset, out.childidx)) {
+    // Dev-note: we only produce Bug() if reaching a given control path
+    // indicates a bug in the code *generator*.
+    if(out.outputTmpl.substitutionsNeeded()) {
+      cppos("  auto* m = outfields.getIfMap();\n");
       cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
-    else {
-      cppos("  if(m == nullptr) {\n");
-      cppos(format("    return {}{{\n", parserResultName(out, false)));
-      cppos("      .loc{oldi, i},\n");
-      cppos("      .fields");
-        genStructValues(
-            out.outputTmpl,
-            map<string,string>{{out.childName, "std::move(outfields)"}},
-            6, cppos);
-        cppos(",\n");
-      cppos("      .typed_fields{},\n");
-      cppos("    };\n");
-      cppos("  }\n");
     }
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
                                        dquoted(key))});
   }
-  // TODO the out.childName branch above.
+  else if(!out.childName.empty()) {
+    placeholders.insert({{ out.childName, "std::move(outfields)" }});
+  }
   cppos(format("  {} rv{{\n", parserResultName(out, false)));
   cppos("    .loc{oldi, i},\n");
   cppos("    .fields");
