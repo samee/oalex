@@ -838,19 +838,19 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
   cppos("  if(oalex::holdsErrorValue(outfields)) return std::nullopt;\n");
-  map<string,string> typed_placeholders;
+  map<string,string> placeholders;
   if(resultFlattenableOrError(ruleset, out.childidx)) {
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
-      typed_placeholders.insert({key,
+      placeholders.insert({key,
           format("std::move(outfields->fields.{})",
                  Ident::parseGenerated(key).toSnakeCase()) });
   }
   else if(!out.childName.empty())
-    typed_placeholders.insert({{ out.childName, "std::move(*outfields)" }});
+    placeholders.insert({{ out.childName, "std::move(*outfields)" }});
   cppos(format("  {} rv{{\n", parserResultName(out, false)));
   cppos("    .loc{oldi, i},\n");
-  cppos("    .typed_fields");
-    genStructValues(out.outputTmpl, typed_placeholders, 4, cppos);
+  cppos("    .fields");
+    genStructValues(out.outputTmpl, placeholders, 4, cppos);
     cppos(",\n");
   cppos("  };\n");
   cppos("  return rv;\n");
@@ -1357,7 +1357,7 @@ flatFieldType(const RuleSet& ruleset, const RuleField& field) {
 
 // TODO: Eliminate parseGenerated() by keeping them as idents.
 static void
-genTypedOutputFields(const JsonTmpl& t, const Ident& fieldName,
+genOutputFields(const JsonTmpl& t, const Ident& fieldName,
   const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
   const OutputStream& hos) {
   auto findField = [&](string_view qname) -> const RuleField& {
@@ -1387,7 +1387,7 @@ genTypedOutputFields(const JsonTmpl& t, const Ident& fieldName,
       linebreak(hos, indent);  // not indent+2, in case the next line is '}'
     for(auto& [k,child]: *m) {
       hos("  ");
-      genTypedOutputFields(child, Ident::parseGenerated(k), ruleset, childidx,
+      genOutputFields(child, Ident::parseGenerated(k), ruleset, childidx,
                            indent+2, hos);
       linebreak(hos, indent);
     }
@@ -1647,8 +1647,6 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   cppos("}\n\n");
 }
 
-// TODO: renamed typed_fields to just fields, once the current version of
-// fields have been deleted.
 static void
 genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
     const OutputStream& cppos, const OutputStream& hos) {
@@ -1657,8 +1655,8 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
-    genTypedOutputFields(out.outputTmpl, Ident::parseGenerated("typed_fields"),
-                         ruleset, out.childidx, 2, hos);
+    genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"),
+                    ruleset, out.childidx, 2, hos);
     hos("\n");
   hos("  explicit operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
@@ -1666,7 +1664,7 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   cppos(format("{}::operator JsonLoc() const {{\n", className));
   cppos("  using oalex::toJsonLoc;\n");
   cppos("  return JsonLoc::withPos(");
-    genFieldConversion(out.outputTmpl, "typed_fields", cppos, 2);
+    genFieldConversion(out.outputTmpl, "fields", cppos, 2);
     cppos(", loc.first, loc.second);\n");
   cppos("}\n\n");
 }

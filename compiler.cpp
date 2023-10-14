@@ -847,8 +847,8 @@ destructureErrors(DiagsDest ctx, ParsedIndentedList errors) {
   for(auto& item : errors.items) {
     const auto* line = item.try_cast<ParsedErrorStanzaLine>();
     if(!line) Bug("Error line has the wrong type: {}", item.type().name());
-    StringLoc part_name = line->typed_fields.ident;
-    StringLoc msgq = line->typed_fields.error_msg;
+    StringLoc part_name = line->fields.ident;
+    StringLoc msgq = line->fields.error_msg;
     optional<GluedString> msg = unquote(msgq, ctx);
     if(!msg) continue;
     rv.push_back({Ident::parse(ctx, part_name), string{*msg}});
@@ -946,20 +946,18 @@ identFrom(const JsonLoc& jsloc, string_view desc, DiagsDest ctx) {
 void
 appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
                  RulesWithLocs& rl) {
-  const StringLoc& rname = ext.typed_fields.rule_name;
-  StringLoc ext_name = ext.typed_fields.external_name;
-  const vector<StringLoc>& params = ext.typed_fields.param;
-
   vector<ssize_t> ruleIndices;
-  for(auto& p: params) {
+  for(const StringLoc& p: ext.fields.param) {
     auto param_ident = identFrom(p, "param", ctx);
     if(param_ident)
       ruleIndices.push_back(rl.findOrAppendIdent(ctx, param_ident));
   }
-  ssize_t newIndex = rl.defineIdent(ctx, identFrom(rname, "rule name", ctx),
-                                    rl.defaultSkipper());
+  ssize_t newIndex
+    = rl.defineIdent(ctx, identFrom(ext.fields.rule_name, "rule name", ctx),
+                     rl.defaultSkipper());
   if(newIndex == -1) return;
 
+  const StringLoc& ext_name = ext.fields.external_name;
   if(ExternParser::requireValidNameAndParamCount(ext_name, ruleIndices.size(),
                                                   ctx))
     rl.deferred_assign(newIndex,

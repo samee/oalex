@@ -109,9 +109,9 @@ std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
 ParsedExternRule::operator JsonLoc() const {
   using oalex::toJsonLoc;
   return JsonLoc::withPos(JsonLoc::Map{
-    {"external_name", toJsonLoc(typed_fields.external_name)},
-    {"param", toJsonLoc(typed_fields.param)},
-    {"rule_name", toJsonLoc(typed_fields.rule_name)},
+    {"external_name", toJsonLoc(fields.external_name)},
+    {"param", toJsonLoc(fields.param)},
+    {"rule_name", toJsonLoc(fields.rule_name)},
   }, loc.first, loc.second);
 }
 
@@ -124,7 +124,7 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
   ParsedExternRule rv{
     .loc{oldi, i},
-    .typed_fields{
+    .fields{
       .external_name = std::move(outfields->fields.external_name),
       .param = std::move(outfields->fields.param),
       .rule_name = std::move(outfields->fields.rule_name),
@@ -631,8 +631,8 @@ std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i) 
 ParsedErrorStanzaLine::operator JsonLoc() const {
   using oalex::toJsonLoc;
   return JsonLoc::withPos(JsonLoc::Map{
-    {"error_msg", toJsonLoc(typed_fields.error_msg)},
-    {"ident", toJsonLoc(typed_fields.ident)},
+    {"error_msg", toJsonLoc(fields.error_msg)},
+    {"ident", toJsonLoc(fields.ident)},
   }, loc.first, loc.second);
 }
 
@@ -645,7 +645,7 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
   ParsedErrorStanzaLine rv{
     .loc{oldi, i},
-    .typed_fields{
+    .fields{
       .error_msg = std::move(outfields->fields.error_msg),
       .ident = std::move(outfields->fields.ident),
     },
@@ -820,7 +820,7 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
   ParsedErrorStanzaLeader rv{
     .loc{oldi, i},
-    .typed_fields{
+    .fields{
     },
   };
   return rv;
