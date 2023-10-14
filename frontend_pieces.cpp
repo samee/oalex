@@ -122,16 +122,8 @@ std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t&
   ssize_t oldi = i;
   std::optional<ParsedRule26> outfields = parseRule26(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
-  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
-  auto* m = jsloc_outfields.getIfMap();
-  assertNotNull(m, __func__, "needs a map");
   ParsedExternRule rv{
     .loc{oldi, i},
-    .fields{
-      .external_name = moveEltOrEmpty(*m, "external_name"),
-      .param = moveEltOrEmpty(*m, "param"),
-      .rule_name = moveEltOrEmpty(*m, "rule_name"),
-    },
     .typed_fields{
       .external_name = std::move(outfields->fields.external_name),
       .param = std::move(outfields->fields.param),
@@ -651,15 +643,8 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
   ssize_t oldi = i;
   std::optional<ParsedRule34> outfields = parseRule34(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
-  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
-  auto* m = jsloc_outfields.getIfMap();
-  assertNotNull(m, __func__, "needs a map");
   ParsedErrorStanzaLine rv{
     .loc{oldi, i},
-    .fields{
-      .error_msg = moveEltOrEmpty(*m, "error_msg"),
-      .ident = moveEltOrEmpty(*m, "ident"),
-    },
     .typed_fields{
       .error_msg = std::move(outfields->fields.error_msg),
       .ident = std::move(outfields->fields.ident),
@@ -833,11 +818,8 @@ std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags&
   ssize_t oldi = i;
   std::optional<ParsedRule42> outfields = parseRule42(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
-  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);
   ParsedErrorStanzaLeader rv{
     .loc{oldi, i},
-    .fields{
-    },
     .typed_fields{
     },
   };

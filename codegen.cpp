@@ -838,32 +838,17 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     codegenParserCall(ruleAt(ruleset, out.childidx), "i", cppos);
     cppos(";\n");
   cppos("  if(oalex::holdsErrorValue(outfields)) return std::nullopt;\n");
-  cppos("  JsonLoc jsloc_outfields = oalex::toJsonLoc(outfields);\n");
-  map<string,string> placeholders, typed_placeholders;
+  map<string,string> typed_placeholders;
   if(resultFlattenableOrError(ruleset, out.childidx)) {
-    // Dev-note: we only produce Bug() if reaching a given control path
-    // indicates a bug in the code *generator*.
-    if(out.outputTmpl.substitutionsNeeded()) {
-      cppos("  auto* m = jsloc_outfields.getIfMap();\n");
-      cppos("  assertNotNull(m, __func__, \"needs a map\");\n");
-    }
-    for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
-      placeholders.insert({key, format("moveEltOrEmpty(*m, {})",
-                                       dquoted(key))});
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       typed_placeholders.insert({key,
           format("std::move(outfields->fields.{})",
                  Ident::parseGenerated(key).toSnakeCase()) });
   }
-  else if(!out.childName.empty()) {
-    placeholders.insert({{ out.childName, "std::move(jsloc_outfields)" }});
+  else if(!out.childName.empty())
     typed_placeholders.insert({{ out.childName, "std::move(*outfields)" }});
-  }
   cppos(format("  {} rv{{\n", parserResultName(out, false)));
   cppos("    .loc{oldi, i},\n");
-  cppos("    .fields");
-    genStructValues(out.outputTmpl, placeholders, 4, cppos);
-    cppos(",\n");
   cppos("    .typed_fields");
     genStructValues(out.outputTmpl, typed_placeholders, 4, cppos);
     cppos(",\n");
@@ -1349,30 +1334,6 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
              "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 
-static void
-genOutputFields(const JsonTmpl& t, const Ident& fieldName, ssize_t indent,
-                const OutputStream& hos) {
-  if(const JsonTmpl::String* s = t.getIfString())
-    hos(format("std::string {} = {};", fieldName.toSnakeCase(),
-               dquoted(*s)));
-  else if(t.holdsPlaceholder())
-    hos(format("oalex::JsonLoc {};", fieldName.toSnakeCase()));
-  else if(t.holdsEllipsis())
-    Bug("The compiler was supposed to have removed ellipsis");
-  else if(t.holdsVector())
-    hos(format("std::vector<oalex::JsonLoc> {};", fieldName.toSnakeCase()));
-  else if(const JsonTmpl::Map* m = t.getIfMap()) {
-    hos(format("struct {} {{", fieldName.toUCamelCase()));
-      linebreak(hos, indent);  // not indent+2, in case the next line is '}'
-    for(auto& [k,child]: *m) {
-      hos("  ");
-      genOutputFields(child, Ident::parseGenerated(k), indent+2, hos);
-      linebreak(hos, indent);
-    }
-    hos(format("}} {};", fieldName.toSnakeCase()));
-  }else Bug("Don't know how to generate field for type {}", t.tagName());
-}
-
 // TODO replace this with parserResultName() when we can properly use structs in
 // ConcatFlatRule return values. This function is forked from an old version of
 // that function to begin with.
@@ -1695,9 +1656,6 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   string className = parserResultName(out, false);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
-  hos("  ");
-    genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"), 2, hos);
-    hos("\n");
   hos("  ");
     genTypedOutputFields(out.outputTmpl, Ident::parseGenerated("typed_fields"),
                          ruleset, out.childidx, 2, hos);

@@ -18,11 +18,6 @@ std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedExternRule {
   oalex::LocPair loc;
-  struct Fields {
-    oalex::JsonLoc external_name;
-    oalex::JsonLoc param;
-    oalex::JsonLoc rule_name;
-  } fields;
   struct TypedFields {
     oalex::StringLoc external_name;
     std::vector<oalex::StringLoc> param;
@@ -195,10 +190,6 @@ std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedErrorStanzaLine {
   oalex::LocPair loc;
-  struct Fields {
-    oalex::JsonLoc error_msg;
-    oalex::JsonLoc ident;
-  } fields;
   struct TypedFields {
     oalex::StringLoc error_msg;
     oalex::StringLoc ident;
@@ -261,8 +252,6 @@ std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedErrorStanzaLeader {
   oalex::LocPair loc;
-  struct Fields {
-  } fields;
   struct TypedFields {
   } typed_fields;
   explicit operator oalex::JsonLoc() const;
