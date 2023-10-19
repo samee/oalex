@@ -1341,9 +1341,6 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
              "ssize_t& j{});\n", extName, parserCallbacksTail(paramCount)));
 }
 
-// TODO replace this with parserResultName() when we can properly use structs in
-// ConcatFlatRule return values. This function is forked from an old version of
-// that function to begin with.
 static string
 flatFieldType(const RuleSet& ruleset, const RuleField& field) {
   const Rule& source = ruleAt(ruleset, field.schema_source);
@@ -1620,10 +1617,6 @@ populateFlatFields(RuleSet& ruleset) {
 }
 
 // TODO: refactor out repetitions between this and genOutputTmplTypeDefinition.
-// Dev-note: the use of parserResultName() vs flatFieldType() is very
-// inconsistent right now. This is because we are now producing struct
-// definitions for parsers that can't yet use them. For field names,
-// we can paper over missing definitions with JsonLoc field types.
 static void
 genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                       const OutputStream& cppos, const OutputStream& hos) {
