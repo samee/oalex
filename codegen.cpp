@@ -646,8 +646,6 @@ parserResultName(const Rule& rule, bool flattenable) {
   else return "oalex::JsonLoc";
 }
 
-static string flatStructName(const Rule& rule);
-
 struct ParserResultTraits {
   string type;
   string optional;
@@ -769,7 +767,7 @@ static void
 codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
   ssize_t comp_serial = 0;
-  string outType = flatStructName(cfrule);
+  string outType = parserResultName(cfrule, true);
   cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
@@ -870,7 +868,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     else Bug("LoopRule skipidx {} rule needs a name",
              ruleDebugId(ruleset, loop.skipidx));
   }
-  string outType = flatStructName(loop);
+  string outType = parserResultName(loop, true);
   ParserResultTraits partdeets = parserResultTraits(ruleset, loop.partidx),
                      gluedeets;
   if(loop.glueidx != -1) gluedeets = parserResultTraits(ruleset, loop.glueidx);
@@ -1048,7 +1046,7 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
         __func__);
 
   ssize_t branchNumber = 0;
-  string outType = flatStructName(orRule);
+  string outType = parserResultName(orRule, orRule.flattenOnDemand);
   for(auto& comp: orRule.comps) {
     string funName = format("convertBranch{}Into{}", branchNumber++, outType);
     const Rule& compRule = ruleAt(ruleset, comp.parseidx);
@@ -1107,7 +1105,7 @@ static void
 genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
                 const OutputStream& cppos) {
   ssize_t partNumber = 0;
-  string outType = flatStructName(seq);
+  string outType = parserResultName(seq, true);
   for(auto& comp: seq.comps) {
     string funName = format("mergePart{}Into{}", partNumber++, outType);
     genMergeHelperCatPart(
@@ -1120,7 +1118,7 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
-  string outType = flatStructName(rep);
+  string outType = parserResultName(rep, true);
   string funName = "mergePartInto" + outType;
   genMergeHelperCatPart(
       ruleset, rep.partidx,
@@ -1156,7 +1154,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
   if(orRule.flattenOnDemand) {
     ssize_t branchNum = 0;
-    string outType = flatStructName(orRule);
+    string outType = parserResultName(orRule, true);
     for(auto& [lidx, pidx, tmpl] : orRule.comps) {
       // Frontend should make sure even string-producing rules are
       // wrapped in empty maps.
@@ -1337,11 +1335,6 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
 // TODO replace this with parserResultName() when we can properly use structs in
 // ConcatFlatRule return values. This function is forked from an old version of
 // that function to begin with.
-static string
-flatStructName(const Rule& rule) {
-  return "Parsed" + rule.nameOrNull()->toUCamelCase();
-}
-
 static string
 flatFieldType(const RuleSet& ruleset, const RuleField& field) {
   const Rule& source = ruleAt(ruleset, field.schema_source);
@@ -1618,7 +1611,7 @@ populateFlatFields(RuleSet& ruleset) {
 }
 
 // TODO: refactor out repetitions between this and genOutputTmplTypeDefinition.
-// Dev-note: the use of flatStructName() vs flatFieldType() is very
+// Dev-note: the use of parserResultName() vs flatFieldType() is very
 // inconsistent right now. This is because we are now producing struct
 // definitions for parsers that can't yet use them. For field names,
 // we can paper over missing definitions with JsonLoc field types.
@@ -1627,7 +1620,7 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                       const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
   if(r.nameOrNull() == nullptr) return;
-  string className = flatStructName(r);
+  string className = parserResultName(r, true);
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  struct Fields {\n");
