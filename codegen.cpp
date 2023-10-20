@@ -639,6 +639,10 @@ producesString(const Rule& r) {
   // TODO: add passthrough wrappers
 }
 
+// Dev-note: This is only meant for parserResultTraits(). But sometimes other
+// code will use it as an unnecessary optimization to avoid a dynamic_cast.
+// TODO: replace all uses of this outside of parserResultTraits() with
+// parserResultTraits().type.
 static string
 parserResultName(const Rule& rule, bool flattenable) {
   if(producesString(rule)) return "oalex::StringLoc";
