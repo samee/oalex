@@ -777,7 +777,6 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
   ssize_t comp_serial = 0;
   string outType = parserResultName(ruleset, cfrule);
-  cppos("  using oalex::JsonLoc;\n");
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
   for(auto& [childid, key] : cfrule.comps) {
@@ -836,9 +835,6 @@ genStructValues(const JsonTmpl& outputTmpl,
 static void
 codegen(const RuleSet& ruleset, const OutputTmpl& out,
         const OutputStream& cppos) {
-  cppos("  using oalex::assertNotNull;\n");
-  cppos("  using oalex::JsonLoc;\n");
-  cppos("  using oalex::moveEltOrEmpty;\n");
   cppos("  ssize_t oldi = i;\n");
   cppos(format("  {} outfields = ",
                parserResultOptional(ruleset, out.childidx)));
@@ -882,11 +878,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
                      gluedeets;
   if(loop.glueidx != -1) gluedeets = parserResultTraits(ruleset, loop.glueidx);
 
-  cppos("  using oalex::JsonLoc;\n");
-  cppos("  using oalex::mapCreateOrAppend;\n");
-  cppos("  using oalex::mapCreateOrAppendAllElts;\n");
   cppos("  using oalex::quietMatch;\n");
-  cppos("  using oalex::toJsonLoc;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos(format("  {} rv;\n", outType));
   if(loop.glueidx == -1)

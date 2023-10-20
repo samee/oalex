@@ -116,9 +116,6 @@ ParsedExternRule::operator JsonLoc() const {
 }
 
 std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::assertNotNull;
-  using oalex::JsonLoc;
-  using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   std::optional<ParsedRule26> outfields = parseRule26(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
@@ -207,7 +204,6 @@ static void mergePart0IntoParsedRule10(oalex::StringLoc src, ParsedRule10& dest)
 }
 
 std::optional<ParsedRule10> parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule10 rv;
@@ -285,7 +281,6 @@ static void mergePart0IntoParsedRule14(oalex::StringLoc src, ParsedRule14& dest)
 }
 
 std::optional<ParsedRule14> parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule14 rv;
@@ -363,7 +358,6 @@ static void mergePart0IntoParsedRule18(oalex::StringLoc src, ParsedRule18& dest)
 }
 
 std::optional<ParsedRule18> parseRule18(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule18 rv;
@@ -420,11 +414,7 @@ static void mergePartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
 
 static void mergeGlueIntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
 std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
-  using oalex::mapCreateOrAppend;
-  using oalex::mapCreateOrAppendAllElts;
   using oalex::quietMatch;
-  using oalex::toJsonLoc;
   ssize_t j = i, fallback_point = i;
 
   ParsedRule21 rv;
@@ -551,7 +541,6 @@ static void mergePart12IntoParsedRule26(ParsedRule23 src, ParsedRule26& dest) {
 static void mergePart13IntoParsedRule26(ParsedRule24 /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart14IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
 std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule26 rv;
@@ -637,9 +626,6 @@ ParsedErrorStanzaLine::operator JsonLoc() const {
 }
 
 std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::assertNotNull;
-  using oalex::JsonLoc;
-  using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   std::optional<ParsedRule34> outfields = parseRule34(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
@@ -665,7 +651,6 @@ static void mergePart0IntoParsedRule29(oalex::StringLoc src, ParsedRule29& dest)
 }
 
 std::optional<ParsedRule29> parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule29 rv;
@@ -743,7 +728,6 @@ static void mergePart0IntoParsedRule33(oalex::StringLoc src, ParsedRule33& dest)
 }
 
 std::optional<ParsedRule33> parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule33 rv;
@@ -776,7 +760,6 @@ static void mergePart4IntoParsedRule34(ParsedRule33 src, ParsedRule34& dest) {
 }
 
 std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule34 rv;
@@ -812,9 +795,6 @@ ParsedErrorStanzaLeader::operator JsonLoc() const {
 }
 
 std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::assertNotNull;
-  using oalex::JsonLoc;
-  using oalex::moveEltOrEmpty;
   ssize_t oldi = i;
   std::optional<ParsedRule42> outfields = parseRule42(ctx, i);
   if(oalex::holdsErrorValue(outfields)) return std::nullopt;
@@ -942,7 +922,6 @@ static void mergePart4IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /
 static void mergePart5IntoParsedRule42(ParsedRule40 /*src*/, ParsedRule42& /*dest*/) {}
 static void mergePart6IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
 std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::JsonLoc;
   ssize_t j = i;
 
   ParsedRule42 rv;

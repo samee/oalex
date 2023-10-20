@@ -67,12 +67,4 @@ bool peekMatch(const InputPiece& input, ssize_t i, ParserCallback parser) {
 
 void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2);
 
-// TODO Consider splitting this function into two by the doCreate parameter.
-void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
-                       JsonLoc v, bool doCreate);
-void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2, bool doCreate);
-
-void assertNotNull(void* p, std::string_view fname, std::string_view errmsg);
-
-
 }  // namespace oalex

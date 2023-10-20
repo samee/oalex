@@ -97,32 +97,4 @@ void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2) {
                       std::make_move_iterator(m2.end()));
 }
 
-void mapCreateOrAppend(JsonLoc::Map& m, const std::string& k,
-                       JsonLoc v, bool doCreate) {
-  if(doCreate) {
-    for(auto& [oldk,oldv] : m) if(oldk == k)
-      Bug("Collision in loop elements with name '{}'", k);
-    m.push_back({k, JsonLoc::Vector{std::move(v)}});
-  }else {
-    ssize_t i=0;
-    for(i=0; i<ssize(m); ++i) if(m[i].first == k) break;
-    if(i==ssize(m)) Bug("Need to create element after the first iteration");
-    m[i].second.getIfVector()->push_back(std::move(v));
-  }
-}
-
-void mapCreateOrAppendAllElts(JsonLoc::Map& m1, JsonLoc::Map m2,
-                              bool doCreate) {
-  for(auto& [k,v] : m2) mapCreateOrAppend(m1, k, std::move(v), doCreate);
-}
-
-void assertMap(JsonLoc& jsloc, string_view errctx) {
-  auto* m = jsloc.getIfMap();
-  if(m == nullptr) Bug("{}: needs a map", errctx);
-}
-
-void assertNotNull(void* p, string_view fname, string_view errmsg) {
-  if(!p) Bug("{}: {}", fname, errmsg);
-}
-
 }  // namespace oalex
