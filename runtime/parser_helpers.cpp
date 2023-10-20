@@ -25,9 +25,9 @@ using std::unique_ptr;
 
 namespace oalex {
 
-JsonLoc::ErrorValue errorValue(DiagsDest ctx, ssize_t i, string msg) {
+std::nullopt_t errorValue(DiagsDest ctx, ssize_t i, string msg) {
   Error(ctx, i, std::move(msg));
-  return JsonLoc::ErrorValue{};
+  return nullopt;
 }
 
 optional<StringLoc> match(InputDiags& ctx, ssize_t& i, string_view s) {

@@ -430,8 +430,8 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
   else if(auto* loop = dynamic_cast<const LoopRule*>(&r))
     return eval(ctx, i, *loop, ruleset);
   else if(auto* err = dynamic_cast<const ErrorRule*>(&r)) {
-    if(err->msg.empty()) return JsonLoc::ErrorValue{};
-    else return errorValue(ctx, i, err->msg);
+    if(!err->msg.empty()) errorValue(ctx, i, err->msg);
+    return JsonLoc::ErrorValue{};
   }else if(auto* qm = dynamic_cast<const QuietMatch*>(&r))
     return evalQuiet(ctx.input(), i, ruleset, qm->compidx);
   else if(auto* ors = dynamic_cast<const OrRule*>(&r))
@@ -1003,9 +1003,9 @@ codegen(const RuleSet& ruleset, const ExternParser& extRule,
 
 static void
 codegen(const ErrorRule& errRule, const OutputStream& cppos) {
-  if(errRule.msg.empty()) cppos("  return JsonLoc::ErrorValue{};\n");
-  else cppos(format("  return oalex::errorValue(ctx, i, {});\n",
-                    dquoted(errRule.msg)));
+  if(!errRule.msg.empty()) cppos(format("  oalex::errorValue(ctx, i, {});\n",
+                                        dquoted(errRule.msg)));
+  cppos("  return JsonLoc::ErrorValue{};\n");
 }
 
 static void

@@ -76,6 +76,7 @@ class JsonLike {
   template <class V> using wrapper = internal::JsonLikeWrapperSpecific<V>;
  public:
   JsonLike() {}
+  JsonLike(std::nullopt_t) {}
   template <class V> JsonLike(V value) {
     if constexpr (internal::is_optional<V>) {
       if(value.has_value())

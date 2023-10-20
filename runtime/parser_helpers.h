@@ -23,7 +23,7 @@
 
 namespace oalex {
 
-JsonLoc::ErrorValue errorValue(DiagsDest ctx, ssize_t i, std::string msg);
+std::nullopt_t errorValue(DiagsDest ctx, ssize_t i, std::string msg);
 
 std::optional<StringLoc> match(InputDiags& ctx, ssize_t& i, std::string_view s);
 std::optional<StringLoc> match(InputDiags& ctx, ssize_t& i, const Regex& regex,
