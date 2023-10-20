@@ -137,10 +137,10 @@ resultFlattenableOrError(const RuleSet& rs, const Rule& rule) {
     auto& t = typeid(rule);
     // ConcatFlatRule: pass all fields through.
     // LoopRule: wrap all fields in vector.
-    // ErrorRule and SkipPoint: has no output field, but can be used
+    // ErrorRule: has no output field, but can be used
     //   in a flattenable context.
     return t == typeid(ConcatFlatRule) || t == typeid(LoopRule)
-        || t == typeid(ErrorRule) || t == typeid(SkipPoint);
+        || t == typeid(ErrorRule);
   }
 }
 
@@ -650,6 +650,7 @@ parserResultName(const Rule& rule, bool flattenable) {
    return "Parsed" + rule.nameOrNull()->toUCamelCase();
   else if(dynamic_cast<const ExternParser*>(&rule) ||
           dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
+  else if(dynamic_cast<const SkipPoint*>(&rule)) return "bool";
   else return "oalex::JsonLoc";
 }
 static string
@@ -680,6 +681,12 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
           dynamic_cast<const OrRule*>(&rule))
     return { .type = "oalex::JsonLike",
              .optional = "oalex::JsonLike",
+             .get_value_tmpl = "{}",
+           };
+  // TODO: make .type "void" rather than "bool". Or find a way to never use it.
+  else if(dynamic_cast<const SkipPoint*>(&rule))
+    return { .type = "bool",
+             .optional = "bool",
              .get_value_tmpl = "{}",
            };
   else return { .type = "oalex::JsonLoc",
@@ -1258,8 +1265,8 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos("  ssize_t j = skip->next(ctx.input(), i);\n");
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
-  cppos(format("    return {}{{}};\n", parserResultName(ruleset, sp)));
-  cppos("  }else return std::nullopt;\n");
+  cppos("    return true;\n");
+  cppos("  } else return false;\n");
 }
 
 static void

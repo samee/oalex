@@ -139,13 +139,7 @@ std::optional<oalex::StringLoc> parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
   return res;
 }
 
-ParsedRule7::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule7> parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -157,8 +151,8 @@ std::optional<ParsedRule7> parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule7{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
@@ -170,13 +164,7 @@ std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   return res;
 }
 
-ParsedRule9::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule9> parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -188,8 +176,8 @@ std::optional<ParsedRule9> parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule9{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 ParsedRule10::operator JsonLoc() const {
@@ -216,13 +204,7 @@ std::optional<ParsedRule10> parseRule10(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-ParsedRule11::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule11> parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -234,8 +216,8 @@ std::optional<ParsedRule11> parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule11{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
@@ -247,13 +229,7 @@ std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule13::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule13> parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -265,8 +241,8 @@ std::optional<ParsedRule13> parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule13{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 ParsedRule14::operator JsonLoc() const {
@@ -293,13 +269,7 @@ std::optional<ParsedRule14> parseRule14(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-ParsedRule15::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule15> parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -311,8 +281,8 @@ std::optional<ParsedRule15> parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule15{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
@@ -324,13 +294,7 @@ std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule17::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule17> parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -342,8 +306,8 @@ std::optional<ParsedRule17> parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule17{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 ParsedRule18::operator JsonLoc() const {
@@ -379,13 +343,7 @@ std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule20::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule20> parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -397,8 +355,8 @@ std::optional<ParsedRule20> parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule20{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 ParsedRule21::operator JsonLoc() const {
@@ -476,13 +434,7 @@ std::optional<ParsedRule23> parseRule23(oalex::InputDiags& ctx, ssize_t& i) {
   return std::nullopt;
 }
 
-ParsedRule24::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule24> parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -494,8 +446,8 @@ std::optional<ParsedRule24> parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule24{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) {
@@ -517,28 +469,28 @@ ParsedRule26::operator JsonLoc() const {
 }
 
 static void mergePart0IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart1IntoParsedRule26(ParsedRule7 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart1IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart2IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart3IntoParsedRule26(ParsedRule9 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart3IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart4IntoParsedRule26(ParsedRule10 src, ParsedRule26& dest) {
   dest.fields.rule_name = std::move(src.fields.rule_name);
 }
 
-static void mergePart5IntoParsedRule26(ParsedRule11 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart5IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart6IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart7IntoParsedRule26(ParsedRule13 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart7IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart8IntoParsedRule26(ParsedRule14 src, ParsedRule26& dest) {
   dest.fields.external_name = std::move(src.fields.external_name);
 }
 
-static void mergePart9IntoParsedRule26(ParsedRule15 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart9IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart10IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart11IntoParsedRule26(ParsedRule17 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart11IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart12IntoParsedRule26(ParsedRule23 src, ParsedRule26& dest) {
   dest.fields.param = std::move(src.fields.param);
 }
 
-static void mergePart13IntoParsedRule26(ParsedRule24 /*src*/, ParsedRule26& /*dest*/) {}
+static void mergePart13IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart14IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
 std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = i;
@@ -549,57 +501,57 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   if(!res0) return std::nullopt;
   mergePart0IntoParsedRule26(std::move(res0.value()), rv);
 
-  std::optional<ParsedRule7> res1 = parseRule7(ctx, j);
+  bool res1 = parseRule7(ctx, j);
   if(!res1) return std::nullopt;
-  mergePart1IntoParsedRule26(std::move(res1.value()), rv);
+  mergePart1IntoParsedRule26(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule8(ctx, j);
   if(!res2) return std::nullopt;
   mergePart2IntoParsedRule26(std::move(res2.value()), rv);
 
-  std::optional<ParsedRule9> res3 = parseRule9(ctx, j);
+  bool res3 = parseRule9(ctx, j);
   if(!res3) return std::nullopt;
-  mergePart3IntoParsedRule26(std::move(res3.value()), rv);
+  mergePart3IntoParsedRule26(std::move(res3), rv);
 
   std::optional<ParsedRule10> res4 = parseRule10(ctx, j);
   if(!res4) return std::nullopt;
   mergePart4IntoParsedRule26(std::move(res4.value()), rv);
 
-  std::optional<ParsedRule11> res5 = parseRule11(ctx, j);
+  bool res5 = parseRule11(ctx, j);
   if(!res5) return std::nullopt;
-  mergePart5IntoParsedRule26(std::move(res5.value()), rv);
+  mergePart5IntoParsedRule26(std::move(res5), rv);
 
   std::optional<oalex::StringLoc> res6 = parseRule12(ctx, j);
   if(!res6) return std::nullopt;
   mergePart6IntoParsedRule26(std::move(res6.value()), rv);
 
-  std::optional<ParsedRule13> res7 = parseRule13(ctx, j);
+  bool res7 = parseRule13(ctx, j);
   if(!res7) return std::nullopt;
-  mergePart7IntoParsedRule26(std::move(res7.value()), rv);
+  mergePart7IntoParsedRule26(std::move(res7), rv);
 
   std::optional<ParsedRule14> res8 = parseRule14(ctx, j);
   if(!res8) return std::nullopt;
   mergePart8IntoParsedRule26(std::move(res8.value()), rv);
 
-  std::optional<ParsedRule15> res9 = parseRule15(ctx, j);
+  bool res9 = parseRule15(ctx, j);
   if(!res9) return std::nullopt;
-  mergePart9IntoParsedRule26(std::move(res9.value()), rv);
+  mergePart9IntoParsedRule26(std::move(res9), rv);
 
   std::optional<oalex::StringLoc> res10 = parseRule16(ctx, j);
   if(!res10) return std::nullopt;
   mergePart10IntoParsedRule26(std::move(res10.value()), rv);
 
-  std::optional<ParsedRule17> res11 = parseRule17(ctx, j);
+  bool res11 = parseRule17(ctx, j);
   if(!res11) return std::nullopt;
-  mergePart11IntoParsedRule26(std::move(res11.value()), rv);
+  mergePart11IntoParsedRule26(std::move(res11), rv);
 
   std::optional<ParsedRule23> res12 = parseRule23(ctx, j);
   if(!res12) return std::nullopt;
   mergePart12IntoParsedRule26(std::move(res12.value()), rv);
 
-  std::optional<ParsedRule24> res13 = parseRule24(ctx, j);
+  bool res13 = parseRule24(ctx, j);
   if(!res13) return std::nullopt;
-  mergePart13IntoParsedRule26(std::move(res13.value()), rv);
+  mergePart13IntoParsedRule26(std::move(res13), rv);
 
   std::optional<oalex::StringLoc> res14 = parseRule25(ctx, j);
   if(!res14) return std::nullopt;
@@ -663,13 +615,7 @@ std::optional<ParsedRule29> parseRule29(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-ParsedRule30::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule30> parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -681,8 +627,8 @@ std::optional<ParsedRule30> parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule30{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) {
@@ -694,13 +640,7 @@ std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule32::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule32> parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -712,8 +652,8 @@ std::optional<ParsedRule32> parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule32{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 ParsedRule33::operator JsonLoc() const {
@@ -752,9 +692,9 @@ static void mergePart0IntoParsedRule34(ParsedRule29 src, ParsedRule34& dest) {
   dest.fields.ident = std::move(src.fields.ident);
 }
 
-static void mergePart1IntoParsedRule34(ParsedRule30 /*src*/, ParsedRule34& /*dest*/) {}
+static void mergePart1IntoParsedRule34(bool /*src*/, ParsedRule34& /*dest*/) {}
 static void mergePart2IntoParsedRule34(oalex::StringLoc /*src*/, ParsedRule34& /*dest*/) {}
-static void mergePart3IntoParsedRule34(ParsedRule32 /*src*/, ParsedRule34& /*dest*/) {}
+static void mergePart3IntoParsedRule34(bool /*src*/, ParsedRule34& /*dest*/) {}
 static void mergePart4IntoParsedRule34(ParsedRule33 src, ParsedRule34& dest) {
   dest.fields.error_msg = std::move(src.fields.error_msg);
 }
@@ -768,17 +708,17 @@ std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
   if(!res0) return std::nullopt;
   mergePart0IntoParsedRule34(std::move(res0.value()), rv);
 
-  std::optional<ParsedRule30> res1 = parseRule30(ctx, j);
+  bool res1 = parseRule30(ctx, j);
   if(!res1) return std::nullopt;
-  mergePart1IntoParsedRule34(std::move(res1.value()), rv);
+  mergePart1IntoParsedRule34(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule31(ctx, j);
   if(!res2) return std::nullopt;
   mergePart2IntoParsedRule34(std::move(res2.value()), rv);
 
-  std::optional<ParsedRule32> res3 = parseRule32(ctx, j);
+  bool res3 = parseRule32(ctx, j);
   if(!res3) return std::nullopt;
-  mergePart3IntoParsedRule34(std::move(res3.value()), rv);
+  mergePart3IntoParsedRule34(std::move(res3), rv);
 
   std::optional<ParsedRule33> res4 = parseRule33(ctx, j);
   if(!res4) return std::nullopt;
@@ -815,13 +755,7 @@ std::optional<oalex::StringLoc> parseRule35(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule36::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule36> parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -833,8 +767,8 @@ std::optional<ParsedRule36> parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule36{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) {
@@ -846,13 +780,7 @@ std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule38::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule38> parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -864,8 +792,8 @@ std::optional<ParsedRule38> parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule38{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
@@ -877,13 +805,7 @@ std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) 
   return res;
 }
 
-ParsedRule40::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-  };
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
-std::optional<ParsedRule40> parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
+bool parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::Skipper;
   static Skipper* skip = new Skipper{
     .unnestedComments{
@@ -895,8 +817,8 @@ std::optional<ParsedRule40> parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = skip->next(ctx.input(), i);
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
-    return ParsedRule40{};
-  }else return std::nullopt;
+    return true;
+  } else return false;
 }
 
 std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) {
@@ -915,11 +837,11 @@ ParsedRule42::operator JsonLoc() const {
 }
 
 static void mergePart0IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart1IntoParsedRule42(ParsedRule36 /*src*/, ParsedRule42& /*dest*/) {}
+static void mergePart1IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
 static void mergePart2IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart3IntoParsedRule42(ParsedRule38 /*src*/, ParsedRule42& /*dest*/) {}
+static void mergePart3IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
 static void mergePart4IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart5IntoParsedRule42(ParsedRule40 /*src*/, ParsedRule42& /*dest*/) {}
+static void mergePart5IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
 static void mergePart6IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
 std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   ssize_t j = i;
@@ -930,25 +852,25 @@ std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   if(!res0) return std::nullopt;
   mergePart0IntoParsedRule42(std::move(res0.value()), rv);
 
-  std::optional<ParsedRule36> res1 = parseRule36(ctx, j);
+  bool res1 = parseRule36(ctx, j);
   if(!res1) return std::nullopt;
-  mergePart1IntoParsedRule42(std::move(res1.value()), rv);
+  mergePart1IntoParsedRule42(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule37(ctx, j);
   if(!res2) return std::nullopt;
   mergePart2IntoParsedRule42(std::move(res2.value()), rv);
 
-  std::optional<ParsedRule38> res3 = parseRule38(ctx, j);
+  bool res3 = parseRule38(ctx, j);
   if(!res3) return std::nullopt;
-  mergePart3IntoParsedRule42(std::move(res3.value()), rv);
+  mergePart3IntoParsedRule42(std::move(res3), rv);
 
   std::optional<oalex::StringLoc> res4 = parseRule39(ctx, j);
   if(!res4) return std::nullopt;
   mergePart4IntoParsedRule42(std::move(res4.value()), rv);
 
-  std::optional<ParsedRule40> res5 = parseRule40(ctx, j);
+  bool res5 = parseRule40(ctx, j);
   if(!res5) return std::nullopt;
-  mergePart5IntoParsedRule42(std::move(res5.value()), rv);
+  mergePart5IntoParsedRule42(std::move(res5), rv);
 
   std::optional<oalex::StringLoc> res6 = parseRule41(ctx, j);
   if(!res6) return std::nullopt;
