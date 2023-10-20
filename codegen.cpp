@@ -16,7 +16,6 @@
 #include <map>
 #include <memory>
 #include <string_view>
-#include <type_traits>
 #include <utility>
 #include <vector>
 #include "runtime/jsonloc_fmt.h"
@@ -24,7 +23,6 @@
 #include "runtime/util.h"
 #include "fmt/core.h"
 using fmt::format;
-using oalex::is_in;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
@@ -348,7 +346,7 @@ eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
   return eval(ctx, i, rs, alias.targetidx);
 }
 
-// TODO move this to runtime/ directory if we want to use this in
+// Dev-note: move this to runtime/ directory if we want to use this in
 // `oalex build`. Or link the generated source files with oalex-bin-lib.
 static JsonLike
 oalexBuiltinHello(InputDiags& ctx, ssize_t& i) {
