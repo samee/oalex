@@ -626,7 +626,7 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
 
 static bool
 producesGeneratedStruct(const Rule& r, bool flattenable) {
-  if(flattenable) return true;
+  if(flattenable) return !dynamic_cast<const ErrorRule*>(&r);
   auto* out = dynamic_cast<const OutputTmpl*>(&r);
   return out && out->nameOrNull();
 }
@@ -651,6 +651,7 @@ parserResultName(const Rule& rule, bool flattenable) {
   else if(dynamic_cast<const ExternParser*>(&rule) ||
           dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
   else if(dynamic_cast<const SkipPoint*>(&rule)) return "bool";
+  else if(dynamic_cast<const ErrorRule*>(&rule)) return "std::nullopt_t";
   else return "oalex::JsonLoc";
 }
 static string
@@ -687,6 +688,11 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
   else if(dynamic_cast<const SkipPoint*>(&rule))
     return { .type = "bool",
              .optional = "bool",
+             .get_value_tmpl = "{}",
+           };
+  else if(dynamic_cast<const ErrorRule*>(&rule))
+    return { .type = "std::nullopt_t",
+             .optional = "std::nullopt_t",
              .get_value_tmpl = "{}",
            };
   else return { .type = "oalex::JsonLoc",
@@ -1005,7 +1011,7 @@ static void
 codegen(const ErrorRule& errRule, const OutputStream& cppos) {
   if(!errRule.msg.empty()) cppos(format("  oalex::errorValue(ctx, i, {});\n",
                                         dquoted(errRule.msg)));
-  cppos("  return JsonLoc::ErrorValue{};\n");
+  cppos("  return std::nullopt;\n");
 }
 
 static void
@@ -1320,7 +1326,7 @@ codegenParserCall(const Rule& rule, string_view posVar,
                  posVar, dquoted(**wp)));
   }
   else if(auto* err = dynamic_cast<const ErrorRule*>(&rule)) {
-    if(err->msg.empty()) cppos("JsonLoc::ErrorValue{}");
+    if(err->msg.empty()) cppos("std::nullopt");
     else cppos(format("oalex::errorValue(ctx, {}, {})",
                       posVar, dquoted(err->msg)));
   }
