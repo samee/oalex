@@ -901,23 +901,6 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   return parsePattern(ctx, std::move(toks));
 }
 
-// Once we have extracted everything we need from InputDiags,
-// this is where we compile the extracted string fragments into a rule.
-// InputDiags is still used as a destination for error messages.
-// This function utilizes a hack of using JsonTmpl::Ellipsis to mean the
-// absense of an `outputs` stanza, where the template needs to be automatically
-// deduced.
-// Dev-note: we assume no duplicate binding for same jstmpl Placeholder.
-void
-appendPatternRule(DiagsDest ctx, const Ident& ruleName,
-                  GluedString patt_string, const LexDirective& lexopts,
-                  vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-                  ParsedIndentedList errors, RulesWithLocs& rl) {
-  RuleExprDquoted rxpr{std::move(patt_string)};
-  appendExprRule(ctx, ruleName, rxpr, lexopts, std::move(pattToRule),
-                 std::move(jstmpl), std::move(errors), rl);
-}
-
 static ssize_t
 appendOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
   OrRule orRule{{}, /* flattenOnDemand */ true};

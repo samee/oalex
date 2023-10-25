@@ -1089,9 +1089,9 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     return;
   }
 
-  appendPatternRule(ctx, ident, std::move(*patt), stz.lexopts,
-                    std::move(stz.local_decls), std::move(stz.jstmpl),
-                    std::move(stz.errors), rl);
+  appendExprRule(ctx, ident, RuleExprDquoted{std::move(*patt)}, stz.lexopts,
+                 std::move(stz.local_decls), std::move(stz.jstmpl),
+                 std::move(stz.errors), rl);
 }
 
 // For error-locating, it assumes !v.empty().

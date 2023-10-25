@@ -210,18 +210,11 @@ struct PatternToRuleBinding {
 };
 
 void
-appendPatternRule(DiagsDest ctx, const Ident& ruleName,
-                  lex::GluedString patt_string, const LexDirective& lexopts,
-                  std::vector<PatternToRuleBinding> pattToRule,
-                  JsonTmpl jstmpl, ParsedIndentedList errors,
-                  RulesWithLocs& rl);
-
-void
 appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
 
 // Don't use this for local rules. This function takes in a global name for a
 // new rule. Local rules are added implicitly using pattToRule parameters.
-// The name is intentionally backwards: ExprRule is meant to mirror PatternRule.
+// The name is intentionally backwards: ExprRule is meant to mirror ExternRule.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexopts,
