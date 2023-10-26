@@ -1237,7 +1237,7 @@ compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
 // TODO: Refactor common parts between this and appendPatternRule().
 // Dev-note: Right now, this supports ruleName being empty. But empty ruleName
 // should only be used for tests.
-ssize_t
+void
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexopts, vector<LocalBinding> locals,
                JsonTmpl jstmpl, ParsedIndentedList errors, RulesWithLocs& rl) {
@@ -1256,10 +1256,10 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
   if(newIndex == -1
-     || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return newIndex;
+     || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return;
 
   ssize_t flatRule = comp.process(rxpr);
-  if(comp.somePatternFailed()) return -1;
+  if(comp.somePatternFailed()) return;
 
   vector<IdentUsage> exprIdents
     = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
@@ -1275,7 +1275,6 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
       {},        // childName, ignored for map-returning childidx
       std::move(jstmpl), // outputTmpl
   });
-  return newIndex;
 }
 
 void

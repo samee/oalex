@@ -801,9 +801,8 @@ void testRuleExprCompilationAndParsing() {
     move_to_unique(RuleExprSquoted{"-"})
   };
 
-  ssize_t maini = appendExprRule(ctx, Ident::parseGenerated("hyphen_ident"),
-                                 rxpr_main, lexopts, {}, JsonTmpl::Ellipsis{},
-                                 {}, rl);
+  appendExprRule(ctx, Ident::parseGenerated("hyphen_ident"), rxpr_main,
+                 lexopts, {}, JsonTmpl::Ellipsis{}, {}, rl);
 
   RuleSet rs = rl.releaseRules();
   auto expected_ruleset = makeVectorUnique<Rule>(
@@ -821,6 +820,7 @@ void testRuleExprCompilationAndParsing() {
   );
   assertValidAndEqualRuleList(__func__, rs.rules, expected_ruleset);
 
+  ssize_t maini;
   for(maini=0; maini<ssize(rs.rules); ++maini) {
     const Ident* nm = rs.rules[maini]->nameOrNull();
     if(nm && nm->preserveCase() == "hyphen_ident")

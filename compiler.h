@@ -215,7 +215,7 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
 // Don't use this for local rules. This function takes in a global name for a
 // new rule. Local rules are added implicitly using locals parameters.
 // The name is intentionally backwards: ExprRule is meant to mirror ExternRule.
-ssize_t
+void
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const LexDirective& lexopts, std::vector<LocalBinding> locals,
                JsonTmpl jstmpl, ParsedIndentedList errors,
