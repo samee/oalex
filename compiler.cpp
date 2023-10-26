@@ -604,15 +604,15 @@ desugarEllipsisPlaceholders(DiagsDest ctx, JsonTmpl& jstmpl) {
 
 static map<Ident,PartPattern>
 makePartPatterns(DiagsDest ctx, const JsonTmpl& jstmpl,
-                 const vector<PatternToRuleBinding>& pattToRule) {
+                 const vector<LocalBinding>& locals) {
   map<Ident, PartPattern> rv;
   for(const auto& [p, j] : jstmpl.allPlaceholders()) {
     WholeSegment seg(j->stPos, j->enPos, p);
     Ident id = Ident::parse(ctx, seg);
     if(id) rv.insert({id, GluedString(ctx, std::move(seg))});
   }
-  for(const auto& binding : pattToRule)
-    rv.insert({binding.localName, binding.pp}).second;
+  for(const auto& local : locals)
+    rv.insert({local.localName, local.pp}).second;
   return rv;
 }
 
@@ -708,8 +708,7 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
 static void
 checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
                  const map<string,vector<IdentUsage>>& localRulePatternIdents,
-                 const vector<PatternToRuleBinding>& pattToRule,
-                 const JsonTmpl& jstmpl) {
+                 const vector<LocalBinding>& locals, const JsonTmpl& jstmpl) {
   for(auto& [k,v]: jstmpl.allPlaceholders()) {
     const Ident outid = identOf(ctx, *v);
     if(!binary_search(patternIdents.begin(), patternIdents.end(),
@@ -719,11 +718,11 @@ checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
                    outid.preserveCase()));
   }
   vector<IdentUsage> allIdents = std::move(patternIdents);
-  for(auto& b: pattToRule)
-    ruleExprCollectInputIdents(*b.ruleExpr, localRulePatternIdents, allIdents);
+  for(auto& l: locals)
+    ruleExprCollectInputIdents(*l.ruleExpr, localRulePatternIdents, allIdents);
   sort(allIdents.begin(), allIdents.end(), idlt);
-  for(auto& b: pattToRule) {
-    const Ident outid = b.localName;
+  for(auto& l: locals) {
+    const Ident outid = l.localName;
     if(!binary_search(allIdents.begin(),allIdents.end(),
                       IdentUsage{outid,false}, idlt))
       Error(ctx, outid.stPos(), outid.enPos(),
@@ -733,12 +732,12 @@ checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
 }
 
 // Caller must already ensure no duplicate bindings for the same localName.
-static const PatternToRuleBinding*
+static const LocalBinding*
 findRuleLocalBinding(DiagsDest ctx, const Ident& outputIdent,
-                     const vector<PatternToRuleBinding>& pattToRule) {
-  for(auto& binding : pattToRule) if(binding.localName == outputIdent) {
-    requireExactMatch(ctx, binding.localName, outputIdent);
-    return &binding;
+                     const vector<LocalBinding>& locals) {
+  for(auto& local : locals) if(local.localName == outputIdent) {
+    requireExactMatch(ctx, local.localName, outputIdent);
+    return &local;
   }
   return nullptr;
 }
@@ -752,9 +751,9 @@ getIfIdent(const RuleExpr& rxpr) {
 
 // This is only used in preparation for reserveLocalNameInRule().
 static vector<Ident>
-filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
+filterUniqueRuleNames(const vector<LocalBinding>& locals) {
   vector<Ident> rv;
-  for(auto& b : pattToRule) if(auto* ruleName = getIfIdent(*b.ruleExpr))
+  for(auto& l : locals) if(auto* ruleName = getIfIdent(*l.ruleExpr))
     rv.push_back(*ruleName);
   sort(rv.begin(), rv.end());
   size_t i=0, j=0;
@@ -770,14 +769,14 @@ filterUniqueRuleNames(const vector<PatternToRuleBinding>& pattToRule) {
 // Special case for allowing `"+" as binop ~ binop`, while we usually
 // don't allow local-global name collisions.
 static bool
-reusesGlobalName(const PatternToRuleBinding& b) {
+reusesGlobalName(const LocalBinding& b) {
   auto* id = getIfIdent(*b.ruleExpr);
   return id && *id == b.localName;
 }
 
 static void
 reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
-                       const PatternToRuleBinding& binding,
+                       const LocalBinding& binding,
                        const vector<Ident>& unq_lhs) {
   if(!reusesGlobalName(binding))
     rl.reserveLocalName(ctx, binding.localName);
@@ -795,27 +794,26 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
 // The output is sorted by name, so that lookups can be binary searched.
 // lookupSymbol() uses this property.
 static SymbolTable
-mapToRule(DiagsDest ctx, RulesWithLocs& rl,
-          const vector<PatternToRuleBinding>& pattToRule,
+mapToRule(DiagsDest ctx, RulesWithLocs& rl, const vector<LocalBinding>& locals,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   SymbolTable rv;
-  vector<Ident> unq_lhs = filterUniqueRuleNames(pattToRule);
+  vector<Ident> unq_lhs = filterUniqueRuleNames(locals);
   for(auto& [k, kcontainer] : outputKeys) {
     Ident outputIdent = identOf(ctx, *kcontainer);
 
-    const PatternToRuleBinding* local
-      = findRuleLocalBinding(ctx, outputIdent, pattToRule);
+    const LocalBinding* local
+      = findRuleLocalBinding(ctx, outputIdent, locals);
     if(local) continue;
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
-  for(auto& binding : pattToRule) {
-    reserveLocalNameInRule(ctx, rl, binding, unq_lhs);
+  for(auto& local : locals) {
+    reserveLocalNameInRule(ctx, rl, local, unq_lhs);
     size_t ruleIndex;
-    if(reusesGlobalName(binding))
-      ruleIndex = rl.findOrAppendIdent(ctx, binding.localName);
+    if(reusesGlobalName(local))
+      ruleIndex = rl.findOrAppendIdent(ctx, local.localName);
     else ruleIndex = rl.appendAnonRule(DefinitionInProgress{});
-    rv.emplace_back(binding.localName, ruleIndex);
+    rv.emplace_back(local.localName, ruleIndex);
   }
   sort(rv.begin(), rv.end());
   return rv;
@@ -1214,14 +1212,13 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
 // `a, b ~ ( some complex expr )`, don't instantiate that left-hand
 // expression multiple times.
 static void
-compileLocalRules(DiagsDest ctx,
-                  const vector<PatternToRuleBinding>& pattToRule,
+compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
                   RuleExprCompiler& comp, const SymbolTable& symtab,
                   RulesWithLocs& rl) {
-  for(auto& binding : pattToRule) {
-    ssize_t j = lookupSymbol(symtab, binding.localName);
+  for(auto& local : locals) {
+    ssize_t j = lookupSymbol(symtab, local.localName);
     if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
-      const RuleExpr& rxpr = *binding.ruleExpr;
+      const RuleExpr& rxpr = *local.ruleExpr;
       if(assignNonMapRuleExpr(rxpr, comp, rl, j)) continue;
 
       vector<IdentUsage> ids
@@ -1242,12 +1239,10 @@ compileLocalRules(DiagsDest ctx,
 // should only be used for tests.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexopts,
-               vector<PatternToRuleBinding> pattToRule, JsonTmpl jstmpl,
-               ParsedIndentedList errors, RulesWithLocs& rl) {
-  SymbolTable symtab = mapToRule(ctx, rl, pattToRule, jstmpl.allPlaceholders());
-  map<Ident,PartPattern> partPatterns
-    = makePartPatterns(ctx, jstmpl, pattToRule);
+               const LexDirective& lexopts, vector<LocalBinding> locals,
+               JsonTmpl jstmpl, ParsedIndentedList errors, RulesWithLocs& rl) {
+  SymbolTable symtab = mapToRule(ctx, rl, locals, jstmpl.allPlaceholders());
+  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl, locals);
 
   // In case of failure, keep going with default error messages.
   vector<pair<Ident,string>> errmsg
@@ -1255,7 +1250,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
 
   RuleExprCompiler comp{rl, ctx, lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(ctx, pattToRule, comp, symtab, rl);
+  compileLocalRules(ctx, locals, comp, symtab, rl);
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
@@ -1269,8 +1264,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   vector<IdentUsage> exprIdents
     = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
   // This error is not fatal. Unused fields stay unused.
-  checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
-                   pattToRule, jstmpl);
+  checkUnusedParts(ctx, exprIdents, comp.patternIdents(), locals, jstmpl);
 
   if(!jstmpl.holdsEllipsis()) {
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);

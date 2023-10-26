@@ -43,7 +43,7 @@ using oalex::OutputTmpl;
 using oalex::parseJsonLoc;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
-using oalex::PatternToRuleBinding;
+using oalex::LocalBinding;
 using oalex::prettyPrint;
 using oalex::QuietMatch;
 using oalex::Regex;
@@ -715,14 +715,14 @@ void testLocalNameResolution() {
     RuleExprIdent{string_literal_ident}
   )};
 
-  vector<PatternToRuleBinding> pattToRule;
-  pattToRule.push_back({
+  vector<LocalBinding> locals;
+  locals.push_back({
     .pp = GluedString{ctx, WholeSegment{0, 0, string_literal_name}},
     .localName = string_literal_ident,
     .ruleExpr = make_unique<RuleExprRegex>(squoted_literal_regex->clone()),
   });
   appendExprRule(ctx, Ident::parseGenerated("u_squoted_literal"),
-                 u_quoted_rule, lexopts, std::move(pattToRule),
+                 u_quoted_rule, lexopts, std::move(locals),
                  JsonTmpl::Ellipsis{}, {}, rl);
 
   appendExprRule(ctx, Ident::parseGenerated("u_dquoted_literal"),

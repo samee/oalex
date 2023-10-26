@@ -385,8 +385,8 @@ parseRuleOutput(vector<ExprToken> linetoks, InputDiags& ctx) {
 }
 
 bool
-requireUniqueBinding(const vector<PatternToRuleBinding>& collected,
-                     const PatternToRuleBinding& found, DiagsDest ctx) {
+requireUniqueBinding(const vector<LocalBinding>& collected,
+                     const LocalBinding& found, DiagsDest ctx) {
   for(auto& c : collected) if(c.localName == found.localName) {
     Error(ctx, found.localName.stPos(), found.localName.enPos(),
           format("Duplicate definition for placeholder '{}'",
@@ -464,7 +464,7 @@ parsePartPattern(DiagsDest ctx, GluedString gs) {
 // On success, one new definition is appended.
 void
 parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
-                            vector<PatternToRuleBinding>& p2rule) {
+                            vector<LocalBinding>& p2rule) {
   auto* ps = get_if<GluedString>(&line[0]);
   if(!ps) {
     Error(ctx, line[0], "Expected a quoted string");
@@ -486,7 +486,7 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
     Error(ctx, enPos(line.back()), "Expected a rule expression");
   else {
     unique_ptr<const RuleExpr> rxpr = makeRuleExpr(line[4], ctx);
-    if(rxpr) p2rule.push_back(PatternToRuleBinding{
+    if(rxpr) p2rule.push_back(LocalBinding{
         .pp{std::move(*patt)}, .localName{std::move(outkey)},
         .ruleExpr{std::move(rxpr)},
       });
@@ -497,7 +497,7 @@ parseSingleAliasedLocalDecl(DiagsDest ctx, vector<ExprToken> line,
 // On error, doesn't modify p2rule. On success, new definitions are appended.
 void
 parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
-                            vector<PatternToRuleBinding>& p2rule) {
+                            vector<LocalBinding>& p2rule) {
   vector<Ident> lhs = consumeIdentList(ctx, line, "pattern name");
   if(lhs.empty()) { /* do nothing, consumeIdentList already emitted errors */ }
   else if(!matchesTokens(line, 0, {"~"}))
@@ -508,7 +508,7 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
     for(const auto& elt : lhs) {
       unique_ptr<const RuleExpr> rxpr = makeRuleExpr(line[1], ctx);
       if(!rxpr) continue;
-      PatternToRuleBinding binding{
+      LocalBinding binding{
         .pp{GluedString{
           ctx,
           WholeSegment{elt.stPos(), elt.enPos(), elt.preserveCase()}
@@ -525,11 +525,11 @@ parseUnaliasedLocalDeclList(DiagsDest ctx, vector<ExprToken> line,
 
 // On a bad error error, the caller should advance i to the next line that
 // matches leaderIndent. Such errors are indicated by an empty return vector.
-vector<PatternToRuleBinding>
+vector<LocalBinding>
 parseRuleLocalDecls(InputDiags& ctx, size_t& i,
                     const StringLoc& leaderIndent) {
   size_t j = i;
-  vector<PatternToRuleBinding> rv;
+  vector<LocalBinding> rv;
 
   vector<ExprToken> line = lexNextLine(ctx, j);
   if(line.empty()) return rv;
@@ -824,7 +824,7 @@ struct RuleStanzas {
   bool sawOutputsKw = false, sawWhereKw = false, sawLexicalKw = false;
   bool sawErrorsKw = false;
   JsonTmpl jstmpl = JsonTmpl::Ellipsis{};
-  vector<PatternToRuleBinding> local_decls = {};
+  vector<LocalBinding> local_decls = {};
   LexDirective lexopts;
   ParsedIndentedList errors = {};
   explicit RuleStanzas(LexDirective lo) : lexopts{std::move(lo)} {}

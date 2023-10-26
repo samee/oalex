@@ -133,7 +133,7 @@ class RulesWithLocs {
   std::vector<RegexOptions> regexOpts_;
 };
 
-// We generalize the ruleName in PatternToRuleBinding to the more general
+// We generalize the ruleName in LocalBinding to the more general
 // concept of "rule expressions".
 class RuleExpr {
   protected: RuleExpr() {}
@@ -203,7 +203,7 @@ struct ParsedIndentedList;
 //   "patt" as var ~ lhs
 //
 // is represented as { .pp = "patt", .localName = var, .ruleExpr = lhs }
-struct PatternToRuleBinding {
+struct LocalBinding {
   PartPattern pp;
   Ident localName;
   std::unique_ptr<const RuleExpr> ruleExpr;
@@ -213,12 +213,11 @@ void
 appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
 
 // Don't use this for local rules. This function takes in a global name for a
-// new rule. Local rules are added implicitly using pattToRule parameters.
+// new rule. Local rules are added implicitly using locals parameters.
 // The name is intentionally backwards: ExprRule is meant to mirror ExternRule.
 ssize_t
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexopts,
-               std::vector<PatternToRuleBinding> pattToRule,
+               const LexDirective& lexopts, std::vector<LocalBinding> locals,
                JsonTmpl jstmpl, ParsedIndentedList errors,
                RulesWithLocs& rl);
 
