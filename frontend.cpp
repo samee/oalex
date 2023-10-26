@@ -1231,8 +1231,8 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
       continue;
   }
   if(!ruleName) return;
-  ssize_t orIndex = rl.defineIdent(ctx, ruleName, rl.defaultSkipper());
-  if(orIndex != -1) rl.deferred_assign(orIndex, std::move(orRule));
+  appendMultiExprRule(ctx, ruleName, std::move(orRule),
+                      rl.defaultLexopts(), rl);
 }
 
 // Checks second token just so it is not a BNF rule of the form

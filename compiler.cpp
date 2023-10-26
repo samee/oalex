@@ -1278,4 +1278,12 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   return newIndex;
 }
 
+void
+appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
+                    const LexDirective& lexopts, RulesWithLocs& rl) {
+  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
+  ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
+  if(newIndex != -1) rl.deferred_assign(newIndex, std::move(orRule));
+}
+
 }  // namespace oalex

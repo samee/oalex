@@ -221,6 +221,10 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                JsonTmpl jstmpl, ParsedIndentedList errors,
                RulesWithLocs& rl);
 
+void
+appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
+                    const LexDirective& lexopts, RulesWithLocs& rl);
+
 // Internal functions, exposed for testing only
 // Dev-note: consider a separate compiler_testables.h
 
