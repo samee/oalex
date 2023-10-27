@@ -241,6 +241,10 @@ struct RuleBranch {
   enum class DiagType { none, error } diagType;
 };
 
+ssize_t
+appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
+                const LexDirective& lexopts, RulesWithLocs& rl);
+
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
                     const LexDirective& lexopts, RulesWithLocs& rl);

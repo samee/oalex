@@ -1108,35 +1108,20 @@ parseIdentFromExprVec(DiagsDest ctx, const vector<ExprToken>& v, size_t idx) {
   return rv;
 }
 
-// Dev-note: maybe move to pattern.h
-bool
-isUserWord(const LexDirective& lexopts, string_view s) {
-  for(char ch : s) if(!matchesRegexCharSet(ch, lexopts.wordChars))
-    return false;
-  return true;
-}
-
 // Assumes linetoks.size() > idx
 // Supports words and idents as lookaheads for now.
-ssize_t
-lookaheadRuleIndex(const LexDirective& lexopts, DiagsDest ctx,
-                   const vector<ExprToken>& linetoks, size_t idx,
-                   RulesWithLocs& rl) {
+unique_ptr<const RuleExpr>
+parseLookahead(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx) {
   if(auto* s = get_if<GluedString>(&linetoks[idx])) {
-    if(!isUserWord(lexopts, *s)) {
-      Error(ctx, *s, "Non-word inline lookahead");
-      return -1;
-    }else if(s->ctor() != GluedString::Ctor::dquoted) {
+    if(s->ctor() != GluedString::Ctor::dquoted) {
       Error(ctx, *s, "Lookaheads must be double-quoted");
-      return -1;
-    }else {
-      ssize_t roi = rl.addRegexOpts(RegexOptions{lexopts.wordChars});
-      return rl.appendAnonRule(WordPreserving{*s, roi});
-    }
+      return nullptr;
+    }else return make_unique<RuleExprDquoted>(*s);
+  }else {
+    const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
+    if(!lookId) return nullptr;
+    return make_unique<RuleExprIdent>(std::move(lookId));
   }
-  const Ident lookId = parseIdentFromExprVec(ctx, linetoks, idx);
-  if(!lookId) return -1;
-  return rl.findOrAppendIdent(ctx, lookId);
 }
 
 Ident
@@ -1227,8 +1212,9 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
     ssize_t lookidx = -1;
     ssize_t actionPos = 1;
     if(resemblesLookaheadBranch(branch)) {
-      lookidx = lookaheadRuleIndex(rl.defaultLexopts(), ctx, branch, 1, rl);
-      if(lookidx == -1) continue;
+      unique_ptr<const RuleExpr> lookRule = parseLookahead(ctx, branch, 1);
+      if(!lookRule) continue;
+      lookidx = appendLookahead(ctx, *lookRule, rl.defaultLexopts(), rl);
       actionPos += 2;   // Skip over "->"
     }
     if(!parseBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))

@@ -1277,6 +1277,32 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   });
 }
 
+// Dev-note: maybe move to pattern.h
+bool
+isUserWord(const LexDirective& lexopts, string_view s) {
+  for(char ch : s) if(!matchesRegexCharSet(ch, lexopts.wordChars))
+    return false;
+  return true;
+}
+
+// TODO: Replace this with RuleExprCompiler.
+ssize_t
+appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
+                const LexDirective& lexopts, RulesWithLocs& rl) {
+  if(auto* id = dynamic_cast<const RuleExprIdent*>(&lookahead))
+    return rl.findOrAppendIdent(ctx, id->ident);
+  else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&lookahead)) {
+    if(!isUserWord(lexopts, dq->gs)) {
+      Error(ctx, dq->gs, "Non-word inline lookahead");
+      return -1;
+    }else {
+      ssize_t roi = rl.addRegexOpts(RegexOptions{lexopts.wordChars});
+      return rl.appendAnonRule(WordPreserving{dq->gs, roi});
+    }
+  }else Unimplemented("RuleExpr {} cannot yet be used as a lookahead",
+                      typeid(lookahead).name());
+}
+
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
                     const LexDirective& lexopts, RulesWithLocs& rl) {
