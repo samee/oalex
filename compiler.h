@@ -221,6 +221,26 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                JsonTmpl jstmpl, ParsedIndentedList errors,
                RulesWithLocs& rl);
 
+// Dev-note: Right now, we only support a few combinations:
+//
+// * The action can be either:
+//   - ident, represented with
+//       { target=&RuleExprIdent{...}, diagMsg="", diagType=none }
+//   - error "msg"
+//       { target=nullptr, diagMsg="msg", diagType=error }
+//   - quiet error
+//       { target=nullptr, diagMsg="", diagType=error }
+// * In all three actions, the lookahead is optional. But if present, it
+//   must either be RuleExprIdent or RuleExprSquoted.
+//
+// Over time, we are likely to implement more of the valid combinations, as
+// well as add warning diagType.
+struct RuleBranch {
+  std::unique_ptr<const RuleExpr> lookahead, target;
+  std::string diagMsg;
+  enum class DiagType { none, error } diagType;
+};
+
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
                     const LexDirective& lexopts, RulesWithLocs& rl);
