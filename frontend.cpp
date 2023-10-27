@@ -1117,6 +1117,7 @@ isUserWord(const LexDirective& lexopts, string_view s) {
 }
 
 // Assumes linetoks.size() > idx
+// Supports words and idents as lookaheads for now.
 ssize_t
 lookaheadRuleIndex(const LexDirective& lexopts, DiagsDest ctx,
                    const vector<ExprToken>& linetoks, size_t idx,
@@ -1124,6 +1125,9 @@ lookaheadRuleIndex(const LexDirective& lexopts, DiagsDest ctx,
   if(auto* s = get_if<GluedString>(&linetoks[idx])) {
     if(!isUserWord(lexopts, *s)) {
       Error(ctx, *s, "Non-word inline lookahead");
+      return -1;
+    }else if(s->ctor() != GluedString::Ctor::dquoted) {
+      Error(ctx, *s, "Lookaheads must be double-quoted");
       return -1;
     }else {
       ssize_t roi = rl.addRegexOpts(RegexOptions{lexopts.wordChars});
