@@ -1200,7 +1200,7 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
     return;
   }
   const Ident ruleName = requireIdent(linetoks[1], ctx);
-  OrRule orRule{{}, /* flattenOnDemand */ false};
+  vector<RuleBranch> actions;
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
@@ -1214,11 +1214,11 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
     if(optional<RuleBranch> action
         = parseBranchAction(branch, actionPos, ctx)) {
       action->lookahead = std::move(lookRule);
-      orRule.comps.push_back(compileRuleBranch(ctx, *action, rl));
+      actions.push_back(std::move(*action));
     }
   }
   if(!ruleName) return;
-  appendMultiExprRule(ctx, ruleName, std::move(orRule),
+  appendMultiExprRule(ctx, ruleName, std::move(actions),
                       rl.defaultLexopts(), rl);
 }
 

@@ -241,12 +241,9 @@ struct RuleBranch {
   enum class DiagType { none, error } diagType;
 };
 
-OrRule::Component
-compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
-                  RulesWithLocs& rl);
-
 void
-appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
+appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
+                    std::vector<RuleBranch> branches,
                     const LexDirective& lexopts, RulesWithLocs& rl);
 
 // Internal functions, exposed for testing only

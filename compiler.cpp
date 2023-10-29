@@ -1303,7 +1303,7 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
-OrRule::Component
+static OrRule::Component
 compileRuleBranch(DiagsDest ctx, const RuleBranch& branch, RulesWithLocs& rl) {
   ssize_t target = -1;
   if(auto id = dynamic_cast<const RuleExprIdent*>(branch.target.get())) {
@@ -1326,8 +1326,13 @@ compileRuleBranch(DiagsDest ctx, const RuleBranch& branch, RulesWithLocs& rl) {
 }
 
 void
-appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
+appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
+                    vector<RuleBranch> branches,
                     const LexDirective& lexopts, RulesWithLocs& rl) {
+  OrRule orRule{{}, /* flattenOnDemand */ false};
+  for(const auto& branch : branches)
+    orRule.comps.push_back(compileRuleBranch(ctx, branch, rl));
+
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex != -1) rl.deferred_assign(newIndex, std::move(orRule));
