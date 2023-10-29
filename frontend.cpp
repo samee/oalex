@@ -1204,17 +1204,17 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
   for(const auto& branch : branches) {
     if(branch.empty() || !isToken(branch[0], "|"))
       Bug("lexListEntries() should return at least the bullet");
-    ssize_t lookidx = -1;
+    unique_ptr<const RuleExpr> lookRule;
     ssize_t actionPos = 1;
     if(resemblesLookaheadBranch(branch)) {
-      unique_ptr<const RuleExpr> lookRule = parseLookahead(ctx, branch, 1);
-      if(!lookRule) continue;
-      lookidx = appendLookahead(ctx, *lookRule, rl.defaultLexopts(), rl);
+      lookRule = parseLookahead(ctx, branch, 1);
       actionPos += 2;   // Skip over "->"
     }
+
     if(optional<RuleBranch> action
         = parseBranchAction(branch, actionPos, ctx)) {
-      orRule.comps.push_back(compileRuleBranch(ctx, lookidx, *action, rl));
+      action->lookahead = std::move(lookRule);
+      orRule.comps.push_back(compileRuleBranch(ctx, *action, rl));
     }
   }
   if(!ruleName) return;

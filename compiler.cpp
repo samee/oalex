@@ -1286,7 +1286,7 @@ isUserWord(const LexDirective& lexopts, string_view s) {
 }
 
 // TODO: Replace this with RuleExprCompiler.
-ssize_t
+static ssize_t
 appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                 const LexDirective& lexopts, RulesWithLocs& rl) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&lookahead))
@@ -1303,10 +1303,8 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
-// TODO: remove the lookIdx parameter, and use branch.lookahead instead.
 OrRule::Component
-compileRuleBranch(DiagsDest ctx, ssize_t lookIdx, const RuleBranch& branch,
-                  RulesWithLocs& rl) {
+compileRuleBranch(DiagsDest ctx, const RuleBranch& branch, RulesWithLocs& rl) {
   ssize_t target = -1;
   if(auto id = dynamic_cast<const RuleExprIdent*>(branch.target.get())) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
@@ -1320,7 +1318,11 @@ compileRuleBranch(DiagsDest ctx, ssize_t lookIdx, const RuleBranch& branch,
     // Consider promoting this to an Error() later.
     Unimplemented("Actions without a target should produce an error");
   }else target = rl.appendAnonRule(ErrorRule{string{branch.diagMsg}});
-  return { .lookidx = lookIdx, .parseidx = target, .tmpl{passthroughTmpl} };
+
+  ssize_t lookidx = branch.lookahead
+    ? appendLookahead(ctx, *branch.lookahead, rl.defaultLexopts(), rl)
+    : -1;
+  return { .lookidx = lookidx, .parseidx = target, .tmpl{passthroughTmpl} };
 }
 
 void

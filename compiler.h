@@ -241,11 +241,8 @@ struct RuleBranch {
   enum class DiagType { none, error } diagType;
 };
 
-ssize_t
-appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
-                const LexDirective& lexopts, RulesWithLocs& rl);
 OrRule::Component
-compileRuleBranch(DiagsDest ctx, ssize_t lookIdx, const RuleBranch& branch,
+compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RulesWithLocs& rl);
 
 void
