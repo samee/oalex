@@ -1152,40 +1152,35 @@ parseErrorBranch(
   return rv;
 }
 
-void
-orRuleAppendPassthrough(OrRule& orRule, ssize_t lookIdx, ssize_t parseIdx) {
-  orRule.comps.push_back({
-      .lookidx = lookIdx, .parseidx = parseIdx, .tmpl{passthroughTmpl}
-      });
-}
-
 bool
 resemblesLookaheadBranch(const vector<ExprToken>& branch) {
   return branch.size() >= 3 && isToken(branch[2], "->");
 }
 
-bool
-parseBranchAction(const vector<ExprToken>& branch,
-                  ssize_t pos, ssize_t lookidx,
-                  DiagsDest ctx, OrRule& orRule, RulesWithLocs& rl) {
+optional<RuleBranch>
+parseBranchAction(const vector<ExprToken>& branch, ssize_t pos, DiagsDest ctx) {
+  RuleBranch rv;
+  rv.diagType = RuleBranch::DiagType::none;
   if(resemblesErrorBranch(branch, pos)) {
     string_view err = parseErrorBranch(ctx, branch, pos);
     // TODO deduplicate SkipRules in codegen
-    if(!err.empty()) orRuleAppendPassthrough(orRule, lookidx,
-                       rl.appendAnonRule(ErrorRule{string(err)}));
+    if(!err.empty()) {
+      rv.diagMsg = err;
+      rv.diagType = RuleBranch::DiagType::error;
+    }
   }else if(matchesTokens(branch, pos, {"quiet"})) {
     if(ssize(branch) <= pos+1 || !isToken(branch[pos+1], "error")) {
       Error(ctx, enPos(branch[pos]), "Expected keyword 'error' after 'quiet'");
-      return false;
+      return nullopt;
     }
-    orRuleAppendPassthrough(orRule, lookidx,
-                            rl.appendAnonRule(ErrorRule{string{}}));
-  }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos))
-    orRule.comps.push_back({
-        .lookidx = lookidx, .parseidx = rl.findOrAppendIdent(ctx, parseId),
-        .tmpl{passthroughTmpl}
-    });
-  return true;
+    rv.diagType = RuleBranch::DiagType::error;
+  }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos)) {
+    rv.diagType = RuleBranch::DiagType::none;
+    rv.target = make_unique<RuleExprIdent>(parseId);
+  }
+  if(rv.target || rv.diagType != RuleBranch::DiagType::none)
+    return rv;
+  else return nullopt;
 }
 
 bool
@@ -1217,8 +1212,10 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
       lookidx = appendLookahead(ctx, *lookRule, rl.defaultLexopts(), rl);
       actionPos += 2;   // Skip over "->"
     }
-    if(!parseBranchAction(branch, actionPos, lookidx, ctx, orRule, rl))
-      continue;
+    if(optional<RuleBranch> action
+        = parseBranchAction(branch, actionPos, ctx)) {
+      orRule.comps.push_back(compileRuleBranch(ctx, lookidx, *action, rl));
+    }
   }
   if(!ruleName) return;
   appendMultiExprRule(ctx, ruleName, std::move(orRule),

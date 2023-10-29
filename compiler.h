@@ -244,6 +244,9 @@ struct RuleBranch {
 ssize_t
 appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                 const LexDirective& lexopts, RulesWithLocs& rl);
+OrRule::Component
+compileRuleBranch(DiagsDest ctx, ssize_t lookIdx, const RuleBranch& branch,
+                  RulesWithLocs& rl);
 
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,

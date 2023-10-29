@@ -1303,6 +1303,26 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
+// TODO: remove the lookIdx parameter, and use branch.lookahead instead.
+OrRule::Component
+compileRuleBranch(DiagsDest ctx, ssize_t lookIdx, const RuleBranch& branch,
+                  RulesWithLocs& rl) {
+  ssize_t target = -1;
+  if(auto id = dynamic_cast<const RuleExprIdent*>(branch.target.get())) {
+    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
+      target = rl.findOrAppendIdent(ctx, id->ident);
+    else Unimplemented("Good actions with error diagnostics ' -> {}'",
+                       id->ident.preserveCase());
+  }else if(branch.target != nullptr) {
+    Unimplemented("Actions with ruleExpr type {}",
+                  typeid(*branch.target).name());
+  }else if(branch.diagType != RuleBranch::DiagType::error) {
+    // Consider promoting this to an Error() later.
+    Unimplemented("Actions without a target should produce an error");
+  }else target = rl.appendAnonRule(ErrorRule{string{branch.diagMsg}});
+  return { .lookidx = lookIdx, .parseidx = target, .tmpl{passthroughTmpl} };
+}
+
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName, OrRule orRule,
                     const LexDirective& lexopts, RulesWithLocs& rl) {
