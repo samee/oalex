@@ -950,6 +950,19 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
 
 class RuleExprCompiler {
  public:
+  /* Params:
+
+    * lexopts: The `lexical:` stanza, or defaults.
+    * symtab: Local rules from the `where:` stanza. RuleExprCompuler falls back
+        to global rules during RuleExpr compilation, but not in a pattern
+        compilation. Produced from mapToRule(), used by either lookupSymbol()
+        or by RuleExprCompiler::lookupIdent().
+    * partPatterns: Used by tokenizePattern() of pattern.cpp. They should
+        already be in symtab.
+    * errmsg: The `errors after failing:` stanza.
+
+  Effects: New rules are appended to RulesWithLocs as a result of compilation.
+  */
   RuleExprCompiler(RulesWithLocs& rl, DiagsDest ctx,
                    const LexDirective& lexopts, const SymbolTable& symtab,
                    const map<Ident,PartPattern>& partPatterns,
