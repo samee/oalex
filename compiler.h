@@ -258,8 +258,8 @@ struct RuleBranch {
 
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
-                    std::vector<RuleBranch> branches,
-                    const LexDirective& lexopts, RulesWithLocs& rl);
+                    std::vector<RuleBranch> branches, const RuleStanzas& stz,
+                    RulesWithLocs& rl);
 
 // Internal functions, exposed for testing only
 // Dev-note: consider a separate compiler_testables.h

@@ -1190,9 +1190,9 @@ parseMultiMatchRule(vector<ExprToken> linetoks,
       actions.push_back(std::move(*action));
     }
   }
+  RuleStanzas stz = parseRuleStanzas(rl.defaultLexopts(), ctx, i);
   if(!ruleName) return;
-  appendMultiExprRule(ctx, ruleName, std::move(actions),
-                      rl.defaultLexopts(), rl);
+  appendMultiExprRule(ctx, ruleName, std::move(actions), stz, rl);
 }
 
 // Checks second token just so it is not a BNF rule of the form

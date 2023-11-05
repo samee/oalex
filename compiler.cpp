@@ -1354,16 +1354,19 @@ compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
 
 void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
-                    vector<RuleBranch> branches,
-                    const LexDirective& lexopts, RulesWithLocs& rl) {
+                    vector<RuleBranch> branches, const RuleStanzas& stz,
+                    RulesWithLocs& rl) {
+  if(stz.sawOutputsKw || stz.sawWhereKw || stz.sawErrorsKw)
+    Unimplemented("outputs, where, and errors for multi-match rules");
+
   SymbolTable symtab;
-  RuleExprCompiler comp{rl, ctx, lexopts, symtab, {}, {}};
+  RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, {}, {}};
 
   OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches)
     orRule.comps.push_back(compileRuleBranch(ctx, branch, comp, rl));
 
-  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
+  ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex != -1) rl.deferred_assign(newIndex, std::move(orRule));
 }
