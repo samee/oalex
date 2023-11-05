@@ -34,15 +34,16 @@ using oalex::InputDiags;
 using oalex::JsonLoc;
 using oalex::JsonTmpl;
 using oalex::LexDirective;
+using oalex::LocalBinding;
 using oalex::LoopRule;
 using oalex::makeVectorUnique;
 using oalex::MatchOrError;
 using oalex::OrRule;
 using oalex::OutputTmpl;
+using oalex::ParsedIndentedList;
 using oalex::parseJsonLoc;
 using oalex::parseRegexCharSet;
 using oalex::PartPattern;
-using oalex::LocalBinding;
 using oalex::prettyPrint;
 using oalex::QuietMatch;
 using oalex::Regex;
@@ -58,6 +59,7 @@ using oalex::RuleExprRegex;
 using oalex::RuleExprRepeat;
 using oalex::RuleExprSquoted;
 using oalex::RuleSet;
+using oalex::RuleStanzas;
 using oalex::RulesWithLocs;
 using oalex::Skipper;
 using oalex::ssize;
@@ -440,7 +442,7 @@ void testDestructureErrors() {
     id2: "msg2")"}};
   ssize_t pos = 0;
   auto errors = *parseErrorStanza(ctx, pos)
-                   .try_cast<oalex::ParsedIndentedList>();
+                   .try_cast<ParsedIndentedList>();
   vector<pair<Ident,string>> observed = destructureErrors(ctx, errors);
   vector<pair<Ident,string>> expected = {
     {Ident::parseGenerated("id1"), "msg1"},
@@ -460,6 +462,12 @@ void testDestructureErrors() {
 const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
                            Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
                            .tailcont = false};
+
+RuleStanzas stanzas(vector<LocalBinding> locals) {
+  RuleStanzas rv(lexopts);
+  rv.local_decls = std::move(locals);
+  return rv;
+}
 
 void testRuleExprCompilation() {
   const char* keyword_fn_name = "keyword_fn";
@@ -677,8 +685,7 @@ void testRuleExprCompilation() {
     RulesWithLocs rl;
     rl.defaultLexopts(lexopts);
     for(auto& [name, rxpr] : testcase.rxprs) {
-      appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, lexopts, {},
-                     JsonTmpl::Ellipsis{}, {}, rl);
+      appendExprRule(ctx, Ident::parseGenerated(name), *rxpr, stanzas({}), rl);
     }
     assertValidAndEqualRuleList(
       format("{}: cases[{}]", __func__, ++casei),
@@ -699,7 +706,7 @@ void testLocalNameResolution() {
   RuleExprRegex dquoted_literal_rule{dquoted_literal_regex->clone()};
 
   appendExprRule(ctx, string_literal_ident, dquoted_literal_rule,
-                 lexopts, {}, JsonTmpl::Ellipsis{}, {}, rl);
+                 stanzas({}), rl);
 
   // Next, do the same thing, but don't give it a global name.
   unique_ptr<const Regex> squoted_literal_regex
@@ -721,12 +728,10 @@ void testLocalNameResolution() {
     .ruleExpr = make_unique<RuleExprRegex>(squoted_literal_regex->clone()),
   });
   appendExprRule(ctx, Ident::parseGenerated("u_squoted_literal"),
-                 u_quoted_rule, lexopts, std::move(locals),
-                 JsonTmpl::Ellipsis{}, {}, rl);
+                 u_quoted_rule, stanzas(std::move(locals)), rl);
 
   appendExprRule(ctx, Ident::parseGenerated("u_dquoted_literal"),
-                 u_quoted_rule, lexopts, {},
-                 JsonTmpl::Ellipsis{}, {}, rl);
+                 u_quoted_rule, stanzas({}), rl);
 
   auto expected = makeVectorUnique<Rule>(
     RegexRule(dquoted_literal_regex->clone(), 0),
@@ -771,8 +776,8 @@ void testRuleExprDuplicateIdent() {
 
   InputDiags ctx{Input{""}};
   RulesWithLocs rl;
-  appendExprRule(ctx, Ident::parseGenerated("asgn"), asgn_rule, lexopts, {},
-                 JsonTmpl::Ellipsis{}, {}, rl);
+  appendExprRule(ctx, Ident::parseGenerated("asgn"), asgn_rule,
+                 stanzas({}), rl);
   assertHasDiagWithSubstr(__func__, ctx.diags,
                           "Duplicate output 'varname'");
 }
@@ -792,8 +797,7 @@ void testRuleExprCompilationAndParsing() {
 
   RuleExprRegex rxpr_ident{parseRegex(ident_part_regex)};
   auto ident_part_name = Ident::parseGenerated("ident");
-  appendExprRule(ctx, ident_part_name, rxpr_ident, lexopts, {},
-                 JsonTmpl::Ellipsis{}, {}, rl);
+  appendExprRule(ctx, ident_part_name, rxpr_ident, stanzas({}), rl);
 
   RuleExprRepeat rxpr_main{
     move_to_unique(RuleExprIdent{ident_part_name}),
@@ -801,7 +805,7 @@ void testRuleExprCompilationAndParsing() {
   };
 
   appendExprRule(ctx, Ident::parseGenerated("hyphen_ident"), rxpr_main,
-                 lexopts, {}, JsonTmpl::Ellipsis{}, {}, rl);
+                 stanzas({}), rl);
 
   RuleSet rs = rl.releaseRules();
   auto expected_ruleset = makeVectorUnique<Rule>(

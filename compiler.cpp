@@ -838,7 +838,7 @@ lookupSymbol(const SymbolTable& symtab, const Ident& name) {
    Output: { {"id1", "msg1"}, {"id2", "msg2"}, ... },
      converted from JsonLoc to C++ standard structures. */
 vector<pair<Ident, string>>
-destructureErrors(DiagsDest ctx, ParsedIndentedList errors) {
+destructureErrors(DiagsDest ctx, const ParsedIndentedList& errors) {
   // TODO that reference version of the cast.
   vector<pair<Ident, string>> rv;
   for(auto& item : errors.items) {
@@ -1250,19 +1250,20 @@ compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
 // should only be used for tests.
 void
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexopts, vector<LocalBinding> locals,
-               JsonTmpl jstmpl, ParsedIndentedList errors, RulesWithLocs& rl) {
-  SymbolTable symtab = mapToRule(ctx, rl, locals, jstmpl.allPlaceholders());
-  map<Ident,PartPattern> partPatterns = makePartPatterns(ctx, jstmpl, locals);
+               const RuleStanzas& stz, RulesWithLocs& rl) {
+  SymbolTable symtab
+    = mapToRule(ctx, rl, stz.local_decls, stz.jstmpl.allPlaceholders());
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, stz.jstmpl, stz.local_decls);
 
   // In case of failure, keep going with default error messages.
   vector<pair<Ident,string>> errmsg
-    = destructureErrors(ctx, std::move(errors));
+    = destructureErrors(ctx, stz.errors);
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
 
-  RuleExprCompiler comp{rl, ctx, lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(ctx, locals, comp, symtab, rl);
-  ssize_t skipIndex = rl.addSkipper(lexopts.skip);
+  RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
+  compileLocalRules(ctx, stz.local_decls, comp, symtab, rl);
+  ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
@@ -1275,16 +1276,18 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   vector<IdentUsage> exprIdents
     = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
   // This error is not fatal. Unused fields stay unused.
-  checkUnusedParts(ctx, exprIdents, comp.patternIdents(), locals, jstmpl);
+  checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
+                   stz.local_decls, stz.jstmpl);
 
-  if(!jstmpl.holdsEllipsis()) {
-    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, jstmpl);
+  JsonTmpl outputTmpl = stz.jstmpl;
+  if(!outputTmpl.holdsEllipsis()) {
+    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
     checkPlaceholderTypes(ctx, listNames, exprIdents);
-  } else jstmpl = ruleExprMakeOutputTmpl(exprIdents);
+  } else outputTmpl = ruleExprMakeOutputTmpl(exprIdents);
   rl.deferred_assign(newIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
-      std::move(jstmpl), // outputTmpl
+      std::move(outputTmpl),
   });
 }
 

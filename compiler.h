@@ -216,9 +216,6 @@ struct LocalBinding {
 // meant to help with diagnostics: they tell the caller if the corresponding
 // keyword was completely missing, or if it was present but had other errors
 // that resulted in us using the default value.
-//
-// TODO: Make this an argument in appendExprRule, instead of passing in
-// all the components separately.
 struct RuleStanzas {
   bool sawOutputsKw = false, sawWhereKw = false, sawLexicalKw = false;
   bool sawErrorsKw = false;
@@ -237,9 +234,7 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx, RulesWithLocs& rl);
 // The name is intentionally backwards: ExprRule is meant to mirror ExternRule.
 void
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
-               const LexDirective& lexopts, std::vector<LocalBinding> locals,
-               JsonTmpl jstmpl, ParsedIndentedList errors,
-               RulesWithLocs& rl);
+               const RuleStanzas& stz, RulesWithLocs& rl);
 
 // Dev-note: Right now, we only support a few combinations:
 //
@@ -272,6 +267,6 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
 class Ident;
 class JsonLoc;
 std::vector<std::pair<Ident, std::string>>
-destructureErrors(DiagsDest ctx, ParsedIndentedList errors);
+destructureErrors(DiagsDest ctx, const ParsedIndentedList& errors);
 
 }  // namespace oalex

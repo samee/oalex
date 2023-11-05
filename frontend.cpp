@@ -1020,9 +1020,7 @@ parseExprRule(const Ident& ruleName, vector<ExprToken> linetoks,
   unique_ptr<const RuleExpr> rxpr = makeRuleExpr(linetoks[3], ctx);
   if(!rxpr) return;
   RuleStanzas stz = parseRuleStanzas(rl.defaultLexopts(), ctx, i);
-  appendExprRule(ctx, ruleName, *rxpr, stz.lexopts,
-                 std::move(stz.local_decls), std::move(stz.jstmpl),
-                 std::move(stz.errors), rl);
+  appendExprRule(ctx, ruleName, *rxpr, stz, rl);
 }
 
 bool
@@ -1066,9 +1064,7 @@ parseRule(vector<ExprToken> linetoks, InputDiags& ctx, size_t& i,
     return;
   }
 
-  appendExprRule(ctx, ident, RuleExprDquoted{std::move(*patt)}, stz.lexopts,
-                 std::move(stz.local_decls), std::move(stz.jstmpl),
-                 std::move(stz.errors), rl);
+  appendExprRule(ctx, ident, RuleExprDquoted{std::move(*patt)}, stz, rl);
 }
 
 // For error-locating, it assumes !v.empty().
