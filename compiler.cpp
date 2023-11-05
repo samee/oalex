@@ -16,7 +16,6 @@
 #include <algorithm>
 #include <map>
 #include <utility>
-#include <frontend_pieces.h>
 #include "fmt/core.h"
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"

@@ -26,6 +26,7 @@
 #include "runtime/diags.h"
 #include "runtime/jsonlike.h"
 #include "codegen.h"
+#include "frontend_pieces.h"
 #include "pattern.h"
 
 struct ParsedExternRule;  // bootstrapped
@@ -195,9 +196,6 @@ class RuleExprOptional final : public RuleExpr {
   std::unique_ptr<const RuleExpr> part;
 };
 
-// Forward decl from runtime/builtins.h
-struct ParsedIndentedList;
-
 // These are the usual entries in a `where:` stanza of a rule. An entry:
 //
 //   "patt" as var ~ lhs
@@ -207,6 +205,28 @@ struct LocalBinding {
   PartPattern pp;
   Ident localName;
   std::unique_ptr<const RuleExpr> ruleExpr;
+};
+
+// This struct stores the result of parsing `where`, `outputs`, `errors`,
+// and everything else that can accompany a rule. It's meant to be reused
+// between pattern rules and expression rules.
+//
+// Here, many of the values here have default values, which we use if that
+// stanza was missing or had some error. The various `saw*Kw` booleans are
+// meant to help with diagnostics: they tell the caller if the corresponding
+// keyword was completely missing, or if it was present but had other errors
+// that resulted in us using the default value.
+//
+// TODO: Make this an argument in appendExprRule, instead of passing in
+// all the components separately.
+struct RuleStanzas {
+  bool sawOutputsKw = false, sawWhereKw = false, sawLexicalKw = false;
+  bool sawErrorsKw = false;
+  JsonTmpl jstmpl = JsonTmpl::Ellipsis{};
+  std::vector<LocalBinding> local_decls = {};
+  LexDirective lexopts;
+  ParsedIndentedList errors = {};
+  explicit RuleStanzas(LexDirective lo) : lexopts{std::move(lo)} {}
 };
 
 void

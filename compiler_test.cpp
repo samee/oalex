@@ -17,7 +17,6 @@
 #include "codegen_test_util.h"
 #include "ident.h"
 #include "jsontmpl_parsers.h"
-#include "frontend_pieces.h"
 #include "regex_io.h"
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
