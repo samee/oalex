@@ -529,7 +529,7 @@ appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
   return newIndex + 1;
 }
 
-// ---------------------- Start appendPatternRule() ---------------------------
+// ---------------------- Start appendExprRule() ------------------------------
 
 struct IdentUsage {
   Ident id;
@@ -1247,7 +1247,6 @@ compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
   }
 }
 
-// TODO: Refactor common parts between this and appendPatternRule().
 // Dev-note: Right now, this supports ruleName being empty. But empty ruleName
 // should only be used for tests.
 void

@@ -818,7 +818,7 @@ hasAnyTlide(const vector<ExprToken>& toks) {
 // keyword was completely missing, or if it was present but had other errors
 // that resulted in us using the default value.
 //
-// TODO: Make this an argument in appendPatternRule, instead of passing in
+// TODO: Make this an argument in appendExprRule, instead of passing in
 // all the components separately.
 struct RuleStanzas {
   bool sawOutputsKw = false, sawWhereKw = false, sawLexicalKw = false;
