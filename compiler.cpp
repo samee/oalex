@@ -1329,13 +1329,15 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
 }
 
 static OrRule::Component
-compileRuleBranch(DiagsDest ctx, const RuleBranch& branch, RulesWithLocs& rl) {
+compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
+                  RuleExprCompiler& comp, RulesWithLocs& rl) {
   ssize_t target = -1;
   if(auto id = dynamic_cast<const RuleExprIdent*>(branch.target.get())) {
-    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
-      target = rl.findOrAppendIdent(ctx, id->ident);
-    else Unimplemented("Good actions with error diagnostics ' -> {}'",
-                       id->ident.preserveCase());
+    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
+      target = rl.appendAnonRule(DefinitionInProgress{});
+      assignSingleExpr(ctx, comp, *branch.target, rl, target);
+    }else Unimplemented("Good actions with warnings ' -> {}'",
+                        id->ident.preserveCase());
   }else if(branch.target != nullptr) {
     Unimplemented("Actions with ruleExpr type {}",
                   typeid(*branch.target).name());
@@ -1354,9 +1356,12 @@ void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
                     vector<RuleBranch> branches,
                     const LexDirective& lexopts, RulesWithLocs& rl) {
+  SymbolTable symtab;
+  RuleExprCompiler comp{rl, ctx, lexopts, symtab, {}, {}};
+
   OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches)
-    orRule.comps.push_back(compileRuleBranch(ctx, branch, rl));
+    orRule.comps.push_back(compileRuleBranch(ctx, branch, comp, rl));
 
   ssize_t skipIndex = rl.addSkipper(lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
