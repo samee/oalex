@@ -624,6 +624,7 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("}\n");
 }
 
+// Assumes resolveIfWrapper() is already invoked.
 static bool
 producesGeneratedStruct(const Rule& r, bool flattenable) {
   if(flattenable) return !dynamic_cast<const ErrorRule*>(&r);
@@ -631,6 +632,7 @@ producesGeneratedStruct(const Rule& r, bool flattenable) {
   return out && out->nameOrNull();
 }
 
+// Assumes resolveIfWrapper() is already invoked.
 static bool
 producesString(const Rule& r) {
   return dynamic_cast<const StringRule*>(&r) ||
@@ -709,6 +711,15 @@ parserResultOptional(const RuleSet& ruleset, ssize_t ruleidx) {
 static string
 parserName(const Ident& rname) {
   return "parse" + rname.toUCamelCase();
+}
+
+// It's a version of producesGeneratedStruct() that can be called outside
+// of parserResultTraits().
+static bool
+returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx) {
+  return producesGeneratedStruct(
+      ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx)),
+      false);
 }
 
 static void
@@ -1679,6 +1690,11 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
     genOutputTmplTypeDefinition(ruleset, *out, cppos, hos);
   else if(resultFlattenableOrError(ruleset, ruleIndex))
     genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
+  else if(flatWrapperTarget(r) != -1
+          && returnsGeneratedStruct(ruleset, ruleIndex)) {
+    // Forward declaration, possibly redundant.
+    hos(format("struct {};\n", parserResultTraits(ruleset, ruleIndex).type));
+  }
 }
 
 // TODO make OutputStream directly accept format() strings. Perhaps with
