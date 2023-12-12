@@ -1216,6 +1216,29 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
   return true;
 }
 
+// Compiles a single RuleExpr, takes care of common non-map special cases,
+// and makes the result non-flattenable.
+// TODO: Reuse this function in appendExprRule() instead of directly performing
+// all these steps manually.
+static void
+assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
+                 const RuleExpr& rxpr, RulesWithLocs& rl, ssize_t j) {
+  if(assignNonMapRuleExpr(rxpr, comp, rl, j)) return;
+
+  // This processing also collects identifiers in rxpr. This must be called
+  // before we can produce a vector<IdentUsage>.
+  // TODO: Make the state transfer explicit.
+  ssize_t flatRule = comp.process(rxpr);
+  vector<IdentUsage> ids
+    = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+  JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ids);
+  rl.deferred_assign(j, OutputTmpl{
+      flatRule,  // childidx
+      {},        // childName, ignored for map-returning childidx
+      std::move(jstmpl), // outputTmpl
+  });
+}
+
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
 // _and_ comp. The RuleExprCompiler should, I think, be able to expose all of
 // that. Or hide it all in nice methods.
@@ -1229,23 +1252,8 @@ compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
                   RulesWithLocs& rl) {
   for(auto& local : locals) {
     ssize_t j = lookupSymbol(symtab, local.localName);
-    if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
-      const RuleExpr& rxpr = *local.ruleExpr;
-      if(assignNonMapRuleExpr(rxpr, comp, rl, j)) continue;
-
-      // This processing also collects identifiers in rxpr. This must be called
-      // before we can produce a vector<IdentUsage>.
-      // TODO: Make the state transfer explicit.
-      ssize_t flatRule = comp.process(rxpr);
-      vector<IdentUsage> ids
-        = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
-      JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ids);
-      rl.deferred_assign(j, OutputTmpl{
-          flatRule,  // childidx
-          {},        // childName, ignored for map-returning childidx
-          std::move(jstmpl), // outputTmpl
-      });
-    }
+    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
+      assignSingleExpr(ctx, comp, *local.ruleExpr, rl, j);
   }
 }
 
