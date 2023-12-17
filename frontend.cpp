@@ -1002,6 +1002,7 @@ makeBracketRuleExpr(const BracketGroup& bg, DiagsDest ctx) {
   else return result;
 }
 
+// TODO move RuleExpr parser into its dedicated .cpp file.
 unique_ptr<const RuleExpr>
 makeRuleExpr(const ExprToken& tok, DiagsDest ctx) {
   unique_ptr<const RuleExpr> rv = makeRuleExprAtom(ctx, tok);
@@ -1097,14 +1098,6 @@ parseLookahead(DiagsDest ctx, const vector<ExprToken>& linetoks, size_t idx) {
   }
 }
 
-Ident
-parseSingleIdentBranch(DiagsDest ctx, const vector<ExprToken>& branch,
-                       ssize_t rhsidx) {
-  const Ident parseId = parseIdentFromExprVec(ctx, branch, rhsidx);
-  if(!parseId || !requireEol(branch, rhsidx+1, ctx)) return Ident{};
-  else return parseId;
-}
-
 bool
 resemblesErrorBranch(const vector<ExprToken>& branch, ssize_t rhsidx) {
   return ssize(branch) > rhsidx+1 && isToken(branch[rhsidx], "error");
@@ -1130,6 +1123,8 @@ resemblesLookaheadBranch(const vector<ExprToken>& branch) {
   return branch.size() >= 3 && isToken(branch[2], "->");
 }
 
+// Assumes branch is not empty.
+// The last token is sometimes used for error location.
 optional<RuleBranch>
 parseBranchAction(const vector<ExprToken>& branch, ssize_t pos, DiagsDest ctx) {
   RuleBranch rv;
@@ -1147,9 +1142,14 @@ parseBranchAction(const vector<ExprToken>& branch, ssize_t pos, DiagsDest ctx) {
       return nullopt;
     }
     rv.diagType = RuleBranch::DiagType::error;
-  }else if(const Ident parseId = parseSingleIdentBranch(ctx, branch, pos)) {
+    requireEol(branch, pos+2, ctx);
+  }else if(ssize(branch) <= pos) {
+    Error(ctx, enPos(branch.back()), "Expected branch expression");
+    return nullopt;
+  }else if(unique_ptr<const RuleExpr> target = makeRuleExpr(branch[pos], ctx)) {
     rv.diagType = RuleBranch::DiagType::none;
-    rv.target = make_unique<RuleExprIdent>(parseId);
+    rv.target = std::move(target);
+    requireEol(branch, pos+1, ctx);
   }
   if(rv.target || rv.diagType != RuleBranch::DiagType::none)
     return rv;

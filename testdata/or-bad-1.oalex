@@ -1,3 +1,3 @@
-# expected-error: Expected identifier
+# expected-error: Expected branch expression
 rule stmt choices:
 |
