@@ -1352,11 +1352,19 @@ void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
                     vector<RuleBranch> branches, const RuleStanzas& stz,
                     RulesWithLocs& rl) {
-  if(stz.sawOutputsKw || stz.sawWhereKw || stz.sawErrorsKw)
-    Unimplemented("outputs, where, and errors for multi-match rules");
+  if(stz.sawOutputsKw || stz.sawErrorsKw)
+    Unimplemented("outputs and errors for multi-match rules");
 
-  SymbolTable symtab;
-  RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, {}, {}};
+  // TODO: Dedup with appendExprRule()
+  SymbolTable symtab
+    = mapToRule(ctx, rl, stz.local_decls, stz.jstmpl.allPlaceholders());
+  map<Ident,PartPattern> partPatterns
+    = makePartPatterns(ctx, stz.jstmpl, stz.local_decls);
+  vector<pair<Ident,string>> errmsg
+    = destructureErrors(ctx, stz.errors);
+  RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
+  compileLocalRules(ctx, stz.local_decls, comp, symtab, rl);
+
 
   OrRule orRule{{}, /* flattenOnDemand */ false};
   for(const auto& branch : branches)
