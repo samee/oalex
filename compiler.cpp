@@ -879,10 +879,11 @@ requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
 }
 
 static JsonTmpl
-deduceOutputTmpl(const vector<IdentUsage>& idents) {
+deduceOutputTmpl(const vector<IdentUsage>& outputIdents) {
   JsonTmpl::Map rv;
-  for(auto& [id, _] : idents) {
-    string s = id.preserveCase();
+  for(ssize_t i=0; i<ssize(outputIdents); ++i) {
+    if(i>0 && outputIdents[i].id == outputIdents[i-1].id) continue;
+    string s = outputIdents[i].id.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
   }
   return rv;
@@ -1183,17 +1184,6 @@ ruleExprCollectInputIdents(
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
-static JsonTmpl
-ruleExprMakeOutputTmpl(const vector<IdentUsage>& outputIdents) {
-  JsonTmpl::Map rv;
-  for(ssize_t i=0; i<ssize(outputIdents); ++i) {
-    if(i>0 && outputIdents[i].id == outputIdents[i-1].id) continue;
-    string s = outputIdents[i].id.preserveCase();
-    rv.push_back({s, JsonTmpl::Placeholder{s}});
-  }
-  return rv;
-}
-
 // This function is used both for local rules and for the main expression
 // in an expression-rule.
 static bool
@@ -1231,7 +1221,7 @@ assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
   ssize_t flatRule = comp.process(rxpr);
   vector<IdentUsage> ids
     = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
-  JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ids);
+  JsonTmpl jstmpl = deduceOutputTmpl(ids);
   rl.deferred_assign(j, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
@@ -1294,7 +1284,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(!outputTmpl.holdsEllipsis()) {
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
     checkPlaceholderTypes(ctx, listNames, exprIdents);
-  } else outputTmpl = ruleExprMakeOutputTmpl(exprIdents);
+  } else outputTmpl = deduceOutputTmpl(exprIdents);
   rl.deferred_assign(newIndex, OutputTmpl{
       flatRule,  // childidx
       {},        // childName, ignored for map-returning childidx
