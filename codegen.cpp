@@ -802,6 +802,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
   ssize_t comp_serial = 0;
   string outType = parserResultName(ruleset, cfrule);
+  cppos("  using oalex::holdsErrorValue;\n");
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
   for(auto& [childid, key] : cfrule.comps) {
@@ -811,7 +812,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
     cppos(format("\n  {} {} = ", resdeets.optional, rescomp));
       codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
-    cppos(format("  if(!{}) return std::nullopt;\n", rescomp));
+    cppos(format("  if(holdsErrorValue({})) return std::nullopt;\n", rescomp));
     cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
                  comp_serial, outType, resdeets.value(rescomp)));
     comp_serial++;
@@ -918,7 +919,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(";\n");
     cppos(format("    else part = quietMatch(ctx.input(), j, {});\n",
                  parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
-    cppos("    if(!part) {\n");
+    cppos("    if(oalex::holdsErrorValue(part)) {\n");
     cppos("      if(first) return std::nullopt;\n");
     cppos("      else break;\n");
     cppos("    }\n");
@@ -926,7 +927,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     cppos("    part = ");
       codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
       cppos(";\n");
-    cppos("    if(!part) return std::nullopt;\n");
+    cppos("    if(oalex::holdsErrorValue(part)) return std::nullopt;\n");
   }
   cppos(format("    mergePartInto{}(std::move({}), rv);\n", outType,
                partdeets.value("part")));
@@ -938,14 +939,14 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     // is done.
     cppos(format("    auto skipres = quietMatch(ctx.input(), j, {});\n",
                  parserName(skipname)));
-    cppos("    if(!skipres) break;\n");
+    cppos("    if(oalex::holdsErrorValue(skipres)) break;\n");
   }
   if(loop.glueidx != -1) {
     if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
       cppos(format("    {} glue = quietMatch(ctx.input(), j, {});\n",
                    gluedeets.optional, parserName(*gluename)));
     else Bug("Glue rules need a name for codegen(LoopRule)");
-    cppos("    if(!glue) break;\n");
+    cppos("    if(oalex::holdsErrorValue(glue)) break;\n");
     cppos(format("    mergeGlueInto{}(std::move({}), rv);\n", outType,
                  gluedeets.value("glue")));
     if(loop.skipidx != -1) {
@@ -953,7 +954,7 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
         codegenParserCall(ruleAt(ruleset, loop.skipidx),
                                       "j", cppos);
         cppos(";\n");
-      cppos("    if(!skipres) {\n");
+      cppos("    if(oalex::holdsErrorValue(skipres)) {\n");
       cppos("      oalex::Error(ctx, j, \"Unfinished comment\");\n");
       cppos("      return std::nullopt;\n");
       cppos("    }\n");
@@ -1178,6 +1179,7 @@ static void
 codegen(const RuleSet& ruleset, const OrRule& orRule,
         const OutputStream& cppos) {
   cppos("  using std::literals::string_literals::operator\"\"s;\n");
+  cppos("  using oalex::holdsErrorValue;\n");
   if(orRule.flattenOnDemand) {
     ssize_t branchNum = 0;
     string outType = parserResultName(ruleset, orRule);
@@ -1193,8 +1195,9 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         cppos(format("  {} {} = ", brDeets.optional, resvar));
           codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
-        cppos(format("  if({}) return convertBranch{}Into{}({});\n", resvar,
-              branchNum, outType, brDeets.value(resvar)));
+        cppos(format("  if(!holdsErrorValue({}))\n"
+                     "    return convertBranch{}Into{}({});\n", resvar,
+                     branchNum, outType, brDeets.value(resvar)));
       }else {
         cppos("  if(");
           codegenLookahead(ruleset, lidx, cppos);
@@ -1202,7 +1205,8 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         cppos(format("    {} {} = ", brDeets.optional, resvar));
           codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
-        cppos(format("    if(!{}) return std::nullopt;\n", resvar));
+        cppos(format("    if(holdsErrorValue({})) return std::nullopt;\n",
+                     resvar));
         cppos(format("    return convertBranch{}Into{}({});\n",
                      branchNum, outType, brDeets.value(resvar)));
         cppos("  }\n");
@@ -1221,7 +1225,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
         cppos("  res = ");
           codegenParserCall(ruleAt(ruleset, pidx), "i", cppos);
           cppos(";\n");
-        cppos("  if(res) return res;\n");
+        cppos("  if(!holdsErrorValue(res)) return res;\n");
       }else {
         cppos("  if(");
           codegenLookahead(ruleset, lidx, cppos);
@@ -1465,7 +1469,7 @@ genOptionalFieldAppends(
     string_view resvar,
     const OutputStream& cppos) {
   for(auto& field: fields) if(field.container == RuleField::optional) {
-    cppos(format("  if(fields.{})\n", field.field_name));
+    cppos(format("  if(!holdsErrorValue(fields.{}))\n", field.field_name));
     cppos(format("    {}.emplace_back({}, oalex::toJsonLoc(fields.{}));\n",
                  resvar, dquoted(field.field_name), field.field_name));
   }

@@ -57,6 +57,9 @@ bool holdsErrorValue(const std::optional<V>& v) { return !v.has_value(); }
 inline bool holdsErrorValue(const JsonLoc& jsloc)
   { return jsloc.holdsErrorValue(); }
 
+// bool for SkipPoint return type
+inline bool holdsErrorValue(bool b) { return !b; }
+
 template <class ParserCallback>
 bool peekMatch(const InputPiece& input, ssize_t i, ParserCallback parser) {
   // The only difference between this and quietMatch() is that
