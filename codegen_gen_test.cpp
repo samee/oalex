@@ -456,43 +456,39 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{0}, "LoopSkip"),
         nmRule(LoopRule{{
-          .partidx = 0,
-          .partname = "operand",
+          .partidx = 6,
           .glueidx = 5,
-          .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
         }}, "LoopSum"),
         nmRule(parseRegexRule("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
+        nmRule(ConcatFlatRule{{ {0, "operand"} }}, "LoopOperand"),
 
         // Test glueidx == -1
         nmRule(",", "LoopComma"),
         nmRule(
-          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {6, ""} }},
+          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {7, ""} }},
           "ListPrefixPart"),
         nmRule(LoopRule{{
-          .partidx = 7,
-          .partname = "",
+          .partidx = 8,
           .glueidx = -1,
-          .gluename = "",
           .lookidx = -1,
           .skipidx = 2,
         }}, "ListPrefix"),
 
         // Flattenable child.
         nmRule(parseRegexRule("/[-+]/"), "LoopPlusOrMinus"),
-        nmRule(ConcatFlatRule{{ {9, "sign"}, {0, "elements"} }}, "LoopFlatElt"),
+        nmRule(ConcatFlatRule{{ {10, "sign"}, {0, "elements"} }},
+               "LoopFlatElt"),
         nmRule(LoopRule{{
-          .partidx = 10,
-          .partname = "",
-          .glueidx = 6,
-          .gluename = "",
+          .partidx = 11,
+          .glueidx = 7,
           .lookidx = -1,
           .skipidx = 2,
         }}, "SignedListContents"),
         StringRule{"["}, StringRule{"]"},
-        nmRule(ConcatFlatRule{{ {12, ""}, {11, ""}, {13, ""} }}, "SignedList")
+        nmRule(ConcatFlatRule{{ {13, ""}, {12, ""}, {14, ""} }}, "SignedList")
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -508,13 +504,8 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         StringRule{"-"},
         nmRule(parseRegexRule("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule{{ .partidx = 0, .partname = "",
-                          .glueidx = 2, .gluename = "",
-                          .lookidx = -1, .skipidx = -1 }}, "GpSwappedString"),
-        nmRule(LoopRule{{ .partidx = 0, .partname = "",
-                          .glueidx = 1, .gluename = "words",
-                          .lookidx = -1, .skipidx = -1 }},
-               "GpSwappedInlineString")
+        nmRule(LoopRule{{ .partidx = 0, .glueidx = 2,
+                          .lookidx = -1, .skipidx = -1 }}, "GpSwappedString")
     ),
     .skips{},
     .regexOpts = {regexOpts},

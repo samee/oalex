@@ -238,15 +238,14 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     maxsize = std::max(maxsize, ssize(*v));
   };
   auto recordComponent =
-    [&addChild, &rs](string_view desc, JsonLoc comp,
-                     ssize_t idx, const string& defname) {
+    [&addChild, &rs](string_view desc, JsonLoc comp, ssize_t idx) {
     if(resultFlattenableOrError(rs, idx)) {
       // TODO refactor out this validation between here and ConcatFlatRule.
       auto* m = comp.getIfMap();
       if(!m) Bug("LoopRule {} {} was expected to return a map, got {}",
                  desc, ruleDebugId(rs, idx), comp);
       for(auto& [k,v] : *m) addChild(k, std::move(v));
-    }else if(!defname.empty()) addChild(defname, std::move(comp));
+    }
     // else ignore component.
   };
 
@@ -262,7 +261,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
       if(loop.glueidx == -1 && !first) break;
       else return out;
     }else {
-      recordComponent("child", std::move(out), loop.partidx, loop.partname);
+      recordComponent("child", std::move(out), loop.partidx);
       fallback_point = j;
     }
     if(sp && evalQuiet(ctx.input(), j, rs, loop.skipidx).holdsErrorValue())
@@ -270,7 +269,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     if(loop.glueidx != -1) {
       JsonLoc out = evalQuiet(ctx.input(), j, rs, loop.glueidx);
       if(out.holdsErrorValue()) break;
-      else recordComponent("glue", std::move(out), loop.glueidx, loop.gluename);
+      else recordComponent("glue", std::move(out), loop.glueidx);
       if(sp) {
         out = skip(ctx, j, *sp, rs);
         if(out.holdsErrorValue()) return out;
@@ -1149,7 +1148,7 @@ genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
   string funName = "mergePartInto" + outType;
   genMergeHelperCatPart(
       ruleset, rep.partidx,
-      funName,  outType, rep.partname,
+      funName,  outType, "",
       "dest.fields.{}.push_back(std::move(src))",
       "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 
@@ -1157,7 +1156,7 @@ genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
   funName = "mergeGlueInto" + outType;
   genMergeHelperCatPart(
       ruleset, rep.glueidx,
-      funName,  outType, rep.gluename,
+      funName,  outType, "",
       "dest.fields.{}.push_back(std::move(src))",
       "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 }
@@ -1503,8 +1502,8 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
     return rv;
   }
   else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
-    vector<RuleField> rv{ {loop->partname, loop->partidx, RuleField::vector},
-                          {loop->gluename, loop->glueidx, RuleField::vector} };
+    vector<RuleField> rv{ {"", loop->partidx, RuleField::vector},
+                          {"", loop->glueidx, RuleField::vector} };
     if(loop->glueidx == -1) rv.pop_back();
     return rv;
   }

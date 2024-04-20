@@ -170,11 +170,8 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
   }
 }
 
-void assertEqualLoopRule(string_view msg,
-    vector<pair<ssize_t,ssize_t>>& stk,
-    const LoopRule& arep, const LoopRule& brep) {
-  assertEqual(msg, arep.partname, brep.partname);
-  assertEqual(msg, arep.gluename, brep.gluename);
+void assertEqualLoopRule(vector<pair<ssize_t,ssize_t>>& stk,
+                         const LoopRule& arep, const LoopRule& brep) {
   stk.push_back({arep.partidx, brep.partidx});
   stk.push_back({arep.glueidx, brep.glueidx});
   stk.push_back({arep.lookidx, brep.lookidx});
@@ -236,7 +233,7 @@ void assertValidAndEqualRuleList(string_view msg,
       assertEqualJsonTmpl(msg, aout->outputTmpl, bout->outputTmpl);
     }else if(auto* arep = dynamic_cast<const LoopRule*>(ar)) {
       auto* brep = static_cast<const LoopRule*>(br);
-      assertEqualLoopRule(msg, stk, *arep, *brep);
+      assertEqualLoopRule(stk, *arep, *brep);
     }else if(auto* aors = dynamic_cast<const OrRule*>(ar)) {
       auto* bors = static_cast<const OrRule*>(br);
       assertEqualOrRule(msg, stk, *aors, *bors);
@@ -613,8 +610,7 @@ void testRuleExprCompilation() {
     ConcatFlatRule{{{1, "ident"}}},
     StringRule{"-"},
     MatchOrError{3, "Expected '-'"},
-    LoopRule{{.partidx=2, .partname{},
-              .glueidx=4, .gluename{}, .lookidx=-1, .skipidx=-1}},
+    LoopRule{{.partidx=2, .glueidx=4, .lookidx=-1, .skipidx=-1}},
     nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
             {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
           }}}, "hyphen_ident")
@@ -815,8 +811,7 @@ void testRuleExprCompilationAndParsing() {
       ConcatFlatRule{{{1, "ident"}}},
       StringRule{"-"},
       MatchOrError{3, "Expected '-'"},
-      LoopRule{{.partidx=2, .partname{},
-                .glueidx=4, .gluename{}, .lookidx=-1, .skipidx=-1}},
+      LoopRule{{.partidx=2, .glueidx=4, .lookidx=-1, .skipidx=-1}},
       nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
               {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
             }}}, "hyphen_ident")

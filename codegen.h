@@ -167,18 +167,12 @@ class OutputTmpl final : public Rule {
 // might be removed once we can share parsing results between lookaheads and
 // parsers.
 //
-// The names (partname and gluename) are only used if the respective component
-// (ruleset[partidx] and ruleset[glueidx]) return a non-flattenable result.
-// Otherwise, they are expected to be empty and are ignored.
-//
 // The fields are kept in a separate struct to allow designated initializers.
 // They are inherited into LoopRule, so you can still access them through the
 // familiar dot or arrow notations.
 struct LoopRuleFields {
   ssize_t partidx;  // mandatory, must not be -1
-  std::string partname;
   ssize_t glueidx;  // -1 means no glue
-  std::string gluename;
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
   ssize_t skipidx;  // -1 means no skip.
 };

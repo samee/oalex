@@ -1,0 +1,67 @@
+# This test was added when I was confused about how RuleExprRepeat propagated
+# component names.
+
+rule expr: (num op ... op num)
+where:
+  op ~ /[-+]/
+  num ~ /[0-9]+/
+outputs: {
+  operands: [num, ...],
+  operators: [op, ...],
+}
+
+# No space allowed between tokens,
+# since the definition didn't use double-quotes.
+# FIXME: space causes partial parsing, but no error about
+# input being only partially consumed. Make sure we raise
+# errors here if there's a space, and not silently produce
+# `operands: ["4"]` and just end there.
+example expr:
+  4+2-1
+outputs: {
+  operands: ["4", "2", "1"],
+  operators: ["+", "-"],
+}
+
+
+rule expr_notmpl: (num op ... op num)
+where:
+  op ~ /[-+]/
+  num ~ /[0-9]+/
+
+example expr_notmpl:
+  4+2-1
+outputs: {
+  num: ["4", "2", "1"],
+  op: ["+", "-"],
+}
+
+
+rule expr_flexible: "num op ... op num"
+where:
+  op ~ /[-+]/
+  num ~ /[0-9]+/
+outputs: {
+  operands: [num, ...],
+  operators: [op, ...],
+}
+
+example expr_flexible:
+  4 + 2 - 1
+outputs: {
+  operands: ["4", "2", "1"],
+  operators: ["+", "-"],
+}
+
+
+rule expr_flexible_notmpl: "num op ... op num"
+where:
+  op ~ /[-+]/
+  num ~ /[0-9]+/
+
+example expr_flexible_notmpl:
+  4 + 2 - 1
+outputs: {
+  num: ["4", "2", "1"],
+  op: ["+", "-"],
+}

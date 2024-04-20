@@ -556,16 +556,6 @@ void runGluePartSwappedTest() {
   assertEqual(__func__, pos, ssize_t(17));
   assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
                         toJsonLoc(observed));
-  pos = 0;
-  optional<ParsedGpSwappedInlineString> observed2
-    = parseGpSwappedInlineString(ctx, pos);
-  if(!ctx.diags.empty()) {
-    showDiags(ctx.diags);
-    BugMe("Expected empty diags");
-  }
-  assertEqual(__func__, pos, ssize_t(17));
-  assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
-                        toJsonLoc(observed2));
 }
 
 }  // namespace

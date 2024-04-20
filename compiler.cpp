@@ -189,8 +189,7 @@ PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
   ssize_t i = rl_->appendAnonRulePtr(this->process(repPatt.part));
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return move_to_unique(LoopRule{{
-      .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
-      .lookidx = -1, .skipidx = ski}});
+      .partidx = i, .glueidx = -1, .lookidx = -1, .skipidx = ski}});
 }
 
 unique_ptr<Rule>
@@ -199,8 +198,7 @@ PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
   ssize_t gi = rl_->appendAnonRulePtr(this->process(foldPatt.glue));
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return move_to_unique(LoopRule{{
-      .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
-      .lookidx = -1, .skipidx = ski}});
+      .partidx = pi, .glueidx = gi, .lookidx = -1, .skipidx = ski}});
 }
 
 unique_ptr<Rule>
@@ -1071,8 +1069,7 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
   ssize_t j = -1;
   if(repxpr.glue) j = rl_->appendAnonRulePtr(this->process(*repxpr.glue));
   return move_to_unique(LoopRule{{
-      .partidx = i, .partname = "", .glueidx = j, .gluename = "",
-      .lookidx = -1, .skipidx = -1}});
+      .partidx = i, .glueidx = j, .lookidx = -1, .skipidx = -1}});
 }
 // TODO change this to use string_view.
 static const vector<IdentUsage>&

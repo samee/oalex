@@ -526,21 +526,19 @@ void testLoopRule() {
         MatchOrError{4, "Expected an identifier"},
         StringRule{"+"}, SkipPoint{0},
         nmRule(LoopRule{{
-          .partidx = 0,
-          .partname = "operand",
-          .glueidx = 5,
-          .gluename = "",
+          .partidx = 5,
+          .glueidx = 6,
           .lookidx = -1,
           .skipidx = 2,
         }}, "sum"),
         parseRegexRule("/[a-z]+/"),
+        ConcatFlatRule{{ {0, "operand"} }},
         MatchOrError{1, "Expected operator '+'"},
 
         // Cases for glueidx == -1
         StringRule{","},
-        ConcatFlatRule{{{0, "elements"}, {2, ""}, {6, ""}, {2, ""}}},
-        nmRule(LoopRule{{ .partidx = 7, .partname = "",
-                          .glueidx = -1, .gluename = "",
+        ConcatFlatRule{{{0, "elements"}, {2, ""}, {7, ""}, {2, ""}}},
+        nmRule(LoopRule{{ .partidx = 8, .glueidx = -1,
                           .lookidx = -1, .skipidx = -1}}, "list_prefix")
     ),
     .skips{cskip},
@@ -580,7 +578,7 @@ void testLoopRule() {
 
   InputDiags ctx{Input{"a, b,"}};
   ssize_t pos = 0;
-  JsonLoc observed = eval(ctx, pos, rs, 8);
+  JsonLoc observed = eval(ctx, pos, rs, 9);
   if(!ctx.diags.empty()) showDiags(ctx.diags);
   assertEqual(__func__ + ": end position on glueless case"s, pos, ssize_t(5));
   assertEqual(__func__ + ": glueless case jsonloc output"s,
@@ -589,7 +587,7 @@ void testLoopRule() {
 
   ctx = InputDiags{Input{"!"}};
   pos = 0;
-  observed = eval(ctx, pos, rs, 8);
+  observed = eval(ctx, pos, rs, 9);
   if(!observed.holdsErrorValue())
     Bug("Was expecting an error on mandatory repeats. Got {}", observed);
   assertHasDiagWithSubstr(__func__, ctx.diags, "Expected an identifier");
@@ -608,9 +606,7 @@ void testLoopFlattening() {
         StringRule{","},
         nmRule(LoopRule{{
           .partidx = 3,
-          .partname = "",
           .glueidx = 5,
-          .gluename = "",
           .lookidx = -1,
           .skipidx = 4,
         }}, "sum"),
@@ -638,11 +634,7 @@ void testGluePartSwapped() {
         StringRule{"-"},
         parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
-        LoopRule{{.partidx = 0, .partname = "",
-                  .glueidx = 2, .gluename = "",
-                  .lookidx = -1, .skipidx = -1 }},
-        LoopRule{{.partidx = 0, .partname = "",
-                  .glueidx = 1, .gluename = "words",
+        LoopRule{{.partidx = 0, .glueidx = 2,
                   .lookidx = -1, .skipidx = -1 }}
     ),
     .skips{},
@@ -651,16 +643,6 @@ void testGluePartSwapped() {
   InputDiags ctx{Input{"-greetings-earth-"}};
   ssize_t pos = 0;
   JsonLoc observed = eval(ctx, pos, rs, 3);
-  if(!ctx.diags.empty()) {
-    showDiags(ctx.diags);
-    BugMe("Expected empty diags");
-  }
-  assertEqual(__func__, pos, ssize_t(17));
-  assertEqual(__func__, *parseJsonLoc("{words: ['greetings', 'earth']}"),
-                        observed);
-
-  pos = 0;
-  observed = eval(ctx, pos, rs, 4);
   if(!ctx.diags.empty()) {
     showDiags(ctx.diags);
     BugMe("Expected empty diags");
@@ -723,8 +705,7 @@ void testFlatFieldsForNestedList() {
         StringRule{"("},
         StringRule{")"},
         StringRule{""},
-        LoopRule{{.partidx = 9, .partname = "items", // [5]. items, items, ...
-                  .glueidx = 1, .gluename = "",
+        LoopRule{{.partidx = 10, .glueidx = 1, // [5]
                   .lookidx = -1, .skipidx = -1 }},
         OrRule{{{-1,5,passthroughTmpl}, {-1,4,passthroughTmpl}},
                true /* flattenOnDemand */ },  // [items, items, ... ]
@@ -732,7 +713,8 @@ void testFlatFieldsForNestedList() {
         OutputTmpl{7, {}, *parseJsonTmpl("{items}")},  // paren_group
         OrRule{{ {2,5,passthroughTmpl},
                  {-1,0,*parseJsonTmpl("{word: child}")}},
-               false /* flattenOnDemand */ }  // element :: JsonLike
+               false /* flattenOnDemand */ },  // element :: JsonLike
+        ConcatFlatRule{{ {9, "items"} }} // [10]. items, items, ...
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -744,6 +726,13 @@ void testFlatFieldsForNestedList() {
       .field_name = "items",
       .schema_source = 9,
       .container = RuleField::vector,
+    }
+  };
+  expected[10] = vector {
+    RuleField{
+      .field_name = "items",
+      .schema_source = 9,
+      .container = RuleField::single,
     }
   };
   for(ssize_t i=0; i<ssize(rs.rules); ++i) {
