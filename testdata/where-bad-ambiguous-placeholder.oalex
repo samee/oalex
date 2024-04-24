@@ -1,0 +1,13 @@
+# expected-error: Duplicate output 'i' will be impossible to distinguish
+
+rule int_value: /[0-9]+/
+
+rule complex_real_sum:
+  z + x
+where:
+  z ~ "i,i"
+  x ~ i
+  i ~ int_value
+outputs: {
+  z, x
+}

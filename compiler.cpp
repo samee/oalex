@@ -1233,10 +1233,13 @@ compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
       const RuleExpr& rxpr = *local.ruleExpr;
       if(assignNonMapRuleExpr(rxpr, comp, rl, j)) continue;
 
+      // This processing also collects identifiers in rxpr. This must be called
+      // before we can produce a vector<IdentUsage>.
+      // TODO: Make the state transfer explicit.
+      ssize_t flatRule = comp.process(rxpr);
       vector<IdentUsage> ids
         = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
       JsonTmpl jstmpl = ruleExprMakeOutputTmpl(ids);
-      ssize_t flatRule = comp.process(rxpr);
       rl.deferred_assign(j, OutputTmpl{
           flatRule,  // childidx
           {},        // childName, ignored for map-returning childidx
