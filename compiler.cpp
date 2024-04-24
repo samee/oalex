@@ -1332,15 +1332,11 @@ static OrRule::Component
 compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RuleExprCompiler& comp, RulesWithLocs& rl) {
   ssize_t target = -1;
-  if(auto id = dynamic_cast<const RuleExprIdent*>(branch.target.get())) {
+  if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
       target = rl.appendAnonRule(DefinitionInProgress{});
       assignSingleExpr(ctx, comp, *branch.target, rl, target);
-    }else Unimplemented("Good actions with warnings ' -> {}'",
-                        id->ident.preserveCase());
-  }else if(branch.target != nullptr) {
-    Unimplemented("Actions with ruleExpr type {}",
-                  typeid(*branch.target).name());
+    }else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
     // Consider promoting this to an Error() later.
     Unimplemented("Actions without a target should produce an error");

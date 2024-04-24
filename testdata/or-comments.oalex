@@ -1,0 +1,34 @@
+lexical defaults:
+  // comment
+
+# TODO: Allow single-line comments in these double-quoted rule patterns.
+# Right now, they cause a "Comment never ends" error when parsing patterns.
+rule greeting choices:
+| "Hello world!"
+| "Good night!"
+
+example greeting:
+  Hello  world!    // Some comment
+outputs success
+
+example greeting:
+  Hell with you!
+outputs error with 'Expected \'Hello\''
+
+
+
+# TODO: Allow overriding comment types, not just appending comment types.
+# Right now, they inherit global defaults.
+rule greeting_overridden choices:
+| "Hello world!  /* Anytime */"
+| "Good night!  /* Night-time only */"
+lexical:
+  /* comment */
+
+example greeting_overridden:
+  Hello /* Some coment */ world!
+outputs success
+
+example greeting:
+  Hell with you!
+outputs error with 'Expected \'Hello\''
