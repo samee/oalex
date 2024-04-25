@@ -119,9 +119,6 @@ class RulesWithLocs {
   /* This is checked just before producing rules as output */
   bool hasUndefinedRules(DiagsDest ctx) const;
 
-  /* Reduces sizes of rules_ and firstUseLocs_ to n, if it's larger */
-  void resize_down(ssize_t n) noexcept;
-
   RuleSet releaseRules();
 
  private:

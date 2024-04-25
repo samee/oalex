@@ -372,16 +372,6 @@ RulesWithLocs::hasUndefinedRules(DiagsDest ctx) const {
   return false;
 }
 
-void
-RulesWithLocs::resize_down(ssize_t n) noexcept {
-  if(n >= this->ssize()) return;
-  // Don't use erase() because it needs an assignment operator.
-  // Don't use resize() because it needs default constructor.
-  // Repeated pop_back() it is.
-  while(n < this->ssize()) rules_.pop_back();
-  firstUseLocs_.resize(n);
-}
-
 RuleSet
 RulesWithLocs::releaseRules() {
   firstUseLocs_.clear();
