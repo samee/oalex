@@ -775,7 +775,7 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
 // It combines variables used in an `output:` template and in a `where` stanza.
 //
 // The output is sorted by name, so that lookups can be binary searched.
-// lookupSymbol() uses this property.
+// RuleExprCompiler::lookupLocalIdent() uses this property.
 static SymbolTable
 mapToRule(DiagsDest ctx, RulesWithLocs& rl, const vector<LocalBinding>& locals,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
@@ -801,17 +801,6 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl, const vector<LocalBinding>& locals,
   sort(rv.begin(), rv.end());
   return rv;
 }
-
-static ssize_t
-lookupSymbol(const SymbolTable& symtab, const Ident& name) {
-  size_t i = std::lower_bound(symtab.begin(), symtab.end(),
-                              pair{name, ssize_t{0}})
-             - symtab.begin();
-  if(i >= symtab.size()) Bug("mapToRule() missed allocating for {}",
-                             name.preserveCase());
-  return symtab[i].second;
-}
-
 
 /* Input: the JsonLoc from the output of error_stanza in frontend_pieces.oalex.
    Argument errors.items should be a JsonLoc::Vector that looks like this: [
@@ -944,8 +933,8 @@ class RuleExprCompiler {
     * lexopts: The `lexical:` stanza, or defaults.
     * symtab: Local rules from the `where:` stanza. RuleExprCompuler falls back
         to global rules during RuleExpr compilation, but not in a pattern
-        compilation. Produced from mapToRule(), used by either lookupSymbol()
-        or by RuleExprCompiler::lookupIdent().
+        compilation. Produced from mapToRule(), used by either
+        lookupLocalIdent() or by lookupIdent().
     * partPatterns: Used by tokenizePattern() of pattern.cpp. They should
         already be in symtab.
     * errmsg: The `errors after failing:` stanza.
@@ -968,6 +957,8 @@ class RuleExprCompiler {
     return patternIdents_;
   }
 
+  // The main methods for compiling RuleExpr.
+  void compileLocalRules(const vector<LocalBinding>& locals);
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                                          JsonTmpl jstmpl);
@@ -993,7 +984,13 @@ class RuleExprCompiler {
   unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
                                         const string& patt);
 
+  // Look up an ident for rule index in the context of a RuleExpr.
+  // Performs local name lookups, and falls back to global names if
+  // that fails.
   ssize_t lookupIdent(const Ident& id) const;
+
+  // Does not fall back to global names. Raises Bug if name not found.
+  ssize_t lookupLocalIdent(const Ident& name) const;
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1277,24 +1274,28 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
   };
 }
 
-// Dev-note: I don't understand why these functions need to accept rl, symtab,
-// _and_ comp. The RuleExprCompiler should, I think, be able to expose all of
-// that. Or hide it all in nice methods.
-//
+ssize_t
+RuleExprCompiler::lookupLocalIdent(const Ident& name) const {
+  size_t i = std::lower_bound(symtab_->begin(), symtab_->end(),
+                              pair{name, ssize_t{0}})
+             - symtab_->begin();
+  if(i >= symtab_->size()) Bug("mapToRule() missed allocating for {}",
+                              name.preserveCase());
+  return symtab_->at(i).second;
+}
+
 // TODO: Reuse the result of identical patterns. I.e. For a local decl like
 // `a, b ~ ( some complex expr )`, don't instantiate that left-hand
 // expression multiple times.
-static void
-compileLocalRules(const vector<LocalBinding>& locals,
-                  RuleExprCompiler& comp, const SymbolTable& symtab,
-                  RulesWithLocs& rl) {
+void
+RuleExprCompiler::compileLocalRules(const vector<LocalBinding>& locals) {
   for(auto& local : locals) {
-    ssize_t j = lookupSymbol(symtab, local.localName);
-    if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
+    ssize_t j = this->lookupLocalIdent(local.localName);
+    if(dynamic_cast<const DefinitionInProgress*>(&(*rl_)[j])) {
       if(optional<CompiledSingleExpr> res
-          = comp.compileSingleExpr(*local.ruleExpr))
-        rl.deferred_assign_ptr(j, std::move(res->rule));
-      else rl.deferred_assign_ptr(j, dummyRule());
+          = this->compileSingleExpr(*local.ruleExpr))
+        rl_->deferred_assign_ptr(j, std::move(res->rule));
+      else rl_->deferred_assign_ptr(j, dummyRule());
     }
   }
 }
@@ -1315,7 +1316,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
 
   RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(stz.local_decls, comp, symtab, rl);
+  comp.compileLocalRules(stz.local_decls);
   ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
@@ -1403,7 +1404,7 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   vector<pair<Ident,string>> errmsg
     = destructureErrors(ctx, stz.errors);
   RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(stz.local_decls, comp, symtab, rl);
+  comp.compileLocalRules(stz.local_decls);
 
 
   OrRule orRule{{}, /* flattenOnDemand */ false};
