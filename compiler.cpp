@@ -967,7 +967,8 @@ class RuleExprCompiler {
   }
   bool somePatternFailed() const { return somePatternFailed_; }
 
-  unique_ptr<Rule> compileNonMapRuleExpr(const RuleExpr& rxpr);
+  ssize_t lookupIdent(const Ident& id) const;
+  unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
   unique_ptr<Rule> compileSingleExpr(const RuleExpr& rxpr);
  private:
   RulesWithLocs* rl_;
@@ -980,7 +981,6 @@ class RuleExprCompiler {
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
   bool somePatternFailed_ = false;
-  ssize_t lookupIdent(const Ident& id) const;
   unique_ptr<Rule> createFlatIdent(const Ident& ident, ssize_t ruleIndex);
   unique_ptr<Rule> processMappedIdent(const RuleExprMappedIdent& midxpr);
   unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
@@ -1178,7 +1178,7 @@ ruleExprCollectInputIdents(
 // This function is used both for local rules and for the main expression
 // in an expression-rule.
 unique_ptr<Rule>
-RuleExprCompiler::compileNonMapRuleExpr(const RuleExpr& rxpr) {
+RuleExprCompiler::createIfStringExpr(const RuleExpr& rxpr) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
   //    produces an empty vector. But that requires a new codegen Rule that
@@ -1188,8 +1188,6 @@ RuleExprCompiler::compileNonMapRuleExpr(const RuleExpr& rxpr) {
     return createRegexOrError(*rl_, regxpr->regex->clone(), regexOptsIdx_);
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     return createLiteralOrError(*rl_, sq->s);
-  else if(auto* id = getIfIdent(rxpr))
-    return move_to_unique(AliasRule{this->lookupIdent(*id)});
   else return nullptr;
 }
 
@@ -1199,8 +1197,11 @@ RuleExprCompiler::compileNonMapRuleExpr(const RuleExpr& rxpr) {
 // all these steps manually.
 unique_ptr<Rule>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
-  if(unique_ptr<Rule> non_map = this->compileNonMapRuleExpr(rxpr))
-    return non_map;
+  if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
+    return s;
+  else if(const Ident* id = getIfIdent(rxpr)) {
+    return move_to_unique(AliasRule{this->lookupIdent(*id)});
+  }
 
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
@@ -1260,9 +1261,11 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     : rl.appendAnonRule(DefinitionInProgress{});
   if(newIndex == -1) return;
 
-  unique_ptr<Rule> non_map = comp.compileNonMapRuleExpr(rxpr);
-  if(non_map) {
-    rl.deferred_assign_ptr(newIndex, std::move(non_map));
+  if(unique_ptr<Rule> s = comp.createIfStringExpr(rxpr)) {
+    rl.deferred_assign_ptr(newIndex, std::move(s));
+    return;
+  }else if(const Ident* id = getIfIdent(rxpr)) {
+    rl.deferred_assign(newIndex, AliasRule{comp.lookupIdent(*id)});
     return;
   }
 
