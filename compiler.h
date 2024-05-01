@@ -92,12 +92,14 @@ class RulesWithLocs {
 
      Named rules should use defineIdent followed by direct assignment.
   */
+  ssize_t appendAnonRulePtr(std::unique_ptr<Rule> rule);
   template <class X> ssize_t appendAnonRule(X x);
 
   /* Returns -1 if not found */
   ssize_t findIdent(DiagsDest ctx, const Ident& ident) const;
 
   /* For assigning to a rule after they have already been named */
+  void deferred_assign_ptr(ssize_t idx, std::unique_ptr<Rule> rule);
   template <class X> void deferred_assign(ssize_t idx, X x);
 
   /* These Skipper objects are indexed to by SkipPoint{} */

@@ -339,11 +339,16 @@ RulesWithLocs::reserveLocalName(DiagsDest ctx, const Ident& ident) {
   }
 }
 
-template <class X> ssize_t
-RulesWithLocs::appendAnonRule(X x) {
-  rules_.push_back(move_to_unique(x));
+ssize_t
+RulesWithLocs::appendAnonRulePtr(unique_ptr<Rule> rule) {
+  rules_.push_back(std::move(rule));
   firstUseLocs_.emplace_back(-1, -1);
   return rules_.size()-1;
+}
+
+template <class X> ssize_t
+RulesWithLocs::appendAnonRule(X x) {
+  return appendAnonRulePtr(move_to_unique(x));
 }
 
 template ssize_t RulesWithLocs::appendAnonRule(StringRule);
@@ -390,18 +395,22 @@ ruleNameOrEmpty(const Rule* r) {
   else return {};
 }
 
-template <class X> void
-RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+void
+RulesWithLocs::deferred_assign_ptr(ssize_t idx, unique_ptr<Rule> rule) {
   if(rules_[idx] != nullptr &&
      !dynamic_cast<const DefinitionInProgress*>(rules_[idx].get()) &&
      !dynamic_cast<const UnassignedRule*>(rules_[idx].get()))
     oalex::Bug("deferred_assign() cannot be used a rule already assigned");
 
-  x.deferred_name(ruleNameOrEmpty(rules_[idx].get()));  // preserve old name
-  x.context_skipper(rules_[idx]->context_skipper());    // and skipper
-  rules_[idx] = move_to_unique(x);
+  rule->deferred_name(ruleNameOrEmpty(rules_[idx].get()));  // preserve old name
+  rule->context_skipper(rules_[idx]->context_skipper());    // and skipper
+  rules_[idx] = std::move(rule);
 }
 
+template <class X> void
+RulesWithLocs::deferred_assign(ssize_t idx, X x) {
+  deferred_assign_ptr(idx, move_to_unique(x));
+}
 template void RulesWithLocs::deferred_assign(ssize_t idx, SkipPoint);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OutputTmpl);
 template void RulesWithLocs::deferred_assign(ssize_t idx, OrRule);
