@@ -493,8 +493,8 @@ createLiteralOrError(RulesWithLocs& rl, string_view literal) {
 
 // Used if we encounter errors after a slot has already been allocated
 // as DefinitionInProgress.
-static StringRule
-dummyRule() { return StringRule{""}; }
+static unique_ptr<Rule>
+dummyRule() { return move_to_unique(StringRule{""}); }
 
 static unique_ptr<Rule>
 createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
@@ -961,7 +961,7 @@ class RuleExprCompiler {
       {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
-  ssize_t process(const RuleExpr& rxpr);
+  unique_ptr<Rule> process(const RuleExpr& rxpr);
   ssize_t lookupIdent(const Ident& id) const;
   const map<string,vector<IdentUsage>>& patternIdents() const {
     return patternIdents_;
@@ -980,11 +980,12 @@ class RuleExprCompiler {
   map<string,vector<IdentUsage>> patternIdents_;
   bool somePatternFailed_ = false;
   unique_ptr<Rule> createFlatIdent(const Ident& ident, ssize_t ruleIndex);
-  ssize_t processMappedIdent(const RuleExprMappedIdent& midxpr);
-  ssize_t processConcat(const RuleExprConcat& catxpr);
-  ssize_t processRepeat(const RuleExprRepeat& repxpr);
-  ssize_t processDquoted(const RuleExprDquoted& dq);
-  ssize_t unflattenableWrapper(ssize_t targetPattRule, const string& patt);
+  unique_ptr<Rule> processMappedIdent(const RuleExprMappedIdent& midxpr);
+  unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
+  unique_ptr<Rule> processRepeat(const RuleExprRepeat& repxpr);
+  unique_ptr<Rule> processDquoted(const RuleExprDquoted& dq);
+  unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
+                                        const string& patt);
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -999,34 +1000,32 @@ RuleExprCompiler::lookupIdent(const Ident& id) const {
   // `where` and `outputs`. `RuleExpr` can refer to globals not in either.
   return rl_->findOrAppendIdent(ctx_, id);
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::process(const RuleExpr& rxpr) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
     const Ident& nm = id->ident;
-    return rl_->appendAnonRulePtr(
-        wrapErrorIfCustomized( createFlatIdent(nm, lookupIdent(nm)),
-                               nm, *errmsg_, *rl_ ));
+    return wrapErrorIfCustomized( createFlatIdent(nm, lookupIdent(nm)),
+                                  nm, *errmsg_, *rl_ );
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
-    return rl_->appendAnonRulePtr(createLiteralOrError(*rl_, s->s));
+    return createLiteralOrError(*rl_, s->s);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
     return this->processDquoted(*dq);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
-    return rl_->appendAnonRulePtr(
-        createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_) );
+    return createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_);
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     return this->processMappedIdent(*mid);
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     return this->processConcat(*cat);
   }else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr)) {
-    return rl_->appendAnonRulePtr(
-                  createOptionalRule(*rl_, this->process(*opt->part)) );
+    return createOptionalRule(*rl_,
+        rl_->appendAnonRulePtr(this->process(*opt->part)) );
   }else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
     return this->processRepeat(*rep);
   }else {
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
   }
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
   unique_ptr<Rule> result;
   if(auto* rhsid = dynamic_cast<const RuleExprIdent*>(midxpr.rhs.get())) {
@@ -1034,30 +1033,31 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     result = this->createFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
-    ssize_t newIndex = this->process(*midxpr.rhs);
+    ssize_t newIndex = rl_->appendAnonRulePtr(this->process(*midxpr.rhs));
     result = this->createFlatIdent(midxpr.lhs, newIndex);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get())) {
-    ssize_t newIndex = this->processDquoted(*dq);
-    newIndex = this->unflattenableWrapper(newIndex, dq->gs);
+    ssize_t newIndex = rl_->appendAnonRulePtr(this->processDquoted(*dq));
+    newIndex = rl_->appendAnonRulePtr(
+        this->unflattenableWrapper(newIndex, dq->gs) );
     result = this->createFlatIdent(midxpr.lhs, newIndex);
   }else
     Bug("Mapped ident cannot have {} on the rhs", typeid(*midxpr.rhs).name());
-  return rl_->appendAnonRulePtr(
-      wrapErrorIfCustomized(std::move(result), midxpr.lhs, *errmsg_, *rl_));
+  return wrapErrorIfCustomized(std::move(result), midxpr.lhs, *errmsg_, *rl_);
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
   vector<ConcatFlatRule::Component> comps;
   for(const unique_ptr<const RuleExpr>& c : catxpr.parts) {
-    comps.push_back({process(*c), {}});
+    comps.push_back({rl_->appendAnonRulePtr(process(*c)), {}});
   }
-  return rl_->appendAnonRule(ConcatFlatRule{{std::move(comps)}});
+  return move_to_unique(ConcatFlatRule{{std::move(comps)}});
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
-  ssize_t i = this->process(*repxpr.part);
-  ssize_t j = repxpr.glue ? this->process(*repxpr.glue) : -1;
-  return rl_->appendAnonRule(LoopRule{{
+  ssize_t i = rl_->appendAnonRulePtr(this->process(*repxpr.part));
+  ssize_t j = -1;
+  if(repxpr.glue) j = rl_->appendAnonRulePtr(this->process(*repxpr.glue));
+  return move_to_unique(LoopRule{{
       .partidx = i, .partname = "", .glueidx = j, .gluename = "",
       .lookidx = -1, .skipidx = -1}});
 }
@@ -1070,19 +1070,19 @@ getPrecomputedOrDie(const map<string,vector<IdentUsage>>& precomp,
     Bug("processDquoted() hasn't yet been called on '{}'", patt);
   return it->second;
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::unflattenableWrapper(ssize_t targetPattRule,
                                        const string& patt) {
   const vector<IdentUsage>* patternIdents
     = &getPrecomputedOrDie(patternIdents_, patt);
   JsonTmpl jstmpl = deduceOutputTmpl(*patternIdents);
-  return rl_->appendAnonRule(OutputTmpl{
+  return move_to_unique(OutputTmpl{
         /* childidx */ targetPattRule,
         /* childName */ "",
         /* outputTmpl */ std::move(jstmpl)
   });
 }
-ssize_t
+unique_ptr<Rule>
 RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
                                                    *partPatterns_);
@@ -1090,14 +1090,14 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // all of RuleExprCompiler::process();
   if(!patt.has_value()) {
     somePatternFailed_ = true;
-    return rl_->appendAnonRule(dummyRule());
+    return dummyRule();
   }
 
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
   vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
   patternIdents_.insert({dq.gs, patternIdents});
-  return rl_->appendAnonRulePtr(pattComp_.process(*patt));
+  return pattComp_.process(*patt);
 }
 
 
@@ -1207,20 +1207,19 @@ assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
   // TODO: Make the state transfer explicit.
-  ssize_t flatRule = comp.process(rxpr);
-  if(flatRule != -1) {
+  if(unique_ptr<Rule> flatRule = comp.process(rxpr)) {
     vector<IdentUsage> ids
       = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
     JsonTmpl jstmpl = deduceOutputTmpl(ids);
     rl.deferred_assign(j, OutputTmpl{
-        flatRule,  // childidx
+        rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
         {},        // childName, ignored for map-returning childidx
         std::move(jstmpl), // outputTmpl
     });
     return;
   }
 
-  rl.deferred_assign(j, dummyRule());
+  rl.deferred_assign_ptr(j, dummyRule());
 }
 
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
@@ -1265,9 +1264,9 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(newIndex == -1
      || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return;
 
-  ssize_t flatRule = comp.process(rxpr);
-  if(comp.somePatternFailed() || flatRule == -1) {
-    rl.deferred_assign(newIndex, dummyRule());
+  unique_ptr<Rule> flatRule = comp.process(rxpr);
+  if(comp.somePatternFailed() || !flatRule) {
+    rl.deferred_assign_ptr(newIndex, dummyRule());
     return;
   }
 
@@ -1283,7 +1282,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     checkPlaceholderTypes(ctx, listNames, exprIdents);
   } else outputTmpl = deduceOutputTmpl(exprIdents);
   rl.deferred_assign(newIndex, OutputTmpl{
-      flatRule,  // childidx
+      rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
       {},        // childName, ignored for map-returning childidx
       std::move(outputTmpl),
   });
