@@ -94,7 +94,7 @@ we want a particular rule output to be available to the outermost OutputTmpl,
 we need to keep propagating it up.
 
 Every pattern produces a map, except for the literal string ones (e.g.
-createWordOrError, createLiteralOrError, appendRegexOrError). The Word and
+createWordOrError, createLiteralOrError, createRegexOrError). The Word and
 Literal variants produce a string but that result is ignored when part of a
 Pattern object. The Regex variant also returns a string, but the result is
 generally propagated up to the user. They could produce maps too, or nothing at
@@ -118,12 +118,12 @@ class PatternToRulesCompiler {
   // to be a subset of those in symtab_ above.
   const vector<pair<Ident,string>>* errmsg_;
   ssize_t skipIndex_, regexOptsIdx_;
-  ssize_t processConcat(const PatternConcat& concatPatt);
-  ssize_t processOrList(const PatternOrList& orPatt);
-  ssize_t processOptional(const PatternOptional& optPatt);
-  ssize_t processIdent(const Ident& ident);
-  ssize_t processRepeat(const PatternRepeat& repPatt);
-  ssize_t processFold(const PatternFold& foldPatt);
+  unique_ptr<Rule> processConcat(const PatternConcat& concatPatt);
+  unique_ptr<Rule> processOrList(const PatternOrList& orPatt);
+  unique_ptr<Rule> processOptional(const PatternOptional& optPatt);
+  unique_ptr<Rule> processIdent(const Ident& ident);
+  unique_ptr<Rule> processRepeat(const PatternRepeat& repPatt);
+  unique_ptr<Rule> processFold(const PatternFold& foldPatt);
  public:
   PatternToRulesCompiler(DiagsDest ctx, RulesWithLocs& rl,
                          SymbolTable symtab,
@@ -133,10 +133,10 @@ class PatternToRulesCompiler {
     errmsg_(&errmsg), skipIndex_(skipIndex), regexOptsIdx_(regexOptsIdx) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
-  ssize_t process(const Pattern& patt);
+  unique_ptr<Rule> process(const Pattern& patt);
 };
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
   ConcatFlatRule concatRule{ {} };
   for(ssize_t i = 0; i < ssize(concatPatt.parts); ++i) {
@@ -146,34 +146,32 @@ PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
       rl_->appendAnonRule(SkipPoint{skipIndex_});
     }
     const Pattern& child = concatPatt.parts[i];
-    ssize_t j = this->process(child);
+    ssize_t j = rl_->appendAnonRulePtr(this->process(child));
     concatRule.comps.push_back({j, {}});
   }
-  rl_->appendAnonRule(std::move(concatRule));
-  return rl_->ssize()-1;
+  return move_to_unique(concatRule);
 }
 
 // TODO failed tests should output location. Or tests should have names.
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
   OrRule orRule{{}, /* flattenOnDemand */ true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
-    ssize_t j = this->process(child);
+    ssize_t j = rl_->appendAnonRulePtr(this->process(child));
     if(i+1 != ssize(orPatt.parts)) j = rl_->appendAnonRule(QuietMatch{j});
     orRule.comps.push_back({-1, j, passthroughTmpl});
   }
-  rl_->appendAnonRule(std::move(orRule));
-  return rl_->ssize()-1;
+  return move_to_unique(orRule);
 }
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
-  return rl_->appendAnonRulePtr(
-                createOptionalRule(*rl_, this->process(optPatt.part)) );
+  return createOptionalRule(*rl_,
+      rl_->appendAnonRulePtr(this->process(optPatt.part)) );
 }
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processIdent(const Ident& ident) {
   size_t i;
   for(i=0; i<symtab_.size(); ++i) if(ident == symtab_.at(i).first) break;
@@ -183,38 +181,36 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
   unique_ptr<Rule> identRule = move_to_unique(ConcatFlatRule{{
       {symtab_.at(i).second, ident.preserveCase()},
   }});
-  return rl_->appendAnonRulePtr(
-      wrapErrorIfCustomized(std::move(identRule), ident, *errmsg_, *rl_) );
+  return wrapErrorIfCustomized(std::move(identRule), ident, *errmsg_, *rl_);
 }
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
-  ssize_t i = this->process(repPatt.part);
+  ssize_t i = rl_->appendAnonRulePtr(this->process(repPatt.part));
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
-  return rl_->appendAnonRule(LoopRule{{
+  return move_to_unique(LoopRule{{
       .partidx = i, .partname = "", .glueidx = -1, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
 }
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
-  ssize_t pi = this->process(foldPatt.part);
-  ssize_t gi = this->process(foldPatt.glue);
+  ssize_t pi = rl_->appendAnonRulePtr(this->process(foldPatt.part));
+  ssize_t gi = rl_->appendAnonRulePtr(this->process(foldPatt.glue));
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
-  return rl_->appendAnonRule(LoopRule{{
+  return move_to_unique(LoopRule{{
       .partidx = pi, .partname = "", .glueidx = gi, .gluename = "",
       .lookidx = -1, .skipidx = ski}});
 }
 
-ssize_t
+unique_ptr<Rule>
 PatternToRulesCompiler::process(const Pattern& patt) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
-    return rl_->appendAnonRulePtr(
-                  createWordOrError(*rl_, **word, regexOptsIdx_));
+    return createWordOrError(*rl_, **word, regexOptsIdx_);
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
-    return rl_->appendAnonRulePtr(createLiteralOrError(*rl_, **oper));
+    return createLiteralOrError(*rl_, **oper);
   }else if(get_if_unique<NewlineChar>(&patt)) {
-    return rl_->appendAnonRulePtr(createLiteralOrError(*rl_, "\n"));
+    return createLiteralOrError(*rl_, "\n");
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
     return processIdent(*ident);
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
@@ -509,21 +505,13 @@ createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
 
 // TODO: Change regexOptsIdx for WordPreserving and RegexRule.
 // Requires us to pass in the index or the lexopts.
-static void
-assignRegexOrError(RulesWithLocs& rl, size_t ruleIndex,
-                   string errmsg, unique_ptr<const Regex> regex,
-                   ssize_t regexOptsIdx) {
-  rl.deferred_assign(ruleIndex, MatchOrError{rl.ssize(), std::move(errmsg)});
-  rl.appendAnonRule(RegexRule{std::move(regex), regexOptsIdx});
-}
-
-static ssize_t
-appendRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
+static unique_ptr<Rule>
+createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
                    ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
   rl.appendAnonRule(RegexRule{std::move(regex), regexOptsIdx});
-  rl.appendAnonRule(MatchOrError{newIndex, "Does not match expected pattern"});
-  return newIndex + 1;
+  return move_to_unique(
+      MatchOrError{newIndex, "Does not match expected pattern"} );
 }
 
 // ---------------------- Start appendExprRule() ------------------------------
@@ -1023,7 +1011,8 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
     return this->processDquoted(*dq);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
-    return appendRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_);
+    return rl_->appendAnonRulePtr(
+        createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_) );
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     return this->processMappedIdent(*mid);
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
@@ -1108,7 +1097,7 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // See the comment for compileLocalRules() for how to optimize this.
   vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
   patternIdents_.insert({dq.gs, patternIdents});
-  return pattComp_.process(*patt);
+  return rl_->appendAnonRulePtr(pattComp_.process(*patt));
 }
 
 
@@ -1195,9 +1184,9 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
   //    collects and concatenates strings. Or it requires some strange
   //    regex surgery.
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
-    assignRegexOrError(
-        rl, ruleIndex, "Does not match expected pattern",
-        regxpr->regex->clone(), comp.regexOptsIdx());
+    rl.deferred_assign_ptr(
+        ruleIndex,
+        createRegexOrError(rl, regxpr->regex->clone(), comp.regexOptsIdx()) );
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
     rl.deferred_assign_ptr(ruleIndex, createLiteralOrError(rl, sq->s));
   else if(auto* id = getIfIdent(rxpr))
