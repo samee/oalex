@@ -962,12 +962,12 @@ class RuleExprCompiler {
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
   unique_ptr<Rule> process(const RuleExpr& rxpr);
-  ssize_t lookupIdent(const Ident& id) const;
   const map<string,vector<IdentUsage>>& patternIdents() const {
     return patternIdents_;
   }
   bool somePatternFailed() const { return somePatternFailed_; }
-  ssize_t regexOptsIdx() const { return regexOptsIdx_; }
+
+  unique_ptr<Rule> compileNonMapRuleExpr(const RuleExpr& rxpr);
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -979,6 +979,7 @@ class RuleExprCompiler {
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
   bool somePatternFailed_ = false;
+  ssize_t lookupIdent(const Ident& id) const;
   unique_ptr<Rule> createFlatIdent(const Ident& ident, ssize_t ruleIndex);
   unique_ptr<Rule> processMappedIdent(const RuleExprMappedIdent& midxpr);
   unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
@@ -1175,24 +1176,20 @@ ruleExprCollectInputIdents(
 
 // This function is used both for local rules and for the main expression
 // in an expression-rule.
-static bool
-assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
-                     RulesWithLocs& rl, ssize_t ruleIndex) {
+unique_ptr<Rule>
+RuleExprCompiler::compileNonMapRuleExpr(const RuleExpr& rxpr) {
   // TODO: Add more special-cases:
   //  - If rxpr has no idents anywhere, ie. if ruleExprCollectInputIdents()
   //    produces an empty vector. But that requires a new codegen Rule that
   //    collects and concatenates strings. Or it requires some strange
   //    regex surgery.
   if(auto* regxpr = dynamic_cast<const RuleExprRegex*>(&rxpr))
-    rl.deferred_assign_ptr(
-        ruleIndex,
-        createRegexOrError(rl, regxpr->regex->clone(), comp.regexOptsIdx()) );
+    return createRegexOrError(*rl_, regxpr->regex->clone(), regexOptsIdx_);
   else if(auto* sq = dynamic_cast<const RuleExprSquoted*>(&rxpr))
-    rl.deferred_assign_ptr(ruleIndex, createLiteralOrError(rl, sq->s));
+    return createLiteralOrError(*rl_, sq->s);
   else if(auto* id = getIfIdent(rxpr))
-    rl.deferred_assign(ruleIndex, AliasRule{comp.lookupIdent(*id)});
-  else return false;
-  return true;
+    return move_to_unique(AliasRule{this->lookupIdent(*id)});
+  else return nullptr;
 }
 
 // Compiles a single RuleExpr, takes care of common non-map special cases,
@@ -1202,7 +1199,10 @@ assignNonMapRuleExpr(const RuleExpr& rxpr, const RuleExprCompiler& comp,
 static void
 assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
                  const RuleExpr& rxpr, RulesWithLocs& rl, ssize_t j) {
-  if(assignNonMapRuleExpr(rxpr, comp, rl, j)) return;
+  if(unique_ptr<Rule> non_map = comp.compileNonMapRuleExpr(rxpr)) {
+    rl.deferred_assign_ptr(j, std::move(non_map));
+    return;
+  }
 
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
@@ -1261,8 +1261,13 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
     : rl.appendAnonRule(DefinitionInProgress{});
-  if(newIndex == -1
-     || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return;
+  if(newIndex == -1) return;
+
+  unique_ptr<Rule> non_map = comp.compileNonMapRuleExpr(rxpr);
+  if(non_map) {
+    rl.deferred_assign_ptr(newIndex, std::move(non_map));
+    return;
+  }
 
   unique_ptr<Rule> flatRule = comp.process(rxpr);
   if(comp.somePatternFailed() || !flatRule) {
