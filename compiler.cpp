@@ -491,6 +491,11 @@ appendLiteralOrError(RulesWithLocs& rl, string_view literal) {
   return newIndex;
 }
 
+// Used if we encounter errors after a slot has already been allocated
+// as DefinitionInProgress.
+static StringRule
+dummyRule() { return StringRule{""}; }
+
 static ssize_t
 appendWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
@@ -1086,12 +1091,11 @@ ssize_t
 RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
                                                    *partPatterns_);
-  // Return dummy rule on error.
   // Dev-note: I'm slightly surprised that this is the only error case in
   // all of RuleExprCompiler::process();
   if(!patt.has_value()) {
     somePatternFailed_ = true;
-    return rl_->appendAnonRule(StringRule{""});
+    return rl_->appendAnonRule(dummyRule());
   }
 
   // It's okay if the pattern already exists in patternIdents_.
@@ -1209,14 +1213,19 @@ assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
   // before we can produce a vector<IdentUsage>.
   // TODO: Make the state transfer explicit.
   ssize_t flatRule = comp.process(rxpr);
-  vector<IdentUsage> ids
-    = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
-  JsonTmpl jstmpl = deduceOutputTmpl(ids);
-  rl.deferred_assign(j, OutputTmpl{
-      flatRule,  // childidx
-      {},        // childName, ignored for map-returning childidx
-      std::move(jstmpl), // outputTmpl
-  });
+  if(flatRule != -1) {
+    vector<IdentUsage> ids
+      = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+    JsonTmpl jstmpl = deduceOutputTmpl(ids);
+    rl.deferred_assign(j, OutputTmpl{
+        flatRule,  // childidx
+        {},        // childName, ignored for map-returning childidx
+        std::move(jstmpl), // outputTmpl
+    });
+    return;
+  }
+
+  rl.deferred_assign(j, dummyRule());
 }
 
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
@@ -1262,7 +1271,10 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
      || assignNonMapRuleExpr(rxpr, comp, rl, newIndex)) return;
 
   ssize_t flatRule = comp.process(rxpr);
-  if(comp.somePatternFailed()) return;
+  if(comp.somePatternFailed() || flatRule == -1) {
+    rl.deferred_assign(newIndex, dummyRule());
+    return;
+  }
 
   vector<IdentUsage> exprIdents
     = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
