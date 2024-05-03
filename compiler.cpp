@@ -968,6 +968,7 @@ class RuleExprCompiler {
   bool somePatternFailed() const { return somePatternFailed_; }
 
   unique_ptr<Rule> compileNonMapRuleExpr(const RuleExpr& rxpr);
+  unique_ptr<Rule> compileSingleExpr(const RuleExpr& rxpr);
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1196,30 +1197,26 @@ RuleExprCompiler::compileNonMapRuleExpr(const RuleExpr& rxpr) {
 // and makes the result non-flattenable.
 // TODO: Reuse this function in appendExprRule() instead of directly performing
 // all these steps manually.
-static void
-assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
-                 const RuleExpr& rxpr, RulesWithLocs& rl, ssize_t j) {
-  if(unique_ptr<Rule> non_map = comp.compileNonMapRuleExpr(rxpr)) {
-    rl.deferred_assign_ptr(j, std::move(non_map));
-    return;
-  }
+unique_ptr<Rule>
+RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
+  if(unique_ptr<Rule> non_map = this->compileNonMapRuleExpr(rxpr))
+    return non_map;
 
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
   // TODO: Make the state transfer explicit.
-  if(unique_ptr<Rule> flatRule = comp.process(rxpr)) {
+  if(unique_ptr<Rule> flatRule = this->process(rxpr)) {
     vector<IdentUsage> ids
-      = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+      = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
     JsonTmpl jstmpl = deduceOutputTmpl(ids);
-    rl.deferred_assign(j, OutputTmpl{
-        rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
+    return move_to_unique(OutputTmpl{
+        rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
         {},        // childName, ignored for map-returning childidx
         std::move(jstmpl), // outputTmpl
     });
-    return;
   }
 
-  rl.deferred_assign_ptr(j, dummyRule());
+  return dummyRule();
 }
 
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
@@ -1230,13 +1227,13 @@ assignSingleExpr(DiagsDest ctx, RuleExprCompiler& comp,
 // `a, b ~ ( some complex expr )`, don't instantiate that left-hand
 // expression multiple times.
 static void
-compileLocalRules(DiagsDest ctx, const vector<LocalBinding>& locals,
+compileLocalRules(const vector<LocalBinding>& locals,
                   RuleExprCompiler& comp, const SymbolTable& symtab,
                   RulesWithLocs& rl) {
   for(auto& local : locals) {
     ssize_t j = lookupSymbol(symtab, local.localName);
     if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      assignSingleExpr(ctx, comp, *local.ruleExpr, rl, j);
+      rl.deferred_assign_ptr(j, comp.compileSingleExpr(*local.ruleExpr));
   }
 }
 
@@ -1256,7 +1253,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(!requireValidIdents(ctx, errmsg, symtab)) errmsg.clear();
 
   RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(ctx, stz.local_decls, comp, symtab, rl);
+  compileLocalRules(stz.local_decls, comp, symtab, rl);
   ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = ruleName
     ? rl.defineIdent(ctx, ruleName, skipIndex)
@@ -1324,10 +1321,9 @@ compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RuleExprCompiler& comp, RulesWithLocs& rl) {
   ssize_t target = -1;
   if(branch.target != nullptr) {
-    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
-      target = rl.appendAnonRule(DefinitionInProgress{});
-      assignSingleExpr(ctx, comp, *branch.target, rl, target);
-    }else Unimplemented("Good actions with warnings");
+    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
+      target = rl.appendAnonRulePtr(comp.compileSingleExpr(*branch.target));
+    else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
     // Consider promoting this to an Error() later.
     Unimplemented("Actions without a target should produce an error");
@@ -1354,7 +1350,7 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   vector<pair<Ident,string>> errmsg
     = destructureErrors(ctx, stz.errors);
   RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
-  compileLocalRules(ctx, stz.local_decls, comp, symtab, rl);
+  compileLocalRules(stz.local_decls, comp, symtab, rl);
 
 
   OrRule orRule{{}, /* flattenOnDemand */ false};
