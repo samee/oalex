@@ -966,15 +966,13 @@ class RuleExprCompiler {
       {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
-  unique_ptr<Rule> process(const RuleExpr& rxpr);
   const map<string,vector<IdentUsage>>& patternIdents() const {
     return patternIdents_;
   }
-  bool somePatternFailed() const { return somePatternFailed_; }
 
-  unique_ptr<Rule> identComponent(const Ident& id);  // Uses `error:` overrides.
-  unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
+  optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
+                                                         JsonTmpl jstmpl);
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -986,7 +984,10 @@ class RuleExprCompiler {
   PatternToRulesCompiler pattComp_;
   map<string,vector<IdentUsage>> patternIdents_;
   bool somePatternFailed_ = false;
+  unique_ptr<Rule> process(const RuleExpr& rxpr);
+  unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
   unique_ptr<Rule> createFlatIdent(const Ident& ident, ssize_t ruleIndex);
+  unique_ptr<Rule> identComponent(const Ident& id);  // Uses `error:` overrides.
   unique_ptr<Rule> processMappedIdent(const RuleExprMappedIdent& midxpr);
   unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
   unique_ptr<Rule> processRepeat(const RuleExprRepeat& repxpr);
@@ -1250,6 +1251,35 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   return std::nullopt;
 }
 
+optional<CompiledSingleExpr>
+RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
+                                            JsonTmpl jstmpl) {
+  vector<IdentUsage> ids;
+
+  unique_ptr<Rule> flatRule;
+  if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
+    ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
+    flatRule = move_to_unique(ConcatFlatRule {{{
+        .idx = ridx, .outputPlaceholder{} }}});
+  }else if(const Ident* id = markUsedIfIdent(rxpr, ids))
+    flatRule = this->identComponent(*id);
+  else flatRule = this->process(rxpr);
+  if(somePatternFailed_ || !flatRule) return std::nullopt;
+
+  ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
+
+  vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
+  checkPlaceholderTypes(ctx_, listNames, ids);
+  return CompiledSingleExpr{
+    move_to_unique(OutputTmpl{
+      rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
+      {},        // childName, ignored for map-returning childidx
+      std::move(jstmpl), // outputTmpl
+    }),
+    std::move(ids)
+  };
+}
+
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
 // _and_ comp. The RuleExprCompiler should, I think, be able to expose all of
 // that. Or hide it all in nice methods.
@@ -1296,42 +1326,16 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
   if(newIndex == -1) return;
 
   vector<IdentUsage> exprIdents;
-  if(stz.jstmpl.holdsEllipsis()) {
-    optional<CompiledSingleExpr> res = comp.compileSingleExpr(rxpr);
-    if(res) {
-      rl.deferred_assign_ptr(newIndex, std::move(res->rule));
-      exprIdents = std::move(res->identsUsed);
-    }else {
-      rl.deferred_assign_ptr(newIndex, dummyRule());
-      return;
-    }
+  optional<CompiledSingleExpr> res = stz.jstmpl.holdsEllipsis()
+    ? comp.compileSingleExpr(rxpr)
+    : comp.compileSingleExprWithTmpl(rxpr, stz.jstmpl);
+
+  if(res) {
+    rl.deferred_assign_ptr(newIndex, std::move(res->rule));
+    exprIdents = std::move(res->identsUsed);
   }else {
-    unique_ptr<Rule> flatRule;
-    if(unique_ptr<Rule> s = comp.createIfStringExpr(rxpr)) {
-      ssize_t ridx = rl.appendAnonRulePtr(std::move(s));
-      flatRule = move_to_unique(ConcatFlatRule {{{
-          .idx = ridx, .outputPlaceholder{} }}});
-    }else if(const Ident* id = markUsedIfIdent(rxpr, exprIdents)) {
-      flatRule = comp.identComponent(*id);
-    }else {
-      flatRule = comp.process(rxpr);
-      if(comp.somePatternFailed() || !flatRule) {
-        rl.deferred_assign_ptr(newIndex, dummyRule());
-        return;
-      }
-    }
-
-    exprIdents
-      = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
-
-    JsonTmpl outputTmpl = stz.jstmpl;
-    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
-    checkPlaceholderTypes(ctx, listNames, exprIdents);
-    rl.deferred_assign(newIndex, OutputTmpl{
-        rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
-        {},        // childName, ignored for map-returning childidx
-        std::move(outputTmpl),
-    });
+    rl.deferred_assign_ptr(newIndex, dummyRule());
+    return;
   }
   // This error is not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
