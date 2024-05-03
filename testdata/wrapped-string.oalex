@@ -1,0 +1,8 @@
+rule wrapped_keyword: 'func'
+outputs: {
+  keyword: 'kw_func'
+}
+
+example wrapped_keyword:
+  func
+outputs: { keyword: 'kw_func' }

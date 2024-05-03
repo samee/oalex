@@ -972,7 +972,7 @@ class RuleExprCompiler {
   }
   bool somePatternFailed() const { return somePatternFailed_; }
 
-  ssize_t lookupIdent(const Ident& id) const;
+  unique_ptr<Rule> identComponent(const Ident& id);  // Uses `error:` overrides.
   unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
  private:
@@ -993,6 +993,8 @@ class RuleExprCompiler {
   unique_ptr<Rule> processDquoted(const RuleExprDquoted& dq);
   unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
                                         const string& patt);
+
+  ssize_t lookupIdent(const Ident& id) const;
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1010,9 +1012,7 @@ RuleExprCompiler::lookupIdent(const Ident& id) const {
 unique_ptr<Rule>
 RuleExprCompiler::process(const RuleExpr& rxpr) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
-    const Ident& nm = id->ident;
-    return wrapErrorIfCustomized( createFlatIdent(nm, lookupIdent(nm)),
-                                  nm, *errmsg_, *rl_ );
+    return this->identComponent(id->ident);
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return createLiteralOrError(*rl_, s->s);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
@@ -1031,6 +1031,11 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
   }else {
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
   }
+}
+unique_ptr<Rule>
+RuleExprCompiler::identComponent(const Ident& id) {
+  return wrapErrorIfCustomized( createFlatIdent(id, lookupIdent(id)),
+                                id, *errmsg_, *rl_ );
 }
 unique_ptr<Rule>
 RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
@@ -1301,18 +1306,19 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
       return;
     }
   }else {
+    unique_ptr<Rule> flatRule;
     if(unique_ptr<Rule> s = comp.createIfStringExpr(rxpr)) {
-      rl.deferred_assign_ptr(newIndex, std::move(s));
-      return;
-    }else if(const Ident* id = getIfIdent(rxpr)) {
-      rl.deferred_assign(newIndex, AliasRule{comp.lookupIdent(*id)});
-      return;
-    }
-
-    unique_ptr<Rule> flatRule = comp.process(rxpr);
-    if(comp.somePatternFailed() || !flatRule) {
-      rl.deferred_assign_ptr(newIndex, dummyRule());
-      return;
+      ssize_t ridx = rl.appendAnonRulePtr(std::move(s));
+      flatRule = move_to_unique(ConcatFlatRule {{{
+          .idx = ridx, .outputPlaceholder{} }}});
+    }else if(const Ident* id = markUsedIfIdent(rxpr, exprIdents)) {
+      flatRule = comp.identComponent(*id);
+    }else {
+      flatRule = comp.process(rxpr);
+      if(comp.somePatternFailed() || !flatRule) {
+        rl.deferred_assign_ptr(newIndex, dummyRule());
+        return;
+      }
     }
 
     exprIdents
