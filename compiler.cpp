@@ -1231,6 +1231,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   //       I should give them their own types. Some are sorted for fast lookup,
   //       while others are sorted for deduplication.
   if(unique_ptr<Rule> flatRule = this->process(rxpr)) {
+    if(somePatternFailed_) return std::nullopt;
     ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
     JsonTmpl jstmpl = deduceOutputTmpl(ids);
     OutputTmpl outputTmpl{
@@ -1289,36 +1290,46 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     : rl.appendAnonRule(DefinitionInProgress{});
   if(newIndex == -1) return;
 
-  if(unique_ptr<Rule> s = comp.createIfStringExpr(rxpr)) {
-    rl.deferred_assign_ptr(newIndex, std::move(s));
-    return;
-  }else if(const Ident* id = getIfIdent(rxpr)) {
-    rl.deferred_assign(newIndex, AliasRule{comp.lookupIdent(*id)});
-    return;
-  }
+  vector<IdentUsage> exprIdents;
+  if(stz.jstmpl.holdsEllipsis()) {
+    optional<CompiledSingleExpr> res = comp.compileSingleExpr(rxpr);
+    if(res) {
+      rl.deferred_assign_ptr(newIndex, std::move(res->rule));
+      exprIdents = std::move(res->identsUsed);
+    }else {
+      rl.deferred_assign_ptr(newIndex, dummyRule());
+      return;
+    }
+  }else {
+    if(unique_ptr<Rule> s = comp.createIfStringExpr(rxpr)) {
+      rl.deferred_assign_ptr(newIndex, std::move(s));
+      return;
+    }else if(const Ident* id = getIfIdent(rxpr)) {
+      rl.deferred_assign(newIndex, AliasRule{comp.lookupIdent(*id)});
+      return;
+    }
 
-  unique_ptr<Rule> flatRule = comp.process(rxpr);
-  if(comp.somePatternFailed() || !flatRule) {
-    rl.deferred_assign_ptr(newIndex, dummyRule());
-    return;
-  }
+    unique_ptr<Rule> flatRule = comp.process(rxpr);
+    if(comp.somePatternFailed() || !flatRule) {
+      rl.deferred_assign_ptr(newIndex, dummyRule());
+      return;
+    }
 
-  vector<IdentUsage> exprIdents
-    = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+    exprIdents
+      = ruleExprOutputIdentsCheckUnique(ctx, rxpr, comp.patternIdents());
+
+    JsonTmpl outputTmpl = stz.jstmpl;
+    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
+    checkPlaceholderTypes(ctx, listNames, exprIdents);
+    rl.deferred_assign(newIndex, OutputTmpl{
+        rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
+        {},        // childName, ignored for map-returning childidx
+        std::move(outputTmpl),
+    });
+  }
   // This error is not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
                    stz.local_decls, stz.jstmpl);
-
-  JsonTmpl outputTmpl = stz.jstmpl;
-  if(!outputTmpl.holdsEllipsis()) {
-    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
-    checkPlaceholderTypes(ctx, listNames, exprIdents);
-  } else outputTmpl = deduceOutputTmpl(exprIdents);
-  rl.deferred_assign(newIndex, OutputTmpl{
-      rl.appendAnonRulePtr(std::move(flatRule)),  // childidx
-      {},        // childName, ignored for map-returning childidx
-      std::move(outputTmpl),
-  });
 }
 
 // Dev-note: maybe move to pattern.h
