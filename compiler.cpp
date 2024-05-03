@@ -934,6 +934,11 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
   }
 }
 
+struct CompiledSingleExpr {
+  unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
+  vector<IdentUsage> identsUsed;
+};
+
 class RuleExprCompiler {
  public:
   /* Params:
@@ -969,7 +974,7 @@ class RuleExprCompiler {
 
   ssize_t lookupIdent(const Ident& id) const;
   unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
-  unique_ptr<Rule> compileSingleExpr(const RuleExpr& rxpr);
+  optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1191,33 +1196,52 @@ RuleExprCompiler::createIfStringExpr(const RuleExpr& rxpr) {
   else return nullptr;
 }
 
+// This function is used for special-casing RuleExprIdent values. In
+// this case, the rule expression's outputs are _not_ encased in a new
+// layer of json maps. Most other RuleExpr currently output through
+// OutputTmpl{}.
+//
+// If this function returns nullptr, it means rxpr isn't a RuleExprIdent.
+static const Ident*
+markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
+  const Ident* id = getIfIdent(rxpr);
+  if(id) usageOutput.push_back({.id = *id, .inList = false});
+  return id;
+}
 // Compiles a single RuleExpr, takes care of common non-map special cases,
 // and makes the result non-flattenable.
 // TODO: Reuse this function in appendExprRule() instead of directly performing
 // all these steps manually.
-unique_ptr<Rule>
+optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
+  vector<IdentUsage> ids;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
-    return s;
-  else if(const Ident* id = getIfIdent(rxpr)) {
-    return move_to_unique(AliasRule{this->lookupIdent(*id)});
+    return CompiledSingleExpr{std::move(s), std::move(ids)};
+  else if(const Ident* id = markUsedIfIdent(rxpr, ids)) {
+    return CompiledSingleExpr{
+      move_to_unique(AliasRule{this->lookupIdent(*id)}),
+      std::move(ids)
+    };
   }
 
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
   // TODO: Make the state transfer explicit.
+  // TODO: I keep forgetting which vectors are sorted and when they are sorted.
+  //       I should give them their own types. Some are sorted for fast lookup,
+  //       while others are sorted for deduplication.
   if(unique_ptr<Rule> flatRule = this->process(rxpr)) {
-    vector<IdentUsage> ids
-      = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
+    ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
     JsonTmpl jstmpl = deduceOutputTmpl(ids);
-    return move_to_unique(OutputTmpl{
+    OutputTmpl outputTmpl{
         rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
         {},        // childName, ignored for map-returning childidx
         std::move(jstmpl), // outputTmpl
-    });
+    };
+    return CompiledSingleExpr{move_to_unique(outputTmpl), std::move(ids)};
   }
 
-  return dummyRule();
+  return std::nullopt;
 }
 
 // Dev-note: I don't understand why these functions need to accept rl, symtab,
@@ -1233,8 +1257,12 @@ compileLocalRules(const vector<LocalBinding>& locals,
                   RulesWithLocs& rl) {
   for(auto& local : locals) {
     ssize_t j = lookupSymbol(symtab, local.localName);
-    if(dynamic_cast<const DefinitionInProgress*>(&rl[j]))
-      rl.deferred_assign_ptr(j, comp.compileSingleExpr(*local.ruleExpr));
+    if(dynamic_cast<const DefinitionInProgress*>(&rl[j])) {
+      if(optional<CompiledSingleExpr> res
+          = comp.compileSingleExpr(*local.ruleExpr))
+        rl.deferred_assign_ptr(j, std::move(res->rule));
+      else rl.deferred_assign_ptr(j, dummyRule());
+    }
   }
 }
 
@@ -1324,8 +1352,11 @@ compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RuleExprCompiler& comp, RulesWithLocs& rl) {
   unique_ptr<Rule> target;
   if(branch.target != nullptr) {
-    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
-      target = comp.compileSingleExpr(*branch.target);
+    if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
+      if(optional<CompiledSingleExpr> res
+          = comp.compileSingleExpr(*branch.target))
+        target = std::move(res->rule);
+    }
     else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
     // Consider promoting this to an Error() later.
