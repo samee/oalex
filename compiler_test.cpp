@@ -21,6 +21,7 @@
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
 using fmt::format;
+using oalex::AliasRule;
 using oalex::assertEmptyDiags;
 using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
@@ -164,6 +165,8 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
       extra += "}";
     }else if(auto* s = dynamic_cast<const StringRule*>(rule_ptr.get())) {
       extra = format("{{\"{}\"}}", s->val);
+    }else if(auto* alias = dynamic_cast<const AliasRule*>(rule_ptr.get())) {
+      extra = format("{{ {} }}", alias->targetidx);
     }
     oalex::Debug("  {: 3d}| {}: {}{}", i++, nm,
                  typeid(*rule_ptr).name(), extra);
@@ -250,6 +253,9 @@ void assertValidAndEqualRuleList(string_view msg,
     }else if(auto* as = dynamic_cast<const StringRule*>(ar)) {
       auto* bs = static_cast<const StringRule*>(br);
       assertEqual(msg, as->val, bs->val);
+    }else if(auto* alias = dynamic_cast<const AliasRule*>(ar)) {
+      auto* blias = static_cast<const AliasRule*>(br);
+      stk.push_back({alias->targetidx, blias->targetidx});
     }else {
       Bug("{}: unknown Rule type {}", __func__, ar->specifics_typename());
     }
@@ -708,6 +714,7 @@ void testLocalNameResolution() {
   unique_ptr<const Regex> squoted_literal_regex
     = parseRegex(R"(/'([^'\\]|\\.)*'/)");
   RuleExprRegex squoted_literal_rule{squoted_literal_regex->clone()};
+  appendExprRule(ctx, {}, squoted_literal_rule, stanzas({}), rl);
 
   // Now, we will have one rule, that references a "string_literal". We will
   // now either overshadow that name with a local name binding, or let the
@@ -735,19 +742,21 @@ void testLocalNameResolution() {
            "string_literal"),
     RegexRule(squoted_literal_regex->clone(), 0),
     MatchOrError{2, "Does not match expected pattern"},
-    StringRule{"u"},
-    MatchOrError{4, "Expected 'u'"},
+    RegexRule(squoted_literal_regex->clone(), 0),
+    MatchOrError{4, "Does not match expected pattern"},
     StringRule{"u"},
     MatchOrError{6, "Expected 'u'"},
+    StringRule{"u"},
+    MatchOrError{8, "Expected 'u'"},
     ConcatFlatRule{{{1, "string_literal"}}},
-    ConcatFlatRule{{{3, "string_literal"}}},
-    ConcatFlatRule{{ {5, {}}, {8, {}} }},
-    ConcatFlatRule{{ {7, {}}, {9, {}} }},
-    nmRule(OutputTmpl{10, {}, JsonTmpl{JsonTmpl::Map{
+    ConcatFlatRule{{{5, "string_literal"}}},
+    ConcatFlatRule{{ {7, {}}, {10, {}} }},
+    ConcatFlatRule{{ {9, {}}, {11, {}} }},
+    nmRule(OutputTmpl{12, {}, JsonTmpl{JsonTmpl::Map{
             {"string_literal",
              JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}
           }}}, "u_dquoted_literal"),
-    nmRule(OutputTmpl{11, {}, JsonTmpl{JsonTmpl::Map{
+    nmRule(OutputTmpl{13, {}, JsonTmpl{JsonTmpl::Map{
             {"string_literal",
              JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}
           }}}, "u_squoted_literal")
