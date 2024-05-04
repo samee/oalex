@@ -1319,20 +1319,21 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
 static OrRule::Component
 compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RuleExprCompiler& comp, RulesWithLocs& rl) {
-  ssize_t target = -1;
+  unique_ptr<Rule> target;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none)
-      target = rl.appendAnonRulePtr(comp.compileSingleExpr(*branch.target));
+      target = comp.compileSingleExpr(*branch.target);
     else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
     // Consider promoting this to an Error() later.
     Unimplemented("Actions without a target should produce an error");
-  }else target = rl.appendAnonRule(ErrorRule{string{branch.diagMsg}});
+  }else target = move_to_unique(ErrorRule{string{branch.diagMsg}});
 
   ssize_t lookidx = branch.lookahead
     ? appendLookahead(ctx, *branch.lookahead, rl.defaultLexopts(), rl)
     : -1;
-  return { .lookidx = lookidx, .parseidx = target, .tmpl{passthroughTmpl} };
+  ssize_t targetidx = target ? rl.appendAnonRulePtr(std::move(target)) : -1;
+  return { .lookidx = lookidx, .parseidx = targetidx, .tmpl{passthroughTmpl} };
 }
 
 void
