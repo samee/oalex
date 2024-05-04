@@ -989,6 +989,8 @@ class RuleExprCompiler {
   unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
   unique_ptr<Rule> processRepeat(const RuleExprRepeat& repxpr);
   unique_ptr<Rule> processDquoted(const RuleExprDquoted& dq);
+  static unique_ptr<Rule> unflattenableWrapper(ssize_t targetRule,
+                                               const vector<IdentUsage>& usage);
   unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
                                         const string& patt);
 
@@ -999,6 +1001,13 @@ class RuleExprCompiler {
 
   // Does not fall back to global names. Raises Bug if name not found.
   ssize_t lookupLocalIdent(const Ident& name) const;
+
+  // The recursion driver for compiling RuleExpr
+  unique_ptr<Rule> compileRuleExpr(const RuleExpr& rxpr,
+                                   vector<IdentUsage>& usageOutput);
+
+  unique_ptr<Rule> compileToFlatStruct(const RuleExpr& rxpr,
+                                       vector<IdentUsage>& usageOutput);
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1085,18 +1094,32 @@ getPrecomputedOrDie(const map<string,vector<IdentUsage>>& precomp,
     Bug("processDquoted() hasn't yet been called on '{}'", patt);
   return it->second;
 }
+
+// Wraps targetRule in an OutputTmpl{} so that it's not flattenable anymore.
+// This is usually the last step for any rule, local or toplovel. This function
+// automatically deduces the template to use based on the list of identifiers
+// that appear in the rule.
+//
+// The `usage` param is expected to be already sorted here, so duplicate
+// identifiers can be silently removed.
+unique_ptr<Rule>
+RuleExprCompiler::unflattenableWrapper(ssize_t targetRule,
+                                       const vector<IdentUsage>& usage) {
+  JsonTmpl jstmpl = deduceOutputTmpl(usage);
+  return move_to_unique(OutputTmpl{
+      targetRule,  // childidx
+      {},          // childName, ignored for map-returning childidx
+      std::move(jstmpl), // outputTmpl
+  });
+}
+
 unique_ptr<Rule>
 RuleExprCompiler::unflattenableWrapper(ssize_t targetPattRule,
                                        const string& patt) {
-  const vector<IdentUsage>* patternIdents
-    = &getPrecomputedOrDie(patternIdents_, patt);
-  JsonTmpl jstmpl = deduceOutputTmpl(*patternIdents);
-  return move_to_unique(OutputTmpl{
-        /* childidx */ targetPattRule,
-        /* childName */ "",
-        /* outputTmpl */ std::move(jstmpl)
-  });
+  return unflattenableWrapper( targetPattRule,
+                               getPrecomputedOrDie(patternIdents_, patt) );
 }
+
 unique_ptr<Rule>
 RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
@@ -1116,6 +1139,48 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   return pattComp_.process(*patt);
 }
 
+static vector<IdentUsage>
+ruleExprOutputIdentsCheckUnique(
+      DiagsDest ctx, const RuleExpr& rxpr,
+      const map<string,vector<IdentUsage>>& patternIdents);
+
+// This method is the "main" entry-point for recursively compiling RuleExpr.
+// This means the output type and flattenability depends on the concrete type
+// of rxpr.
+//
+//   * RuleExprSquoted and RuleExprRegex will produce string outputs, and
+//     thus do not satisfy resultFlattenableOrError().
+//   * Everything else other than RuleExprDquoted produces a flattenable struct.
+//   * RuleExprDquoted output varies likewise, and can be either a flattenable
+//     struct or a string depending on whether it has child components.
+//
+// Sometimes, the caller special-cases RuleExpr{Squoted,Regex,Ident} so that
+// they are not handled by this function.
+//
+// All identifiers in rxpr are appended to usageOutput. They are used to
+// generate an output template if needed. Moreover, they are also used to
+// verify that any `outputs:` template provided are actually defined, and has
+// matching listyness.
+//
+// If an error is encountered, e.g. because a double-quoted string had an
+// illegal pattern, this function returns nullptr.
+//
+//   CompiledSingleExpr::identsUsed needs to be sorted by the caller.
+unique_ptr<Rule>
+RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
+                                  vector<IdentUsage>& usageOutput) {
+  // This processing also collects identifiers in rxpr. This must be called
+  // before we can produce a vector<IdentUsage>.
+  // TODO: I keep forgetting which vectors are sorted and when they are sorted.
+  //       I should give them their own types. Some are sorted for fast lookup,
+  //       while others are sorted for deduplication.
+  unique_ptr<Rule> rv = this->process(rxpr);
+  if(somePatternFailed_) return nullptr;
+  vector<IdentUsage> ids
+    = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_);
+  for(auto& id: ids) usageOutput.push_back(std::move(id));
+  return rv;
+}
 
 struct RuleExprCollectConfig {
   enum class Type {
@@ -1237,7 +1302,7 @@ markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
 //
 //   RuleExpr{Ident,Squoted,Regex}: pass the match through,
 //                                  unchanged and unrestricted.
-//   Others: the result is wrapped in OutputTmpl.
+//   Others: the result is wrapped in unflattenableWrapper().
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   vector<IdentUsage> ids;
@@ -1250,25 +1315,47 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
     return CompiledSingleExpr{move_to_unique(AliasRule{idx}), std::move(ids)};
   }
 
-  // This processing also collects identifiers in rxpr. This must be called
-  // before we can produce a vector<IdentUsage>.
-  // TODO: Make the state transfer explicit.
-  // TODO: I keep forgetting which vectors are sorted and when they are sorted.
-  //       I should give them their own types. Some are sorted for fast lookup,
-  //       while others are sorted for deduplication.
-  if(unique_ptr<Rule> flatRule = this->process(rxpr)) {
-    if(somePatternFailed_) return std::nullopt;
-    ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
-    JsonTmpl jstmpl = deduceOutputTmpl(ids);
-    OutputTmpl outputTmpl{
-        rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
-        {},        // childName, ignored for map-returning childidx
-        std::move(jstmpl), // outputTmpl
-    };
-    return CompiledSingleExpr{move_to_unique(outputTmpl), std::move(ids)};
+  if(unique_ptr<Rule> flatRule = this->compileRuleExpr(rxpr, ids)) {
+    sort(ids.begin(), ids.end(), idlt);
+    unique_ptr<Rule> outrule = unflattenableWrapper(
+        rl_->appendAnonRulePtr(std::move(flatRule)), ids );
+    return CompiledSingleExpr{std::move(outrule), std::move(ids)};
   }
 
   return std::nullopt;
+}
+
+// This function compiles a RuleExpr, such that the output satisfies
+// resultFlattenableOrError(). It is used in two different situations:
+//
+//   * To compile the main body of a single-choice rule.
+//   * To compile a branch of a multi-choice rule.
+//
+// In both cases, it is used only if an `outputs:` stanza is explicitly
+// provided, where such a flattenable struct output is important.
+//
+// The usageOutput is an output parameter that aggregates all the fields
+// we see across the branches.
+//
+// Semantics:
+//
+//   RuleExprIdent: produces a ConcatFlatRule with a single field.
+//   RuleExpr{Squoted,Regex}: produces an empty map.
+//   Others: passes through the map from compileRuleExpr().
+unique_ptr<Rule>
+RuleExprCompiler::compileToFlatStruct(
+    const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
+  if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
+    ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
+    return move_to_unique(ConcatFlatRule {{{
+        .idx = ridx, .outputPlaceholder{} }}});
+  }else if(const Ident* id = markUsedIfIdent(rxpr, usageOutput))
+    return this->identComponent(*id);
+  else {
+    unique_ptr<Rule> flatRule = this->process(rxpr);
+    if(somePatternFailed_ || !flatRule) return nullptr;
+    else return flatRule;
+  }
 }
 
 // This function is used only to compile the main rule expression of a
@@ -1278,15 +1365,8 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                             JsonTmpl jstmpl) {
   vector<IdentUsage> ids;
 
-  unique_ptr<Rule> flatRule;
-  if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
-    ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
-    flatRule = move_to_unique(ConcatFlatRule {{{
-        .idx = ridx, .outputPlaceholder{} }}});
-  }else if(const Ident* id = markUsedIfIdent(rxpr, ids))
-    flatRule = this->identComponent(*id);
-  else flatRule = this->process(rxpr);
-  if(somePatternFailed_ || !flatRule) return std::nullopt;
+  unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, ids);
+  if(!flatRule) return std::nullopt;
 
   ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
 
