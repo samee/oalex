@@ -501,8 +501,6 @@ createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
   return move_to_unique(MatchOrError{newIndex, format("Expected '{}'", word)});
 }
 
-// TODO: Change regexOptsIdx for WordPreserving and RegexRule.
-// Requires us to pass in the index or the lexopts.
 static unique_ptr<Rule>
 createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
                    ssize_t regexOptsIdx) {
@@ -953,6 +951,11 @@ class RuleExprCompiler {
       {}
   RuleExprCompiler(const RuleExprCompiler&) = delete;
   RuleExprCompiler(RuleExprCompiler&&) = default;
+
+  // Returns the identifiers referenced in a given RuleExprDquoted string.
+  // Only works once the given string has been compiled by compileRuleExpr().
+  //
+  // Dev-note: Only processDquoted() ever adds to this.
   const map<string,vector<IdentUsage>>& patternIdents() const {
     return patternIdents_;
   }
@@ -1186,8 +1189,12 @@ ruleExprCollectInputIdents(
   ruleExprCollectIdents(rxpr, conf, output);
 }
 
-// This function is used both for local rules and for the main expression
-// in an expression-rule.
+// This function is used for special-casing string-producing rxpr values. In
+// this case, the rule expression's outputs are _not_ encased in a new
+// layer of json maps. Most other RuleExpr currently output through
+// OutputTmpl{}.
+//
+// If this function returns nullptr, it means rxpr doesn't produce a string.
 unique_ptr<Rule>
 RuleExprCompiler::createIfStringExpr(const RuleExpr& rxpr) {
   // TODO: Add more special-cases:
@@ -1214,10 +1221,23 @@ markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
   if(id) usageOutput.push_back({.id = *id, .inList = false});
   return id;
 }
-// Compiles a single RuleExpr, takes care of common non-map special cases,
-// and makes the result non-flattenable.
-// TODO: Reuse this function in appendExprRule() instead of directly performing
-// all these steps manually.
+
+// This function is used to compile:
+//
+//   * Local rules (in `where:`)
+//   * The main rule of a single-choice rule without a template
+//   * A single branch of a multi-choice rule without a template
+//
+// Per the usual convention, the compiled rules are all appeneded to *this->rl_,
+// except for the last rule which is returned. This allows the caller to
+// preallocate indices to which the last rule can be assigned, e.g., to break
+// compilation cycles in recursive rules.
+//
+// Semantics:
+//
+//   RuleExpr{Ident,Squoted,Regex}: pass the match through,
+//                                  unchanged and unrestricted.
+//   Others: the result is wrapped in OutputTmpl.
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   vector<IdentUsage> ids;
@@ -1251,6 +1271,8 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   return std::nullopt;
 }
 
+// This function is used only to compile the main rule expression of a
+// single-choice rule. It accepts a jstmpl, unlike compileSingleExpr().
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                             JsonTmpl jstmpl) {
@@ -1286,7 +1308,7 @@ RuleExprCompiler::lookupLocalIdent(const Ident& name) const {
                               pair{name, ssize_t{0}})
              - symtab_->begin();
   if(i >= symtab_->size()) Bug("mapToRule() missed allocating for {}",
-                              name.preserveCase());
+                               name.preserveCase());
   return symtab_->at(i).second;
 }
 
@@ -1355,6 +1377,7 @@ isUserWord(const LexDirective& lexopts, string_view s) {
 }
 
 // TODO: Replace this with RuleExprCompiler.
+// It should also look up local rules.
 static ssize_t
 appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                 const LexDirective& lexopts, RulesWithLocs& rl) {
@@ -1372,6 +1395,7 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
+// FIXME: return nullopt on error.
 static OrRule::Component
 compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
                   RuleExprCompiler& comp, RulesWithLocs& rl) {
