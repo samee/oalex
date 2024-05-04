@@ -1243,11 +1243,11 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   vector<IdentUsage> ids;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
     return CompiledSingleExpr{std::move(s), std::move(ids)};
+  // TODO: errmsg_ customization.
   else if(const Ident* id = markUsedIfIdent(rxpr, ids)) {
-    return CompiledSingleExpr{
-      move_to_unique(AliasRule{this->lookupIdent(*id)}),
-      std::move(ids)
-    };
+    ssize_t idx = this->lookupIdent(*id);
+    if(idx == -1) return std::nullopt;
+    return CompiledSingleExpr{move_to_unique(AliasRule{idx}), std::move(ids)};
   }
 
   // This processing also collects identifiers in rxpr. This must be called
