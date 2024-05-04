@@ -1,0 +1,13 @@
+# This checks for a bug where codegen was raising a BugEx when
+# mult-match rules with templates had a single-quoted string or regex
+# as a right-hand side. The bug was that we were returning a string match,
+# while templates insist on a struct return value.
+
+rule decl_keyword choices:
+| "decl" -> 'decl'
+| 'var'
+outputs: { keyword: 'decl' }
+
+example decl_keyword:
+  var
+outputs: { keyword: 'decl' }

@@ -135,3 +135,36 @@ outputs: {
     { varname: "y", init_value: "9" },
   ]
 }
+
+rule simple_stmt_tmpl choices:
+| "var"     -> "var varname [ = init_value ]"
+| int_value -> error 'Statement cannot start with a number'
+| "lhs = rhs"
+| error 'Invalid statement'
+where:
+  lhs, varname ~ ident
+  rhs, init_value ~ int_value
+outputs: {
+  decl: { varname, init_value },
+  asgn: { lhs, rhs },
+}
+
+rule compound_stmt_tmpl:
+  stmt; ... ; stmt;
+where:
+  stmt ~ simple_stmt_tmpl
+
+# TODO: outputs are broken for optional fields.
+# We should simply omit absent fields,
+# instead of spamming the output with dummy values.
+example compound_stmt_tmpl:
+  x = 3;
+  var y = 9;
+outputs: {
+  stmt: [
+    { decl: { varname:{}, init_value:{} },
+      asgn: { lhs: "x", rhs: "3" } },
+    { decl: { varname: "y", init_value: "9" },
+      asgn: { lhs:{}, rhs:{} } },
+  ]
+}

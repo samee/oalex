@@ -198,8 +198,9 @@ class OrRule final : public Rule {
   //
   // If flattenOnDemand is true, and some ConcatFlatRule considers this OrRule
   // to be a child component, this needs to always return a JsonLoc::Map.
-  // As a general rule, flattenOnDemand is false for named multi-match rules,
-  // but true for anonymous subparts of a pattern.
+  // As a general rule, flattenOnDemand is false for named multi-match rules
+  // without an explicit `outputs` stanza, but true for all other cases.
+  // For example, anonymous subparts of a pattern.
   //
   // Setting lookidx to -1 makes this rule not do a separate lookahead.
   // parseidx must always be a valid index.

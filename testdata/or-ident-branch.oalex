@@ -1,0 +1,22 @@
+rule bar: "var"
+where:
+  var ~ /[a-z]+/
+
+example bar:
+  abc
+outputs: { var: "abc" }
+
+# Test single-ident lhs with a template.
+rule foo choices:
+| bar -> bar
+outputs: { field: bar }
+
+example foo:
+  abc
+outputs: { field: { var: "abc" } }
+
+# Test that we can track usage of these bare-ident
+# right-hand sides.
+rule bar2: var
+where:
+  var ~ /[a-z]+/

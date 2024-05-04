@@ -1,0 +1,18 @@
+rule ident: /[a-z]+/
+
+# We used to not support a single identifier on the rhs
+# of a rule ident that used an outputs template.
+# This "double-quoting" was a workaround at the time.
+# This workaround is now unnecessary, but we still have tests
+# to check that this case is supported.
+rule wrapped_ident: "ident"
+outputs: {
+  varname: ident
+}
+
+example wrapped_ident:
+  foo
+outputs: {
+  varname: "foo"
+}
+

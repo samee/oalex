@@ -1,0 +1,5 @@
+rule ident: /[a-z]+/
+rule wrapped_ident: ident
+outputs: {
+  varname: ident
+}

@@ -965,6 +965,9 @@ class RuleExprCompiler {
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                                          JsonTmpl jstmpl);
+  OrRule::Component compileRuleBranch(const RuleBranch& branch,
+      bool exposeFields, vector<IdentUsage>& usageOutput);
+
  private:
   RulesWithLocs* rl_;
   DiagsDest ctx_;
@@ -1345,10 +1348,12 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 unique_ptr<Rule>
 RuleExprCompiler::compileToFlatStruct(
     const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
+
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
+    // There are no fields to expose, but we still need an empty struct.
     ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
-    return move_to_unique(ConcatFlatRule {{{
-        .idx = ridx, .outputPlaceholder{} }}});
+    return move_to_unique(ConcatFlatRule {{{ .idx = ridx,
+                                             .outputPlaceholder{} }}} );
   }else if(const Ident* id = markUsedIfIdent(rxpr, usageOutput))
     return this->identComponent(*id);
   else {
@@ -1368,7 +1373,7 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
   unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, ids);
   if(!flatRule) return std::nullopt;
 
-  ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, this->patternIdents());
+  ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_);
 
   vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
   checkPlaceholderTypes(ctx_, listNames, ids);
@@ -1476,14 +1481,16 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
 }
 
 // FIXME: return nullopt on error.
-static OrRule::Component
-compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
-                  RuleExprCompiler& comp, RulesWithLocs& rl) {
+OrRule::Component
+RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
+                  vector<IdentUsage>& usageOutput) {
   unique_ptr<Rule> target;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
-      if(optional<CompiledSingleExpr> res
-          = comp.compileSingleExpr(*branch.target))
+      if(exposeFields)
+        target = this->compileToFlatStruct(*branch.target, usageOutput);
+      else if(optional<CompiledSingleExpr> res
+          = this->compileSingleExpr(*branch.target))
         target = std::move(res->rule);
     }
     else Unimplemented("Good actions with warnings");
@@ -1493,9 +1500,9 @@ compileRuleBranch(DiagsDest ctx, const RuleBranch& branch,
   }else target = move_to_unique(ErrorRule{string{branch.diagMsg}});
 
   ssize_t lookidx = branch.lookahead
-    ? appendLookahead(ctx, *branch.lookahead, rl.defaultLexopts(), rl)
+    ? appendLookahead(ctx_, *branch.lookahead, rl_->defaultLexopts(), *rl_)
     : -1;
-  ssize_t targetidx = target ? rl.appendAnonRulePtr(std::move(target)) : -1;
+  ssize_t targetidx = target ? rl_->appendAnonRulePtr(std::move(target)): -1;
   return { .lookidx = lookidx, .parseidx = targetidx, .tmpl{passthroughTmpl} };
 }
 
@@ -1503,8 +1510,7 @@ void
 appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
                     vector<RuleBranch> branches, const RuleStanzas& stz,
                     RulesWithLocs& rl) {
-  if(stz.sawOutputsKw || stz.sawErrorsKw)
-    Unimplemented("outputs and errors for multi-match rules");
+  if(stz.sawErrorsKw) Unimplemented("errors for multi-match rules");
 
   // TODO: Dedup with appendExprRule()
   SymbolTable symtab
@@ -1516,14 +1522,31 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   RuleExprCompiler comp{rl, ctx, stz.lexopts, symtab, partPatterns, errmsg};
   comp.compileLocalRules(stz.local_decls);
 
-
-  OrRule orRule{{}, /* flattenOnDemand */ false};
-  for(const auto& branch : branches)
-    orRule.comps.push_back(compileRuleBranch(ctx, branch, comp, rl));
+  bool exposeFields = !stz.jstmpl.holdsEllipsis();
+  OrRule orRule{{}, /* flattenOnDemand */ exposeFields};
+  vector<IdentUsage> ids;
+  for(const auto& branch : branches) {
+    orRule.comps.push_back(comp.compileRuleBranch(branch, exposeFields, ids));
+    if(!exposeFields) ids.clear();
+  }
 
   ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
-  if(newIndex != -1) rl.deferred_assign(newIndex, std::move(orRule));
+  if(newIndex == -1) return;
+
+  if(stz.jstmpl.holdsEllipsis())
+    rl.deferred_assign(newIndex, std::move(orRule));
+  else {
+    JsonTmpl outputTmpl = stz.jstmpl;
+    vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
+    checkPlaceholderTypes(ctx, listNames, ids);
+    ssize_t orIndex = rl.appendAnonRule(std::move(orRule));
+    rl.deferred_assign(newIndex, OutputTmpl{
+        orIndex,   // childidx
+        {},        // childName, ignored for map-returning childidx
+        outputTmpl,
+    });
+  }
 }
 
 }  // namespace oalex

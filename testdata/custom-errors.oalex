@@ -32,6 +32,7 @@ errors after failing:
   new_name: "Expected a valid name for a new variable"
   num: "This must be a simple non-negative integer, with digits only"
 
+# TODO: Special syntax for a list of multiple small examples.
 example decl_expr:
   var 42;
 outputs error with 'Expected a valid name for a new variable'

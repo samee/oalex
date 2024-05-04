@@ -1583,7 +1583,7 @@ gatherFlatComps(const RuleSet& ruleset, ssize_t ruleIndex,
       rv.push_back(std::move(field));
     }else {
       if(!field.field_name.empty())
-        Bug("Compiler should not provide a field name for flattenable fields."
+        Bug("Compiler should not provide a field name for flattenable fields. "
             "Got `{}`", field.field_name);
       for(const RuleField& child: flatFields[field.schema_source]) {
         rv.push_back(child);
