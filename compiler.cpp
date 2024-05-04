@@ -971,7 +971,12 @@ class RuleExprCompiler {
   const vector<pair<Ident,string>>* errmsg_;
   ssize_t regexOptsIdx_;
   PatternToRulesCompiler pattComp_;
+
+  // patternIdents_ vectors are sorted for easy deduplication, before
+  // they are inserted here. This property is used at least by
+  // deduceOutputTmpl().
   map<string,vector<IdentUsage>> patternIdents_;
+
   bool somePatternFailed_ = false;
   unique_ptr<Rule> process(const RuleExpr& rxpr);
   unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
@@ -1103,6 +1108,7 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
   vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
+  sort(patternIdents.begin(), patternIdents.end(), idlt);
   patternIdents_.insert({dq.gs, patternIdents});
   return pattComp_.process(*patt);
 }
