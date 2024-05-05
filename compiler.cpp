@@ -1356,11 +1356,7 @@ RuleExprCompiler::compileToFlatStruct(
                                              .outputPlaceholder{} }}} );
   }else if(const Ident* id = markUsedIfIdent(rxpr, usageOutput))
     return this->identComponent(*id);
-  else {
-    unique_ptr<Rule> flatRule = this->process(rxpr);
-    if(somePatternFailed_ || !flatRule) return nullptr;
-    else return flatRule;
-  }
+  else return this->compileRuleExpr(rxpr, usageOutput);
 }
 
 // This function is used only to compile the main rule expression of a
@@ -1372,8 +1368,6 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
 
   unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, ids);
   if(!flatRule) return std::nullopt;
-
-  ids = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_);
 
   vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
   checkPlaceholderTypes(ctx_, listNames, ids);
