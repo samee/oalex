@@ -1,0 +1,13 @@
+rule decl: (stmt ~ "var variable_name = value")
+where:
+  variable_name ~ /[a-z_]+/
+  value ~ /[0-9]+/
+
+example decl:
+  var x = 15
+outputs: {
+  stmt: {
+    variable_name: "x",
+    value: "15",
+  }
+}

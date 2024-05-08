@@ -512,6 +512,8 @@ createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
 
 // ---------------------- Start appendExprRule() ------------------------------
 
+// TODO: Rename this. It is used for exported idents too, which is different
+// from idents used.
 struct IdentUsage {
   Ident id;
   bool inList;
@@ -990,7 +992,7 @@ class RuleExprCompiler {
   optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                                          JsonTmpl jstmpl);
   OrRule::Component compileRuleBranch(const RuleBranch& branch,
-      bool exposeFields, vector<IdentUsage>& usageOutput);
+      bool exposeFields, vector<IdentUsage>& exportedOutput);
 
  private:
   RulesWithLocs* rl_;
@@ -1030,10 +1032,10 @@ class RuleExprCompiler {
 
   // The recursion driver for compiling RuleExpr
   unique_ptr<Rule> compileRuleExpr(const RuleExpr& rxpr,
-                                   vector<IdentUsage>& usageOutput);
+                                   vector<IdentUsage>& exportedOutput);
 
   unique_ptr<Rule> compileToFlatStruct(const RuleExpr& rxpr,
-                                       vector<IdentUsage>& usageOutput);
+                                       vector<IdentUsage>& exportedOutput);
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1126,12 +1128,12 @@ getPrecomputedOrDie(const map<string,SortedIdents>& precomp,
 // automatically deduces the template to use based on the list of identifiers
 // that appear in the rule.
 //
-// The `usage` param is expected to be already sorted here, so duplicate
+// The `exported` param is expected to be already sorted here, so duplicate
 // identifiers can be silently removed.
 unique_ptr<Rule>
 RuleExprCompiler::unflattenableWrapper(ssize_t targetRule,
-                                       const SortedIdents& usage) {
-  JsonTmpl jstmpl = deduceOutputTmpl(usage);
+                                       const SortedIdents& exported) {
+  JsonTmpl jstmpl = deduceOutputTmpl(exported);
   return move_to_unique(OutputTmpl{
       targetRule,  // childidx
       {},          // childName, ignored for map-returning childidx
@@ -1182,7 +1184,7 @@ ruleExprOutputIdentsCheckUnique(
 // Sometimes, the caller special-cases RuleExpr{Squoted,Regex,Ident} so that
 // they are not handled by this function.
 //
-// All identifiers in rxpr are appended to usageOutput. They are used to
+// All identifiers in rxpr are appended to exportedOutput. They are used to
 // generate an output template if needed. Moreover, they are also used to
 // verify that any `outputs:` template provided are actually defined, and has
 // matching listyness.
@@ -1193,7 +1195,7 @@ ruleExprOutputIdentsCheckUnique(
 //   CompiledSingleExpr::identsUsed needs to be sorted by the caller.
 unique_ptr<Rule>
 RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
-                                  vector<IdentUsage>& usageOutput) {
+                                  vector<IdentUsage>& exportedOutput) {
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
   // TODO: I keep forgetting which vectors are sorted and when they are sorted.
@@ -1203,7 +1205,7 @@ RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
   if(somePatternFailed_) return nullptr;
   vector<IdentUsage> ids
     = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_).release();
-  for(auto& id: ids) usageOutput.push_back(std::move(id));
+  for(auto& id: ids) exportedOutput.push_back(std::move(id));
   return rv;
 }
 
@@ -1330,22 +1332,25 @@ markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
 //   Others: the result is wrapped in unflattenableWrapper().
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
-  vector<IdentUsage> ids;
+  vector<IdentUsage> idsUsed;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
-    return CompiledSingleExpr{std::move(s), SortedIdents{std::move(ids)}};
+    return CompiledSingleExpr{std::move(s), SortedIdents{std::move(idsUsed)}};
   // TODO: errmsg_ customization.
-  else if(const Ident* id = markUsedIfIdent(rxpr, ids)) {
+  else if(const Ident* id = markUsedIfIdent(rxpr, idsUsed)) {
     ssize_t idx = this->lookupIdent(*id);
     if(idx == -1) return std::nullopt;
     return CompiledSingleExpr{move_to_unique(AliasRule{idx}),
-                              SortedIdents{std::move(ids)}};
+                              SortedIdents{std::move(idsUsed)}};
   }
 
-  if(unique_ptr<Rule> flatRule = this->compileRuleExpr(rxpr, ids)) {
-    SortedIdents sorted{std::move(ids)};
+  vector<IdentUsage> idsExported;
+  if(unique_ptr<Rule> flatRule = this->compileRuleExpr(rxpr, idsExported)) {
     unique_ptr<Rule> outrule = unflattenableWrapper(
-        rl_->appendAnonRulePtr(std::move(flatRule)), sorted );
-    return CompiledSingleExpr{std::move(outrule), std::move(sorted)};
+        rl_->appendAnonRulePtr(std::move(flatRule)),
+        SortedIdents{std::move(idsExported)});
+    ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
+    return CompiledSingleExpr{std::move(outrule),
+                              SortedIdents{std::move(idsUsed)}};
   }
 
   return std::nullopt;
@@ -1360,7 +1365,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 // In both cases, it is used only if an `outputs:` stanza is explicitly
 // provided, where such a flattenable struct output is important.
 //
-// The usageOutput is an output parameter that aggregates all the fields
+// The exportedOutput is an output parameter that aggregates all the fields
 // we see across the branches.
 //
 // Semantics:
@@ -1370,16 +1375,16 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 //   Others: passes through the map from compileRuleExpr().
 unique_ptr<Rule>
 RuleExprCompiler::compileToFlatStruct(
-    const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
+    const RuleExpr& rxpr, vector<IdentUsage>& exportedOutput) {
 
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
     // There are no fields to expose, but we still need an empty struct.
     ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
     return move_to_unique(ConcatFlatRule {{{ .idx = ridx,
                                              .outputPlaceholder{} }}} );
-  }else if(const Ident* id = markUsedIfIdent(rxpr, usageOutput))
+  }else if(const Ident* id = markUsedIfIdent(rxpr, exportedOutput))
     return this->identComponent(*id);
-  else return this->compileRuleExpr(rxpr, usageOutput);
+  else return this->compileRuleExpr(rxpr, exportedOutput);
 }
 
 // This function is used only to compile the main rule expression of a
@@ -1387,20 +1392,22 @@ RuleExprCompiler::compileToFlatStruct(
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                             JsonTmpl jstmpl) {
-  vector<IdentUsage> ids;
+  vector<IdentUsage> idsExported;
 
-  unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, ids);
+  unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, idsExported);
   if(!flatRule) return std::nullopt;
 
   vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
-  checkPlaceholderTypes(ctx_, listNames, ids);
+  checkPlaceholderTypes(ctx_, listNames, idsExported);
+  vector<IdentUsage> idsUsed;
+  ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
   return CompiledSingleExpr{
     move_to_unique(OutputTmpl{
       rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
       {},        // childName, ignored for map-returning childidx
       std::move(jstmpl), // outputTmpl
     }),
-    SortedIdents{std::move(ids)},
+    SortedIdents{std::move(idsUsed)},
   };
 }
 
@@ -1500,12 +1507,12 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
 // FIXME: return nullopt on error.
 OrRule::Component
 RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
-                  vector<IdentUsage>& usageOutput) {
+                  vector<IdentUsage>& exportedOutput) {
   unique_ptr<Rule> target;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
       if(exposeFields)
-        target = this->compileToFlatStruct(*branch.target, usageOutput);
+        target = this->compileToFlatStruct(*branch.target, exportedOutput);
       else if(optional<CompiledSingleExpr> res
           = this->compileSingleExpr(*branch.target))
         target = std::move(res->rule);
@@ -1551,6 +1558,7 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex == -1) return;
 
+  // TODO: checkUnusedParts()
   if(stz.jstmpl.holdsEllipsis())
     rl.deferred_assign(newIndex, std::move(orRule));
   else {
