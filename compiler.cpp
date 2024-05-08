@@ -621,6 +621,25 @@ void setInList(vector<IdentUsage>::iterator a, vector<IdentUsage>::iterator b) {
   for(auto it=a; it!=b; ++it) it->inList=true;
 }
 
+// I kept forgetting which vector<IdentUsage> needs to be sorted and which
+// isn't. So this is a type to keep track of it. As long as the vector is
+// wrapped in a SortedIdents object, it can be assumed to be sorted.
+class SortedIdents {
+  vector<IdentUsage> data_;
+ public:
+  SortedIdents() = default;
+  explicit SortedIdents(vector<IdentUsage> v)
+    : data_(std::move(v)) { sort(data_.begin(), data_.end(), idlt); }
+  vector<IdentUsage> release() { return std::move(data_); }
+  const vector<IdentUsage>& get() const { return data_; }
+  ssize_t ssize() const { return oalex::ssize(data_); }
+  const IdentUsage& operator[] (ssize_t idx) const { return data_[idx]; }
+  bool contains(const Ident& id) const {
+    return binary_search(data_.begin(), data_.end(), IdentUsage{id, false},
+                         idlt);
+  }
+};
+
 // Dev-note: This setInList() pattern can sometimes be error-prone. Switch to
 // using a dedicated `Config` struct if we need to add more such state. See
 // ruleExprCollectIdents() as an example.
@@ -648,23 +667,22 @@ patternCollectIdentRecur(const Pattern& patt, vector<IdentUsage>& output) {
     Bug("Unknown pattern index in checkMultipleUsage() {}", patt.index());
 }
 
-static vector<IdentUsage>
+static SortedIdents
 patternCollectIdent(const Pattern& patt) {
   vector<IdentUsage> rv;
   patternCollectIdentRecur(patt, rv);
-  sort(rv.begin(), rv.end(), idlt);
-  return rv;
+  return SortedIdents{std::move(rv)};
 }
 
 static void
 ruleExprCollectInputIdents(
-    const RuleExpr& rxpr, const map<string,vector<IdentUsage>>& patternIdents,
+    const RuleExpr& rxpr, const map<string,SortedIdents>& patternIdents,
     vector<IdentUsage>& output);
 
 static bool
-checkMultipleUsage(DiagsDest ctx, const vector<IdentUsage>& idents) {
+checkMultipleUsage(DiagsDest ctx, const SortedIdents& idents) {
   bool rv = true;
-  for(ssize_t i=1; i<ssize(idents); ++i) if(idents[i].id == idents[i-1].id) {
+  for(ssize_t i=1; i<idents.ssize(); ++i) if(idents[i].id == idents[i-1].id) {
       Error(ctx, idents[i].id.stPos(), idents[i].id.enPos(),
             format("Duplicate output '{}' will be impossible "
                    "to distinguish in the output.",
@@ -686,26 +704,32 @@ identOf(DiagsDest ctx, const JsonTmpl& jstmpl) {
   return Ident::parse(ctx, WholeSegment{jstmpl.stPos, jstmpl.enPos, p->key});
 }
 
+static SortedIdents
+appendLocals(SortedIdents ids,
+             const map<string,SortedIdents>& localRulePatternIdents,
+             const vector<LocalBinding>& locals) {
+  vector<IdentUsage> v = ids.release();
+  for(auto& l: locals)
+    ruleExprCollectInputIdents(*l.ruleExpr, localRulePatternIdents, v);
+  return SortedIdents{std::move(v)};
+}
+
 static void
-checkUnusedParts(DiagsDest ctx, vector<IdentUsage> patternIdents,
-                 const map<string,vector<IdentUsage>>& localRulePatternIdents,
+checkUnusedParts(DiagsDest ctx, SortedIdents patternIdents,
+                 const map<string,SortedIdents>& localRulePatternIdents,
                  const vector<LocalBinding>& locals, const JsonTmpl& jstmpl) {
   for(auto& [k,v]: jstmpl.allPlaceholders()) {
     const Ident outid = identOf(ctx, *v);
-    if(!binary_search(patternIdents.begin(), patternIdents.end(),
-                      IdentUsage{outid,false}, idlt))
+    if(!patternIdents.contains(outid))
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Output field '{}' was not found in the rule pattern",
                    outid.preserveCase()));
   }
-  vector<IdentUsage> allIdents = std::move(patternIdents);
-  for(auto& l: locals)
-    ruleExprCollectInputIdents(*l.ruleExpr, localRulePatternIdents, allIdents);
-  sort(allIdents.begin(), allIdents.end(), idlt);
+  SortedIdents allIdents = appendLocals(std::move(patternIdents),
+                                        localRulePatternIdents, locals);
   for(auto& l: locals) {
     const Ident outid = l.localName;
-    if(!binary_search(allIdents.begin(),allIdents.end(),
-                      IdentUsage{outid,false}, idlt))
+    if(!allIdents.contains(outid))
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Local rule '{}' is not used in this rule",
                    outid.preserveCase()));
@@ -850,9 +874,9 @@ requireValidIdents(DiagsDest ctx, const vector<pair<Ident,string>>& errmsg,
 }
 
 static JsonTmpl
-deduceOutputTmpl(const vector<IdentUsage>& outputIdents) {
+deduceOutputTmpl(const SortedIdents& outputIdents) {
   JsonTmpl::Map rv;
-  for(ssize_t i=0; i<ssize(outputIdents); ++i) {
+  for(ssize_t i=0; i<outputIdents.ssize(); ++i) {
     if(i>0 && outputIdents[i].id == outputIdents[i-1].id) continue;
     string s = outputIdents[i].id.preserveCase();
     rv.push_back({s, JsonTmpl::Placeholder{s}});
@@ -921,7 +945,7 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
 
 struct CompiledSingleExpr {
   unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
-  vector<IdentUsage> identsUsed;
+  SortedIdents identsUsed;
 };
 
 class RuleExprCompiler {
@@ -956,7 +980,7 @@ class RuleExprCompiler {
   // Only works once the given string has been compiled by compileRuleExpr().
   //
   // Dev-note: Only processDquoted() ever adds to this.
-  const map<string,vector<IdentUsage>>& patternIdents() const {
+  const map<string,SortedIdents>& patternIdents() const {
     return patternIdents_;
   }
 
@@ -978,10 +1002,9 @@ class RuleExprCompiler {
   ssize_t regexOptsIdx_;
   PatternToRulesCompiler pattComp_;
 
-  // patternIdents_ vectors are sorted for easy deduplication, before
-  // they are inserted here. This property is used at least by
-  // deduceOutputTmpl().
-  map<string,vector<IdentUsage>> patternIdents_;
+  // The map values are sorted for deduceOutputTmpl() and
+  // ruleExprOutputIdentsCheckUnique.
+  map<string,SortedIdents> patternIdents_;
 
   bool somePatternFailed_ = false;
   unique_ptr<Rule> process(const RuleExpr& rxpr);
@@ -993,7 +1016,7 @@ class RuleExprCompiler {
   unique_ptr<Rule> processRepeat(const RuleExprRepeat& repxpr);
   unique_ptr<Rule> processDquoted(const RuleExprDquoted& dq);
   static unique_ptr<Rule> unflattenableWrapper(ssize_t targetRule,
-                                               const vector<IdentUsage>& usage);
+                                               const SortedIdents& usage);
   unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
                                         const string& patt);
 
@@ -1089,8 +1112,8 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
       .partidx = i, .glueidx = j, .lookidx = -1, .skipidx = -1}});
 }
 // TODO change this to use string_view.
-static const vector<IdentUsage>&
-getPrecomputedOrDie(const map<string,vector<IdentUsage>>& precomp,
+static const SortedIdents&
+getPrecomputedOrDie(const map<string,SortedIdents>& precomp,
                     const string& patt) {
   auto it = precomp.find(patt);
   if(it == precomp.end())
@@ -1107,7 +1130,7 @@ getPrecomputedOrDie(const map<string,vector<IdentUsage>>& precomp,
 // identifiers can be silently removed.
 unique_ptr<Rule>
 RuleExprCompiler::unflattenableWrapper(ssize_t targetRule,
-                                       const vector<IdentUsage>& usage) {
+                                       const SortedIdents& usage) {
   JsonTmpl jstmpl = deduceOutputTmpl(usage);
   return move_to_unique(OutputTmpl{
       targetRule,  // childidx
@@ -1136,16 +1159,15 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
 
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
-  vector<IdentUsage> patternIdents = patternCollectIdent(*patt);
-  sort(patternIdents.begin(), patternIdents.end(), idlt);
+  SortedIdents patternIdents = patternCollectIdent(*patt);
   patternIdents_.insert({dq.gs, patternIdents});
   return pattComp_.process(*patt);
 }
 
-static vector<IdentUsage>
+static SortedIdents
 ruleExprOutputIdentsCheckUnique(
       DiagsDest ctx, const RuleExpr& rxpr,
-      const map<string,vector<IdentUsage>>& patternIdents);
+      const map<string,SortedIdents>& patternIdents);
 
 // This method is the "main" entry-point for recursively compiling RuleExpr.
 // This means the output type and flattenability depends on the concrete type
@@ -1180,7 +1202,7 @@ RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
   unique_ptr<Rule> rv = this->process(rxpr);
   if(somePatternFailed_) return nullptr;
   vector<IdentUsage> ids
-    = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_);
+    = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_).release();
   for(auto& id: ids) usageOutput.push_back(std::move(id));
   return rv;
 }
@@ -1190,7 +1212,7 @@ struct RuleExprCollectConfig {
     inputsUsed,
     outputsProduced,
   } type;
-  const map<string,vector<IdentUsage>>* patternIdents;
+  const map<string,SortedIdents>* patternIdents;
   bool inList;
 };
 
@@ -1202,9 +1224,9 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
   else if(dynamic_cast<const RuleExprSquoted*>(&rxpr) ||
           dynamic_cast<const RuleExprRegex*>(&rxpr)) return;
   else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
-    const vector<IdentUsage>* patternIdents =
+    const SortedIdents* patternIdents =
       &getPrecomputedOrDie(*conf.patternIdents, string(dq->gs));
-    output.insert(output.end(), patternIdents->begin(), patternIdents->end());
+    for(const IdentUsage& iu : patternIdents->get()) output.push_back(iu);
   }
   else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
     if(conf.type == RuleExprCollectConfig::Type::inputsUsed)
@@ -1235,22 +1257,22 @@ ruleExprCollectIdents(const RuleExpr& rxpr, RuleExprCollectConfig& conf,
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
 }
 
-static vector<IdentUsage>
+static SortedIdents
 ruleExprOutputIdentsCheckUnique(
       DiagsDest ctx, const RuleExpr& rxpr,
-      const map<string,vector<IdentUsage>>& patternIdents) {
-  vector<IdentUsage> rv;
+      const map<string,SortedIdents>& patternIdents) {
+  vector<IdentUsage> usage;
   RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::outputsProduced,
                               &patternIdents, /* inList */ false };
-  ruleExprCollectIdents(rxpr, conf, rv);
-  sort(rv.begin(), rv.end(), idlt);
+  ruleExprCollectIdents(rxpr, conf, usage);
+  SortedIdents rv{std::move(usage)};
   checkMultipleUsage(ctx, rv);
   return rv;
 }
 
 static void
 ruleExprCollectInputIdents(
-      const RuleExpr& rxpr, const map<string,vector<IdentUsage>>& patternIdents,
+      const RuleExpr& rxpr, const map<string,SortedIdents>& patternIdents,
       vector<IdentUsage>& output) {
   RuleExprCollectConfig conf{ RuleExprCollectConfig::Type::inputsUsed,
                               &patternIdents, /* inList */ false };
@@ -1310,19 +1332,20 @@ optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   vector<IdentUsage> ids;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
-    return CompiledSingleExpr{std::move(s), std::move(ids)};
+    return CompiledSingleExpr{std::move(s), SortedIdents{std::move(ids)}};
   // TODO: errmsg_ customization.
   else if(const Ident* id = markUsedIfIdent(rxpr, ids)) {
     ssize_t idx = this->lookupIdent(*id);
     if(idx == -1) return std::nullopt;
-    return CompiledSingleExpr{move_to_unique(AliasRule{idx}), std::move(ids)};
+    return CompiledSingleExpr{move_to_unique(AliasRule{idx}),
+                              SortedIdents{std::move(ids)}};
   }
 
   if(unique_ptr<Rule> flatRule = this->compileRuleExpr(rxpr, ids)) {
-    sort(ids.begin(), ids.end(), idlt);
+    SortedIdents sorted{std::move(ids)};
     unique_ptr<Rule> outrule = unflattenableWrapper(
-        rl_->appendAnonRulePtr(std::move(flatRule)), ids );
-    return CompiledSingleExpr{std::move(outrule), std::move(ids)};
+        rl_->appendAnonRulePtr(std::move(flatRule)), sorted );
+    return CompiledSingleExpr{std::move(outrule), std::move(sorted)};
   }
 
   return std::nullopt;
@@ -1377,7 +1400,7 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
       {},        // childName, ignored for map-returning childidx
       std::move(jstmpl), // outputTmpl
     }),
-    std::move(ids)
+    SortedIdents{std::move(ids)},
   };
 }
 
@@ -1430,7 +1453,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     : rl.appendAnonRule(DefinitionInProgress{});
   if(newIndex == -1) return;
 
-  vector<IdentUsage> exprIdents;
+  SortedIdents exprIdents;
   optional<CompiledSingleExpr> res = stz.jstmpl.holdsEllipsis()
     ? comp.compileSingleExpr(rxpr)
     : comp.compileSingleExprWithTmpl(rxpr, stz.jstmpl);
