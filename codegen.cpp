@@ -817,6 +817,8 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
                  comp_serial, outType, resdeets.value(rescomp)));
     comp_serial++;
   }
+  if(cfrule.comps.empty())
+    cppos("  std::ignore = ctx;\n");
   cppos("  rv.loc.first = i; rv.loc.second = j;\n");
   cppos("  i = j;\n");
   cppos("  return rv;\n");
@@ -1415,11 +1417,27 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName,
   }else Bug("Don't know how to generate field for type {}", t.tagName());
 }
 
+static bool
+excludedField(const vector<string>& excluded_fields, const JsonTmpl& tmpl) {
+  for(const string& ex : excluded_fields)
+    if(isPlaceholder(tmpl, ex)) return true;
+  return false;
+}
+
+// excluded_fields is for suppressing optional fields that appear as part of
+// a map output, e.g. { key: some_optional_value, ... }. In this case, the
+// placeholder `some_optional_value` will appear here. It has no impact on
+// placeholders in other contexts, if it's not directly a member of a map.
+// Missing optional values will appear as {} in those cases.
+//
 // TODO: see if we can refactor parts of this with codegen(JsonTmpl) above.
 // TODO: make move conversion.
 // TODO: Eliminate parseGenerated() by keeping them as idents.
+// TODO: Disable list template for non-repeating fields. I don't really want
+// to support lists in mapNestedAppend("a.b[3].c")
 static void
 genFieldConversion(const JsonTmpl& t, string field_prefix,
+                   const vector<string>& excluded_fields,
                    const OutputStream& cppos, ssize_t indent) {
   if(t.holdsString()) cppos(field_prefix);
   else if(t.holdsPlaceholder()) cppos(format("toJsonLoc({})", field_prefix));
@@ -1435,11 +1453,12 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
   }else if(const JsonTmpl::Map* m = t.getIfMap()) {
     cppos("JsonLoc::Map{"); linebreak(cppos, indent);
     for(const auto& [k, v] : *m) {
+      if(excludedField(excluded_fields, v)) continue;
       cppos(format("  {{{}, ", dquoted(k)));
       genFieldConversion(
           v, format("{}.{}", field_prefix,
                     Ident::parseGenerated(k).toSnakeCase()),
-          cppos, indent+2);
+          excluded_fields, cppos, indent+2);
       cppos("},"); linebreak(cppos, indent);
     }
     cppos("}");
@@ -1663,6 +1682,89 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   cppos("}\n\n");
 }
 
+static vector<string>
+getOptionalFields(const RuleSet& ruleset, ssize_t ruleIndex) {
+  const Rule& r = ruleAt(ruleset, ruleIndex);
+  vector<string> rv;
+  for(const RuleField& field : r.flatFields())
+    if(field.container == RuleField::Container::optional)
+      rv.push_back(field.field_name);
+  return rv;
+}
+
+static bool
+contains(const vector<string>& v, const string& s) {
+  for(auto& e : v) if(s == e) return true;
+  return false;
+}
+// This function searches jstmpl for placeholders, and returns their path.
+// Since a placeholder can appear multiple times in jstmpl, or even zero times,
+// the output vector size might not match the input vector size.
+// TODO: See if we still allow that.
+static vector<vector<JsonPathComp>>
+getPlaceholderPaths(const vector<string>& placeholders,
+                    const JsonTmpl& jstmpl) {
+  vector<vector<JsonPathComp>> rv;
+  vector<JsonPathComp> curpath;
+  auto recur = [&](const JsonTmpl& curtmpl, auto&& recur) {
+    if(curtmpl.holdsString()) return;
+    else if(curtmpl.holdsEllipsis())
+      Bug("Ellipsis should have been desugared away"
+          " before generating structs.");
+    else if(auto* p = curtmpl.getIfPlaceholder()) {
+      if(contains(placeholders, p->key)) rv.push_back(curpath);
+    }
+    else if(auto* v = curtmpl.getIfVector()) {
+      for(ssize_t i=0; i<ssize(*v); ++i) {
+        curpath.push_back(i);
+        recur(v->at(i), recur);
+        curpath.pop_back();
+      }
+    }
+    else if(auto* m = curtmpl.getIfMap()) {
+      for(auto& [k,v] : *m) {
+        curpath.push_back(k);
+        recur(v, recur);
+        curpath.pop_back();
+      }
+    }
+  };
+  recur(jstmpl, recur);
+  return rv;
+}
+
+static void
+genOptionalTemplateField(string_view dest, string_view first_comp,
+                         vector<JsonPathComp> path,
+                         const OutputStream& cppos) {
+  // Convert path to a C++ field.<...> accessor.
+  string struct_field{first_comp};
+  for(auto& c : path) {
+    if(c.key.empty()) struct_field += format("[{}]", c.pos);
+    else struct_field += "." + c.key;
+  }
+
+  // The new_value parameter for mapAppendNestedMap().
+  string_view inner_key = path.back().key;
+  if(inner_key.empty()) Bug("Cannot suppress field not directly in a map");
+
+  // The new_key parameter for mapAppendNestedMap().
+  // The last key is already part of inner_key above.
+  string output_path = "{";
+  for(ssize_t i=0; i+1 < ssize(path); ++i) {
+    if(path[i].key.empty()) output_path += std::to_string(path[i].pos);
+    else output_path += dquoted(path[i].key);
+    if(i+2 < ssize(path)) output_path += ", ";
+  }
+  output_path += "}";
+
+  // TODO: Instead of an asterisk, use ParserResultTraits::get_value_tmpl.
+  // Requires us to know schema_source, though.
+  cppos(format("  if(!holdsErrorValue({}))\n", struct_field));
+  cppos(format("    mapNestedAppend({}, {}, {}, *{});\n", dest, output_path,
+               dquoted(inner_key), struct_field));
+}
+
 static void
 genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
     const OutputStream& cppos, const OutputStream& hos) {
@@ -1677,11 +1779,19 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   hos("  explicit operator oalex::JsonLoc() const;\n");
   hos("};\n\n");
 
+  vector<string> optIdents = getOptionalFields(ruleset, out.childidx);
   cppos(format("{}::operator JsonLoc() const {{\n", className));
   cppos("  using oalex::toJsonLoc;\n");
-  cppos("  return JsonLoc::withPos(");
-    genFieldConversion(out.outputTmpl, "fields", cppos, 2);
+  cppos("  auto rv = JsonLoc::withPos(");
+    genFieldConversion(out.outputTmpl, "fields", optIdents, cppos, 2);
     cppos(", loc.first, loc.second);\n");
+  vector<vector<JsonPathComp>> optPaths
+    = getPlaceholderPaths(optIdents, out.outputTmpl);
+  cppos("\n");
+  for(auto& optPath : optPaths)
+    genOptionalTemplateField("rv", "fields", optPath, cppos);
+  if(!optPaths.empty()) cppos("\n");
+  cppos("  return rv;\n");
   cppos("}\n\n");
 }
 

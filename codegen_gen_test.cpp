@@ -329,6 +329,33 @@ void generateMatchOrErrorTest(const OutputStream& cppos,
   codegen(rs, 1, cppos, hos);
 }
 
+void generateOptionalComponent(const OutputStream& cppos,
+                               const OutputStream& hos) {
+  // var var_name [ = init_value ]
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+        nmRule(SkipPoint{0}, "OptionalCompSkip"),
+        WordPreserving{"var", 0},
+        nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"),
+               "OptionalCompVarName"),
+        StringRule{"="},
+        nmRule(parseRegexRule("/[0-9]+\\b/"), "OptionalCompValue"),
+        nmRule(ConcatFlatRule{{ {3, ""}, {0, ""}, {4, "init_value"} }},
+               "OptionalCompInititializer"),
+        nmRule(ConcatFlatRule{{ }}, "OptionalCompAbsent"),
+        nmRule(OrRule{{
+          {-1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl},
+        }, /* flattenOnDemand */ true}, "OptionalCompOptInitializer"),
+        nmRule( ConcatFlatRule{{ {1, ""}, {0, ""}, {2, "var_name"},
+                                 {0, ""}, {7, ""} }}, "VarOptionalInitValue" )
+    ),
+    .skips{cskip},
+    .regexOpts = {regexOpts},
+  };
+
+  codegenNamedRules(rs, cppos, hos);
+}
+
 void generateAliasRuleTest(const OutputStream& cppos,
                            const OutputStream& hos) {
   RuleSet rs{
@@ -569,6 +596,8 @@ int main(int argc, char* argv[]) {
   generateOrTest(cppos, hos);
   linebreaks();
   generateMatchOrErrorTest(cppos, hos);
+  linebreaks();
+  generateOptionalComponent(cppos, hos);
   linebreaks();
   generateAliasRuleTest(cppos, hos);
   linebreaks();

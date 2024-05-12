@@ -108,11 +108,13 @@ std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedExternRule::operator JsonLoc() const {
   using oalex::toJsonLoc;
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::withPos(JsonLoc::Map{
     {"external_name", toJsonLoc(fields.external_name)},
     {"param", toJsonLoc(fields.param)},
     {"rule_name", toJsonLoc(fields.rule_name)},
   }, loc.first, loc.second);
+
+  return rv;
 }
 
 std::optional<ParsedExternRule> parseExternRule(oalex::InputDiags& ctx, ssize_t& i) {
@@ -578,10 +580,12 @@ std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i) 
 
 ParsedErrorStanzaLine::operator JsonLoc() const {
   using oalex::toJsonLoc;
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::withPos(JsonLoc::Map{
     {"error_msg", toJsonLoc(fields.error_msg)},
     {"ident", toJsonLoc(fields.ident)},
   }, loc.first, loc.second);
+
+  return rv;
 }
 
 std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx, ssize_t& i) {
@@ -740,8 +744,10 @@ std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedErrorStanzaLeader::operator JsonLoc() const {
   using oalex::toJsonLoc;
-  return JsonLoc::withPos(JsonLoc::Map{
+  auto rv = JsonLoc::withPos(JsonLoc::Map{
   }, loc.first, loc.second);
+
+  return rv;
 }
 
 std::optional<ParsedErrorStanzaLeader> parseErrorStanzaLeader(oalex::InputDiags& ctx, ssize_t& i) {

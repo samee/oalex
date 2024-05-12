@@ -86,6 +86,25 @@ void runMatchOrErrorTest(function<JsonLoc(InputDiags&, ssize_t&)> parse) {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
+void runOptionalComponent() {
+  string msg1 = "var x = 5";
+  InputDiags ctx{Input{msg1}};
+  ssize_t pos = 0;
+  optional<ParsedVarOptionalInitValue> decl1
+    = parseVarOptionalInitValue(ctx, pos);
+  assertEqual(__func__, toJsonLoc(decl1), *parseJsonLoc(
+        "{ var_name: 'x', init_value: '5' }"));
+  assertEqual(__func__, oalex::ssize(msg1), pos);
+
+  string msg2 = "var y";
+  ctx = InputDiags{Input{msg2}};
+  pos = 0;
+  optional<ParsedVarOptionalInitValue> decl2
+    = parseVarOptionalInitValue(ctx, pos);
+  assertEqual(__func__, toJsonLoc(decl2), *parseJsonLoc("{ var_name: 'y' }"));
+  assertEqual(__func__, oalex::ssize(msg2), pos);
+}
+
 void runAliasRuleTest() {
   string msg = " hello-world";
   InputDiags ctx{Input{msg}};
@@ -573,6 +592,7 @@ int main() {
   runSingleStringTest();
   runMatchOrErrorTest(generic(parseHelloWorldOrError));
   runMatchOrErrorTest(&parseErrorRuleHelloWorld);
+  runOptionalComponent();
   runAliasRuleTest();
   runSingleRegexTest();
   runWordPreservingWithOverride();
