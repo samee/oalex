@@ -71,6 +71,7 @@ class JsonLoc {
   size_t stPos=npos, enPos=npos;
   static ssize_t mapScanForIndex(const Map& m, std::string_view k);
   static const JsonLoc* mapScanForValue(const Map& m, std::string_view k);
+  static JsonLoc* mapScanForValue(Map& m, std::string_view k);
   static void mapSort(Map& m);
 
   // TODO: delete this constructor once we are no longer generating
@@ -173,5 +174,20 @@ template <class V> std::enable_if_t<std::is_constructible_v<JsonLoc, V>,
                                     JsonLoc>
 toJsonLoc(const V& v) { return JsonLoc{v}; }
 
+// This really should be an std::variant<string,ssize_t>,
+// but I didn't want to include that file again, slowing down compilation.
+struct JsonPathComp {
+  std::string key;
+  ssize_t pos;  // pos is used if and only if comp is empty.
+
+  // Implicit conversion ctors.
+  JsonPathComp(std::string s);
+  JsonPathComp(const char* s);
+  JsonPathComp(ssize_t pos);
+};
+
+void mapNestedAppend(JsonLoc& jsloc,
+                     const std::vector<JsonPathComp>& path_to_map,
+                     std::string new_key, JsonLoc new_value);
 
 }  // namespace oalex
