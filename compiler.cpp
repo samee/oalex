@@ -1198,9 +1198,6 @@ RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
                                   vector<IdentUsage>& exportedOutput) {
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
-  // TODO: I keep forgetting which vectors are sorted and when they are sorted.
-  //       I should give them their own types. Some are sorted for fast lookup,
-  //       while others are sorted for deduplication.
   unique_ptr<Rule> rv = this->process(rxpr);
   if(somePatternFailed_) return nullptr;
   vector<IdentUsage> ids
