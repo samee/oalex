@@ -29,7 +29,6 @@ example orPattern:
   TestWord
 outputs: {
   acceptTestWord: "TestWord",
-  rejectTestWord: {},  # TODO revisit if we want to use moveEltOrEmpty()
 }
 
 rule orThenCat:
@@ -40,7 +39,6 @@ example orThenCat:
   BadWord is bad
 outputs: {
   orPattern: {
-    acceptTestWord: {},
     rejectTestWord: "BadWord",
   }
 }

@@ -86,6 +86,8 @@ class JsonTmpl {
 
   JsonLoc substituteAll(const std::vector<std::pair<std::string,
                                                     JsonLoc>>& subs) const;
+  JsonLoc substituteOrDrop(const std::vector<std::pair<std::string,
+                                                       JsonLoc>>& subs) const;
 
   // Recursively check for Placeholder.
   bool substitutionsNeeded() const;
@@ -115,12 +117,6 @@ class JsonTmpl {
 inline bool isPlaceholder(const JsonTmpl& jstmpl, std::string_view pname) {
   if(auto* p = jstmpl.getIfPlaceholder()) return p->key == pname;
   else return false;
-}
-
-inline JsonTmpl moveEltOrEmpty(JsonTmpl::Map& m, std::string_view key) {
-  for(ssize_t i=0; i<(ssize_t)m.size(); ++i)
-    if(m[i].first == key) return std::move(m[i].second);
-  return JsonTmpl::Map{};
 }
 
 }  // namespace oalex

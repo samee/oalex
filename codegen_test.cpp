@@ -116,6 +116,42 @@ void testMatchOrError() {
   assertHasDiagWithSubstrAt(__func__, ctx.diags, "Was expecting a greeting", 0);
 }
 
+void testOptionalComponent() {
+  // var var_name [ = init_value ]
+  RuleSet rs{
+    .rules = makeVectorUnique<Rule>(
+        SkipPoint{0},
+        WordPreserving{"var", 0},
+        parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"),
+        StringRule{"="},
+        parseRegexRule("/[0-9]+\\b/"),
+        ConcatFlatRule{{ {3, ""}, {0, ""}, {4, "init_value"} }},
+        ConcatFlatRule{{ }},
+        OrRule{{
+          {-1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl},
+        }, /* flattenOnDemand */ true},
+        ConcatFlatRule{{ {1, ""}, {0, ""}, {2, "var_name"},
+                         {0, ""}, {7, ""} }}
+    ),
+    .skips{cskip},
+    .regexOpts = {regexOpts},
+  };
+  string msg1 = "var x = 5";
+  InputDiags ctx{Input{msg1}};
+  ssize_t pos = 0;
+  JsonLoc decl1 = eval(ctx, pos, rs, 8);
+  assertEqual(__func__, decl1,
+              *parseJsonLoc("{ var_name: 'x', init_value: '5' }"));
+  assertEqual(__func__, oalex::ssize(msg1), pos);
+
+  string msg2 = "var y";
+  ctx = InputDiags{Input{msg2}};
+  pos = 0;
+  JsonLoc decl2 = eval(ctx, pos, rs, 8);
+  assertEqual(__func__, decl2, *parseJsonLoc("{ var_name: 'y' }"));
+  assertEqual(__func__, oalex::ssize(msg2), pos);
+}
+
 void testAliasRule() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(StringRule{"hello-world"}, AliasRule{0}),
@@ -775,6 +811,7 @@ int main() {
   testSingleStringMatch();
   testSingleStringMismatch();
   testMatchOrError();
+  testOptionalComponent();
   testAliasRule();
   testErrorRule();
   testSingleSkip();

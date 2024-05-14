@@ -35,7 +35,6 @@ example extern_rule:
 outputs: {
   rule_name: "noparam",
   external_name: "oalexPluginNoParam",
-  param: {}  # TODO: decide if this key should even exist for empty inputs
 }
 
 example extern_rule:

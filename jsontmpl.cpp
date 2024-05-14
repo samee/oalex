@@ -160,25 +160,62 @@ auto JsonTmpl::allPlaceholders() const -> ConstPlaceholderMap {
   return {rv.begin(), rv.end()};
 }
 
-static JsonLoc
+static const JsonLoc*
 findSub(const vector<pair<string, JsonLoc>>& subs,
         const JsonTmpl::Placeholder& p) {
-  for(auto& [k, v] : subs) if (k == p.key) return v;
-  Bug("No substitutions found for '{}'", p.key);
+  for(auto& [k, v] : subs) if (k == p.key) return &v;
+  return nullptr;
 }
 
 JsonLoc
 JsonTmpl::substituteAll(const vector<pair<string, JsonLoc>>& subs) const {
   if(auto* s = getIfString()) return *s;
   else if(holdsEllipsis()) Bug("Tried to produce JsonLoc out of '...'");
-  else if(auto* p = getIfPlaceholder()) return findSub(subs, *p);
-  else if(auto* v = getIfVector()) {
+  else if(auto* p = getIfPlaceholder()) {
+    if(auto* jsloc = findSub(subs, *p)) return *jsloc;
+    Bug("No substitutions foudn for '{}'", p->key);
+  }else if(auto* v = getIfVector()) {
     JsonLoc::Vector rv;
     for(auto& elt : *v) rv.push_back(elt.substituteAll(subs));
     return rv;
   }else if(auto* m = getIfMap()) {
     JsonLoc::Map rv;
     for(auto& [k,v] : *m) rv.emplace_back(k, v.substituteAll(subs));
+    return rv;
+  }
+  return JsonLoc::ErrorValue{};
+}
+
+// substituteAll() requires that all placeholders in *this have valid
+// substitutions present in `subs`. On the other hand, substituteOrDrop() tries
+// to do something "reasonable" for missing placeholders.
+//
+//   * If the placeholder appears directly as a json dictionary entry, both the
+//     key and the value will be dropped from the output (so that a missing key
+//     can be used to detect a missing value).
+//   * For all other cases (e.g. if the placeholder is a list element), it is
+//     replaced with an empty dictionary if no substitutions are provided.
+//
+// This behavior defines how eval() handles missing optional fields.
+JsonLoc
+JsonTmpl::substituteOrDrop(const vector<pair<string, JsonLoc>>& subs) const {
+  if(auto* s = getIfString()) return *s;
+  else if(holdsEllipsis()) Bug("Tried to produce JsonLoc out of '...'");
+  else if(auto* p = getIfPlaceholder()) {
+    if(const JsonLoc* j = findSub(subs, *p)) return *j;
+    else return JsonLoc::Map{{}};
+  }else if(auto* v = getIfVector()) {
+    JsonLoc::Vector rv;
+    for(auto& elt : *v) rv.push_back(elt.substituteOrDrop(subs));
+    return rv;
+  }else if(auto* m = getIfMap()) {
+    JsonLoc::Map rv;
+    for(auto& [k,v] : *m) {
+      if(auto* p = v.getIfPlaceholder()) {
+        if(!findSub(subs, *p)) continue;
+      }
+      rv.emplace_back(k, v.substituteOrDrop(subs));
+    }
     return rv;
   }
   return JsonLoc::ErrorValue{};

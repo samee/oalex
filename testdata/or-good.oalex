@@ -47,7 +47,6 @@ example simple_stmt:
 outputs: {
   stmt: "decl",
   varname: "x",
-  init_value: {},
 }
 
 example simple_stmt:
@@ -162,9 +161,9 @@ example compound_stmt_tmpl:
   var y = 9;
 outputs: {
   stmt: [
-    { decl: { varname:{}, init_value:{} },
+    { decl: {},
       asgn: { lhs: "x", rhs: "3" } },
     { decl: { varname: "y", init_value: "9" },
-      asgn: { lhs:{}, rhs:{} } },
+      asgn: {} },
   ]
 }

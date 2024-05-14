@@ -154,12 +154,6 @@ class JsonLoc {
   void moveValue(JsonLoc&& that);
 };
 
-inline JsonLoc moveEltOrEmpty(JsonLoc::Map& m, std::string_view key) {
-  for(ssize_t i=0; i<(ssize_t)m.size(); ++i)
-    if(m[i].first == key) return std::move(m[i].second);
-  return JsonLoc::Map{};
-}
-
 template <class V> JsonLoc toJsonLoc(const std::optional<V>& v) {
   return v.has_value() ? JsonLoc{v.value()} : JsonLoc::ErrorValue{};
 }

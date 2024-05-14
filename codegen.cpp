@@ -204,10 +204,8 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
     container.push_back({out.childName, std::move(outfields)});
     m = &container;
   }
-  vector<pair<string, JsonLoc>> subs;
-  for(auto& [id, jsloc] : out.outputTmpl.allPlaceholders())
-    subs.emplace_back(id, moveEltOrEmpty(*m, id));
-  return JsonLoc::withPos(out.outputTmpl.substituteAll(subs),
+
+  return JsonLoc::withPos(out.outputTmpl.substituteOrDrop(*m),
                           outfields.stPos, outfields.enPos);
 }
 
