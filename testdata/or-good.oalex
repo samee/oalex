@@ -166,3 +166,41 @@ outputs: {
       asgn: {} },
   ]
 }
+
+# This rule is the same as simple_stmt_tmpl, but omits more of the output if
+# fields are absent.
+rule stmt_opt_more choices:
+| "var"     -> (decl ~ "var varname [ = init_value ]")
+| int_value -> error 'Statement cannot start with a number'
+|              (asgn ~ "lhs = rhs")
+| error 'Invalid statement'
+where:
+  lhs, varname ~ ident
+  rhs, init_value ~ int_value
+# This `outputs` stanza makes no difference to the json output, but
+# affects the generated C++ files. The output types are JsonLike if this
+# `outputs` stanza is absent. Otherwise, it's a generated struct.
+outputs: { decl, asgn }
+
+# Dev-note: Interesting use case for parameterized rules. It'd be convenient if
+# we didn't have to define the various compound_* rules separately. But is that
+# unique to testing parsers, or would oalex users also care about such a
+# feature?
+rule compound_opt_more:
+  stmt; ... ; stmt;
+where:
+  stmt ~ stmt_opt_more
+
+# Unlike the example for compound_stmt_tmpl, notice how the outputs here
+# do not need empty `{}` fields for branches not taken. This is the result of
+# defining the branches with mapped identifiers, instead of manually filling
+# in subfields of each branch.
+example compound_opt_more:
+  x = 3;
+  var y = 9;
+outputs: {
+  stmt: [
+    { asgn: { lhs: "x", rhs: "3" } },
+    { decl: { varname: "y", init_value: "9" } },
+  ]
+}

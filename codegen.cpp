@@ -1485,6 +1485,7 @@ genOptionalFieldAppends(
     const vector<RuleField>& fields,
     string_view resvar,
     const OutputStream& cppos) {
+  cppos("  using oalex::holdsErrorValue;\n");
   for(auto& field: fields) if(field.container == RuleField::optional) {
     cppos(format("  if(!holdsErrorValue(fields.{}))\n", field.field_name));
     cppos(format("    {}.emplace_back({}, oalex::toJsonLoc(fields.{}));\n",
@@ -1759,8 +1760,8 @@ genOptionalTemplateField(string_view dest, string_view first_comp,
   // TODO: Instead of an asterisk, use ParserResultTraits::get_value_tmpl.
   // Requires us to know schema_source, though.
   cppos(format("  if(!holdsErrorValue({}))\n", struct_field));
-  cppos(format("    mapNestedAppend({}, {}, {}, *{});\n", dest, output_path,
-               dquoted(inner_key), struct_field));
+  cppos(format("    mapNestedAppend({}, {}, {}, JsonLoc(*{}));\n",
+               dest, output_path, dquoted(inner_key), struct_field));
 }
 
 static void
@@ -1778,13 +1779,15 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   hos("};\n\n");
 
   vector<string> optIdents = getOptionalFields(ruleset, out.childidx);
+  vector<vector<JsonPathComp>> optPaths
+    = getPlaceholderPaths(optIdents, out.outputTmpl);
   cppos(format("{}::operator JsonLoc() const {{\n", className));
+  if(!optPaths.empty())
+    cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::toJsonLoc;\n");
   cppos("  auto rv = JsonLoc::withPos(");
     genFieldConversion(out.outputTmpl, "fields", optIdents, cppos, 2);
     cppos(", loc.first, loc.second);\n");
-  vector<vector<JsonPathComp>> optPaths
-    = getPlaceholderPaths(optIdents, out.outputTmpl);
   cppos("\n");
   for(auto& optPath : optPaths)
     genOptionalTemplateField("rv", "fields", optPath, cppos);

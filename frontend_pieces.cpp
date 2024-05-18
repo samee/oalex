@@ -186,6 +186,7 @@ ParsedRule10::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"rule_name", JsonLoc{fields.rule_name}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -252,6 +253,7 @@ ParsedRule14::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"external_name", JsonLoc{fields.external_name}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -318,6 +320,7 @@ ParsedRule18::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"param", JsonLoc{fields.param}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -368,6 +371,7 @@ ParsedRule21::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -409,6 +413,7 @@ ParsedRule22::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -420,6 +425,7 @@ ParsedRule23::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"param", oalex::toJsonLoc(fields.param)},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -473,6 +479,7 @@ ParsedRule26::operator JsonLoc() const {
     {"external_name", JsonLoc{fields.external_name}},
     {"param", oalex::toJsonLoc(fields.param)},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -606,6 +613,7 @@ ParsedRule29::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"ident", JsonLoc{fields.ident}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -672,6 +680,7 @@ ParsedRule33::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
     {"error_msg", JsonLoc{fields.error_msg}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -698,6 +707,7 @@ ParsedRule34::operator JsonLoc() const {
     {"ident", JsonLoc{fields.ident}},
     {"error_msg", JsonLoc{fields.error_msg}},
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
@@ -849,6 +859,7 @@ std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) 
 ParsedRule42::operator JsonLoc() const {
   auto rv = JsonLoc::Map{
   };
+  using oalex::holdsErrorValue;
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
