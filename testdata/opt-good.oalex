@@ -1,0 +1,30 @@
+rule ident_regex: /[_a-zA-Z]+/
+
+rule decl_opt_type:
+  var var_name [ typed var_type ]
+where:
+  var_name, var_type ~ ident_regex
+
+example decl_opt_type:
+  var x
+outputs: { var_name: "x" }
+
+example decl_opt_type:
+  var x typed int
+outputs: { var_name: "x", var_type: "int" }
+
+
+rule decl_deprecated_nonnull:
+  var var_name [ nonnull ]
+where:
+  var_name ~ ident_regex
+  nonnull ~ 'nonnull'
+outputs: { var_name, kw: nonnull }
+
+example decl_deprecated_nonnull:
+  var x
+outputs: { var_name: "x" }
+
+example decl_deprecated_nonnull:
+  var x nonnull
+outputs: { var_name: "x", kw: "nonnull" }

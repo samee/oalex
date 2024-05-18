@@ -1,0 +1,14 @@
+# expected-error: Did not consume the entire input
+
+rule ident_regex: /[_a-zA-Z]+/
+
+rule decl_deprecated_nonnull:
+  var var_name [ nonnull ]
+where:
+  var_name ~ ident_regex
+  nonnull ~ 'nonnull'
+outputs: { var_name, kw: nonnull }
+
+example decl_deprecated_nonnull:
+  var x const
+outputs: { var_name: "x" }
