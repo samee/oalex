@@ -1,8 +1,0 @@
-# expected-error: Part 'typename' overlaps with 'new_typename'
-
-rule type_alias:
-  type typename = new_typename
-where:
-  typename ~ ident
-  new_typename ~ ident
-outputs: {typename, new_typename}

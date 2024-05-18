@@ -1,0 +1,11 @@
+rule type_alias:
+  type typename = new_typename
+where:
+  typename ~ ident
+  new_typename ~ ident
+  ident ~ /[a-z_]+/
+outputs: {typename, new_typename}
+
+example type_alias:
+  type mymap = some_complex_map
+outputs: { typename: "mymap", new_typename: "some_complex_map" }

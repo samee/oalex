@@ -172,6 +172,13 @@ auto labelParts(DiagsDest ctx, const GluedString& s,
     auto matches = matchAllParts(ctx, patt, s);
     if(!matches) { matchError = true; continue; }
     for(const auto& [st,en] : *matches) {
+      // Silently drop labels chopping up a word into two.
+      if(st != 0 && isword(s[st-1]) && isword(s[st])) continue;
+      if(en <= st)
+        Bug("matchAllPatterns() is producing empty intervals for pattern '{}'",
+            debug(patt));
+      if(s.sizeGt(en) && isword(s[en-1]) && isword(s[en])) continue;
+
       const IntervalMap::value_type interval{st, {en, id}};
       const IntervalMap::value_type* ovlap = insert(m, interval);
       if(ovlap) {
@@ -182,20 +189,6 @@ auto labelParts(DiagsDest ctx, const GluedString& s,
                                         s.inputPos(ovlap->second.first))));
         matchError = true;
       }
-      // Disallow labels chopping up a word into two.
-      if(st != 0 && isword(s[st-1]) && isword(s[st]))
-        Error(ctx, s.inputPos(st-1), format(
-                "Part '{}' starts a run-on word. "
-                "Either rename the word, or add a space before it",
-                debug(patt)));
-      if(en <= st)
-        Bug("matchAllPatterns() is producing empty intervals for pattern '{}'",
-            debug(patt));
-      if(s.sizeGt(en) && isword(s[en-1]) && isword(s[en]))
-        Error(ctx, s.inputPos(en-1), format(
-                "Part '{}' ends a run-on word. "
-                "Either rename the word, or add a space after it",
-                debug(patt)));
     }
   }
   if(matchError) return {};

@@ -293,16 +293,19 @@ void testNoWordSplit() {
   GluedString patt = fquote("foobar");
   RegexCharSet wordChars = parseRegexCharSet("[_a-zA-Z]");
   map<Ident,PartPattern> partspec{ {fid("foo"), fquote("foo")} };
-  labelParts(*ctx, patt, partspec, wordChars);
-  assertHasDiagWithSubstr(__func__, ctx->diags,
-                          "Part 'foo' ends a run-on word");
+  vector<LabelOrPart> observed = labelParts(*ctx, patt, partspec, wordChars);
+  vector<LabelOrPart> expected_no_part = { LabelOrPart{pair{0, 6}} };
+  assertEmptyDiags(__func__, ctx->diags);
+  if(observed != expected_no_part)
+    Bug("Word with run-on suffix was not disregarded");
 
   ctx->diags.clear();
   // patt unchanged
   partspec = { {fid("bar"), fquote("bar")} };
-  labelParts(*ctx, patt, partspec, wordChars);
-  assertHasDiagWithSubstr(__func__, ctx->diags,
-                          "Part 'bar' starts a run-on word");
+  observed = labelParts(*ctx, patt, partspec, wordChars);
+  assertEmptyDiags(__func__, ctx->diags);
+  if(observed != expected_no_part)
+    Bug("Word with run-on prefix was not disregarded");
 
   ctx->diags.clear();
   patt = fquote("w-foo-bar-w");
@@ -404,14 +407,14 @@ void testTokenizeSuccess() {
 }
 
 void testTokenizeLabelInComment() {
-  char input[] = R"("if (cond) stmt;  // Test 'if' condition"
+  char input[] = R"("if (condition) stmt;  // Test 'if' condition"
                      where:
-                       condexpr: "cond"
+                       condexpr: "condition"
                        stmt: "stmt")";
   auto [ctx, fquote, fid] = setupLabelTest(__func__, input);
-  GluedString patt = fquote("if (cond) stmt;  // Test 'if' condition");
+  GluedString patt = fquote("if (condition) stmt;  // Test 'if' condition");
   map<Ident,PartPattern> partspec{
-    {fid("condexpr"), fquote("cond")},
+    {fid("condexpr"), fquote("condition")},
     {fid("stmt"), fquote("stmt")}};
   tokenizePattern(*ctx, patt, partspec, lexopts);
   assertHasDiagWithSubstr(__func__, ctx->diags,
