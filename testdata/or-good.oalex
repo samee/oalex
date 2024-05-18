@@ -96,7 +96,6 @@ example simple_stmt_flipped:
 outputs: { stmt: "asgn", lhs: "x", rhs: "5" }
 
 # TODO ellipsis shouldn't have to be surrounded by spaces.
-# TODO ellipsis in output template. E.g. [simple_stmt, ...].
 rule compound_stmt:
   simple_stmt; ... ; simple_stmt;
 outputs: { stmt: [simple_stmt, ...] }
@@ -153,9 +152,9 @@ rule compound_stmt_tmpl:
 where:
   stmt ~ simple_stmt_tmpl
 
-# TODO: outputs are broken for optional fields.
-# We should simply omit absent fields,
-# instead of spamming the output with dummy values.
+# TODO: Make it possible to omit {} using mapped patterns. E.g.
+# If the pattern was defined using (asgn ~ "lhs = rhs"), we should omit it when
+# matching other branches.
 example compound_stmt_tmpl:
   x = 3;
   var y = 9;

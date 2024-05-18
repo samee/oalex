@@ -11,7 +11,6 @@ example hello_world:
     world
 outputs success
 
-# TODO: Fix support for single-line comments here
 rule hello_world_haskell_comments:
   {- Just a simple grammar with two words -}
   Hello world  -- A redundant single-line comment to end the pattern
