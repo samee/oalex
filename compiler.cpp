@@ -991,7 +991,7 @@ class RuleExprCompiler {
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                                          JsonTmpl jstmpl);
-  OrRule::Component compileRuleBranch(const RuleBranch& branch,
+  optional<OrRule::Component> compileRuleBranch(const RuleBranch& branch,
       bool exposeFields, vector<IdentUsage>& exportedOutput);
 
  private:
@@ -1501,8 +1501,7 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
-// FIXME: return nullopt on error.
-OrRule::Component
+optional<OrRule::Component>
 RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
                   vector<IdentUsage>& exportedOutput) {
   unique_ptr<Rule> target;
@@ -1520,11 +1519,15 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
     Unimplemented("Actions without a target should produce an error");
   }else target = move_to_unique(ErrorRule{string{branch.diagMsg}});
 
+  if(!target) return std::nullopt;
+  ssize_t targetidx = rl_->appendAnonRulePtr(std::move(target));
+
+  // If lookahead-compilation fails, we still continue without it.
   ssize_t lookidx = branch.lookahead
     ? appendLookahead(ctx_, *branch.lookahead, rl_->defaultLexopts(), *rl_)
     : -1;
-  ssize_t targetidx = target ? rl_->appendAnonRulePtr(std::move(target)): -1;
-  return { .lookidx = lookidx, .parseidx = targetidx, .tmpl{passthroughTmpl} };
+  return OrRule::Component{ .lookidx = lookidx, .parseidx = targetidx,
+                            .tmpl{passthroughTmpl} };
 }
 
 void
@@ -1546,10 +1549,13 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   bool exposeFields = !stz.jstmpl.holdsEllipsis();
   OrRule orRule{{}, /* flattenOnDemand */ exposeFields};
   vector<IdentUsage> ids;
-  for(const auto& branch : branches) {
-    orRule.comps.push_back(comp.compileRuleBranch(branch, exposeFields, ids));
-    if(!exposeFields) ids.clear();
-  }
+  for(const auto& branch : branches)
+    if(auto opt = comp.compileRuleBranch(branch, exposeFields, ids)) {
+      orRule.comps.push_back(std::move(*opt));
+      if(!exposeFields) ids.clear();
+    }
+  if(orRule.comps.empty()) return;  // Too many errors.
+  // TODO: test change.
 
   ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
