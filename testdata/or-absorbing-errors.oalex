@@ -5,8 +5,6 @@
 rule acceptTestWord: 'TestWord'
 rule rejectTestWord: 'BadWord'
 
-# TODO: change this keyword `lookahead` to `any_of` or `one_of`.
-# Or without underscores: like `any of` or `one of`.
 rule matchAfterAbsorb choices:
 | rejectTestWord   # This will produce error messages on "TestWord"
 | acceptTestWord   # But then we accept "TestWord" anyway.
