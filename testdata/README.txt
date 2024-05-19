@@ -8,7 +8,7 @@ The first kind, on which `oalex` is expected to fail, has comments of the form
 "expected-error:". That directive is used by oalex_main_test.py.
 
 
-Copyright 2020-2021 The oalex authors
+Copyright 2019-2024 The oalex authors
 -------------------------------------
 
 Licensed under the Apache License, Version 2.0 (the "License");
