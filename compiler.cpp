@@ -962,6 +962,11 @@ struct CompiledSingleExpr {
   SortedIdents identsUsed;
 };
 
+struct CompiledRuleBranch {
+  OrRule::Component or_comp;
+  SortedIdents exportedIdents;
+};
+
 class RuleExprCompiler {
  public:
   /* Params:
@@ -1004,8 +1009,8 @@ class RuleExprCompiler {
   optional<CompiledSingleExpr> compileSingleExpr(const RuleExpr& rxpr);
   optional<CompiledSingleExpr> compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                                          JsonTmpl jstmpl);
-  optional<OrRule::Component> compileRuleBranch(const RuleBranch& branch,
-      bool exposeFields, vector<IdentUsage>& exportedOutput);
+  optional<CompiledRuleBranch> compileRuleBranch(const RuleBranch& branch,
+                                                 bool exposeFields);
 
  private:
   RulesWithLocs* rl_;
@@ -1542,14 +1547,15 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
                       typeid(lookahead).name());
 }
 
-optional<OrRule::Component>
-RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
-                  vector<IdentUsage>& exportedOutput) {
+optional<CompiledRuleBranch>
+RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
+                                    bool exposeFields) {
   unique_ptr<Rule> target;
+  vector<IdentUsage> exportedIdents;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
       if(exposeFields)
-        target = this->compileToFlatStruct(*branch.target, exportedOutput);
+        target = this->compileToFlatStruct(*branch.target, exportedIdents);
       else if(optional<CompiledSingleExpr> res
           = this->compileSingleExpr(*branch.target))
         target = std::move(res->rule);
@@ -1567,8 +1573,11 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch, bool exposeFields,
   ssize_t lookidx = branch.lookahead
     ? appendLookahead(ctx_, *branch.lookahead, rl_->defaultLexopts(), *rl_)
     : -1;
-  return OrRule::Component{ .lookidx = lookidx, .parseidx = targetidx,
-                            .tmpl{passthroughTmpl} };
+  return CompiledRuleBranch{
+    .or_comp { .lookidx = lookidx, .parseidx = targetidx,
+               .tmpl{passthroughTmpl} },
+    .exportedIdents = SortedIdents{std::move(exportedIdents)},
+  };
 }
 
 void
@@ -1595,9 +1604,10 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   OrRule orRule{{}, /* flattenOnDemand */ exposeFields};
   vector<IdentUsage> exportedIds;
   for(const auto& branch : branches)
-    if(auto opt = comp.compileRuleBranch(branch, exposeFields, exportedIds)) {
-      orRule.comps.push_back(std::move(*opt));
-      if(!exposeFields) exportedIds.clear();
+    if(auto opt = comp.compileRuleBranch(branch, exposeFields)) {
+      orRule.comps.push_back(std::move(opt->or_comp));
+      for(auto& id : opt->exportedIdents.release())
+        exportedIds.push_back(std::move(id));
     }
   if(orRule.comps.empty()) return;  // Too many errors.
   // TODO: test change.
