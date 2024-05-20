@@ -16,3 +16,26 @@ outputs: {
   varname: "foo"
 }
 
+# This tests and old bug where this would raise an error about undefined fields.
+# We were mistakenly marking identifiers as defined if they were inputs in a
+# pattern, instead of being outputs.
+# FIXME: None of this works with codegen. The generated struct doesn't have
+# forward declaration.
+rule named_var_with_tmpl: (kw ~ "var")
+outputs: { kw }
+
+# Same test but for multi-match rule.
+# It's interesting that we support the same output name for both branches.
+rule named_var choices:
+| "const" -> (kw ~ 'const')
+| "volatile" -> (kw ~ 'volatile')
+outputs: { kw }
+
+rule int_literal: /[0-9]+/
+
+# This one has different types for value.
+# We might make these both illegal later.
+rule value choices:
+| ident -> (value ~ ident)
+| int_literal -> (value ~ int_literal)
+outputs: { value }

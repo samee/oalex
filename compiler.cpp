@@ -811,6 +811,7 @@ reserveLocalNameInRule(DiagsDest ctx, RulesWithLocs& rl,
 // RuleExprCompiler::lookupLocalIdent() uses this property.
 static SymbolTable
 mapToRule(DiagsDest ctx, RulesWithLocs& rl, const vector<LocalBinding>& locals,
+          const vector<Ident>& mappedIdents,
           const JsonTmpl::ConstPlaceholderMap& outputKeys) {
   SymbolTable rv;
   vector<Ident> unq_lhs = filterUniqueRuleNames(locals);
@@ -820,6 +821,8 @@ mapToRule(DiagsDest ctx, RulesWithLocs& rl, const vector<LocalBinding>& locals,
     const LocalBinding* local
       = findRuleLocalBinding(ctx, outputIdent, locals);
     if(local) continue;
+    if(find(mappedIdents.begin(), mappedIdents.end(), outputIdent)
+        != mappedIdents.end()) continue;
     ssize_t ruleIndex = rl.findOrAppendIdent(ctx, outputIdent);
     rv.emplace_back(std::move(outputIdent), ruleIndex);
   }
@@ -964,10 +967,11 @@ class RuleExprCompiler {
   /* Params:
 
     * lexopts: The `lexical:` stanza, or defaults.
-    * symtab: Local rules from the `where:` stanza. RuleExprCompuler falls back
-        to global rules during RuleExpr compilation, but not in a pattern
-        compilation. Produced from mapToRule(), used by either
-        lookupLocalIdent() or by lookupIdent().
+    * symtab: Local rules from the `where:` stanza, plus any defined in
+        the output template (if any). RuleExprCompuler falls back to global
+        rules during RuleExpr compilation, but not in a pattern compilation.
+        Produced from mapToRule(), used by either lookupLocalIdent() or by
+        lookupIdent().
     * partPatterns: Used by tokenizePattern() of pattern.cpp. They should
         already be in symtab.
     * errmsg: The `errors after failing:` stanza.
@@ -1446,13 +1450,39 @@ RuleExprCompiler::compileLocalRules(const vector<LocalBinding>& locals) {
   }
 }
 
+void
+collectMappedIdents(const RuleExpr& rxpr, vector<Ident>& output) {
+  if(const auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
+    output.push_back(mid->lhs);
+  }else if(const auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
+    for(const auto& p : cat->parts) collectMappedIdents(*p, output);
+  }else if(const auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr)) {
+    collectMappedIdents(*opt->part, output);
+  }
+}
+
+vector<Ident>
+mappedIdents(const RuleExpr& rxpr) {
+  vector<Ident> rv;
+  collectMappedIdents(rxpr, rv);
+  return rv;
+}
+
 // Dev-note: Right now, this supports ruleName being empty. But empty ruleName
 // should only be used for tests.
 void
 appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
                const RuleStanzas& stz, RulesWithLocs& rl) {
+  // TODO: A named part in the main rule is available for output template, and
+  // is not defined as a global. But we should not allow them in any dquoted
+  // patterns. I should disallow the name from being defined as a local or
+  // global. reserveLocalName() only does the latter.
+  //
+  // TODO: named keywords like this need better names for their types in
+  // generated code.
   SymbolTable symtab
-    = mapToRule(ctx, rl, stz.local_decls, stz.jstmpl.allPlaceholders());
+    = mapToRule(ctx, rl, stz.local_decls, mappedIdents(rxpr),
+                stz.jstmpl.allPlaceholders());
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, stz.jstmpl, stz.local_decls);
 
@@ -1548,8 +1578,12 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   if(stz.sawErrorsKw) Unimplemented("errors for multi-match rules");
 
   // TODO: Dedup with appendExprRule()
-  SymbolTable symtab
-    = mapToRule(ctx, rl, stz.local_decls, stz.jstmpl.allPlaceholders());
+  vector<Ident> mappedOutputs;
+  for(const auto& branch : branches)
+    collectMappedIdents(*branch.target, mappedOutputs);
+
+  SymbolTable symtab = mapToRule(ctx, rl, stz.local_decls, mappedOutputs,
+                                 stz.jstmpl.allPlaceholders());
   map<Ident,PartPattern> partPatterns
     = makePartPatterns(ctx, stz.jstmpl, stz.local_decls);
   vector<pair<Ident,string>> errmsg
