@@ -1,0 +1,6 @@
+# expected-error: Output field 'num' was not found in the rule pattern
+
+rule qualifier choices:
+| 'const'
+| 'volatile'
+outputs: { num }

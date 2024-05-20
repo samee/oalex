@@ -1,0 +1,7 @@
+# expected-error: Local rule 'num' is not used in this rule
+
+rule qualifier choices:
+| 'const'
+| 'volatile'
+where:
+  num ~ /[0-9]+/

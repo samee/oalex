@@ -964,7 +964,7 @@ struct CompiledSingleExpr {
 
 struct CompiledRuleBranch {
   OrRule::Component or_comp;
-  SortedIdents exportedIdents;
+  SortedIdents identsUsed, exportedIdents;
 };
 
 class RuleExprCompiler {
@@ -1516,6 +1516,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     rl.deferred_assign_ptr(newIndex, dummyRule());
     return;
   }
+
   // This error is not fatal. Unused fields stay unused.
   checkUnusedParts(ctx, exprIdents, comp.patternIdents(), stz.local_decls);
 }
@@ -1551,14 +1552,21 @@ optional<CompiledRuleBranch>
 RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
                                     bool exposeFields) {
   unique_ptr<Rule> target;
+  SortedIdents identsUsed;
   vector<IdentUsage> exportedIdents;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
-      if(exposeFields)
+      if(exposeFields) {
         target = this->compileToFlatStruct(*branch.target, exportedIdents);
+        vector<IdentUsage> unsorted;
+        ruleExprCollectInputIdents(*branch.target, patternIdents_, unsorted);
+        identsUsed = SortedIdents{std::move(unsorted)};
+      }
       else if(optional<CompiledSingleExpr> res
-          = this->compileSingleExpr(*branch.target))
+          = this->compileSingleExpr(*branch.target)) {
         target = std::move(res->rule);
+        identsUsed = std::move(res->identsUsed);
+      }
     }
     else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
@@ -1576,6 +1584,7 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
   return CompiledRuleBranch{
     .or_comp { .lookidx = lookidx, .parseidx = targetidx,
                .tmpl{passthroughTmpl} },
+    .identsUsed = std::move(identsUsed),
     .exportedIdents = SortedIdents{std::move(exportedIdents)},
   };
 }
@@ -1602,21 +1611,23 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
 
   bool exposeFields = !stz.jstmpl.holdsEllipsis();
   OrRule orRule{{}, /* flattenOnDemand */ exposeFields};
-  vector<IdentUsage> exportedIds;
+  vector<IdentUsage> exportedIds, identsUsed;
   for(const auto& branch : branches)
     if(auto opt = comp.compileRuleBranch(branch, exposeFields)) {
       orRule.comps.push_back(std::move(opt->or_comp));
+      for(auto& id : opt->identsUsed.release())
+        identsUsed.push_back(std::move(id));
       for(auto& id : opt->exportedIdents.release())
         exportedIds.push_back(std::move(id));
     }
   if(orRule.comps.empty()) return;  // Too many errors.
-  // TODO: test change.
+  if(!checkUndefinedOutfields(ctx, SortedIdents{exportedIds}, stz.jstmpl))
+    return;
 
   ssize_t skipIndex = rl.addSkipper(stz.lexopts.skip);
   ssize_t newIndex = rl.defineIdent(ctx, ruleName, skipIndex);
   if(newIndex == -1) return;
 
-  // TODO: checkUnusedParts()
   if(stz.jstmpl.holdsEllipsis())
     rl.deferred_assign(newIndex, std::move(orRule));
   else {
@@ -1630,6 +1641,10 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
         outputTmpl,
     });
   }
+  // This error is not fatal. Unused fields stay unused.
+  // We just need identsUsed.
+  checkUnusedParts(ctx, SortedIdents{std::move(identsUsed)},
+                   comp.patternIdents(), stz.local_decls);
 }
 
 }  // namespace oalex
