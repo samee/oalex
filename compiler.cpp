@@ -1593,11 +1593,11 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
 
   bool exposeFields = !stz.jstmpl.holdsEllipsis();
   OrRule orRule{{}, /* flattenOnDemand */ exposeFields};
-  vector<IdentUsage> ids;
+  vector<IdentUsage> exportedIds;
   for(const auto& branch : branches)
-    if(auto opt = comp.compileRuleBranch(branch, exposeFields, ids)) {
+    if(auto opt = comp.compileRuleBranch(branch, exposeFields, exportedIds)) {
       orRule.comps.push_back(std::move(*opt));
-      if(!exposeFields) ids.clear();
+      if(!exposeFields) exportedIds.clear();
     }
   if(orRule.comps.empty()) return;  // Too many errors.
   // TODO: test change.
@@ -1612,7 +1612,7 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
   else {
     JsonTmpl outputTmpl = stz.jstmpl;
     vector<Ident> listNames = desugarEllipsisPlaceholders(ctx, outputTmpl);
-    checkPlaceholderTypes(ctx, listNames, ids);
+    checkPlaceholderTypes(ctx, listNames, exportedIds);
     ssize_t orIndex = rl.appendAnonRule(std::move(orRule));
     rl.deferred_assign(newIndex, OutputTmpl{
         orIndex,   // childidx
