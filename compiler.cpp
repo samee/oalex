@@ -716,18 +716,27 @@ appendLocals(SortedIdents ids,
   return SortedIdents{std::move(v)};
 }
 
-static void
-checkUnusedParts(DiagsDest ctx, SortedIdents patternIdents,
-                 const map<string,SortedIdents>& localRulePatternIdents,
-                 const vector<LocalBinding>& locals, const JsonTmpl& jstmpl) {
+static bool
+checkUndefinedOutfields(DiagsDest ctx, const SortedIdents& exportedIdents,
+                        const JsonTmpl& jstmpl) {
+  bool error_found = false;
   for(auto& [k,v]: jstmpl.allPlaceholders()) {
     const Ident outid = identOf(ctx, *v);
-    if(!patternIdents.contains(outid))
+    if(!exportedIdents.contains(outid)) {
+      error_found = true;
       Error(ctx, outid.stPos(), outid.enPos(),
             format("Output field '{}' was not found in the rule pattern",
                    outid.preserveCase()));
+    }
   }
-  SortedIdents allIdents = appendLocals(std::move(patternIdents),
+  return !error_found;
+}
+
+static void
+checkUnusedParts(DiagsDest ctx, SortedIdents identsUsed,
+                 const map<string,SortedIdents>& localRulePatternIdents,
+                 const vector<LocalBinding>& locals) {
+  SortedIdents allIdents = appendLocals(std::move(identsUsed),
                                         localRulePatternIdents, locals);
   for(auto& l: locals) {
     const Ident outid = l.localName;
@@ -1389,13 +1398,16 @@ RuleExprCompiler::compileToFlatStruct(
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                             JsonTmpl jstmpl) {
-  vector<IdentUsage> idsExported;
-
-  unique_ptr<Rule> flatRule = this->compileToFlatStruct(rxpr, idsExported);
+  unique_ptr<Rule> flatRule;
+  vector<IdentUsage> unsorted;
+  flatRule = this->compileToFlatStruct(rxpr, unsorted);
   if(!flatRule) return std::nullopt;
 
+  SortedIdents idsExported{std::move(unsorted)};
+  if(!checkUndefinedOutfields(ctx_, idsExported, jstmpl)) return std::nullopt;
+
   vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
-  checkPlaceholderTypes(ctx_, listNames, idsExported);
+  checkPlaceholderTypes(ctx_, listNames, idsExported.get());
   vector<IdentUsage> idsUsed;
   ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
   return CompiledSingleExpr{
@@ -1470,8 +1482,7 @@ appendExprRule(DiagsDest ctx, const Ident& ruleName, const RuleExpr& rxpr,
     return;
   }
   // This error is not fatal. Unused fields stay unused.
-  checkUnusedParts(ctx, exprIdents, comp.patternIdents(),
-                   stz.local_decls, stz.jstmpl);
+  checkUnusedParts(ctx, exprIdents, comp.patternIdents(), stz.local_decls);
 }
 
 // Dev-note: maybe move to pattern.h
