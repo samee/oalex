@@ -1,0 +1,57 @@
+# TODO: Use pattern as a unit test if requested. E.g. `rule <name> example:`
+# and `rule <name> example choices`.
+rule contact_line:
+
+    Smith, Adam; 1234 Main St.; Cityburg, ST 98765
+
+  where:
+    "Smith"         as last_name  ~ name_part
+    "Adam"          as first_name ~ name_part
+    name_part                     ~ /[a-zA-Z '-]+/
+    "1234 Main St." as street_address ~ /[^;]+/
+    "Cityburg"      as city_name      ~ /[A-Za-z]+/
+    "ST"            as state_code     ~ /[A-Z][A-Z]/  # We don't yet support
+    "98765"         as zip_code       ~ /[0-9]+/      #   {n} repeats in regex.
+
+example contact_line:
+
+    Bell, Gordon; 567 Fake Street; Coronado, CA 92118
+
+  outputs: {
+    last_name:      "Bell",
+    first_name:     "Gordon",
+    street_address: "567 Fake Street",
+    city_name:      "Coronado",
+    state_code:     "CA",
+    zip_code:       "92118"
+  }
+
+
+rule contact_line_style_2: "name; address"
+  where:
+    name ~ "last, first"
+    last, first ~ /[a-zA-Z '-]+/
+
+    address ~ "street_addr; city, state zip_code"
+    street_addr ~ /[^;]+/
+    city        ~ /[A-Za-z]+/
+    state       ~ /[A-Z][A-Z]/
+    zip_code    ~ /[0-9]+/
+
+example contact_line_style_2:
+
+    Bell, Gordon; 567 Fake Street; Coronado, CA 92118
+
+  outputs: {
+    address: {
+      city: "Coronado",
+      state: "CA",
+      street_addr: "567 Fake Street",
+      zip_code: "92118"
+    },
+    name: {
+      first: "Gordon",
+      last: "Bell"
+    }
+  }
+
