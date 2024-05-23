@@ -204,3 +204,8 @@ outputs: {
     { decl: { varname: "y", init_value: "9" } },
   ]
 }
+
+# TODO: Rename this file. It is turning into a codegen test, not or-rule test.
+
+# Test that we support single-quotes in codegen
+rule readable_name: /[a-z']+/

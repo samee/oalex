@@ -137,7 +137,7 @@ std::optional<oalex::StringLoc> parseRule6(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "extern");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected 'extern'");
+    Error(ctx, i, "Expected \'extern\'");
   return res;
 }
 
@@ -162,7 +162,7 @@ std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "rule");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected 'rule'");
+    Error(ctx, i, "Expected \'rule\'");
   return res;
 }
 
@@ -229,7 +229,7 @@ std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, "=");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected '='");
+    Error(ctx, i, "Expected \'=\'");
   return res;
 }
 
@@ -296,7 +296,7 @@ std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, "(");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected '('");
+    Error(ctx, i, "Expected \'(\'");
   return res;
 }
 
@@ -347,7 +347,7 @@ std::optional<oalex::StringLoc> parseRule19(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ",");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected ','");
+    Error(ctx, i, "Expected \',\'");
   return res;
 }
 
@@ -469,7 +469,7 @@ std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ")");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected ')'");
+    Error(ctx, i, "Expected \')\'");
   return res;
 }
 
@@ -656,7 +656,7 @@ std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ":");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected ':'");
+    Error(ctx, i, "Expected \':\'");
   return res;
 }
 
@@ -777,7 +777,7 @@ std::optional<oalex::StringLoc> parseRule35(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "errors");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected 'errors'");
+    Error(ctx, i, "Expected \'errors\'");
   return res;
 }
 
@@ -802,7 +802,7 @@ std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "after");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected 'after'");
+    Error(ctx, i, "Expected \'after\'");
   return res;
 }
 
@@ -827,7 +827,7 @@ std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, defaultRegexOpts().word, "failing");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected 'failing'");
+    Error(ctx, i, "Expected \'failing\'");
   return res;
 }
 
@@ -852,7 +852,7 @@ std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) 
   using oalex::holdsErrorValue;
   std::optional<oalex::StringLoc> res = oalex::match(ctx, i, ":");
   if(holdsErrorValue(res))
-    Error(ctx, i, "Expected ':'");
+    Error(ctx, i, "Expected \':\'");
   return res;
 }
 

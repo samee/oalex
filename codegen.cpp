@@ -473,8 +473,9 @@ static void codegenParserCall(const Rule& rule, string_view posVar,
 
 static string cEscaped(char c) {
   switch(c) {
-    // Technically, we should only need \", \n, and \\, but this should help
+    // Technically, we should only need quotes, \n, and \\, but this should help
     // readability.
+    case '\'': return "\\'";
     case '"' : return "\\\"";
     case '\\': return "\\\\";
     case '\a': return "\\a";
