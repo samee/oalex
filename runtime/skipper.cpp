@@ -28,11 +28,6 @@ using namespace std::literals::string_view_literals;
 
 namespace oalex {
 
-// To be replaced with C++20 std::string_view::starts_with.
-static bool starts_with(string_view a, string_view b) {
-  return a.substr(0,b.size()) == b;
-}
-
 static optional<string> validPair(string_view st, string_view en) {
     if(st.empty() || en.empty()) return "Comment delimiters cannot be empty";
     if(is_in(st[0], " \t\n"))
@@ -63,8 +58,8 @@ optional<string> Skipper::valid() const {
   if(nestedComment.has_value()) {
     if(auto err = validPair(nestedComment->first, nestedComment->second))
       return err;
-    if(starts_with(nestedComment->first, nestedComment->second) ||
-       starts_with(nestedComment->second, nestedComment->first))
+    if(nestedComment->first.starts_with(nestedComment->second) ||
+       nestedComment->second.starts_with(nestedComment->first))
       return "Nested comment delimiter pair can be confused for each other";
   }
 
@@ -74,7 +69,7 @@ optional<string> Skipper::valid() const {
   if(nestedComment.has_value()) starts.push_back(nestedComment->first);
   for(size_t i=0; i<starts.size(); ++i)
     for(size_t j=0; j<starts.size(); ++j)
-      if(i != j && starts_with(starts[i], starts[j]))
+      if(i != j && starts[i].starts_with(starts[j]))
         return format("Comment delimiters cannot be prefixes of each other: "
                       "{}, {}", starts[i], starts[j]);
   return nullopt;
