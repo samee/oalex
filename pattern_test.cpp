@@ -338,8 +338,8 @@ LexDirective mkLineLexOpts(LexDirective lexopts) {
   lexopts.skip.newlines = Skipper::Newlines::keep_all;
   return lexopts;
 }
-const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
-                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+const LexDirective lexopts{.wordChars = parseRegexCharSet("[_a-zA-Z]"),
+                           .skip{ {{"/*","*/"},{"//","\n"}}, {} },
                            .tailcont = false};
 const LexDirective linelexopts = mkLineLexOpts(lexopts);
 

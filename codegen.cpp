@@ -664,7 +664,9 @@ struct ParserResultTraits {
   string optional;
 
   string get_value_tmpl;
-  string value(string_view xpr) const { return format(get_value_tmpl, xpr); }
+  string value(string_view xpr) const {
+    return format(fmt::runtime(get_value_tmpl), xpr);
+  }
 };
 
 static ParserResultTraits
@@ -1123,9 +1125,11 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
                             compType, outType);
 
   cppos(funHeader + " {\n");
-  if(!flat) cppos(format("  {};\n", format(nonFlatMergeTmpl, outField)));
+  if(!flat)
+    cppos(format("  {};\n", format(fmt::runtime(nonFlatMergeTmpl), outField)));
   else for(auto& field: compRule.flatFields())
-    cppos(format("  {};\n", format(flatMergeTmpl, field.field_name)));
+    cppos(format("  {};\n", format(fmt::runtime(flatMergeTmpl),
+                            field.field_name)));
   cppos("}\n\n");
 }
 

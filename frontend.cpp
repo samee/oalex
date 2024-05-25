@@ -1347,8 +1347,8 @@ parseOalexSource(InputDiags& ctx) {
   RulesWithLocs rl;
 
   bool defaultSet = rl.defaultLexopts(LexDirective{
-    parseRegexCharSet("[_a-zA-Z0-9]"),
-    Skipper{ {}, {} },
+    .wordChars = parseRegexCharSet("[_a-zA-Z0-9]"),
+    .skip{ {}, {} },
     .tailcont = false,
   });
   if(!defaultSet)

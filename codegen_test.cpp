@@ -27,6 +27,7 @@ using fmt::format;
 using std::optional;
 using std::pair;
 using std::size;
+using std::ssize;
 using std::string;
 using std::string_view;
 using std::tuple;
@@ -142,14 +143,14 @@ void testOptionalComponent() {
   JsonLoc decl1 = eval(ctx, pos, rs, 8);
   assertEqual(__func__, decl1,
               *parseJsonLoc("{ var_name: 'x', init_value: '5' }"));
-  assertEqual(__func__, oalex::ssize(msg1), pos);
+  assertEqual(__func__, ssize(msg1), pos);
 
   string msg2 = "var y";
   ctx = InputDiags{Input{msg2}};
   pos = 0;
   JsonLoc decl2 = eval(ctx, pos, rs, 8);
   assertEqual(__func__, decl2, *parseJsonLoc("{ var_name: 'y' }"));
-  assertEqual(__func__, oalex::ssize(msg2), pos);
+  assertEqual(__func__, ssize(msg2), pos);
 }
 
 void testAliasRule() {

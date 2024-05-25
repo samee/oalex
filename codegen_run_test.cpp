@@ -50,6 +50,7 @@ using oalex::test::assertLocPairEqual;
 using std::function;
 using std::optional;
 using std::pair;
+using std::ssize;
 using std::string;
 using std::tuple;
 
@@ -94,7 +95,7 @@ void runOptionalComponent() {
     = parseVarOptionalInitValue(ctx, pos);
   assertEqual(__func__, toJsonLoc(decl1), *parseJsonLoc(
         "{ var_name: 'x', init_value: '5' }"));
-  assertEqual(__func__, oalex::ssize(msg1), pos);
+  assertEqual(__func__, ssize(msg1), pos);
 
   string msg2 = "var y";
   ctx = InputDiags{Input{msg2}};
@@ -102,7 +103,7 @@ void runOptionalComponent() {
   optional<ParsedVarOptionalInitValue> decl2
     = parseVarOptionalInitValue(ctx, pos);
   assertEqual(__func__, toJsonLoc(decl2), *parseJsonLoc("{ var_name: 'y' }"));
-  assertEqual(__func__, oalex::ssize(msg2), pos);
+  assertEqual(__func__, ssize(msg2), pos);
 }
 
 void runAliasRuleTest() {

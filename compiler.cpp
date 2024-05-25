@@ -419,10 +419,10 @@ RulesWithLocs::addSkipper(Skipper skip) {
     // In case it's the default skip.
     if(skips_[0] == skip) return 0;
     // In case it's the most recent skip.
-    if(skips_.back() == skip) return oalex::ssize(skips_)-1;
+    if(skips_.back() == skip) return std::ssize(skips_)-1;
   }
   skips_.push_back(std::move(skip));
-  return oalex::ssize(skips_)-1;
+  return std::ssize(skips_)-1;
 }
 
 // Two charsets can be equal even if they have different representation.
@@ -447,10 +447,10 @@ RulesWithLocs::addRegexOpts(RegexOptions regexOpts) {
     if(isIdentical(regexOpts_[0], regexOpts))
       return 0;
     if(isIdentical(regexOpts_.back(), regexOpts))
-      return oalex::ssize(regexOpts_)-1;
+      return std::ssize(regexOpts_)-1;
   }
   regexOpts_.push_back(std::move(regexOpts));
-  return oalex::ssize(regexOpts_)-1;
+  return std::ssize(regexOpts_)-1;
 }
 
 bool
@@ -610,9 +610,9 @@ checkPlaceholderTypes(DiagsDest ctx, const vector<Ident>& tmplLists,
     for(auto& tl : tmplLists) if(usage.id == tl) { found = true; break; }
     if(usage.inList == found) continue;
     rv = false;
-    string msg = format(usage.inList ? "Should be list-expanded: [{}, ...]"
-                                     : "`{}` is a single element",
-                        usage.id.preserveCase());
+    string msg = usage.inList
+      ? format("Should be list-expanded: [{}, ...]", usage.id.preserveCase())
+      : format("`{}` is a single element", usage.id.preserveCase());
     Error(ctx, usage.id.stPos(), usage.id.enPos(), msg);
   }
   return rv;
@@ -634,7 +634,7 @@ class SortedIdents {
     : data_(std::move(v)) { sort(data_.begin(), data_.end(), idlt); }
   vector<IdentUsage> release() { return std::move(data_); }
   const vector<IdentUsage>& get() const { return data_; }
-  ssize_t ssize() const { return oalex::ssize(data_); }
+  ssize_t ssize() const { return std::ssize(data_); }
   const IdentUsage& operator[] (ssize_t idx) const { return data_[idx]; }
   bool contains(const Ident& id) const {
     return binary_search(data_.begin(), data_.end(), IdentUsage{id, false},

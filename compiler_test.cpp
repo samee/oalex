@@ -63,7 +63,6 @@ using oalex::RuleSet;
 using oalex::RuleStanzas;
 using oalex::RulesWithLocs;
 using oalex::Skipper;
-using oalex::ssize;
 using oalex::StringRule;
 using oalex::UnassignedRule;
 using oalex::WholeSegment;
@@ -72,6 +71,7 @@ using oalex::test::nmRule;
 using oalex::test::parseRegex;
 using std::make_unique;
 using std::pair;
+using std::ssize;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
@@ -462,8 +462,8 @@ void testDestructureErrors() {
   }
 }
 
-const LexDirective lexopts{parseRegexCharSet("[_a-zA-Z]"),
-                           Skipper{ {{"/*","*/"},{"//","\n"}}, {} },
+const LexDirective lexopts{.wordChars = parseRegexCharSet("[_a-zA-Z]"),
+                           .skip{ {{"/*","*/"},{"//","\n"}}, {} },
                            .tailcont = false};
 
 RuleStanzas stanzas(vector<LocalBinding> locals) {
