@@ -1597,7 +1597,7 @@ appendMultiExprRule(DiagsDest ctx, const Ident& ruleName,
 
   // TODO: Dedup with appendExprRule()
   vector<Ident> mappedOutputs;
-  for(const auto& branch : branches)
+  for(const auto& branch : branches) if(branch.target)
     collectMappedIdents(*branch.target, mappedOutputs);
 
   SymbolTable symtab = mapToRule(ctx, rl, stz.local_decls, mappedOutputs,
