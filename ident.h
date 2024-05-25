@@ -78,16 +78,14 @@ class Ident {
   std::string toUCamelCase() const;
   std::string toLCamelCase() const;
   std::string preserveCase() const { return orig_; }
-  // Replace with C++20 operator<=> when that's supported.
-  friend bool operator==(const Ident& a, const Ident& b);
-  friend bool operator<(const Ident& a, const Ident& b);
+  friend std::strong_ordering operator<=>(const Ident& a, const Ident& b);
   friend class std::hash<Ident>;
   explicit operator bool() const { return !orig_.empty(); }
   size_t stPos() const { return stPos_; }
   size_t enPos() const { return enPos_; }
 };
 
-inline bool operator!=(const Ident& a, const Ident& b) { return !(a == b); }
+inline bool operator==(const Ident& a, const Ident& b) { return (a<=>b) == 0; }
 }  // namespace oalex
 
 template <> struct std::hash<oalex::Ident> {
