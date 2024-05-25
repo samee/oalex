@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include <map>
 #include <memory>
+#include <source_location>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -106,14 +107,13 @@ skip(InputDiags& ctx, ssize_t& i, const SkipPoint& sp, const RuleSet& rs) {
   else return JsonLoc::Map();  // Just something non-error and flattenable.
 }
 
-// TODO use std::source_locatio when moving to C++20.
 static const Rule&
-ruleAtImpl(const RuleSet& rs, ssize_t ruleidx, const char* context) {
+ruleAt(const RuleSet& rs, ssize_t ruleidx,
+       std::source_location location = std::source_location::current()) {
   const unique_ptr<Rule>& r = rs.rules.at(ruleidx);
   if(r) return *r;
-  else Bug("{}: Dereferencing null rule {}", context, ruleidx);
+  else Bug("{}: Dereferencing null rule {}", location.function_name(), ruleidx);
 }
-#define ruleAt(rs, idx) ruleAtImpl(rs, idx, __func__)
 
 static ssize_t
 flatWrapperTarget(const Rule& rule) {

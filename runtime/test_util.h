@@ -36,6 +36,8 @@ template <class ... Args> [[noreturn]] void
     Bug(fmt::format("{}: {}", testName, fmt).data(), args...);
 }
 
+// Consider source_location instead of __func__ for new use cases.
+
 #define BugMe(...) oalex::BugMeImpl(__func__, __VA_ARGS__)
 #define me(msg) fmt::format("{}: {}", __func__, msg)
 
