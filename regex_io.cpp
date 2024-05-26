@@ -15,14 +15,15 @@
 #include "regex_io.h"
 #include <cctype>
 #include <cstring>
+#include <format>
 #include <initializer_list>
 #include <iterator>
 #include <vector>
-#include "fmt/format.h"
 #include "oalex.h"
 #include "util.h"
 using std::array;
 using std::back_insert_iterator;
+using std::format_to;
 using std::get_if;
 using std::initializer_list;
 using std::isprint;
@@ -130,7 +131,7 @@ bool hasAllChars(const RegexCharSet& set) {
 string prettyPrintSet(const RegexCharSet& set) {
   if(hasAllChars(set)) return ".";
   size_t n = set.ranges.size();
-  fmt::memory_buffer buf;
+  string buf;
   back_insert_iterator buf_app{buf};
 
   if(set.negated) format_to(buf_app, "[^");
@@ -147,7 +148,7 @@ string prettyPrintSet(const RegexCharSet& set) {
     else Bug("Complicated range found: {} to {}", r.from, r.to);
   }
   format_to(buf_app, "]");
-  return fmt::to_string(buf);
+  return buf;
 }
 
 string prettyPrintAnchor(RegexAnchor::AnchorType a) {
@@ -180,7 +181,7 @@ bool printsToNull(const Regex& regex) {
 }
 
 void surroundUnless(const initializer_list<RegexNodeType>& baretypes,
-                    fmt::memory_buffer& buf, const Regex& regex) {
+                    string& buf, const Regex& regex) {
   back_insert_iterator buf_app{buf};
   for(RegexNodeType t : baretypes) if(t == regex.nodeType) {
     format_to(buf_app, "{}", prettyPrintRec(regex));
@@ -190,7 +191,7 @@ void surroundUnless(const initializer_list<RegexNodeType>& baretypes,
 }
 
 string prettyPrintSeq(const RegexConcat& seq) {
-  fmt::memory_buffer buf;
+  string buf;
   back_insert_iterator buf_app{buf};
   for(auto& part : seq.parts) {
     if(printsToNull(*part)) format_to(buf_app, "()");
@@ -198,12 +199,12 @@ string prettyPrintSeq(const RegexConcat& seq) {
                          RegexNodeType::anchor, RegexNodeType::repeat,
                          RegexNodeType::optional}, buf, *part);
   }
-  return fmt::to_string(buf);
+  return buf;
 }
 
 string prettyPrintOrs(const RegexOrList& ors) {
   if(ors.parts.empty()) return "";
-  fmt::memory_buffer buf;
+  string buf;
   back_insert_iterator buf_app{buf};
 
   surroundUnless({RegexNodeType::charSet, RegexNodeType::string,
@@ -217,7 +218,7 @@ string prettyPrintOrs(const RegexOrList& ors) {
                     RegexNodeType::repeat, RegexNodeType::optional},
                    buf, *ors.parts[i]);
   }
-  return fmt::to_string(buf);
+  return buf;
 }
 
 string surround(string s) { return "(" + s + ")"; }

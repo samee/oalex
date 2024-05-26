@@ -20,7 +20,6 @@
 #include "regex_io.h"
 #include "runtime/diags.h"
 #include "runtime/test_util.h"
-using fmt::format;
 using oalex::AliasRule;
 using oalex::assertEmptyDiags;
 using oalex::assertEqual;
@@ -69,6 +68,7 @@ using oalex::WholeSegment;
 using oalex::lex::GluedString;
 using oalex::test::nmRule;
 using oalex::test::parseRegex;
+using std::format;
 using std::make_unique;
 using std::pair;
 using std::ssize;
@@ -453,11 +453,13 @@ void testDestructureErrors() {
   };
   // assertEqual() won't work without an fmtlib formatter
   if(observed != expected) {
-    fmt::print(stderr, "observed output: {{\n");
+    fprintf(stderr, "observed output: {\n");
     for(auto& [id, s] : observed) {
-      fmt::print(stderr, "  {{ {}, {} }}\n", id.preserveCase(), s);
+      // Use #include <print> in C++23.
+      fprintf(stderr, "%s", format("  {{ {}, {} }}\n",
+                                   id.preserveCase(), s).c_str());
     }
-    fmt::print(stderr, "}}\n");
+    fprintf(stderr, "}\n");
     BugMe("{}", "expected output: { {id1, msg1}, {id2, msg2} }");
   }
 }

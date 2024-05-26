@@ -14,16 +14,16 @@
 
 #include "compiler.h"
 #include <algorithm>
+#include <format>
 #include <map>
 #include <utility>
-#include "fmt/core.h"
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"
 #include "lexer.h"
-using fmt::format;
 using oalex::lex::GluedString;
 using oalex::lex::NewlineChar;
 using oalex::lex::unquote;
+using std::format;
 using std::make_unique;
 using std::map;
 using std::optional;

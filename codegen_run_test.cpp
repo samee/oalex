@@ -20,17 +20,16 @@
 #include "codegen_generated.h"
 #include "codegen_test_util.h"
 
+#include <format>
 #include <functional>
 #include <string>
 #include <type_traits>
 #include <utility>
-#include "fmt/core.h"
 #include "lexer.h"
 #include "jsontmpl_parsers.h"
 #include "runtime/jsonloc_fmt.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
-using fmt::format;
 using oalex::assertEqual;
 using oalex::Bug;
 using oalex::Input;
@@ -47,6 +46,7 @@ using oalex::toJsonLoc;
 using oalex::lex::lexIndentedSource;
 using oalex::test::assertJsonLocIsString;
 using oalex::test::assertLocPairEqual;
+using std::format;
 using std::function;
 using std::optional;
 using std::pair;

@@ -15,19 +15,18 @@
 #include "lexer.h"
 #include "lexer_matcher.h"
 
+#include <cstdio>
+#include <format>
 #include <iterator>
 #include <string>
 #include <string_view>
 #include <tuple>
 
-#include "fmt/format.h"
-
 #include "runtime/indent.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
-using fmt::format;
-using fmt::print;
 using std::back_insert_iterator;
+using std::format;
 using std::get;
 using std::get_if;
 using std::nullopt;
@@ -70,9 +69,9 @@ using oalex::lex::matcher::RegexPatternMatcher;
 using oalex::lex::matcher::squareBrackets;
 namespace matcher = oalex::lex::matcher;
 
-template <> struct fmt::formatter<IndentCmp>: formatter<string_view> {
+template <> struct std::formatter<IndentCmp>: formatter<string_view> {
   template <typename FormatContext>
-  auto format(IndentCmp res, FormatContext& ctx) {
+  auto format(IndentCmp res, FormatContext& ctx) const {
     string_view name = "unknown";
     switch (res) {
       case IndentCmp::lt: name = "IndentCmp::lt"; break;
@@ -127,7 +126,7 @@ void headerSuccessImpl(const char testInput[], const char testName[],
   size_t i = 0;
   vector<WholeSegment> res = lexSectionHeader(ctx, i);
   if(res.empty() || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    for(const auto& d:ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
     Bug("{} failed", testName);
   }else {
     vector<string> observed;
@@ -163,7 +162,7 @@ void stringSuccessImpl(const char testInput[], const char testName[],
   size_t i = 0;
   optional<GluedString> res = lexQuotedString(ctx, i);
   if(!res || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    for(const auto& d:ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
     Bug("{} failed", testName);
   }else if(expected != *res)
     Bug("{}: {} != {}", testName, expected, string_view(*res));
@@ -196,7 +195,7 @@ void stringFailureImpl(const char testInput[], const char testName[],
 }
 
 string debug(const pair<size_t,size_t>& p) {
-  return fmt::format("{}:{}", p.first, p.second);
+  return std::format("{}:{}", p.first, p.second);
 }
 
 // TODO: Replace with the test_util.h version
@@ -272,7 +271,7 @@ void fencedSourceBlockSuccessImpl(string_view testInput,
   size_t i = 0;
   optional<GluedString> res = lexFencedSource(ctx, i);
   if(!res || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) print("{}\n", string(d));
+    for(const auto& d:ctx.diags) printf("%s\n", string(d).c_str());
     Bug("{} failed", testName);
   }else {
     if(expected != *res) {
@@ -330,7 +329,7 @@ void indentedSourceBlockSuccessImpl(
   size_t i = 0;
   optional<GluedString> res = lexIndentedSource(ctx, i, "  ");
   if(res.has_value() != expectedResult.has_value() || !ctx.diags.empty()) {
-    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    for(const auto& d:ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
     Bug("{} failed", testName);
   }
   if(!res.has_value()) return;  // Don't check *res if it's not valid.
@@ -447,7 +446,7 @@ void bracketGroupSuccess() {
     if(auto err = matcher::match(expected, std::move(*bgopt)))
       BugMe("Failed: {}", *err);
   }else {
-    for(const auto& d:ctx.diags) print(stderr, "{}\n", string(d));
+    for(const auto& d:ctx.diags) fprintf(stderr, "%s\n", string(d).c_str());
     BugMe("Failed");
   }
 }
@@ -461,9 +460,9 @@ string debugMatcher(BracketType bt) {
   }
 }
 
-void debug(fmt::memory_buffer& buf, const BracketGroup& bg);
+void debug(string& buf, const BracketGroup& bg);
 
-void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
+void debug(string& buf, const ExprToken& expr) {
   back_insert_iterator buf_app{buf};
   if(const auto* tok = get_if<WholeSegment>(&expr)) {
     format_to(buf_app, "{}", tok->data);
@@ -476,7 +475,7 @@ void debug(fmt::memory_buffer& buf, const ExprToken& expr) {
   debug(buf, get<BracketGroup>(expr));
 }
 
-void debug(fmt::memory_buffer& buf, const BracketGroup& bg) {
+void debug(string& buf, const BracketGroup& bg) {
   back_insert_iterator buf_app{buf};
   format_to(buf_app, "{}(", debugMatcher(bg.type));
   bool first_child = true;
@@ -488,9 +487,9 @@ void debug(fmt::memory_buffer& buf, const BracketGroup& bg) {
 }
 
 string debug(const BracketGroup& bg) {
-  fmt::memory_buffer buf;
+  string buf;
   debug(buf, bg);
-  return fmt::to_string(buf);
+  return buf;
 }
 
 void bracketGroupFailureImpl(const char testName[], string input,

@@ -15,15 +15,14 @@
 #include "jsontmpl.h"
 
 #include <algorithm>
+#include <format>
 #include <iterator>
-#include "fmt/format.h"
 #include "runtime/jsonloc.h"
 #include "runtime/jsonloc_fmt.h"
 #include "runtime/util.h"
-using fmt::format_to;
-using fmt::memory_buffer;
 using oalex::Bug;
 using std::back_insert_iterator;
+using std::format_to;
 using std::get;
 using std::make_pair;
 using std::pair;
@@ -236,7 +235,7 @@ bool JsonTmpl::substitutionsNeeded() const {
   return false;
 }
 
-static void prettyPrint(fmt::memory_buffer& buf,
+static void prettyPrint(string& buf,
                         size_t indent, const JsonTmpl& json,
                         bool quoteMapKeys) {
   back_insert_iterator buf_app{buf};
@@ -274,15 +273,15 @@ static void prettyPrint(fmt::memory_buffer& buf,
 }
 
 string JsonTmpl::prettyPrint(size_t indent) const {
-  fmt::memory_buffer buf;
+  string buf;
   oalex::prettyPrint(buf, indent, *this, false);
-  return fmt::to_string(buf);
+  return buf;
 }
 
 string JsonTmpl::prettyPrintJson(size_t indent) const {
-  fmt::memory_buffer buf;
+  string buf;
   oalex::prettyPrint(buf, indent, *this, true);
-  return fmt::to_string(buf);
+  return buf;
 }
 
 }  // namespace oalex

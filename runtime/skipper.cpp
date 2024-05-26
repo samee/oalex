@@ -17,7 +17,7 @@
 #include <utility>
 #include <vector>
 #include "util.h"
-using fmt::format;
+using std::format;
 using std::pair;
 using std::nullopt;
 using std::optional;

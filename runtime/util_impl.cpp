@@ -13,20 +13,20 @@
     limitations under the License. */
 
 #include "util_impl.h"
-#include "fmt/core.h"
+#include <format>
 
 namespace oalex {
 
-void BugImplHelper(const char* fmt, fmt::format_args args) {
-  throw BugEx(fmt::vformat(fmt, args));
+void BugImplHelper(const char* fmt, std::format_args args) {
+  throw BugEx(std::vformat(fmt, args));
 }
 
-void UnimplementedImplHelper(const char* fmt, fmt::format_args args) {
-  throw UnimplementedEx(fmt::vformat(fmt, args));
+void UnimplementedImplHelper(const char* fmt, std::format_args args) {
+  throw UnimplementedEx(std::vformat(fmt, args));
 }
 
-void UserErrorImplHelper(const char* fmt, fmt::format_args args) {
-  throw UserErrorEx(fmt::vformat(fmt, args));
+void UserErrorImplHelper(const char* fmt, std::format_args args) {
+  throw UserErrorEx(std::vformat(fmt, args));
 }
 
 }  // namespace oalex

@@ -14,9 +14,9 @@
 
 #include "diags.h"
 #include "util.h"
-#include "fmt/core.h"
+#include <format>
 #include <string>
-using fmt::format;
+using std::format;
 using std::string;
 using std::nullopt;
 using std::nullopt_t;

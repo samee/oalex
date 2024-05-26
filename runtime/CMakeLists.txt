@@ -15,15 +15,12 @@
 cmake_minimum_required(VERSION 3.10)
 project(runtime)
 
-find_package(fmt)
 add_library(oalex builtins.cpp diags.cpp indent.cpp input_view.cpp jsonlike.cpp
                   jsonloc.cpp jsonloc_fmt.cpp parser_helpers.cpp regex.cpp
                   skipper.cpp util_impl.cpp)
-target_link_libraries(oalex INTERFACE fmt::fmt)
 target_include_directories(oalex INTERFACE .)
 
 add_library(test_util OBJECT test_util.cpp)
-target_link_libraries(test_util fmt::fmt)
 add_executable(input_view_test input_view_test.cpp
                $<TARGET_OBJECTS:test_util>)
 target_link_libraries(input_view_test oalex)

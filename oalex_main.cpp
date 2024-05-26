@@ -14,6 +14,7 @@
 
 #include <cstdio>
 #include <cstring>
+#include <format>
 #include <memory>
 #include <optional>
 #include <string>
@@ -25,8 +26,6 @@
 #include "frontend.h"
 #include "oalex.h"
 #include "runtime/util.h"
-#include "fmt/core.h"
-using fmt::format;
 using oalex::Bug;
 using oalex::codegen;
 using oalex::codegenDefaultRegexOptions;
@@ -46,6 +45,7 @@ using oalex::RuleSet;
 using oalex::Skipper;
 using oalex::UserError;
 using oalex::lex::gluedCtx;
+using std::format;
 using std::nullopt;
 using std::optional;
 using std::size;

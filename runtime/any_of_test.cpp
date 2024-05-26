@@ -31,7 +31,7 @@ class HelloGreeter : public Greeter {
  public:
   HelloGreeter(int x) : val(x) {}
   void setx(int x) { val = x; }
-  string show_msg() const override { return fmt::format("hello {}", val); }
+  string show_msg() const override { return std::format("hello {}", val); }
 };
 
 int main() {

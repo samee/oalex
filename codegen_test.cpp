@@ -17,13 +17,13 @@
 
 #include "jsontmpl_parsers.h"
 #include "regex_io.h"
-#include "fmt/core.h"
 #include "runtime/jsonloc_fmt.h"
 #include "runtime/test_util.h"
+#include <format>
 #include <string_view>
 #include <tuple>
 #include <vector>
-using fmt::format;
+using std::format;
 using std::optional;
 using std::pair;
 using std::size;

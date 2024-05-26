@@ -13,14 +13,16 @@
     limitations under the License. */
 #include "jsonloc_fmt.h"
 #include <iterator>
+#include <string>
 #include <string_view>
 #include "util.h"
 using std::back_insert_iterator;
+using std::string;
 using std::string_view;
 
 namespace oalex {
 
-void printJsonLocString(fmt::memory_buffer& buf, string_view s) {
+void printJsonLocString(string& buf, string_view s) {
   back_insert_iterator buf_app{buf};
   format_to(buf_app, "\"");
   // If this changes, please change lexQuotedEscape as well.

@@ -15,12 +15,13 @@
 #include "pattern.h"
 #include "lexer.h"
 #include "regex_io.h"
-#include "fmt/core.h"
 #include "runtime/input_view.h"
 #include "runtime/test_util.h"
 #include "runtime/util.h"
+#include <format>
 #include <map>
 #include <utility>
+using std::format;
 using std::get_if;
 using std::holds_alternative;
 using std::make_tuple;
@@ -36,7 +37,6 @@ using std::unique_ptr;
 using std::variant;
 using std::vector;
 using namespace std::literals::string_literals;
-using fmt::format;
 using oalex::assertEmptyDiags;
 using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
@@ -234,7 +234,7 @@ auto setupLabelTest(string testName, string fileBody) {
 string debug(const LabelOrPart& lp) {
   if(auto* id = get_if<Ident>(&lp)) return id->preserveCase();
   if(auto* q = get_if<pair<size_t,size_t>>(&lp))
-    return fmt::format("{{{}, {}}}", q->first, q->second);
+    return std::format("{{{}, {}}}", q->first, q->second);
   Bug("LabelOrPart variant with unknown index {}", lp.index());
 }
 

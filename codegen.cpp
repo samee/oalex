@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #include "codegen.h"
+#include <format>
 #include <map>
 #include <memory>
 #include <source_location>
@@ -22,17 +23,18 @@
 #include "runtime/jsonloc_fmt.h"
 #include "runtime/oalex.h"
 #include "runtime/util.h"
-#include "fmt/core.h"
-using fmt::format;
 using oalex::Regex;
 using oalex::RegexOptions;
 using std::exchange;
+using std::format;
+using std::make_format_args;
 using std::map;
 using std::pair;
 using std::string;
 using std::string_view;
 using std::unique_ptr;
 using std::vector;
+using std::vformat;
 
 namespace oalex {
 
@@ -665,7 +667,8 @@ struct ParserResultTraits {
 
   string get_value_tmpl;
   string value(string_view xpr) const {
-    return format(fmt::runtime(get_value_tmpl), xpr);
+    // Use std::runtime_format in C++26.
+    return vformat(get_value_tmpl, make_format_args(xpr));
   }
 };
 
@@ -1125,11 +1128,13 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
                             compType, outType);
 
   cppos(funHeader + " {\n");
+  // Use std::runtime_format in C++26.
   if(!flat)
-    cppos(format("  {};\n", format(fmt::runtime(nonFlatMergeTmpl), outField)));
+    cppos(format("  {};\n", vformat(nonFlatMergeTmpl,
+                                    make_format_args(outField))));
   else for(auto& field: compRule.flatFields())
-    cppos(format("  {};\n", format(fmt::runtime(flatMergeTmpl),
-                            field.field_name)));
+    cppos(format("  {};\n", vformat(flatMergeTmpl,
+                                    make_format_args(field.field_name))));
   cppos("}\n\n");
 }
 

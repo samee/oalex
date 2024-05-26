@@ -13,15 +13,15 @@
     limitations under the License. */
 
 #include "lexer_matcher.h"
+#include <format>
 #include "runtime/util.h"
-#include "fmt/core.h"
+using std::format;
 using std::get_if;
 using std::holds_alternative;
 using std::nullopt;
 using std::optional;
 using std::string;
 using std::string_view;
-using fmt::format;
 
 namespace oalex::lex::matcher {
 

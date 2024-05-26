@@ -16,30 +16,31 @@
 
 #include <string>
 #include <string_view>
-#include "fmt/core.h"
+#include <format>
 #include "diags.h"
 #include "util.h"
 
 
 template <>
-struct fmt::formatter<std::vector<std::string>> {
+struct std::formatter<std::vector<std::string>> {
   constexpr auto parse(format_parse_context& ctx) { return ctx.begin(); }
 
-  auto format(const std::vector<std::string>& v, fmt::format_context& ctx)
-    -> decltype(format_to(ctx.out(), ""));
+  auto format(const std::vector<std::string>& v, std::format_context& ctx) const
+    -> std::format_context::iterator;
 };
 
 namespace oalex {
 
 template <class ... Args> [[noreturn]] void
   BugMeImpl(const char testName[], const char* fmt, const Args& ... args) {
-    Bug(fmt::format("{}: {}", testName, fmt).data(), args...);
+    Bug(std::format("{}: {}", testName, fmt).data(), args...);
 }
 
 // Consider source_location instead of __func__ for new use cases.
+// This pattern is a holdover from pre-C++20 era.
 
 #define BugMe(...) oalex::BugMeImpl(__func__, __VA_ARGS__)
-#define me(msg) fmt::format("{}: {}", __func__, msg)
+#define me(msg) std::format("{}: {}", __func__, msg)
 
 template <class X, class Y>
 void assertEqual(std::string_view msg, const X& a, const Y& b) {

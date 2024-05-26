@@ -15,10 +15,10 @@
 #pragma once
 #include<charconv>
 #include<cstdio>
+#include<format>
 #include<limits>
 #include<memory>
 #include<variant>
-#include"fmt/core.h"
 #include"util_exported.h"
 
 namespace oalex {
@@ -32,42 +32,43 @@ namespace oalex {
 //
 // TODO: adopt std::format() whenever it becomes available and stable.
 
-[[noreturn]] void BugImplHelper(const char* fmt, fmt::format_args args);
+[[noreturn]] void BugImplHelper(const char* fmt, std::format_args args);
 template <class ... Args>
 [[noreturn]] void Bug(const char* fmt, const Args& ... args) {
-  BugImplHelper(fmt, fmt::make_format_args(args...));
+  BugImplHelper(fmt, std::make_format_args(args...));
 }
 
 template <class ... Args>
 [[noreturn]] void BugDie(const char* fmt, const Args& ... args) {
-  fmt::vprint(stderr, fmt, fmt::make_format_args(args...));
+  fprintf(stderr, "%s\n",
+          std::vformat(fmt, std::make_format_args(args...).c_str()));
   std::abort();
 }
 
 [[noreturn]] void
-UnimplementedImplHelper(const char* fmt, fmt::format_args args);
+UnimplementedImplHelper(const char* fmt, std::format_args args);
 template <class ... Args>
 [[noreturn]] void Unimplemented(const char* fmt, const Args& ... args) {
-  UnimplementedImplHelper(fmt, fmt::make_format_args(args...));
+  UnimplementedImplHelper(fmt, std::make_format_args(args...));
 }
 
 template <class ... Args>
 void Debug(const char* fmt, const Args& ... args) {
-  fmt::vprint(stderr, fmt, fmt::make_format_args(args...));
-  fmt::print(stderr, "\n");
+  fprintf(stderr, "%s\n",
+          std::vformat(fmt, std::make_format_args(args...)).c_str());
 }
 
 [[noreturn]] void
-UserErrorImplHelper(const char* fmt, fmt::format_args args);
+UserErrorImplHelper(const char* fmt, std::format_args args);
 template <class ... Args>
 [[noreturn]] void UserError(const char* fmt, const Args& ... args) {
-  UserErrorImplHelper(fmt, fmt::make_format_args(args...));
+  UserErrorImplHelper(fmt, std::make_format_args(args...));
 }
 
 template <class ... Args>
 void BugWarn(const char* fmt, const Args& ... args) {
-  fmt::vprint(stderr, fmt::format("Bug: {}\n", fmt),
-              fmt::make_format_args(args...));
+  fprintf(stderr, "Bug: %s\n",
+          std::vformat(fmt, std::make_format_args(args...)).c_str());
 }
 
 // variant utilities, specially geared towards variant<unique_ptr<...>,...>.

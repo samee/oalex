@@ -13,13 +13,13 @@
     limitations under the License. */
 
 #include "codegen_test_util.h"
+#include <format>
 #include <memory>
 #include <string_view>
 #include "regex_io.h"
-#include "fmt/core.h"
 #include "runtime/jsonloc.h"
 #include "runtime/test_util.h"
-using fmt::format;
+using std::format;
 using std::string;
 using std::string_view;
 using std::unique_ptr;

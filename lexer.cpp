@@ -41,6 +41,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <format>
 #include <functional>
 #include <iterator>
 #include <memory>
@@ -49,7 +50,6 @@
 #include <string_view>
 #include <utility>
 #include <vector>
-#include "fmt/core.h"
 
 #include "regex_io.h"
 #include "segment.h"
@@ -58,7 +58,7 @@
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"
 
-using fmt::format;
+using std::format;
 using std::get_if;
 using std::make_move_iterator;
 using std::min;

@@ -14,12 +14,12 @@
 
 #include "pattern.h"
 #include <algorithm>
+#include <format>
 #include <iterator>
 #include <map>
 #include <type_traits>
-#include "fmt/core.h"
 #include "runtime/util.h"
-using fmt::format;
+using std::format;
 using std::get_if;
 using std::holds_alternative;
 using std::is_same_v;
@@ -109,8 +109,8 @@ validateWordChars(const RegexCharSet& lexopts) {
     unsigned char ch = range.from;
     while(ch<=range.to) {
       if(!isprint(ch))
-        return fmt::format("Words cannot contain unprintable characters, "
-                           "such as \\x{:02x}", unsigned{ch});
+        return format("Words cannot contain unprintable characters, "
+                      "such as \\x{:02x}", unsigned{ch});
       if(isspace(ch)) return "Words cannot contain whitespace";
       if(ch >= range.to) break;
       ++ch;

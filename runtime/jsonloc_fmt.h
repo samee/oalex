@@ -16,16 +16,16 @@
 // compile time by quite a bit, and not every file needs it.
 #pragma once
 #include "jsonloc.h"
-#include "fmt/format.h"
+#include <format>
 
-template <> class fmt::formatter<oalex::JsonLoc> {
+template <> class std::formatter<oalex::JsonLoc> {
   unsigned indent_ = 0;
  public:
   auto parse(format_parse_context& ctx) -> decltype(ctx.begin());
 
   // TODO see if we really need this to be templated.
   template <class FormatContext>
-  auto format(const oalex::JsonLoc& jsloc, FormatContext& ctx) {
+  auto format(const oalex::JsonLoc& jsloc, FormatContext& ctx) const {
     for(char ch : jsloc.prettyPrint(indent_)) *ctx.out() = ch;
     return ctx.out();
   }
@@ -35,7 +35,7 @@ namespace oalex {
 
 // These two functions are really internals,
 // but are reused in JsonTmpl::prettyPrint.
-void printJsonLocString(fmt::memory_buffer& buf, std::string_view s);
+void printJsonLocString(std::string& buf, std::string_view s);
 std::string_view assertJsonLocKey(std::string_view ctx, std::string_view s);
 
 }  // namespace oalex

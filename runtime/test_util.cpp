@@ -12,8 +12,10 @@
     See the License for the specific language governing permissions and
     limitations under the License. */
 
-#include "fmt/format.h"
 #include "test_util.h"
+
+#include <cstdio>
+#include <format>
 #include "util_impl.h"
 using oalex::assertHasDiagWithSubstr;
 using oalex::Bug;
@@ -24,17 +26,15 @@ using oalex::InputDiags;
 using oalex::isSubstr;
 using oalex::showDiags;
 using oalex::UserErrorEx;
-using fmt::format_to;
-using fmt::memory_buffer;
-using fmt::print;
-using fmt::to_string;
 using std::back_insert_iterator;
+using std::format_to;
 using std::string;
 using std::string_view;
+using std::to_string;
 using std::vector;
 
-auto fmt::formatter<std::vector<std::string>>::format(
-    const vector<string>& v, fmt::format_context& ctx)
+auto std::formatter<std::vector<std::string>>::format(
+    const vector<string>& v, std::format_context& ctx) const
   -> decltype(format_to(ctx.out(), "")) {
   if(v.empty()) return format_to(ctx.out(), "{{}}");
   format_to(ctx.out(), "{{{}", v[0]);
@@ -45,11 +45,11 @@ auto fmt::formatter<std::vector<std::string>>::format(
 namespace oalex{
 
 void showDiags(const vector<Diag>& diags) {
-  memory_buffer buf;
+  string buf;
   back_insert_iterator buf_app{buf};
   format_to(buf_app, "diags:\n");
   for(const auto& d : diags) format_to(buf_app, "  {}\n", string(d));
-  BugWarn("{}", to_string(buf));
+  BugWarn("{}", buf);
 }
 
 void assertHasDiagWithSubstr(string_view testName, const vector<Diag>& diags,
@@ -86,7 +86,7 @@ void assertHasDiagWithSubstrAt(string_view testName, const vector<Diag>& diags,
 
 void assertEmptyDiags(string_view testName, const vector<Diag>& diags) {
   if(diags.empty()) return;
-  for(const auto& d:diags) print(stderr, "{}\n", string(d));
+  for(const auto& d:diags) fprintf(stderr, "%s\n", string(d).c_str());
   Bug("{} had unexpected errors", testName);
 }
 

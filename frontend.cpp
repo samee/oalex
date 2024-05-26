@@ -14,13 +14,13 @@
 
 #include "frontend.h"
 
+#include <format>
 #include <memory>
 #include <optional>
 #include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
-#include "fmt/core.h"
 
 #include "compiler.h"
 #include "lexer.h"
@@ -30,7 +30,6 @@
 #include "runtime/indent.h"
 #include "runtime/util.h"
 
-using fmt::format;
 using oalex::DiagsDest;
 using oalex::IndentCmp;
 using oalex::LexDirective;
@@ -59,6 +58,7 @@ using oalex::lex::oalexWSkip;
 using oalex::lex::RegexPattern;
 using oalex::lex::skipBlankLines;
 using oalex::lex::stPos;
+using std::format;
 using std::get_if;
 using std::holds_alternative;
 using std::make_unique;
