@@ -1059,7 +1059,7 @@ class RuleExprCompiler {
   map<string,SortedIdents> patternIdents_;
 
   bool somePatternFailed_ = false;
-  unique_ptr<Rule> process(const RuleExpr& rxpr);
+  optional<TypedRule> process(const RuleExpr& rxpr);
   unique_ptr<Rule> createIfStringExpr(const RuleExpr& rxpr);
   unique_ptr<Rule> createFlatIdent(const Ident& ident, ssize_t ruleIndex);
   unique_ptr<Rule> identComponent(const Ident& id);  // Uses `error:` overrides.
@@ -1098,25 +1098,31 @@ RuleExprCompiler::lookupIdent(const Ident& id) const {
   // `where` and `outputs`. `RuleExpr` can refer to globals not in either.
   return rl_->findOrAppendIdent(ctx_, id);
 }
-unique_ptr<Rule>
+optional<TypedRule>
 RuleExprCompiler::process(const RuleExpr& rxpr) {
   if(auto* id = dynamic_cast<const RuleExprIdent*>(&rxpr)) {
-    return this->identComponent(id->ident);
+    return TypedRule{this->identComponent(id->ident), RuleOutputType::flat_map};
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
-    return createLiteralOrError(*rl_, s->s);
+    return TypedRule{createLiteralOrError(*rl_, s->s), RuleOutputType::string};
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
-    return std::move(this->processDquoted(*dq)->rule);
+    return this->processDquoted(*dq);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
-    return createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_);
+    return TypedRule{
+      createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_),
+      RuleOutputType::string};
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
-    return this->processMappedIdent(*mid);
+    return TypedRule{this->processMappedIdent(*mid),
+                     RuleOutputType::flat_map};
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
-    return this->processConcat(*cat);
+    return TypedRule{this->processConcat(*cat), RuleOutputType::flat_map};
   }else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr)) {
-    return createOptionalRule(*rl_,
-        rl_->appendAnonRulePtr(this->process(*opt->part)) );
+    return TypedRule{
+      createOptionalRule(*rl_,
+          rl_->appendAnonRulePtr(std::move(this->process(*opt->part)->rule)) ),
+      RuleOutputType::flat_map,
+    };
   }else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
-    return this->processRepeat(*rep);
+    return TypedRule{this->processRepeat(*rep), RuleOutputType::flat_map};
   }else {
     Bug("{} cannot handle RuleExpr of type {}", __func__, typeid(rxpr).name());
   }
@@ -1134,7 +1140,8 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     result = this->createFlatIdent(midxpr.lhs, targetIndex);
   }else if(dynamic_cast<const RuleExprRegex*>(midxpr.rhs.get()) ||
            dynamic_cast<const RuleExprSquoted*>(midxpr.rhs.get())) {
-    ssize_t newIndex = rl_->appendAnonRulePtr(this->process(*midxpr.rhs));
+    ssize_t newIndex
+      = rl_->appendAnonRulePtr(std::move(this->process(*midxpr.rhs)->rule));
     result = this->createFlatIdent(midxpr.lhs, newIndex);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get())) {
     ssize_t newIndex = rl_->appendAnonRulePtr(
@@ -1150,15 +1157,17 @@ unique_ptr<Rule>
 RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
   vector<ConcatFlatRule::Component> comps;
   for(const unique_ptr<const RuleExpr>& c : catxpr.parts) {
-    comps.push_back({rl_->appendAnonRulePtr(process(*c)), {}});
+    comps.push_back({rl_->appendAnonRulePtr(std::move(process(*c)->rule)), {}});
   }
   return move_to_unique(ConcatFlatRule{{std::move(comps)}});
 }
 unique_ptr<Rule>
 RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
-  ssize_t i = rl_->appendAnonRulePtr(this->process(*repxpr.part));
+  ssize_t i
+    = rl_->appendAnonRulePtr(std::move(this->process(*repxpr.part)->rule));
   ssize_t j = -1;
-  if(repxpr.glue) j = rl_->appendAnonRulePtr(this->process(*repxpr.glue));
+  if(repxpr.glue)
+    j = rl_->appendAnonRulePtr(std::move(this->process(*repxpr.glue)->rule));
   return move_to_unique(LoopRule{{
       .partidx = i, .glueidx = j, .lookidx = -1, .skipidx = -1}});
 }
@@ -1246,14 +1255,14 @@ optional<CompiledSingleExpr>
 RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr) {
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
-  unique_ptr<Rule> rule = this->process(rxpr);
+  optional<TypedRule> trule = this->process(rxpr);
   if(somePatternFailed_) return std::nullopt;
   vector<IdentUsage> exportedIds
     = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_).release();
   vector<IdentUsage> usedIds;
   ruleExprCollectInputIdents(rxpr, patternIdents_, usedIds);
   return CompiledSingleExpr{
-    .rule = std::move(rule),
+    .rule = std::move(trule->rule),
     .identsUsed = SortedIdents{std::move(usedIds)},
     .exportedIdents = SortedIdents{std::move(exportedIds)},
   };
