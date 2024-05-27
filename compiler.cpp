@@ -1052,8 +1052,7 @@ class RuleExprCompiler {
   unique_ptr<Rule> compileRuleExpr(const RuleExpr& rxpr,
                                    vector<IdentUsage>& exportedOutput);
 
-  unique_ptr<Rule> compileToFlatStruct(const RuleExpr& rxpr,
-                                       vector<IdentUsage>& exportedOutput);
+  optional<CompiledSingleExpr> compileToFlatStruct(const RuleExpr& rxpr);
 };
 unique_ptr<Rule>
 RuleExprCompiler::createFlatIdent(const Ident& ident, ssize_t ruleIndex) {
@@ -1398,18 +1397,29 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 //   RuleExprIdent: produces a ConcatFlatRule with a single field.
 //   RuleExpr{Squoted,Regex}: produces an empty map.
 //   Others: passes through the map from compileRuleExpr().
-unique_ptr<Rule>
-RuleExprCompiler::compileToFlatStruct(
-    const RuleExpr& rxpr, vector<IdentUsage>& exportedOutput) {
+optional<CompiledSingleExpr>
+RuleExprCompiler::compileToFlatStruct(const RuleExpr& rxpr) {
 
+  unique_ptr<Rule> outrule;
+  vector<IdentUsage> exportedOutput;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
     // There are no fields to expose, but we still need an empty struct.
     ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
-    return move_to_unique(ConcatFlatRule {{{ .idx = ridx,
-                                             .outputPlaceholder{} }}} );
+    outrule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
+                                                .outputPlaceholder{} }}} );
   }else if(const Ident* id = markUsedIfIdent(rxpr, exportedOutput))
-    return this->identComponent(*id);
-  else return this->compileRuleExpr(rxpr, exportedOutput);
+    outrule = this->identComponent(*id);
+  else outrule = this->compileRuleExpr(rxpr, exportedOutput);
+  if(!outrule) return std::nullopt;
+
+  vector<IdentUsage> unsorted;
+  ruleExprCollectInputIdents(rxpr, patternIdents_, unsorted);
+
+  return CompiledSingleExpr{
+    .rule = std::move(outrule),
+    .identsUsed = SortedIdents{std::move(unsorted)},
+    .exportedIdents = SortedIdents{std::move(exportedOutput)},
+  };
 }
 
 // This function is used only to compile the main rule expression of a
@@ -1417,25 +1427,20 @@ RuleExprCompiler::compileToFlatStruct(
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
                                             JsonTmpl jstmpl) {
-  unique_ptr<Rule> flatRule;
-  vector<IdentUsage> unsorted;
-  flatRule = this->compileToFlatStruct(rxpr, unsorted);
-  if(!flatRule) return std::nullopt;
-
-  SortedIdents idsExported{std::move(unsorted)};
-  if(!checkUndefinedOutfields(ctx_, idsExported, jstmpl)) return std::nullopt;
+  optional<CompiledSingleExpr> flatres = this->compileToFlatStruct(rxpr);
+  if(!flatres) return std::nullopt;
+  if(!checkUndefinedOutfields(ctx_, flatres->exportedIdents, jstmpl))
+    return std::nullopt;
 
   vector<Ident> listNames = desugarEllipsisPlaceholders(ctx_, jstmpl);
-  checkPlaceholderTypes(ctx_, listNames, idsExported.get());
-  vector<IdentUsage> idsUsed;
-  ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
+  checkPlaceholderTypes(ctx_, listNames, flatres->exportedIdents.get());
   return CompiledSingleExpr{
     .rule = move_to_unique(OutputTmpl{
-      rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
+      rl_->appendAnonRulePtr(std::move(flatres->rule)),  // childidx
       {},        // childName, ignored for map-returning childidx
       std::move(jstmpl), // outputTmpl
     }),
-    .identsUsed = SortedIdents{std::move(idsUsed)},
+    .identsUsed = std::move(flatres->identsUsed),
     .exportedIdents{},
   };
 }
@@ -1562,31 +1567,23 @@ appendLookahead(DiagsDest ctx, const RuleExpr& lookahead,
 optional<CompiledRuleBranch>
 RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
                                     bool exposeFields) {
-  unique_ptr<Rule> target;
-  SortedIdents identsUsed;
-  vector<IdentUsage> exportedIdents;
+  optional<CompiledSingleExpr> res;
   if(branch.target != nullptr) {
     if(branch.diagMsg.empty() && branch.diagType == RuleBranch::DiagType::none){
-      if(exposeFields) {
-        target = this->compileToFlatStruct(*branch.target, exportedIdents);
-        vector<IdentUsage> unsorted;
-        ruleExprCollectInputIdents(*branch.target, patternIdents_, unsorted);
-        identsUsed = SortedIdents{std::move(unsorted)};
-      }
-      else if(optional<CompiledSingleExpr> res
-          = this->compileSingleExpr(*branch.target)) {
-        target = std::move(res->rule);
-        identsUsed = std::move(res->identsUsed);
-      }
+      if(exposeFields) res = this->compileToFlatStruct(*branch.target);
+      else res = this->compileSingleExpr(*branch.target);
     }
     else Unimplemented("Good actions with warnings");
   }else if(branch.diagType != RuleBranch::DiagType::error) {
     // Consider promoting this to an Error() later.
     Unimplemented("Actions without a target should produce an error");
-  }else target = move_to_unique(ErrorRule{string{branch.diagMsg}});
+  }else res = CompiledSingleExpr{
+    .rule = move_to_unique(ErrorRule{string{branch.diagMsg}}),
+    .identsUsed{}, .exportedIdents{},
+  };
 
-  if(!target) return std::nullopt;
-  ssize_t targetidx = rl_->appendAnonRulePtr(std::move(target));
+  if(!res) return std::nullopt;
+  ssize_t targetidx = rl_->appendAnonRulePtr(std::move(res->rule));
 
   // If lookahead-compilation fails, we still continue without it.
   ssize_t lookidx = branch.lookahead
@@ -1595,8 +1592,8 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
   return CompiledRuleBranch{
     .or_comp { .lookidx = lookidx, .parseidx = targetidx,
                .tmpl{passthroughTmpl} },
-    .identsUsed = std::move(identsUsed),
-    .exportedIdents = SortedIdents{std::move(exportedIdents)},
+    .identsUsed = std::move(res->identsUsed),
+    .exportedIdents = std::move(res->exportedIdents),
   };
 }
 
