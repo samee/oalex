@@ -1066,7 +1066,7 @@ class RuleExprCompiler {
   unique_ptr<Rule> processMappedIdent(const RuleExprMappedIdent& midxpr);
   unique_ptr<Rule> processConcat(const RuleExprConcat& catxpr);
   unique_ptr<Rule> processRepeat(const RuleExprRepeat& repxpr);
-  unique_ptr<Rule> processDquoted(const RuleExprDquoted& dq);
+  optional<TypedRule> processDquoted(const RuleExprDquoted& dq);
   static unique_ptr<Rule> unflattenableWrapper(ssize_t targetRule,
                                                const SortedIdents& usage);
   unique_ptr<Rule> unflattenableWrapper(ssize_t targetPattRule,
@@ -1105,7 +1105,7 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
   }else if(auto* s = dynamic_cast<const RuleExprSquoted*>(&rxpr)) {
     return createLiteralOrError(*rl_, s->s);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(&rxpr)) {
-    return this->processDquoted(*dq);
+    return std::move(this->processDquoted(*dq)->rule);
   }else if(auto* regex = dynamic_cast<const RuleExprRegex*>(&rxpr)) {
     return createRegexOrError(*rl_, regex->regex->clone(), regexOptsIdx_);
   }else if(auto* mid = dynamic_cast<const RuleExprMappedIdent*>(&rxpr)) {
@@ -1137,7 +1137,8 @@ RuleExprCompiler::processMappedIdent(const RuleExprMappedIdent& midxpr) {
     ssize_t newIndex = rl_->appendAnonRulePtr(this->process(*midxpr.rhs));
     result = this->createFlatIdent(midxpr.lhs, newIndex);
   }else if(auto* dq = dynamic_cast<const RuleExprDquoted*>(midxpr.rhs.get())) {
-    ssize_t newIndex = rl_->appendAnonRulePtr(this->processDquoted(*dq));
+    ssize_t newIndex = rl_->appendAnonRulePtr(
+        std::move(this->processDquoted(*dq)->rule) );
     newIndex = rl_->appendAnonRulePtr(
         this->unflattenableWrapper(newIndex, dq->gs) );
     result = this->createFlatIdent(midxpr.lhs, newIndex);
@@ -1196,7 +1197,7 @@ RuleExprCompiler::unflattenableWrapper(ssize_t targetPattRule,
                                getPrecomputedOrDie(patternIdents_, patt) );
 }
 
-unique_ptr<Rule>
+optional<TypedRule>
 RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   optional<Pattern> patt = parsePatternForLocalEnv(ctx_, dq.gs, *lexOpts_,
                                                    *partPatterns_);
@@ -1204,14 +1205,14 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // all of RuleExprCompiler::process();
   if(!patt.has_value()) {
     somePatternFailed_ = true;
-    return dummyRule();
+    return TypedRule{dummyRule(), RuleOutputType::string};
   }
 
   // It's okay if the pattern already exists in patternIdents_.
   // See the comment for compileLocalRules() for how to optimize this.
   SortedIdents patternIdents = patternCollectIdent(*patt);
   patternIdents_.insert({dq.gs, patternIdents});
-  return pattComp_.process(*patt).rule;
+  return pattComp_.process(*patt);
 }
 
 static SortedIdents
