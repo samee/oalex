@@ -959,7 +959,7 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
 
 struct CompiledSingleExpr {
   unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
-  SortedIdents identsUsed;
+  SortedIdents identsUsed, exportedIdents;
 };
 
 struct CompiledRuleBranch {
@@ -1349,13 +1349,20 @@ optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
   vector<IdentUsage> idsUsed;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
-    return CompiledSingleExpr{std::move(s), SortedIdents{std::move(idsUsed)}};
+    return CompiledSingleExpr{
+      .rule = std::move(s),
+      .identsUsed = SortedIdents{std::move(idsUsed)},
+      .exportedIdents{},
+    };
   // TODO: errmsg_ customization.
   else if(const Ident* id = markUsedIfIdent(rxpr, idsUsed)) {
     ssize_t idx = this->lookupIdent(*id);
     if(idx == -1) return std::nullopt;
-    return CompiledSingleExpr{move_to_unique(AliasRule{idx}),
-                              SortedIdents{std::move(idsUsed)}};
+    return CompiledSingleExpr{
+      .rule = move_to_unique(AliasRule{idx}),
+      .identsUsed = SortedIdents{std::move(idsUsed)},
+      .exportedIdents{},
+    };
   }
 
   vector<IdentUsage> idsExported;
@@ -1364,8 +1371,11 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
         rl_->appendAnonRulePtr(std::move(flatRule)),
         SortedIdents{std::move(idsExported)});
     ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
-    return CompiledSingleExpr{std::move(outrule),
-                              SortedIdents{std::move(idsUsed)}};
+    return CompiledSingleExpr{
+      .rule = std::move(outrule),
+      .identsUsed = SortedIdents{std::move(idsUsed)},
+      .exportedIdents{}
+    };
   }
 
   return std::nullopt;
@@ -1420,12 +1430,13 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
   vector<IdentUsage> idsUsed;
   ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
   return CompiledSingleExpr{
-    move_to_unique(OutputTmpl{
+    .rule = move_to_unique(OutputTmpl{
       rl_->appendAnonRulePtr(std::move(flatRule)),  // childidx
       {},        // childName, ignored for map-returning childidx
       std::move(jstmpl), // outputTmpl
     }),
-    SortedIdents{std::move(idsUsed)},
+    .identsUsed = SortedIdents{std::move(idsUsed)},
+    .exportedIdents{},
   };
 }
 
