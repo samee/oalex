@@ -1049,8 +1049,7 @@ class RuleExprCompiler {
   ssize_t lookupLocalIdent(const Ident& name) const;
 
   // The recursion driver for compiling RuleExpr
-  unique_ptr<Rule> compileRuleExpr(const RuleExpr& rxpr,
-                                   vector<IdentUsage>& exportedOutput);
+  optional<CompiledSingleExpr> compileRuleExpr(const RuleExpr& rxpr);
 
   optional<CompiledSingleExpr> compileToFlatStruct(const RuleExpr& rxpr);
 };
@@ -1210,17 +1209,21 @@ ruleExprOutputIdentsCheckUnique(
 // illegal pattern, this function returns nullptr.
 //
 //   CompiledSingleExpr::identsUsed needs to be sorted by the caller.
-unique_ptr<Rule>
-RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr,
-                                  vector<IdentUsage>& exportedOutput) {
+optional<CompiledSingleExpr>
+RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr) {
   // This processing also collects identifiers in rxpr. This must be called
   // before we can produce a vector<IdentUsage>.
-  unique_ptr<Rule> rv = this->process(rxpr);
-  if(somePatternFailed_) return nullptr;
-  vector<IdentUsage> ids
+  unique_ptr<Rule> rule = this->process(rxpr);
+  if(somePatternFailed_) return std::nullopt;
+  vector<IdentUsage> exportedIds
     = ruleExprOutputIdentsCheckUnique(ctx_, rxpr, patternIdents_).release();
-  for(auto& id: ids) exportedOutput.push_back(std::move(id));
-  return rv;
+  vector<IdentUsage> usedIds;
+  ruleExprCollectInputIdents(rxpr, patternIdents_, usedIds);
+  return CompiledSingleExpr{
+    .rule = std::move(rule),
+    .identsUsed = SortedIdents{std::move(usedIds)},
+    .exportedIdents = SortedIdents{std::move(exportedIds)},
+  };
 }
 
 struct RuleExprCollectConfig {
@@ -1364,17 +1367,12 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
     };
   }
 
-  vector<IdentUsage> idsExported;
-  if(unique_ptr<Rule> flatRule = this->compileRuleExpr(rxpr, idsExported)) {
-    unique_ptr<Rule> outrule = unflattenableWrapper(
-        rl_->appendAnonRulePtr(std::move(flatRule)),
-        SortedIdents{std::move(idsExported)});
-    ruleExprCollectInputIdents(rxpr, patternIdents_, idsUsed);
-    return CompiledSingleExpr{
-      .rule = std::move(outrule),
-      .identsUsed = SortedIdents{std::move(idsUsed)},
-      .exportedIdents{}
-    };
+  if(optional<CompiledSingleExpr> res = this->compileRuleExpr(rxpr)) {
+    res->rule = unflattenableWrapper(
+        rl_->appendAnonRulePtr(std::move(res->rule)),
+        SortedIdents{std::move(res->exportedIdents)});
+    res->exportedIdents = SortedIdents{};  // Clear. Nothing exported here.
+    return res;
   }
 
   return std::nullopt;
@@ -1400,26 +1398,21 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileToFlatStruct(const RuleExpr& rxpr) {
 
-  unique_ptr<Rule> outrule;
-  vector<IdentUsage> exportedOutput;
+  CompiledSingleExpr rv;  // Do not return if rv.rule remains nullptr.
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
     // There are no fields to expose, but we still need an empty struct.
     ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
-    outrule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
+    rv.rule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
                                                 .outputPlaceholder{} }}} );
-  }else if(const Ident* id = markUsedIfIdent(rxpr, exportedOutput))
-    outrule = this->identComponent(*id);
-  else outrule = this->compileRuleExpr(rxpr, exportedOutput);
-  if(!outrule) return std::nullopt;
+  }else if(const Ident* id = getIfIdent(rxpr)) {
+    rv.rule = this->identComponent(*id);
+    rv.exportedIdents = SortedIdents{{ IdentUsage{.id=*id, .inList=false} }};
+    rv.identsUsed = rv.exportedIdents;
+  }
+  else if(auto res = this->compileRuleExpr(rxpr)) rv = std::move(*res);
 
-  vector<IdentUsage> unsorted;
-  ruleExprCollectInputIdents(rxpr, patternIdents_, unsorted);
-
-  return CompiledSingleExpr{
-    .rule = std::move(outrule),
-    .identsUsed = SortedIdents{std::move(unsorted)},
-    .exportedIdents = SortedIdents{std::move(exportedOutput)},
-  };
+  if(!rv.rule) return std::nullopt;
+  return rv;
 }
 
 // This function is used only to compile the main rule expression of a
