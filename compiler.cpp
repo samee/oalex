@@ -83,6 +83,13 @@ wrapErrorIfCustomized(unique_ptr<Rule> targetRule, const Ident& targetIdent,
 // globally defined rules or ones locally defined in a rule.
 using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
 
+enum class RuleOutputType { string, flat_map, frozen_map };
+
+struct TypedRule {
+  unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
+  RuleOutputType type;
+};
+
 /*
 Pattern to Rule compilation
 ---------------------------
@@ -147,7 +154,7 @@ class PatternToRulesCompiler {
     errmsg_(&errmsg), skipIndex_(skipIndex), regexOptsIdx_(regexOptsIdx) {}
   // Just to prevent accidental copying.
   PatternToRulesCompiler(const PatternToRulesCompiler&) = delete;
-  unique_ptr<Rule> process(const Pattern& patt);
+  TypedRule process(const Pattern& patt);
 };
 
 unique_ptr<Rule>
@@ -160,7 +167,7 @@ PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
       rl_->appendAnonRule(SkipPoint{skipIndex_});
     }
     const Pattern& child = concatPatt.parts[i];
-    ssize_t j = rl_->appendAnonRulePtr(this->process(child));
+    ssize_t j = rl_->appendAnonRulePtr(this->process(child).rule);
     concatRule.comps.push_back({j, {}});
   }
   return move_to_unique(concatRule);
@@ -172,7 +179,7 @@ PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
   OrRule orRule{{}, /* flattenOnDemand */ true};
   for(ssize_t i = 0; i < ssize(orPatt.parts); ++i) {
     const Pattern& child = orPatt.parts[i];
-    ssize_t j = rl_->appendAnonRulePtr(this->process(child));
+    ssize_t j = rl_->appendAnonRulePtr(this->process(child).rule);
     if(i+1 != ssize(orPatt.parts)) j = rl_->appendAnonRule(QuietMatch{j});
     orRule.comps.push_back({-1, j, passthroughTmpl});
   }
@@ -182,7 +189,7 @@ PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
 unique_ptr<Rule>
 PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
   return createOptionalRule(*rl_,
-      rl_->appendAnonRulePtr(this->process(optPatt.part)) );
+      rl_->appendAnonRulePtr(this->process(optPatt.part).rule) );
 }
 
 unique_ptr<Rule>
@@ -200,7 +207,7 @@ PatternToRulesCompiler::processIdent(const Ident& ident) {
 
 unique_ptr<Rule>
 PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
-  ssize_t i = rl_->appendAnonRulePtr(this->process(repPatt.part));
+  ssize_t i = rl_->appendAnonRulePtr(this->process(repPatt.part).rule);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return move_to_unique(LoopRule{{
       .partidx = i, .glueidx = -1, .lookidx = -1, .skipidx = ski}});
@@ -208,33 +215,36 @@ PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
 
 unique_ptr<Rule>
 PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
-  ssize_t pi = rl_->appendAnonRulePtr(this->process(foldPatt.part));
-  ssize_t gi = rl_->appendAnonRulePtr(this->process(foldPatt.glue));
+  ssize_t pi = rl_->appendAnonRulePtr(this->process(foldPatt.part).rule);
+  ssize_t gi = rl_->appendAnonRulePtr(this->process(foldPatt.glue).rule);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
   return move_to_unique(LoopRule{{
       .partidx = pi, .glueidx = gi, .lookidx = -1, .skipidx = ski}});
 }
 
-unique_ptr<Rule>
+TypedRule
 PatternToRulesCompiler::process(const Pattern& patt) {
   if(auto* word = get_if_unique<WordToken>(&patt)) {
-    return createWordOrError(*rl_, **word, regexOptsIdx_);
+    return {createWordOrError(*rl_, **word, regexOptsIdx_),
+            RuleOutputType::string};
   }else if(auto* oper = get_if_unique<OperToken>(&patt)) {
-    return createLiteralOrError(*rl_, **oper);
+    return {createLiteralOrError(*rl_, **oper),
+            RuleOutputType::string};
   }else if(get_if_unique<NewlineChar>(&patt)) {
-    return createLiteralOrError(*rl_, "\n");
+    return {createLiteralOrError(*rl_, "\n"),
+            RuleOutputType::string};
   }else if(auto* ident = get_if_unique<Ident>(&patt)) {
-    return processIdent(*ident);
+    return {processIdent(*ident), RuleOutputType::flat_map};
   }else if(auto* concatPatt = get_if_unique<PatternConcat>(&patt)) {
-    return processConcat(*concatPatt);
+    return {processConcat(*concatPatt), RuleOutputType::flat_map};
   }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
-    return processOrList(*orPatt);
+    return {processOrList(*orPatt), RuleOutputType::flat_map};
   }else if(auto* optPatt = get_if_unique<PatternOptional>(&patt)) {
-    return processOptional(*optPatt);
+    return {processOptional(*optPatt), RuleOutputType::flat_map};
   }else if(auto* repPatt = get_if_unique<PatternRepeat>(&patt)) {
-    return processRepeat(*repPatt);
+    return {processRepeat(*repPatt), RuleOutputType::flat_map};
   }else if(auto* foldPatt = get_if_unique<PatternFold>(&patt)) {
-    return processFold(*foldPatt);
+    return {processFold(*foldPatt), RuleOutputType::flat_map};
   }else {
     Unimplemented("Pattern compilation of index {}", patt.index());
   }
@@ -1198,7 +1208,7 @@ RuleExprCompiler::processDquoted(const RuleExprDquoted& dq) {
   // See the comment for compileLocalRules() for how to optimize this.
   SortedIdents patternIdents = patternCollectIdent(*patt);
   patternIdents_.insert({dq.gs, patternIdents});
-  return pattComp_.process(*patt);
+  return pattComp_.process(*patt).rule;
 }
 
 static SortedIdents
