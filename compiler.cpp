@@ -141,7 +141,7 @@ class PatternToRulesCompiler {
   ssize_t skipIndex_, regexOptsIdx_;
   unique_ptr<Rule> processConcat(const PatternConcat& concatPatt);
   unique_ptr<Rule> processOrList(const PatternOrList& orPatt);
-  unique_ptr<Rule> processOptional(const PatternOptional& optPatt);
+  TypedRule processOptional(const PatternOptional& optPatt);
   unique_ptr<Rule> processIdent(const Ident& ident);
   unique_ptr<Rule> processRepeat(const PatternRepeat& repPatt);
   unique_ptr<Rule> processFold(const PatternFold& foldPatt);
@@ -186,10 +186,13 @@ PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
   return move_to_unique(orRule);
 }
 
-unique_ptr<Rule>
+TypedRule
 PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
-  return createOptionalRule(*rl_,
-      rl_->appendAnonRulePtr(this->process(optPatt.part).rule) );
+  TypedRule tr = this->process(optPatt.part);
+  return TypedRule{
+    createOptionalRule( *rl_, rl_->appendAnonRulePtr(std::move(tr.rule)) ),
+    tr.type,
+  };
 }
 
 unique_ptr<Rule>
@@ -240,7 +243,7 @@ PatternToRulesCompiler::process(const Pattern& patt) {
   }else if(auto* orPatt = get_if_unique<PatternOrList>(&patt)) {
     return {processOrList(*orPatt), RuleOutputType::flat_map};
   }else if(auto* optPatt = get_if_unique<PatternOptional>(&patt)) {
-    return {processOptional(*optPatt), RuleOutputType::flat_map};
+    return processOptional(*optPatt);
   }else if(auto* repPatt = get_if_unique<PatternRepeat>(&patt)) {
     return {processRepeat(*repPatt), RuleOutputType::flat_map};
   }else if(auto* foldPatt = get_if_unique<PatternFold>(&patt)) {
