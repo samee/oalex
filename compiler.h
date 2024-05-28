@@ -14,9 +14,6 @@
 
 // This file was refactored out of frontend.h. As a result, even today all of
 // these functions are directly called by frontend.h.
-//
-// TODO write unit tests. Previously all changes
-// were tested by integration tests.
 #pragma once
 #include <memory>
 #include <string_view>
