@@ -85,7 +85,25 @@ wrapErrorIfCustomized(unique_ptr<Rule> targetRule, const Ident& targetIdent,
 // globally defined rules or ones locally defined in a rule.
 using SymbolTable = std::vector<std::pair<Ident, ssize_t>>;
 
-enum class RuleOutputType { string, flat_map, frozen_map };
+// This enum type is returned by various compilation methods to indicate
+// what kind of output will be returned by the compiled rule. The most common
+// use is to distinguish between string and flat_map. Those are the only types
+// we currently produce from intermediate steps of compilation. In the end,
+// the OutputTmpl result is represented by the type frozen_map. The type
+// bare_ident is typically used for AliasRule, and the type error is for
+// ErrorRule. OrRules have their types determined by their branches, and by
+// whether or not it has flattenableOnDemand set.
+//
+// Dev-note: Instead of returning this enum value separately like this, an
+// alternate approach would be to look at the runtime type of the returned
+// RuleExpr and _deduce_ the output type. The trouble are types like
+// `bare_ident`, where the AliasRule target may not even be compiled yet (in
+// which case it still points to DefinitionInProgress). We also run into
+// OrRule has its own rules for OrRule, where the type-inference is more
+// complex.
+enum class RuleOutputType {
+  string, flat_map, frozen_map, bare_ident, error
+};
 
 struct TypedRule {
   unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
@@ -544,7 +562,9 @@ debugRuleOutputType(RuleOutputType t) {
   switch(t) {
     case string: return "string";
     case flat_map: return "flat_map";
+    case bare_ident: return "bare_ident";
     case frozen_map: return "frozen_map";
+    case error: return "error";
   }
   return std::to_string(static_cast<int>(t));
 }
@@ -1010,11 +1030,13 @@ appendExternRule(const ParsedExternRule& ext, DiagsDest ctx,
 struct CompiledSingleExpr {
   unique_ptr<Rule> rule;  // never nullptr. unique_ptr for type erasure only.
   SortedIdents identsUsed, exportedIdents;
+  RuleOutputType outType;
 };
 
 struct CompiledRuleBranch {
   OrRule::Component or_comp;
   SortedIdents identsUsed, exportedIdents;
+  RuleOutputType outType;
 };
 
 class RuleExprCompiler {
@@ -1281,6 +1303,7 @@ RuleExprCompiler::compileRuleExpr(const RuleExpr& rxpr) {
     .rule = std::move(trule->rule),
     .identsUsed = SortedIdents{std::move(usedIds)},
     .exportedIdents = SortedIdents{std::move(exportedIds)},
+    .outType = trule->type,
   };
 }
 
@@ -1399,6 +1422,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
       .rule = std::move(s),
       .identsUsed = SortedIdents{},
       .exportedIdents{},
+      .outType = RuleOutputType::string,
     };
   // TODO: errmsg_ customization.
   else if(const Ident* id = getIfIdent(rxpr)) {
@@ -1409,6 +1433,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
       .rule = move_to_unique(AliasRule{idx}),
       .identsUsed = used,
       .exportedIdents = used,
+      .outType = RuleOutputType::bare_ident,
     };
   }
 
@@ -1417,6 +1442,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
         rl_->appendAnonRulePtr(std::move(res->rule)),
         SortedIdents{std::move(res->exportedIdents)});
     res->exportedIdents = SortedIdents{};  // Clear. Nothing exported here.
+    res->outType = RuleOutputType::frozen_map;
     return res;
   }
 
@@ -1439,24 +1465,28 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 //
 //   RuleExprIdent: produces a ConcatFlatRule with a single field.
 //   RuleExpr{Squoted,Regex}: produces an empty map.
-//   Others: passes through the map from compileRuleExpr().
+//   Others: passes through the result from compileRuleExpr().
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileToFlatStruct(const RuleExpr& rxpr) {
 
-  CompiledSingleExpr rv;  // Do not return if rv.rule remains nullptr.
-  if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr)) {
-    // There are no fields to expose, but we still need an empty struct.
-    ssize_t ridx = rl_->appendAnonRulePtr(std::move(s));
-    rv.rule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
-                                                .outputPlaceholder{} }}} );
-  }else if(const Ident* id = getIfIdent(rxpr)) {
-    rv.rule = this->identComponent(*id);
-    rv.exportedIdents = SortedIdents{{ IdentUsage{.id=*id, .inList=false} }};
-    rv.identsUsed = rv.exportedIdents;
-  }
-  else if(auto res = this->compileRuleExpr(rxpr)) rv = std::move(*res);
-
-  if(!rv.rule) return std::nullopt;
+  optional<CompiledSingleExpr> rv = this->compileRuleExpr(rxpr);
+  if(!rv) return std::nullopt;
+  if(rv->outType == RuleOutputType::string) {
+    ssize_t ridx = rl_->appendAnonRulePtr(std::move(rv->rule));
+    rv->rule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
+                                                 .outputPlaceholder{} }}} );
+    rv->outType = RuleOutputType::flat_map;
+    // Pass through rv->{exportedIdents,identsUsed}. They should be empty.
+  }else if(rv->outType == RuleOutputType::bare_ident) {
+    if(rv->identsUsed.ssize() != 1)
+      Bug("Expected `bare_ident` to use a single identifier. Got {}",
+          rv->identsUsed.ssize());
+    const Ident& id = rv->identsUsed[0].id;
+    rv->rule = this->identComponent(id);
+    rv->outType = RuleOutputType::flat_map;
+  }else if(rv->outType != RuleOutputType::flat_map)
+    Bug("Rules should be compiled to either a string, bare_ident, or flat_map "
+        "at this stage. Found {}", debugRuleOutputType(rv->outType));
   return rv;
 }
 
@@ -1480,6 +1510,7 @@ RuleExprCompiler::compileSingleExprWithTmpl(const RuleExpr& rxpr,
     }),
     .identsUsed = std::move(flatres->identsUsed),
     .exportedIdents{},
+    .outType = RuleOutputType::frozen_map,
   };
 }
 
@@ -1618,6 +1649,7 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
   }else res = CompiledSingleExpr{
     .rule = move_to_unique(ErrorRule{string{branch.diagMsg}}),
     .identsUsed{}, .exportedIdents{},
+    .outType = RuleOutputType::error,
   };
 
   if(!res) return std::nullopt;
@@ -1632,6 +1664,7 @@ RuleExprCompiler::compileRuleBranch(const RuleBranch& branch,
                .tmpl{passthroughTmpl} },
     .identsUsed = std::move(res->identsUsed),
     .exportedIdents = std::move(res->exportedIdents),
+    .outType = res->outType,
   };
 }
 
