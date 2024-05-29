@@ -1,8 +1,10 @@
 # TODO: Use pattern as a unit test if requested. E.g. `rule <name> example:`
 # and `rule <name> example choices`.
+# TODO: Consider a lexical option to not require spaces around square brackets.
+# Maybe literal or custom meta options too.
 rule contact_line:
 
-    Smith, Adam; 1234 Main St.; Cityburg, ST 98765
+    Smith [ , Adam ] ; 1234 Main St.; Cityburg [ , ] ST 98765
 
   where:
     "Smith"         as last_name  ~ name_part
@@ -15,7 +17,7 @@ rule contact_line:
 
 example contact_line:
 
-    Bell, Gordon; 567 Fake Street; Coronado, CA 92118
+    Bell, Gordon; 567 Fake Street; Coronado CA 92118
 
   outputs: {
     last_name:      "Bell",
@@ -25,6 +27,18 @@ example contact_line:
     state_code:     "CA",
     zip_code:       "92118"
   }
+
+# No first name, comma after a city. Neighbor to Mr. Gordon Bell.
+example contact_line:
+    Trubador; 579 Fake Street; Coronado, CA 92118
+  outputs: {
+    last_name: "Trubador",
+    street_address: "579 Fake Street",
+    city_name: "Coronado",
+    state_code: "CA",
+    zip_code: "92118"
+  }
+
 
 
 rule contact_line_style_2: "name; address"

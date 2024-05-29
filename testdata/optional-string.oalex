@@ -1,0 +1,19 @@
+rule dbl_quoted_greeting: "hello [world]"
+
+example dbl_quoted_greeting:
+    hello
+  outputs success
+
+example dbl_quoted_greeting:
+    hello world
+  outputs success
+
+rule one_word_greeting: ('hello' ['World'])
+
+example one_word_greeting:
+    hello
+  outputs success
+
+example one_word_greeting:
+    helloWorld
+  outputs success

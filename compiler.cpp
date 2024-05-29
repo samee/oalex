@@ -52,8 +52,10 @@ static global functions. They both serve the same purpose, but in this file:
     `namespace { ... }` scopes.
 */
 
-unique_ptr<Rule>
-createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
+struct TypedRule;
+
+TypedRule
+createOptionalRule(RulesWithLocs& rl, TypedRule tr);
 unique_ptr<Rule>
 createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx);
 unique_ptr<Rule>
@@ -189,10 +191,7 @@ PatternToRulesCompiler::processOrList(const PatternOrList& orPatt) {
 TypedRule
 PatternToRulesCompiler::processOptional(const PatternOptional& optPatt) {
   TypedRule tr = this->process(optPatt.part);
-  return TypedRule{
-    createOptionalRule( *rl_, rl_->appendAnonRulePtr(std::move(tr.rule)) ),
-    tr.type,
-  };
+  return createOptionalRule(*rl_, std::move(tr));
 }
 
 unique_ptr<Rule>
@@ -539,18 +538,37 @@ createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
       MatchOrError{newIndex, "Does not match expected pattern"} );
 }
 
-unique_ptr<Rule>
-createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
-  OrRule orRule{{}, /* flattenOnDemand */ true};
+string
+debugRuleOutputType(RuleOutputType t) {
+  using enum RuleOutputType;
+  switch(t) {
+    case string: return "string";
+    case flat_map: return "flat_map";
+    case frozen_map: return "frozen_map";
+  }
+  return std::to_string(static_cast<int>(t));
+}
 
-  ssize_t i = rl.appendAnonRule(QuietMatch{ruleIndex});
+TypedRule
+createOptionalRule(RulesWithLocs& rl, TypedRule tr) {
+  if(tr.type != RuleOutputType::string &&
+     tr.type != RuleOutputType::flat_map)
+    Bug("Codegen does not support optionals with rule type {}",
+        debugRuleOutputType(tr.type));
+
+  bool flat_out = (tr.type == RuleOutputType::flat_map);
+  OrRule orRule{ {}, /* flattenOnDemand */ flat_out };
+
+  ssize_t i = rl.appendAnonRulePtr(std::move(tr.rule));
+  i = rl.appendAnonRule(QuietMatch{i});
   orRule.comps.push_back({-1, i, passthroughTmpl});
 
-  // This branch always produces a Map on success.
   i = rl.appendAnonRule(StringRule{{}});
-  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
+  JsonTmpl fallback_tmpl = flat_out ? JsonTmpl::Map{} : passthroughTmpl;
+  orRule.comps.push_back({-1, i, std::move(fallback_tmpl)});
 
-  return move_to_unique(orRule);
+  tr.rule = move_to_unique(orRule);
+  return tr;
 }
 
 }  // namespace
@@ -1116,11 +1134,9 @@ RuleExprCompiler::process(const RuleExpr& rxpr) {
   }else if(auto* cat = dynamic_cast<const RuleExprConcat*>(&rxpr)) {
     return TypedRule{this->processConcat(*cat), RuleOutputType::flat_map};
   }else if(auto* opt = dynamic_cast<const RuleExprOptional*>(&rxpr)) {
-    return TypedRule{
-      createOptionalRule(*rl_,
-          rl_->appendAnonRulePtr(std::move(this->process(*opt->part)->rule)) ),
-      RuleOutputType::flat_map,
-    };
+    optional<TypedRule> tr = this->process(*opt->part);
+    if(!tr) return std::nullopt;
+    return createOptionalRule(*rl_, std::move(*tr));
   }else if(auto* rep = dynamic_cast<const RuleExprRepeat*>(&rxpr)) {
     return TypedRule{this->processRepeat(*rep), RuleOutputType::flat_map};
   }else {
