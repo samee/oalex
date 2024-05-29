@@ -36,14 +36,28 @@ using std::vector;
 
 namespace oalex {
 
-static unique_ptr<Rule>
-createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
-static unique_ptr<Rule>
-createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx);
-static unique_ptr<Rule>
-createLiteralOrError(RulesWithLocs& rl, string_view literal);
-
 namespace {
+
+/*
+This file is a bit inconsistent with the use of anonymous namespace versus
+static global functions. They both serve the same purpose, but in this file:
+
+  * We use anonymous namespace whenever they can be defined early in the
+    file.
+  * Anonymous namespace is also needed for classes and methods that are
+    locally defined.
+  * The static-declared global functions are used for helper functions
+    whose code I wanted to keep lexically close to where they are used.
+    I preferred not litering the file with many single-function
+    `namespace { ... }` scopes.
+*/
+
+unique_ptr<Rule>
+createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex);
+unique_ptr<Rule>
+createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx);
+unique_ptr<Rule>
+createLiteralOrError(RulesWithLocs& rl, string_view literal);
 
 // TODO: optimize QuietMatch(OrRule(X, ErrorRule)) to just X.
 unique_ptr<Rule>
@@ -481,7 +495,9 @@ RulesWithLocs::defaultSkipper() const {
   return 0;
 }
 
-static unique_ptr<Rule>
+namespace {
+
+unique_ptr<Rule>
 createLiteralOrError(RulesWithLocs& rl, string_view literal) {
   string expectation = format("Expected '{}'", literal);
   if(literal == "\n") expectation = "Expected a newline";
@@ -491,17 +507,17 @@ createLiteralOrError(RulesWithLocs& rl, string_view literal) {
 
 // Used if we encounter errors after a slot has already been allocated
 // as DefinitionInProgress.
-static unique_ptr<Rule>
+unique_ptr<Rule>
 dummyRule() { return move_to_unique(StringRule{""}); }
 
-static unique_ptr<Rule>
+unique_ptr<Rule>
 createWordOrError(RulesWithLocs& rl, string_view word, ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
   rl.appendAnonRule(WordPreserving{word, regexOptsIdx});
   return move_to_unique(MatchOrError{newIndex, format("Expected '{}'", word)});
 }
 
-static unique_ptr<Rule>
+unique_ptr<Rule>
 createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
                    ssize_t regexOptsIdx) {
   ssize_t newIndex = rl.ssize();
@@ -509,6 +525,23 @@ createRegexOrError(RulesWithLocs& rl, unique_ptr<const Regex> regex,
   return move_to_unique(
       MatchOrError{newIndex, "Does not match expected pattern"} );
 }
+
+unique_ptr<Rule>
+createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
+  OrRule orRule{{}, /* flattenOnDemand */ true};
+
+  ssize_t i = rl.appendAnonRule(QuietMatch{ruleIndex});
+  orRule.comps.push_back({-1, i, passthroughTmpl});
+
+  // This branch always produces a Map on success.
+  i = rl.appendAnonRule(StringRule{{}});
+  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
+
+  return move_to_unique(orRule);
+}
+
+}  // namespace
+
 
 // ---------------------- Start appendExprRule() ------------------------------
 
@@ -906,20 +939,6 @@ parsePatternForLocalEnv(DiagsDest ctx, GluedString patt_string,
   auto toks = tokenizePattern(ctx, patt_string, partPatterns, lexopts);
   if(!patt_string.empty() && toks.empty()) return std::nullopt;
   return parsePattern(ctx, std::move(toks));
-}
-
-static unique_ptr<Rule>
-createOptionalRule(RulesWithLocs& rl, ssize_t ruleIndex) {
-  OrRule orRule{{}, /* flattenOnDemand */ true};
-
-  ssize_t i = rl.appendAnonRule(QuietMatch{ruleIndex});
-  orRule.comps.push_back({-1, i, passthroughTmpl});
-
-  // This branch always produces a Map on success.
-  i = rl.appendAnonRule(StringRule{{}});
-  orRule.comps.push_back({-1, i, JsonTmpl::Map{}});
-
-  return move_to_unique(orRule);
 }
 
 static Ident
