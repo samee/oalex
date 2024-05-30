@@ -1376,19 +1376,6 @@ RuleExprCompiler::createIfStringExpr(const RuleExpr& rxpr) {
   else return nullptr;
 }
 
-// This function is used for special-casing RuleExprIdent values. In
-// this case, the rule expression's outputs are _not_ encased in a new
-// layer of json maps. Most other RuleExpr currently output through
-// OutputTmpl{}.
-//
-// If this function returns nullptr, it means rxpr isn't a RuleExprIdent.
-static const Ident*
-markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
-  const Ident* id = getIfIdent(rxpr);
-  if(id) usageOutput.push_back({.id = *id, .inList = false});
-  return id;
-}
-
 // This function is used to compile:
 //
 //   * Local rules (in `where:`)
@@ -1407,21 +1394,21 @@ markUsedIfIdent(const RuleExpr& rxpr, vector<IdentUsage>& usageOutput) {
 //   Others: the result is wrapped in unflattenableWrapper().
 optional<CompiledSingleExpr>
 RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
-  vector<IdentUsage> idsUsed;
   if(unique_ptr<Rule> s = this->createIfStringExpr(rxpr))
     return CompiledSingleExpr{
       .rule = std::move(s),
-      .identsUsed = SortedIdents{std::move(idsUsed)},
+      .identsUsed = SortedIdents{},
       .exportedIdents{},
     };
   // TODO: errmsg_ customization.
-  else if(const Ident* id = markUsedIfIdent(rxpr, idsUsed)) {
+  else if(const Ident* id = getIfIdent(rxpr)) {
     ssize_t idx = this->lookupIdent(*id);
     if(idx == -1) return std::nullopt;
+    SortedIdents used{{ IdentUsage{ .id = *id, .inList = false } }};
     return CompiledSingleExpr{
       .rule = move_to_unique(AliasRule{idx}),
-      .identsUsed = SortedIdents{std::move(idsUsed)},
-      .exportedIdents{},
+      .identsUsed = used,
+      .exportedIdents = used,
     };
   }
 
