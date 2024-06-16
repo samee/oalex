@@ -422,7 +422,7 @@ void runFlattenOnDemand() {
     .loc{},
     .fields{
       .keyword = StringLoc{"let", 0},
-      .number = std::nullopt,
+      .number{},
     },
   };
   assertEqual(__func__, JsonLoc{parsed}, *parseJsonLoc("{keyword: 'let'}"));

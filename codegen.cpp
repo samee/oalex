@@ -1379,7 +1379,7 @@ flatFieldType(const RuleSet& ruleset, const RuleField& field) {
 
   if(field.container == RuleField::single) return vtype;
   else if(field.container == RuleField::optional)
-    return format("std::optional<{}>", vtype);
+    return format("oalex::indopt<{}>", vtype);
   else if(field.container == RuleField::vector)
     return format("std::vector<{}>", vtype);
   else Bug("Bad container type {}", int(field.container));

@@ -17,6 +17,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include "any_of.h"
 #include "diags.h"
 #include "jsonloc.h"
 #include "regex.h"
@@ -51,8 +52,20 @@ auto quietMatch(const InputPiece& input, ssize_t& i, ParserCallback parser) {
   return parser(proxy, i);
 }
 
+template <class T> using indopt = sz::any_of<T>;
+
+// TODO: Consolidate this overload with other toJsonLoc() definitions.
+// They are defined in jsonloc.h (already included here). But we have to wait
+// until oalex::indopt is defined here. Maybe we should move all toJsonLoc
+// to here.
+template <class V> JsonLoc toJsonLoc(const indopt<V>& v) {
+  return v.has_value() ? JsonLoc{*v} : JsonLoc::ErrorValue{};
+}
+
 template <class V>
 bool holdsErrorValue(const std::optional<V>& v) { return !v.has_value(); }
+template <class V>
+bool holdsErrorValue(const indopt<V>& v) { return !v.has_value(); }
 
 inline bool holdsErrorValue(const JsonLoc& jsloc)
   { return jsloc.holdsErrorValue(); }
@@ -66,7 +79,6 @@ bool peekMatch(const InputPiece& input, ssize_t i, ParserCallback parser) {
   // peekMatch() accepts `i` by value and returns a bool.
   return !holdsErrorValue(quietMatch(input, i, parser));
 }
-
 
 void mapAppend(JsonLoc::Map& m1, JsonLoc::Map m2);
 
