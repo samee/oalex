@@ -29,6 +29,7 @@ using std::exchange;
 using std::format;
 using std::make_format_args;
 using std::map;
+using std::optional;
 using std::pair;
 using std::string;
 using std::string_view;
@@ -86,6 +87,22 @@ const string&
 ExternParser::externalName() const {
   if(!externalName_.empty()) return externalName_;
   else Bug("External parsers must have an external name");
+}
+
+UserExposure::State UserExposure::state() const {
+  switch(state_) {
+    case unknown:
+    case topLevel:
+    case builtin:
+    case notExposed:
+    case notGenerated:
+      return State{state_};
+    // case nested intentionally left out. It should never
+    // be explicitly represented.
+    default:
+      if(state_ >= 0) return State::nested;
+      else Bug("Invalid UserExposure::Status {}", state_);
+  }
 }
 
 // eval()
@@ -1326,6 +1343,7 @@ void
 Rule::deferred_name(Ident name) {
   if(name_) Bug("Cannot rename rule {} to {}",
                 name_.preserveCase(), name.preserveCase());
+  if(name) exposure().state(UserExposure::topLevel);
   name_ = name;
 }
 void
@@ -1704,6 +1722,47 @@ getOptionalFields(const RuleSet& ruleset, ssize_t ruleIndex) {
     if(field.container == RuleField::Container::optional)
       rv.push_back(field.field_name);
   return rv;
+}
+
+// Assumes all topLevel rules have names.
+void
+computeUserExposureForTypes(RuleSet& ruleset) {
+  for(const unique_ptr<Rule>& r : ruleset.rules) {
+    if(producesString(*r) || producesJsonLike(*r))
+      r->exposure().state(UserExposure::builtin);
+    // If the rule has a global name assigned by the user,
+    // it's topLevel by definition.
+    else if(r->nameOrNull()) r->exposure().state(UserExposure::topLevel);
+    else if(ssize_t t = flatWrapperTarget(*r); t != -1)
+      r->exposure().state(UserExposure::notGenerated);
+  }
+  for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
+    const Rule& r = ruleAt(ruleset, ri);
+    if(r.exposure().state() != UserExposure::topLevel) continue;
+    for(const RuleField& field: r.flatFields()) {
+      ssize_t fi = field.schema_source;
+      UserExposure& fe = ruleset.rules[fi]->exposure();
+      if(fe.state() == UserExposure::topLevel
+         || fe.state() == UserExposure::builtin) continue;
+      else if(optional<ssize_t> oldopt = fe.nestedIn(); oldopt) {
+        Bug("Rule {} is already nested in {}, it cannot also be"
+            " a child of {}", fi,
+            ruleAt(ruleset, *oldopt).nameOrNull()->preserveCase(),
+            r.nameOrNull()->preserveCase() );
+      }
+      else if(fe.state() == UserExposure::unknown) {
+        if(!fe.nestedIn(ri)) {
+          Bug("Couldn't set field exposure a field of {}",
+              r.nameOrNull()->preserveCase() );
+        }
+      }else Bug("Unexpected type exposure on rule {}: {}",
+                fi, ssize_t{fe.state()});
+    }
+  }
+
+  for(const unique_ptr<Rule>& r : ruleset.rules)
+    if(r->exposure().state() == UserExposure::unknown)
+      r->exposure().state(UserExposure::notExposed);
 }
 
 static bool

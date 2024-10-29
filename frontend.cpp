@@ -1404,8 +1404,12 @@ parseOalexSource(InputDiags& ctx) {
   RuleSet rs = rl.releaseRules();
   if(hasDuplicatePlaceholders(rs.rules, ctx) ||
      hasError(ctx.diags)) return nullopt;
+
+  // Finalize the RuleSet before codegen starts.
   populateFlatFields(rs);
+  computeUserExposureForTypes(rs);
   fillInNames(rs.rules);
+
   return ParsedSource{std::move(rs), std::move(examples)};
 }
 

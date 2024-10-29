@@ -44,6 +44,78 @@ struct RuleField {
   enum Container { single, optional, vector } container;
 };
 
+// Encapsulates a single integer. This type is used to indicate whether a given
+// rule produces a user-visible type, or not. And if it's visible, what makes it
+// visible.
+class UserExposure final {
+ public:
+  enum State : ssize_t {
+    // Positive values are used internally to indicate parent container index for
+    // nested fields. The `nested` value here is never explicitly stored.
+    // Precedence order: if builtin applies, as well as topLevel or nested,
+    // we represent it here as builtin. Other combinations are semantically
+    // impossible.
+
+    // We have not yet figured out if the type is exposed in the public API.
+    unknown = -1,
+
+    // The type is exposed, since it represents the output of a top-level rule.
+    topLevel = -2,
+
+    // The built-in types StringLoc and JsonLike are always in the public API.
+    builtin = -3,
+
+    // We know for sure this type is only used internally in generated code.
+    notExposed = -4,
+
+    // We never generate any type for this rule. Right now, this is used
+    // for flatWrapperTarget() which copies the target rule. Codegen always
+    // resolves their target before generating a type.
+    notGenerated = -5,
+
+    // This type is exposed since they are defined nested in another type.
+    // Nesting is the cleanest way we could avoid collisions among generated
+    // names that need to be stable.
+    nested = -6,
+  };
+
+  // Sets exposure state only if it has not been set yet.
+  // Returns true on success. A "nested" state is set via the nestedIn() setter.
+  bool state(State s) {
+    if(state_ != unknown) return false;
+    switch(s) {
+      case topLevel:
+      case builtin:
+      case notExposed:
+      case notGenerated:
+        state_ = s;
+        return true;
+      default:
+        return false;
+    }
+  }
+  State state() const;
+
+  // Returns a real value only if state() is nested.
+  std::optional<ssize_t> nestedIn() const {
+    if(state_ < 0) return std::nullopt;
+    else return state_;
+  }
+  // Verifies that s is positive.
+  bool nestedIn(ssize_t s) {
+    if(s < 0) return false;
+    if(state_ != unknown && state_ != s) return false;
+    state_ = s;
+    return true;
+  }
+
+  UserExposure() = default;
+  UserExposure(const UserExposure&) = default;
+ private:
+  ssize_t state_ = unknown;
+  State validOrBug() const;
+};
+
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
 // a separate UnassignedRule to represent an empty rule.
@@ -61,6 +133,8 @@ class Rule {
   ssize_t context_skipper() const { return contextSkipper_; }
   void flatFields(std::vector<RuleField> ff) { flatFields_ = std::move(ff); }
   const std::vector<RuleField>& flatFields() const { return flatFields_; }
+  UserExposure exposure() const { return exposure_; }
+  UserExposure& exposure() { return exposure_; }
 
   // Used for debugging/logging.
   virtual std::string specifics_typename() const = 0;
@@ -83,6 +157,12 @@ class Rule {
   // Note that OutputTmpl is not flattenable.
   // Therefore this is always empty for OutputTmpl rules.
   std::vector<RuleField> flatFields_;
+
+  // This field always starts out as UserExposure::unknown.
+  // Over time, a rule may acquire a reason for its type to be exposed to the
+  // user, depending on what role it plays in the generated API. If it remains
+  // unknown by the time of codegen, we set it to UserExposure::notExposed.
+  UserExposure exposure_;
 };
 
 // UnassignedRule really means used but not defined. It is used when we have
@@ -359,6 +439,15 @@ struct RuleSet {
 // object is completed by the compiler, but before it is passed on to a backend.
 // Currently it is only used by the codegen() backend, and not eval().
 void populateFlatFields(RuleSet& ruleset);
+
+// Computes the ruleset.rules[].exposure() values for anything not yet set.
+//
+// The assumptions are:
+//
+// * populateFlatFields() has already run,
+//   and we can use that to determine field types.
+// * Rules have names assigned iff they are top-level rules.
+void computeUserExposureForTypes(RuleSet& ruleset);
 
 class OutputStream {
  public:
