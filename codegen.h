@@ -47,6 +47,15 @@ struct RuleField {
 // Encapsulates a single integer. This type is used to indicate whether a given
 // rule produces a user-visible type, or not. And if it's visible, what makes it
 // visible.
+//
+// These are used in computeUserExposureForTypes() for two things:
+//
+//   * Catch internal bugs, where we are leaving a user-facing return type
+//     unnamed. This has the effect of them being assigned arbitrary unstable
+//     numeric names like `ParsedRule42`, which can change unpredictably.
+//   * Marking local field names as nested structs, like ParsedAddr::ZipCode.
+//     A nested type is the cleanest way I could think of generating sensible
+//     type names that do not conflict with other generated names.
 class UserExposure final {
  public:
   enum State : ssize_t {
@@ -329,8 +338,9 @@ class ErrorRule final : public Rule {
   std::string msg;
 };
 
-// Literally wraps a rule in quietMatch(). Currently not used in frontend.cpp,
-// but it will be used as part of PatternOrList compilation.
+// Literally wraps a rule in quietMatch(). Used for
+// [optional] rules and "patterns", "(or | patterns)",
+// and customized error (which requires suppressing existing errors).
 class QuietMatch final : public Rule {
  public:
   explicit QuietMatch(ssize_t idx) : compidx{idx} {}
@@ -364,11 +374,13 @@ class WordPreserving final : public Rule {
   std::string specifics_typename() const override { return "WordPreserving"; }
 };
 
-// This is used for initial testing only. Real-life grammars should instead
-// compose tentative-mode parsing with unconditional errors, whenever all of
-// that is implemented.
-// Deprecated in favor of a composition of OrRule and ErrorRule.
-// TODO remove completely when ErrorRule is functional.
+// Right now MatchOrError is used only with producesString() rules.
+//
+// This was introduced for initial testing. Today, we should be able to replace
+// this with a composition of OrRule and ErrorRule.
+//
+// TODO Delete this, but make sure flatWrapperTarget and friends special-case
+// that composition too.
 class MatchOrError final : public Rule {
  public:
   MatchOrError(ssize_t compidx, std::string errmsg)
@@ -441,12 +453,15 @@ struct RuleSet {
 void populateFlatFields(RuleSet& ruleset);
 
 // Computes the ruleset.rules[].exposure() values for anything not yet set.
-//
 // The assumptions are:
 //
 // * populateFlatFields() has already run,
 //   and we can use that to determine field types.
-// * Rules have names assigned iff they are top-level rules.
+// * top-level rules already has exposure set to `topLevel`. The exposure is how
+//   we identify them as top-level here.
+// * string rules are also assumed to have their exposure set as such, just
+//   for the ease of implementation. It's easy to compute this here as well,
+//   if we later decide to.
 void computeUserExposureForTypes(RuleSet& ruleset);
 
 class OutputStream {
