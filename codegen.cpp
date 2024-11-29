@@ -700,10 +700,7 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
              .optional = "std::nullopt_t",
              .get_value_tmpl = "{}",
            };
-  else return { .type = "oalex::JsonLoc",
-                .optional = "oalex::JsonLoc",
-                .get_value_tmpl = "{}",
-              };
+  else Bug("Cannot compute return type for {}", rule.specifics_typename());
 }
 
 static string
