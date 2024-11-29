@@ -641,6 +641,14 @@ producesString(const Rule& r) {
   // TODO: add passthrough wrappers
 }
 
+static bool
+producesJsonLike(const Rule& r) {
+  if(dynamic_cast<const ExternParser*>(&r)) return true;
+  if(auto* ors = dynamic_cast<const OrRule*>(&r))
+    return !ors->flattenOnDemand;
+  return false;
+}
+
 // Dev-note: This is only meant for parserResultTraits(). But sometimes other
 // code will use it as an unnecessary optimization to avoid a dynamic_cast.
 // TODO: replace all uses of this outside of parserResultTraits() with
@@ -684,8 +692,7 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
              .get_value_tmpl = "{}.value()",
            };
   }
-  else if(dynamic_cast<const ExternParser*>(&rule) ||
-          dynamic_cast<const OrRule*>(&rule))
+  else if(producesJsonLike(rule))
     return { .type = "oalex::JsonLike",
              .optional = "oalex::JsonLike",
              .get_value_tmpl = "{}",
