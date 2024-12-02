@@ -654,7 +654,8 @@ parserResultName(const Rule& rule, bool flattenable) {
           dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
   else if(dynamic_cast<const SkipPoint*>(&rule)) return "bool";
   else if(dynamic_cast<const ErrorRule*>(&rule)) return "std::nullopt_t";
-  else return "oalex::JsonLoc";
+  else Bug("parserResultName() does not work for {}",
+           rule.specifics_typename());
 }
 static string
 parserResultName(const RuleSet& ruleset, const Rule& rule) {
