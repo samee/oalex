@@ -1396,7 +1396,7 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
 }
 
 static string
-flatFieldType(const RuleSet& ruleset, const RuleField& field) {
+fieldTypeWithContainer(const RuleSet& ruleset, const RuleField& field) {
   const Rule& source = ruleAt(ruleset, field.schema_source);
   string vtype = parserResultName(ruleset, source);
 
@@ -1408,26 +1408,52 @@ flatFieldType(const RuleSet& ruleset, const RuleField& field) {
   else Bug("Bad container type {}", int(field.container));
 }
 
+// Finds the rule whose result fills a given OutputTmpl placeholder.
+// This is used for, for instance, figuring out the type of a field being
+// generated, or whether the type is user-exposed or an internal one.
+//
+// There are two cases to be handled separately, based on whether childidx
+// is a flattenable map or an opaque value.
+//
+// The return type is a type abuse of convenience. RuleField is meant to be
+// used only for fields of flattenable types. But it was convenient to package
+// the results in it for non-flattenable case too.
+static const RuleField
+placeholderField(const RuleSet& ruleset, ssize_t childidx,
+                 const JsonTmpl::Placeholder& p) {
+  if(!resultFlattenableOrError(ruleset, childidx)) return RuleField{
+    .field_name = p.key,  // This will always be "child".
+    .schema_source = childidx,
+    .container = RuleField::single,
+  };
+
+  for(const RuleField& f: ruleset.rules[childidx]->flatFields())
+    if(f.field_name == p.key) return f;
+
+  Bug("Cannot field for placeholder {} among {} fields", p.key,
+      ruleset.rules[childidx]->flatFields().size());
+}
+
 // TODO: Eliminate parseGenerated() by keeping them as idents.
 static void
 genOutputFields(const JsonTmpl& t, const Ident& fieldName,
   const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
   const OutputStream& hos) {
-  auto findField = [&](string_view qname) -> const RuleField& {
-    for(const RuleField& f: ruleset.rules[childidx]->flatFields())
-      if(f.field_name == qname) return f;
-    Bug("Cannot field for placeholder {} among {} fields", qname,
-        ruleset.rules[childidx]->flatFields().size());
-  };
   if(const JsonTmpl::String* s = t.getIfString())
     hos(format("std::string {} = {};", fieldName.toSnakeCase(),
                dquoted(*s)));
   else if(const JsonTmpl::Placeholder* p = t.getIfPlaceholder()) {
-    string vtype;
-    if(!resultFlattenableOrError(ruleset, childidx))
-      vtype = parserResultName(ruleset, ruleAt(ruleset, childidx));
-    else vtype = flatFieldType(ruleset, findField(p->key));
-    hos(format("{} {};", vtype, fieldName.toSnakeCase()));
+    RuleField field = placeholderField(ruleset, childidx, *p);
+    string vtype = fieldTypeWithContainer(ruleset, field);
+    UserExposure::State xpo
+      = ruleAt(ruleset, field.schema_source).exposure().state();
+    if (xpo == UserExposure::nested) {
+      hos(format("using {} = {};", fieldName.toUCamelCase(), vtype));
+      linebreak(hos, indent);
+      hos(format("{} {};", fieldName.toUCamelCase(), fieldName.toSnakeCase()));
+    }else {
+      hos(format("{} {};", vtype, fieldName.toSnakeCase()));
+    }
   }
   else if(t.holdsEllipsis())
     Bug("The compiler was supposed to have removed ellipsis");
@@ -1699,7 +1725,7 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
   hos("  oalex::LocPair loc;\n");
   hos("  struct Fields {\n");
   for(const RuleField& field : r.flatFields())
-    hos(format("    {} {};\n", flatFieldType(ruleset, field),
+    hos(format("    {} {};\n", fieldTypeWithContainer(ruleset, field),
                field.field_name));
   hos("  } fields;\n");
   hos("  explicit operator oalex::JsonLoc() const;\n");

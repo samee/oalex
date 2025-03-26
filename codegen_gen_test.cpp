@@ -257,6 +257,32 @@ void generateConcatTest(const OutputStream& cppos,
   codegenNamedRules(rs, cppos, hos);
 }
 
+void generateNestedTypesTest(const OutputStream& cppos,
+                             const OutputStream& hos) {
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
+    nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ThreeAddrLhs"),
+    StringRule{"+"},
+    nmRule(SkipPoint{0}, "ThreeAddrSkip"),
+    nmRule(ConcatFlatRule{{ {0, "src_1"}, {2, ""}, {1, ""}, {2, ""},
+                            {0, "src_2"} }},
+           "ThreeAddrRhsFields"),
+    nmRule(OutputTmpl{3, {}, *parseJsonTmpl("{src_1, src_2}")}, "ThreeAddrRhs"),
+    StringRule{"="},
+    nmRule(ConcatFlatRule{{{0, "lhs"}, {2, ""}, {5, ""}, {2, ""}, {4, "expr"}}},
+           "ThreeAddrFields"),
+    nmRule(OutputTmpl{6, {}, *parseJsonTmpl("{lhs, expr}")},
+           "ThreeAddrOperation")
+    ), {cskip}, {regexOpts}
+  };
+
+  rs.rules[4]->exposure() = oalex::UserExposure{};
+  if(!rs.rules[4]->exposure().nestedIn(7))
+    Bug("Failed to set exposure state: {}",
+        (int)rs.rules[4]->exposure().state());
+
+  codegenNamedRules(rs, cppos, hos);
+}
+
 void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {}, Skipper::Newlines::keep_all };
@@ -586,6 +612,8 @@ int main(int argc, char* argv[]) {
   generateSingleWordTemplate(cppos, hos);
   linebreaks();
   generateConcatTest(cppos, hos);
+  linebreaks();
+  generateNestedTypesTest(cppos, hos);
   linebreaks();
   generateExternParserDeclaration(cppos, hos);
   linebreaks();

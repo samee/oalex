@@ -440,6 +440,12 @@ class StringRule final : public Rule {
   std::string val;
 };
 
+// TODO: Explicit representation for generated types, so codegen doesn't have
+// to make decisions about what is optional and what needs a JsonLike.
+//
+// It should be trivial to look at this structure (which is the output of the
+// compiler) and figure out what code is being generated.
+//
 // TODO this needs a debug() printer.
 struct RuleSet {
   std::vector<std::unique_ptr<Rule>> rules;

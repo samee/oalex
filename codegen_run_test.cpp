@@ -254,6 +254,18 @@ void runConcatTest() {
   assertEqual(__func__, expected, jsloc.prettyPrint(2));
 }
 
+void runNestedTypesTest() {
+  InputDiags ctx{Input{"x = a + b"}};
+  ssize_t pos = 0;
+  ParsedThreeAddrOperation op = *parseThreeAddrOperation(ctx, pos);
+
+  // Test nested field type name.
+  ParsedThreeAddrOperation::Fields::Expr expr = op.fields.expr;
+  assertEqual(__func__, "x", *op.fields.lhs);
+  assertEqual(__func__, "a", *expr.fields.src_1);
+  assertEqual(__func__, "b", *expr.fields.src_2);
+}
+
 }  // namespace
 
 // This one needs to be extern for linking to generated code.
@@ -599,6 +611,7 @@ int main() {
   runWordPreservingWithOverride();
   runRegexWordOverride();
   runConcatFlatTest();
+  runNestedTypesTest();
   runSingleWordTemplate();
   runConcatTest();
   runExternParserDeclaration();
