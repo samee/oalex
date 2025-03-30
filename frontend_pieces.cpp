@@ -26,6 +26,27 @@ std::optional<oalex::StringLoc> parseWord(oalex::InputDiags& ctx, ssize_t& i) {
   return res;
 }
 
+std::optional<oalex::StringLoc> parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::Error;
+  using oalex::holdsErrorValue;
+  std::optional<oalex::StringLoc> res = parseRule2(ctx, i);
+  if(holdsErrorValue(res))
+    Error(ctx, i, "Does not match expected pattern");
+  return res;
+}
+
+std::optional<oalex::StringLoc> parseRule3(oalex::InputDiags& ctx, ssize_t& i) {
+  return parseWord(ctx, i);
+}
+
+std::optional<oalex::StringLoc> parseRule4(oalex::InputDiags& ctx, ssize_t& i) {
+  return parseWord(ctx, i);
+}
+
+std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
+  return parseWord(ctx, i);
+}
+
 std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::makeVector;
   using oalex::move_to_unique;
@@ -48,62 +69,6 @@ std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i) {
       }, false)
     ));
   return oalex::match(ctx, i, *r, defaultRegexOpts());
-}
-
-std::optional<oalex::StringLoc> parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::Error;
-  using oalex::holdsErrorValue;
-  std::optional<oalex::StringLoc> res = parseRule2(ctx, i);
-  if(holdsErrorValue(res))
-    Error(ctx, i, "Does not match expected pattern");
-  return res;
-}
-
-std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
-  using oalex::makeVector;
-  using oalex::move_to_unique;
-  using oalex::Regex;
-  using oalex::RegexAnchor;
-  using oalex::RegexCharSet;
-  using oalex::RegexConcat;
-  using oalex::RegexOptional;
-  using oalex::RegexOrList;
-  using oalex::RegexRepeat;
-  using oalex::RegexString;
-  using std::literals::string_literals::operator""s;
-  using std::unique_ptr;
-  static const Regex *r = new RegexConcat({makeVector<unique_ptr<const Regex>>(
-      move_to_unique(RegexString("\"")),
-      move_to_unique(RegexOptional(move_to_unique(
-        RegexRepeat(move_to_unique(
-          RegexOrList({makeVector<unique_ptr<const Regex>>(
-            move_to_unique(RegexCharSet({
-              { '\"', '\"' },
-              { '\\', '\\' },
-            }, true)),
-            move_to_unique(RegexConcat({makeVector<unique_ptr<const Regex>>(
-              move_to_unique(RegexString("\\")),
-              move_to_unique(RegexCharSet({
-              }, true))
-            )}))
-          )})
-        ))
-      ))),
-      move_to_unique(RegexString("\""))
-    )});
-  return oalex::match(ctx, i, *r, defaultRegexOpts());
-}
-
-std::optional<oalex::StringLoc> parseRule3(oalex::InputDiags& ctx, ssize_t& i) {
-  return parseWord(ctx, i);
-}
-
-std::optional<oalex::StringLoc> parseRule4(oalex::InputDiags& ctx, ssize_t& i) {
-  return parseWord(ctx, i);
-}
-
-std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i) {
-  return parseWord(ctx, i);
 }
 
 ParsedExternRule::operator JsonLoc() const {
@@ -583,6 +548,41 @@ std::optional<oalex::StringLoc> parseRule27(oalex::InputDiags& ctx, ssize_t& i) 
 
 std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i) {
   return parseDoubleQuotedLiteral(ctx, i);
+}
+
+std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::makeVector;
+  using oalex::move_to_unique;
+  using oalex::Regex;
+  using oalex::RegexAnchor;
+  using oalex::RegexCharSet;
+  using oalex::RegexConcat;
+  using oalex::RegexOptional;
+  using oalex::RegexOrList;
+  using oalex::RegexRepeat;
+  using oalex::RegexString;
+  using std::literals::string_literals::operator""s;
+  using std::unique_ptr;
+  static const Regex *r = new RegexConcat({makeVector<unique_ptr<const Regex>>(
+      move_to_unique(RegexString("\"")),
+      move_to_unique(RegexOptional(move_to_unique(
+        RegexRepeat(move_to_unique(
+          RegexOrList({makeVector<unique_ptr<const Regex>>(
+            move_to_unique(RegexCharSet({
+              { '\"', '\"' },
+              { '\\', '\\' },
+            }, true)),
+            move_to_unique(RegexConcat({makeVector<unique_ptr<const Regex>>(
+              move_to_unique(RegexString("\\")),
+              move_to_unique(RegexCharSet({
+              }, true))
+            )}))
+          )})
+        ))
+      ))),
+      move_to_unique(RegexString("\""))
+    )});
+  return oalex::match(ctx, i, *r, defaultRegexOpts());
 }
 
 ParsedErrorStanzaLine::operator JsonLoc() const {

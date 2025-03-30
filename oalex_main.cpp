@@ -42,6 +42,7 @@ using oalex::parseOalexSource;
 using oalex::RegexOptions;
 using oalex::Rule;
 using oalex::RuleSet;
+using oalex::RuleSlot;
 using oalex::Skipper;
 using oalex::UserError;
 using oalex::lex::gluedCtx;
@@ -457,6 +458,8 @@ bool needsCodegen(const Rule& r) {
 
 void produceSourceFiles(const ParsedSource& src,
     const string& cppFname, const string& hFname) {
+  vector<RuleSlot> slots = dependencyOrderForCodegen(src.ruleSet);
+
   if(is_in('"', hFname))
     UserError("Output header filename cannot contain '\"'");
 
@@ -476,12 +479,17 @@ void produceSourceFiles(const ParsedSource& src,
   codegenDefaultRegexOptions(src.ruleSet, std::ref(cppos));
   cppos("\n");
 
-  for(size_t i=0; i<src.ruleSet.rules.size(); ++i)
-    if (needsCodegen(*src.ruleSet.rules[i])) {
+  for(const RuleSlot& slot: slots) {
+    ssize_t i = slot.ruleidx;
+    if(slot.slotType == RuleSlot::Type::forwardDecl)
+      codegenForwardDecl(src.ruleSet, i, hos);
+    else {
+      if (!needsCodegen(*src.ruleSet.rules[i])) continue;
       codegen(src.ruleSet, i, std::ref(cppos), std::ref(hos));
       cppos("\n");
       hos("\n");
     }
+  }
 }
 
 }  // namespace

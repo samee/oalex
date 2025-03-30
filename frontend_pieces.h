@@ -4,17 +4,15 @@
 
 std::optional<oalex::StringLoc> parseWord(oalex::InputDiags& ctx, ssize_t& i);
 
-std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i);
-
 std::optional<oalex::StringLoc> parseDoubleQuotedLiteral(oalex::InputDiags& ctx, ssize_t& i);
-
-std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule3(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule4(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule5(oalex::InputDiags& ctx, ssize_t& i);
+
+std::optional<oalex::StringLoc> parseRule1(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedExternRule {
   oalex::LocPair loc;
@@ -131,6 +129,8 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i);
 std::optional<oalex::StringLoc> parseRule27(oalex::InputDiags& ctx, ssize_t& i);
 
 std::optional<oalex::StringLoc> parseRule28(oalex::InputDiags& ctx, ssize_t& i);
+
+std::optional<oalex::StringLoc> parseRule2(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedErrorStanzaLine {
   oalex::LocPair loc;

@@ -125,6 +125,18 @@ class UserExposure final {
   State validOrBug() const;
 };
 
+// A RuleSlot isn't the best name, but it is the return type of dependencyOrder
+// computation. The generated code will have rules in this order.
+//
+// Dev-note: I am sorely missing sum types.
+struct RuleSlot {
+  enum class Type { definition, forwardDecl };
+  ssize_t ruleidx;
+  Type slotType;
+};
+std::vector<RuleSlot>
+dependencyOrderForCodegen(const struct RuleSet& rs);
+
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
 // a separate UnassignedRule to represent an empty rule.
@@ -497,6 +509,8 @@ void codegen(const RuleSet& ruleset, ssize_t ruleIndex,
              const OutputStream& cppos, const OutputStream& hos);
 void codegenDefaultRegexOptions(const RuleSet& ruleset,
                                 const OutputStream& cppos);
+void codegenForwardDecl(const RuleSet& ruleset, ssize_t ruleIndex,
+                        const OutputStream& hos);
 
 JsonLoc eval(InputDiags& ctx, ssize_t& i,
              const RuleSet& ruleset, ssize_t ruleIndex);

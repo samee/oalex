@@ -205,6 +205,11 @@ outputs: {
   ]
 }
 
+# Test that C++ codegen defines types before using them.
+rule sum: (expr ~ "x + y")
+where:
+  x,y ~ /[0-9]+/
+
 # TODO: Rename this file. It is turning into a codegen test, not or-rule test.
 
 # Test that we support single-quotes in codegen
