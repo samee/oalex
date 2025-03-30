@@ -1867,7 +1867,7 @@ dependencyOrderForCodegen(const RuleSet& rs) {
         ssize_t inc = --inorder[di];
         if(inc == 0) stk.push_back(di);
       }else if(d.slotType == RuleSlot::Type::forwardDecl) {
-        if(defined[di] && returnsGeneratedStruct(rs, di))
+        if(defined[di] && returnsGeneratedStruct(rs, di) && di != ri)
           needsForw[di] = true;
       }else Bug("Unknown slot type {}", int(d.slotType));
     }
