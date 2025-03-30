@@ -66,7 +66,7 @@ class any_of {
             class = std::enable_if_t<std::is_base_of_v<Base,Derived>>>
   any_of(Derived d)  // can't be noexcept, because 'new'
     : ptr_{new internal::any_of_dispatcher<Base,Derived>(std::move(d))} {}
-  any_of(const any_of& that) : ptr_(that.ptr_->copy()) {}
+  any_of(const any_of& that) : ptr_(that.ptr_ ? that.ptr_->copy() : nullptr) {}
   any_of(any_of&& that) noexcept { ptr_ = that.ptr_; that.ptr_ = nullptr; }
   ~any_of() { delete ptr_; }
 

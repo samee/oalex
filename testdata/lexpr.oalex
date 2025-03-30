@@ -1,0 +1,17 @@
+rule lexpr choices:
+| (id ~ /[a-zA-Z_]+/)
+| "( [ elt elt ... ] )"
+where:
+  elt ~ lexpr
+outputs: { id, elts: [elt, ...] }
+
+# Notes:
+# * This is really a codegen test, but I don't have a good script to run
+#   it automatically.
+# * The output is always producing an empty list.
+#   The struct type should be able to represent the difference between
+#   "has empty list" vs. "has no list". Even the oalex syntax above should
+#   be able to distinguish between them.
+# * It was way too easy to accidentally produce JsonLike output when I
+#   wanted a struct. E.g. when I split it up into two parts, so outermost
+#   decl is never an id.
