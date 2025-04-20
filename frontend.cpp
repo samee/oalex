@@ -1297,12 +1297,8 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
     }else if(auto* qmrule = dynamic_cast<const QuietMatch*>(rule.get()))
       istentative[qmrule->compidx] = true;
     else if(auto* loop = dynamic_cast<const LoopRule*>(rule.get())) {
-      if(loop->lookidx != -1) istentative[loop->lookidx] = true;
-      else if(loop->glueidx != -1) istentative[loop->glueidx] = true;
-      // TODO put this next statement under an else clause after we have
-      // resolved `first` todo in codegen.cpp:codegen(LoopRule).
-      istentative[loop->partidx] = true;
-      if(loop->skipidx != -1) istentative[loop->skipidx] = true;
+      for(ssize_t i=0; i<loop->looklen; ++i)
+        istentative[loop->loopbody[i]] = true;
     }
   }
 

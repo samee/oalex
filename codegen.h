@@ -255,6 +255,16 @@ class OutputTmpl final : public Rule {
   JsonTmpl outputTmpl;
 };
 
+// This type will eventually replace LoopRuleFields. For now,
+// it is implicitly converted from LoopRuleFields, but we will start
+// changing client code after this. At which point, this will be renamed to
+// no longer be "New".
+// looklen needs to be >=1, and <=loopbody.size().
+struct LoopRuleNewFields {
+  ssize_t initidx, looklen;
+  std::vector<ssize_t> loopbody;
+};
+
 // Produces a loop that keeps parsing children, optionally interspersed with
 // some "glue" component (if glueidx != -1). It stops right after parsing
 // children components. If lookidx == -1, it will just try to parse
@@ -276,11 +286,13 @@ struct LoopRuleFields {
   ssize_t glueidx;  // -1 means no glue
   ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
   ssize_t skipidx;  // -1 means no skip.
+  operator LoopRuleNewFields() const;
 };
 
-class LoopRule final : public LoopRuleFields, public Rule {
+class LoopRule final : public LoopRuleNewFields, public Rule {
  public:
-  explicit LoopRule(LoopRuleFields f) : LoopRuleFields{f} {}
+  explicit LoopRule(LoopRuleNewFields f) : LoopRuleNewFields{std::move(f)} {}
+  explicit LoopRule(LoopRuleFields f) : LoopRuleNewFields(f) {}
   std::string specifics_typename() const override { return "LoopRule"; }
 };
 

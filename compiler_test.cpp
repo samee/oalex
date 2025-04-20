@@ -173,12 +173,15 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
   }
 }
 
-void assertEqualLoopRule(vector<pair<ssize_t,ssize_t>>& stk,
+void assertEqualLoopRule(string_view msg, vector<pair<ssize_t,ssize_t>>& stk,
                          const LoopRule& arep, const LoopRule& brep) {
-  stk.push_back({arep.partidx, brep.partidx});
-  stk.push_back({arep.glueidx, brep.glueidx});
-  stk.push_back({arep.lookidx, brep.lookidx});
-  stk.push_back({arep.skipidx, brep.skipidx});
+  stk.push_back({arep.initidx, brep.initidx});
+  assertEqual(format("{}. LoopRule body size different", msg),
+              arep.loopbody.size(), brep.loopbody.size());
+  assertEqual(format("{}. LoopRule lookahead prefix mismatch", msg),
+              arep.looklen, brep.looklen);
+  for(size_t i=0; i<arep.loopbody.size(); ++i)
+    stk.push_back({arep.loopbody[i], brep.loopbody[i]});
 }
 void assertEqualOrRule(string_view msg, vector<pair<ssize_t,ssize_t>>& stk,
                        const OrRule& aors, const OrRule& bors) {
@@ -236,7 +239,7 @@ void assertValidAndEqualRuleList(string_view msg,
       assertEqualJsonTmpl(msg, aout->outputTmpl, bout->outputTmpl);
     }else if(auto* arep = dynamic_cast<const LoopRule*>(ar)) {
       auto* brep = static_cast<const LoopRule*>(br);
-      assertEqualLoopRule(stk, *arep, *brep);
+      assertEqualLoopRule(msg, stk, *arep, *brep);
     }else if(auto* aors = dynamic_cast<const OrRule*>(ar)) {
       auto* bors = static_cast<const OrRule*>(br);
       assertEqualOrRule(msg, stk, *aors, *bors);

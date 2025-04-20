@@ -228,37 +228,32 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
                           outfields.stPos, outfields.enPos);
 }
 
-// This type will eventually replace LoopRuleFields. For now,
-// it is constructed during codegen, but we will start moving it earlier,
-// to the point where LoopRule objects are constructed.
-// looklen needs to be >=1, and <=loopbody.size().
-struct LoopRuleNewFields {
-  ssize_t initidx, looklen;
-  vector<ssize_t> loopbody;
-};
+LoopRuleFields::operator LoopRuleNewFields() const {
+  if(this->lookidx != -1) Unimplemented("LoopRule lookahead");
 
-static LoopRuleNewFields
-toLoopRuleNewFields(const LoopRuleFields& f) {
-  if(f.lookidx != -1) Unimplemented("LoopRule lookahead");
-
-  if(f.glueidx == -1) {
+  if(this->glueidx == -1) {
     // looklen == loopbody.size()
-    if(f.skipidx == -1) {
-      return { .initidx = f.partidx, .looklen = 1,
-               .loopbody{f.partidx} };
-    }else return { .initidx = f.partidx, .looklen = 2,
-                   .loopbody{f.skipidx, f.partidx} };
-  }else if(f.skipidx == -1) {
+    if(this->skipidx == -1) {
+      return { .initidx = this->partidx, .looklen = 1,
+               .loopbody{partidx} };
+    }else return { .initidx = this->partidx, .looklen = 2,
+                   .loopbody{this->skipidx, this->partidx} };
+  }else if(this->skipidx == -1) {
     // looklen ends after glue.
-    return { .initidx = f.partidx, .looklen = 1,
-             .loopbody{f.glueidx, f.partidx} };
-  }else return { .initidx = f.partidx, .looklen = 2,
-                 .loopbody{f.skipidx, f.glueidx, f.skipidx, f.partidx}};
+    return { .initidx = this->partidx, .looklen = 1,
+             .loopbody{this->glueidx, this->partidx} };
+  }else return { .initidx = this->partidx, .looklen = 2,
+                 .loopbody{this->skipidx,
+                           this->glueidx,
+                           this->skipidx,
+                           this->partidx,
+                          },
+               };
 }
 
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
-  LoopRuleNewFields nf = toLoopRuleNewFields(loop);
+  LoopRuleNewFields nf = loop;
 
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
@@ -934,7 +929,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
 static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
-  LoopRuleNewFields nf = toLoopRuleNewFields(loop);
+  LoopRuleNewFields nf = loop;
   string outType = parserResultName(ruleset, loop);
   cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::quietMatch;\n");
@@ -1159,7 +1154,7 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
-  LoopRuleNewFields nf = toLoopRuleNewFields(rep);
+  LoopRuleNewFields nf = rep;
   string outType = parserResultName(ruleset, rep);
   string funName = "mergeInitPartInto" + outType;
   genMergeHelperCatPart(
@@ -1570,9 +1565,14 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
     return rv;
   }
   else if(auto* loop = dynamic_cast<const LoopRule*>(&r)) {
-    vector<RuleField> rv{ {"", loop->partidx, RuleField::vector},
-                          {"", loop->glueidx, RuleField::vector} };
-    if(loop->glueidx == -1) rv.pop_back();
+    vector<RuleField> rv;
+    bool initInLoop = false;
+    for(ssize_t c: loop->loopbody) {
+      rv.push_back({"", c, RuleField::vector});
+      if(c == loop->initidx) initInLoop = true;
+    }
+    if(!initInLoop)
+      Bug("LoopRule::initidx should appear again as part of loopbody");
     return rv;
   }
   else if(ssize_t target = flatWrapperTarget(r); target != -1) {
