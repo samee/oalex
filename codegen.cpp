@@ -934,81 +934,45 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
 static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
-  if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-
-  Ident skipname;
-  if(loop.skipidx != -1) {
-    if(!dynamic_cast<const SkipPoint*>(&ruleAt(ruleset, loop.skipidx)))
-      Bug("LoopRule skipidx {} is not a SkipPoint rule",
-          ruleDebugId(ruleset, loop.skipidx));
-    if(auto name = ruleAt(ruleset, loop.skipidx).nameOrNull()) skipname = *name;
-    else Bug("LoopRule skipidx {} rule needs a name",
-             ruleDebugId(ruleset, loop.skipidx));
-  }
+  LoopRuleNewFields nf = toLoopRuleNewFields(loop);
   string outType = parserResultName(ruleset, loop);
-  ParserResultTraits partdeets = parserResultTraits(ruleset, loop.partidx),
-                     gluedeets;
-  if(loop.glueidx != -1) gluedeets = parserResultTraits(ruleset, loop.glueidx);
-
+  cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::quietMatch;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos(format("  {} rv;\n", outType));
-  if(loop.glueidx == -1)
-    cppos("  bool first = true;\n");
-  cppos("  while(true) {\n");
-  cppos(format("    {} part;\n\n", partdeets.optional));
 
-  if(loop.glueidx == -1) {
-    // TODO resolve this `first` case at compile-time.
-    cppos("    if(first) part = ");
-      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
-      cppos(";\n");
-    cppos(format("    else part = quietMatch(ctx.input(), j, {});\n",
-                 parserName(*ruleAt(ruleset, loop.partidx).nameOrNull())));
-    cppos("    if(oalex::holdsErrorValue(part)) {\n");
-    cppos("      if(first) return std::nullopt;\n");
-    cppos("      else break;\n");
-    cppos("    }\n");
-  }else {
-    cppos("    part = ");
-      codegenParserCall(ruleAt(ruleset, loop.partidx), "j", cppos);
-      cppos(";\n");
-    cppos("    if(oalex::holdsErrorValue(part)) return std::nullopt;\n");
-  }
-  cppos(format("    mergePartInto{}(std::move({}), rv);\n", outType,
-               partdeets.value("part")));
-
-  cppos("    fallback_point = j;\n");
+  ParserResultTraits initdeets = parserResultTraits(ruleset, nf.initidx);
+  cppos(format("  {} init = ", initdeets.optional));
+    codegenParserCall(ruleAt(ruleset, nf.initidx), "j", cppos);
+    cppos(";\n");
+  cppos("  if(holdsErrorValue(init)) return std::nullopt;\n");
+  cppos(format("  mergeInitPartInto{}(std::move({}), rv);\n", outType,
+               initdeets.value("init")));
   cppos("\n");
-  if(loop.skipidx != -1) {
-    // TODO: Replace this `auto` with `bool` when the return-type migration
-    // is done.
-    cppos(format("    auto skipres = quietMatch(ctx.input(), j, {});\n",
-                 parserName(skipname)));
-    cppos("    if(oalex::holdsErrorValue(skipres)) break;\n");
-  }
-  if(loop.glueidx != -1) {
-    if(auto gluename = ruleAt(ruleset, loop.glueidx).nameOrNull())
-      cppos(format("    {} glue = quietMatch(ctx.input(), j, {});\n",
-                   gluedeets.optional, parserName(*gluename)));
-    else Bug("Glue rules need a name for codegen(LoopRule)");
-    cppos("    if(oalex::holdsErrorValue(glue)) break;\n");
-    cppos(format("    mergeGlueInto{}(std::move({}), rv);\n", outType,
-                 gluedeets.value("glue")));
-    if(loop.skipidx != -1) {
-      cppos("    skipres = ");
-        codegenParserCall(ruleAt(ruleset, loop.skipidx),
-                                      "j", cppos);
+  cppos("  while(true) {\n");
+  cppos("    fallback_point = j;\n");
+  for(ssize_t c=0; c<ssize(nf.loopbody); ++c) {
+    ssize_t comp = nf.loopbody[c];
+    ParserResultTraits deets = parserResultTraits(ruleset, comp);
+    string outVar = "res" + std::to_string(c);
+    cppos("\n");
+    if(c < nf.looklen) {
+      cppos(format("    {} {} = quietMatch(ctx.input(), j, {});\n",
+                   deets.optional, outVar,
+                   parserName(*ruleAt(ruleset, comp).nameOrNull())));
+      cppos(format("    if(holdsErrorValue({})) break;\n", outVar));
+    }else {
+      cppos(format("    {} {} = ", deets.optional, outVar));
+        codegenParserCall(ruleAt(ruleset, comp), "j", cppos);
         cppos(";\n");
-      cppos("    if(oalex::holdsErrorValue(skipres)) {\n");
-      cppos("      oalex::Error(ctx, j, \"Unfinished comment\");\n");
-      cppos("      return std::nullopt;\n");
-      cppos("    }\n");
+      cppos(format("    if(holdsErrorValue({})) return std::nullopt;\n",
+                   outVar));
     }
+    cppos(format("    mergePart{}Into{}(std::move({}), rv);\n", c, outType,
+                 deets.value(outVar)));
   }
-  if(loop.glueidx == -1)
-    cppos("    first = false;\n");
   cppos("  }\n");
+
   cppos("  rv.loc.first = i; rv.loc.second = fallback_point;\n");
   cppos("  i = fallback_point;\n");
   cppos("  return rv;\n");
@@ -1195,21 +1159,23 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
+  LoopRuleNewFields nf = toLoopRuleNewFields(rep);
   string outType = parserResultName(ruleset, rep);
-  string funName = "mergePartInto" + outType;
+  string funName = "mergeInitPartInto" + outType;
   genMergeHelperCatPart(
-      ruleset, rep.partidx,
+      ruleset, nf.initidx,
       funName,  outType, "",
       "dest.fields.{}.push_back(std::move(src))",
       "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 
-  if(rep.glueidx == -1) return;
-  funName = "mergeGlueInto" + outType;
-  genMergeHelperCatPart(
-      ruleset, rep.glueidx,
-      funName,  outType, "",
-      "dest.fields.{}.push_back(std::move(src))",
-      "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
+  for(ssize_t c=0; c<ssize(nf.loopbody); ++c) {
+    funName = format("mergePart{}Into{}", c, outType);
+    genMergeHelperCatPart(
+        ruleset, nf.loopbody[c],
+        funName,  outType, "",
+        "dest.fields.{}.push_back(std::move(src))",
+        "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
+  }
 }
 
 static void
@@ -1336,7 +1302,10 @@ codegen(const RuleSet& ruleset, const SkipPoint& sp,
   cppos("  if (static_cast<size_t>(j) != oalex::Input::npos) {\n");
   cppos("    i = j;\n");
   cppos("    return true;\n");
-  cppos("  } else return false;\n");
+  cppos("  } else {\n");
+  cppos("    Error(ctx, i, \"Unfinished comment\");\n");
+  cppos("    return false;\n");
+  cppos("  }\n");
 }
 
 static void

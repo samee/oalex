@@ -119,7 +119,10 @@ bool parseRule7(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule8(oalex::InputDiags& ctx, ssize_t& i) {
@@ -144,7 +147,10 @@ bool parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 ParsedRule10::operator JsonLoc() const {
@@ -186,7 +192,10 @@ bool parseRule11(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule12(oalex::InputDiags& ctx, ssize_t& i) {
@@ -211,7 +220,10 @@ bool parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 ParsedRule14::operator JsonLoc() const {
@@ -253,7 +265,10 @@ bool parseRule15(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule16(oalex::InputDiags& ctx, ssize_t& i) {
@@ -278,7 +293,10 @@ bool parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 ParsedRule18::operator JsonLoc() const {
@@ -329,7 +347,10 @@ bool parseRule20(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 ParsedRule21::operator JsonLoc() const {
@@ -340,34 +361,45 @@ ParsedRule21::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-static void mergePartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
+static void mergeInitPartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
   dest.fields.param.push_back(std::move(src.fields.param));
 }
 
-static void mergeGlueIntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
+static void mergePart0IntoParsedRule21(bool /*src*/, ParsedRule21& /*dest*/) {}
+static void mergePart1IntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
+static void mergePart2IntoParsedRule21(bool /*src*/, ParsedRule21& /*dest*/) {}
+static void mergePart3IntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
+  dest.fields.param.push_back(std::move(src.fields.param));
+}
+
 std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
+  using oalex::holdsErrorValue;
   using oalex::quietMatch;
   ssize_t j = i, fallback_point = i;
 
   ParsedRule21 rv;
-  while(true) {
-    std::optional<ParsedRule18> part;
+  std::optional<ParsedRule18> init = parseRule18(ctx, j);
+  if(holdsErrorValue(init)) return std::nullopt;
+  mergeInitPartIntoParsedRule21(std::move(init.value()), rv);
 
-    part = parseRule18(ctx, j);
-    if(oalex::holdsErrorValue(part)) return std::nullopt;
-    mergePartIntoParsedRule21(std::move(part.value()), rv);
+  while(true) {
     fallback_point = j;
 
-    auto skipres = quietMatch(ctx.input(), j, parseRule20);
-    if(oalex::holdsErrorValue(skipres)) break;
-    std::optional<oalex::StringLoc> glue = quietMatch(ctx.input(), j, parseRule19);
-    if(oalex::holdsErrorValue(glue)) break;
-    mergeGlueIntoParsedRule21(std::move(glue.value()), rv);
-    skipres = parseRule20(ctx, j);
-    if(oalex::holdsErrorValue(skipres)) {
-      oalex::Error(ctx, j, "Unfinished comment");
-      return std::nullopt;
-    }
+    bool res0 = quietMatch(ctx.input(), j, parseRule20);
+    if(holdsErrorValue(res0)) break;
+    mergePart0IntoParsedRule21(std::move(res0), rv);
+
+    std::optional<oalex::StringLoc> res1 = quietMatch(ctx.input(), j, parseRule19);
+    if(holdsErrorValue(res1)) break;
+    mergePart1IntoParsedRule21(std::move(res1.value()), rv);
+
+    bool res2 = parseRule20(ctx, j);
+    if(holdsErrorValue(res2)) return std::nullopt;
+    mergePart2IntoParsedRule21(std::move(res2), rv);
+
+    std::optional<ParsedRule18> res3 = parseRule18(ctx, j);
+    if(holdsErrorValue(res3)) return std::nullopt;
+    mergePart3IntoParsedRule21(std::move(res3.value()), rv);
   }
   rv.loc.first = i; rv.loc.second = fallback_point;
   i = fallback_point;
@@ -426,7 +458,10 @@ bool parseRule24(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) {
@@ -648,7 +683,10 @@ bool parseRule30(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule31(oalex::InputDiags& ctx, ssize_t& i) {
@@ -673,7 +711,10 @@ bool parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 ParsedRule33::operator JsonLoc() const {
@@ -794,7 +835,10 @@ bool parseRule36(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule37(oalex::InputDiags& ctx, ssize_t& i) {
@@ -819,7 +863,10 @@ bool parseRule38(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule39(oalex::InputDiags& ctx, ssize_t& i) {
@@ -844,7 +891,10 @@ bool parseRule40(oalex::InputDiags& ctx, ssize_t& i) {
   if (static_cast<size_t>(j) != oalex::Input::npos) {
     i = j;
     return true;
-  } else return false;
+  } else {
+    Error(ctx, i, "Unfinished comment");
+    return false;
+  }
 }
 
 std::optional<oalex::StringLoc> parseRule41(oalex::InputDiags& ctx, ssize_t& i) {
