@@ -228,33 +228,8 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
                           outfields.stPos, outfields.enPos);
 }
 
-LoopRuleFields::operator LoopRuleNewFields() const {
-  if(this->lookidx != -1) Unimplemented("LoopRule lookahead");
-
-  if(this->glueidx == -1) {
-    // looklen == loopbody.size()
-    if(this->skipidx == -1) {
-      return { .initidx = this->partidx, .looklen = 1,
-               .loopbody{partidx} };
-    }else return { .initidx = this->partidx, .looklen = 2,
-                   .loopbody{this->skipidx, this->partidx} };
-  }else if(this->skipidx == -1) {
-    // looklen ends after glue.
-    return { .initidx = this->partidx, .looklen = 1,
-             .loopbody{this->glueidx, this->partidx} };
-  }else return { .initidx = this->partidx, .looklen = 2,
-                 .loopbody{this->skipidx,
-                           this->glueidx,
-                           this->skipidx,
-                           this->partidx,
-                          },
-               };
-}
-
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
-  LoopRuleNewFields nf = loop;
-
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
   auto addChild = [&rv, &maxsize](const string& name, JsonLoc val) {
@@ -286,26 +261,26 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   // may need to discard even successful SkipPoints if the next component fails.
 
   ssize_t j = i, fallback_point = i;
-  JsonLoc init = eval(ctx, j, rs, nf.initidx);
+  JsonLoc init = eval(ctx, j, rs, loop.initidx);
   if(init.holdsErrorValue()) return init;
-  else recordComponent("init", std::move(init), nf.initidx);
+  else recordComponent("init", std::move(init), loop.initidx);
 
   while(true) {
     fallback_point = j;
     ssize_t c=0;
-    for(; c<ssize(nf.loopbody); ++c) {
+    for(; c<ssize(loop.loopbody); ++c) {
       JsonLoc out;
-      if(c < nf.looklen) {
-        out = evalQuiet(ctx.input(), j, rs, nf.loopbody[c]);
+      if(c < loop.looklen) {
+        out = evalQuiet(ctx.input(), j, rs, loop.loopbody[c]);
         if(out.holdsErrorValue()) break;
       }else {
-        out = eval(ctx, j, rs, nf.loopbody[c]);
+        out = eval(ctx, j, rs, loop.loopbody[c]);
         if(out.holdsErrorValue()) return out;
       }
       recordComponent(format("loopbody_{}", c), std::move(out),
-                      nf.loopbody[c]);
+                      loop.loopbody[c]);
     }
-    if(c < ssize(nf.loopbody)) break;
+    if(c < ssize(loop.loopbody)) break;
   }
 
   return JsonLoc::withPos(std::move(rv), std::exchange(i, fallback_point),
@@ -929,16 +904,15 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
 static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
-  LoopRuleNewFields nf = loop;
   string outType = parserResultName(ruleset, loop);
   cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::quietMatch;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
   cppos(format("  {} rv;\n", outType));
 
-  ParserResultTraits initdeets = parserResultTraits(ruleset, nf.initidx);
+  ParserResultTraits initdeets = parserResultTraits(ruleset, loop.initidx);
   cppos(format("  {} init = ", initdeets.optional));
-    codegenParserCall(ruleAt(ruleset, nf.initidx), "j", cppos);
+    codegenParserCall(ruleAt(ruleset, loop.initidx), "j", cppos);
     cppos(";\n");
   cppos("  if(holdsErrorValue(init)) return std::nullopt;\n");
   cppos(format("  mergeInitPartInto{}(std::move({}), rv);\n", outType,
@@ -946,12 +920,12 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
   cppos("\n");
   cppos("  while(true) {\n");
   cppos("    fallback_point = j;\n");
-  for(ssize_t c=0; c<ssize(nf.loopbody); ++c) {
-    ssize_t comp = nf.loopbody[c];
+  for(ssize_t c=0; c<ssize(loop.loopbody); ++c) {
+    ssize_t comp = loop.loopbody[c];
     ParserResultTraits deets = parserResultTraits(ruleset, comp);
     string outVar = "res" + std::to_string(c);
     cppos("\n");
-    if(c < nf.looklen) {
+    if(c < loop.looklen) {
       cppos(format("    {} {} = quietMatch(ctx.input(), j, {});\n",
                    deets.optional, outVar,
                    parserName(*ruleAt(ruleset, comp).nameOrNull())));
@@ -1154,19 +1128,18 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
-  LoopRuleNewFields nf = rep;
   string outType = parserResultName(ruleset, rep);
   string funName = "mergeInitPartInto" + outType;
   genMergeHelperCatPart(
-      ruleset, nf.initidx,
+      ruleset, rep.initidx,
       funName,  outType, "",
       "dest.fields.{}.push_back(std::move(src))",
       "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 
-  for(ssize_t c=0; c<ssize(nf.loopbody); ++c) {
+  for(ssize_t c=0; c<ssize(rep.loopbody); ++c) {
     funName = format("mergePart{}Into{}", c, outType);
     genMergeHelperCatPart(
-        ruleset, nf.loopbody[c],
+        ruleset, rep.loopbody[c],
         funName,  outType, "",
         "dest.fields.{}.push_back(std::move(src))",
         "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);

@@ -255,44 +255,23 @@ class OutputTmpl final : public Rule {
   JsonTmpl outputTmpl;
 };
 
-// This type will eventually replace LoopRuleFields. For now,
-// it is implicitly converted from LoopRuleFields, but we will start
-// changing client code after this. At which point, this will be renamed to
-// no longer be "New".
-// looklen needs to be >=1, and <=loopbody.size().
-struct LoopRuleNewFields {
-  ssize_t initidx, looklen;
-  std::vector<ssize_t> loopbody;
-};
-
-// Produces a loop that keeps parsing children, optionally interspersed with
-// some "glue" component (if glueidx != -1). It stops right after parsing
-// children components. If lookidx == -1, it will just try to parse
-// this child, and break out of the loop if it fails. If lookidx != -1, it
-// will use that rule as the lookahead decider.
+// First parses rule initidx, then starts a loop that keeps parsing elements of
+// loopbody. The first `looklen` elements of `loopbody` are "tenative", in that
+// any error returned from those cause the loop to silently break.
 //
-// The skipidx is available here separately instead of having it be folded into
-// the glueidx or partidx rule. This is so that we can properly backtrack from
-// it if the next component fails. We have no plans to allow such inline
-// concatenation for anything other than a SkipRule target. Even this feature
-// might be removed once we can share parsing results between lookaheads and
-// parsers.
+// looklen needs to be >=1, and <=loopbody.size().
 //
 // The fields are kept in a separate struct to allow designated initializers.
 // They are inherited into LoopRule, so you can still access them through the
 // familiar dot or arrow notations.
 struct LoopRuleFields {
-  ssize_t partidx;  // mandatory, must not be -1
-  ssize_t glueidx;  // -1 means no glue
-  ssize_t lookidx;  // -1 means no lookahead. Unimplemented.
-  ssize_t skipidx;  // -1 means no skip.
-  operator LoopRuleNewFields() const;
+  ssize_t initidx, looklen;
+  std::vector<ssize_t> loopbody;
 };
 
-class LoopRule final : public LoopRuleNewFields, public Rule {
+class LoopRule final : public LoopRuleFields, public Rule {
  public:
-  explicit LoopRule(LoopRuleNewFields f) : LoopRuleNewFields{std::move(f)} {}
-  explicit LoopRule(LoopRuleFields f) : LoopRuleNewFields(f) {}
+  explicit LoopRule(LoopRuleFields f) : LoopRuleFields{std::move(f)} {}
   std::string specifics_typename() const override { return "LoopRule"; }
 };
 

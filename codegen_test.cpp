@@ -563,10 +563,9 @@ void testLoopRule() {
         MatchOrError{4, "Expected an identifier"},
         StringRule{"+"}, SkipPoint{0},
         nmRule(LoopRule{{
-          .partidx = 5,
-          .glueidx = 6,
-          .lookidx = -1,
-          .skipidx = 2,
+          .initidx = 5,
+          .looklen = 2,
+          .loopbody{2, 6, 2, 5},
         }}, "sum"),
         parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ {0, "operand"} }},
@@ -575,8 +574,8 @@ void testLoopRule() {
         // Cases for glueidx == -1
         StringRule{","},
         ConcatFlatRule{{{0, "elements"}, {2, ""}, {7, ""}, {2, ""}}},
-        nmRule(LoopRule{{ .partidx = 8, .glueidx = -1,
-                          .lookidx = -1, .skipidx = -1}}, "list_prefix")
+        nmRule(LoopRule{{ .initidx = 8, .looklen = 1, .loopbody{8} }},
+               "list_prefix")
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -642,10 +641,9 @@ void testLoopFlattening() {
         SkipPoint{0},
         StringRule{","},
         nmRule(LoopRule{{
-          .partidx = 3,
-          .glueidx = 5,
-          .lookidx = -1,
-          .skipidx = 4,
+          .initidx = 3,
+          .looklen = 2,
+          .loopbody{4, 5, 4, 3}
         }}, "sum"),
         StringRule{"["}, StringRule{"]"},
         ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}
@@ -663,16 +661,16 @@ void testLoopFlattening() {
                                       " sign: ['+', '-']}"), observed);
 }
 
-// Where the "glue" has the more interesting content.
-// Test that we still record their names.
+// Where the "glue" has the more interesting content. Test that we still record
+// their names. We no treat "glue" and "part" differently. We no longer need
+// this test, really.
 void testGluePartSwapped() {
   RuleSet rs{
     .rules = makeVectorUnique<Rule>(
         StringRule{"-"},
         parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
-        LoopRule{{.partidx = 0, .glueidx = 2,
-                  .lookidx = -1, .skipidx = -1 }}
+        LoopRule{{.initidx = 0, .looklen = 1, .loopbody{2,0}}}
     ),
     .skips{},
     .regexOpts = {regexOpts},
@@ -742,8 +740,7 @@ void testFlatFieldsForNestedList() {
         StringRule{"("},
         StringRule{")"},
         StringRule{""},
-        LoopRule{{.partidx = 10, .glueidx = 1, // [5]
-                  .lookidx = -1, .skipidx = -1 }},
+        LoopRule{{.initidx = 10, .looklen = 1, .loopbody{1, 10}}},  // [5]
         OrRule{{{-1,5,passthroughTmpl}, {-1,4,passthroughTmpl}},
                true /* flattenOnDemand */ },  // [items, items, ... ]
         ConcatFlatRule{{ {2,""}, {6,""}, {3,""} }},

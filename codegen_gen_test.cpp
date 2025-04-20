@@ -509,10 +509,9 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{0}, "LoopSkip"),
         nmRule(LoopRule{{
-          .partidx = 6,
-          .glueidx = 5,
-          .lookidx = -1,
-          .skipidx = 2,
+          .initidx = 6,
+          .looklen = 2,
+          .loopbody{2, 5, 2, 6},
         }}, "LoopSum"),
         nmRule(parseRegexRule("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
@@ -524,10 +523,9 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           ConcatFlatRule{{ {0, "elements"}, {2, ""}, {7, ""} }},
           "ListPrefixPart"),
         nmRule(LoopRule{{
-          .partidx = 8,
-          .glueidx = -1,
-          .lookidx = -1,
-          .skipidx = 2,
+          .initidx = 8,
+          .looklen = 2,
+          .loopbody {2, 8},
         }}, "ListPrefix"),
 
         // Flattenable child.
@@ -535,10 +533,9 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(ConcatFlatRule{{ {10, "sign"}, {0, "elements"} }},
                "LoopFlatElt"),
         nmRule(LoopRule{{
-          .partidx = 11,
-          .glueidx = 7,
-          .lookidx = -1,
-          .skipidx = 2,
+          .initidx = 11,
+          .looklen = 2,
+          .loopbody {2, 7, 2, 11},
         }}, "SignedListContents"),
         StringRule{"["}, StringRule{"]"},
         nmRule(ConcatFlatRule{{ {13, ""}, {12, ""}, {14, ""} }}, "SignedList")
@@ -557,8 +554,8 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         StringRule{"-"},
         nmRule(parseRegexRule("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule{{ .partidx = 0, .glueidx = 2,
-                          .lookidx = -1, .skipidx = -1 }}, "GpSwappedString")
+        nmRule(LoopRule{{ .initidx = 0, .looklen = 1, .loopbody{2, 0}}},
+               "GpSwappedString")
     ),
     .skips{},
     .regexOpts = {regexOpts},
