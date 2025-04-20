@@ -228,16 +228,37 @@ eval(InputDiags& ctx, ssize_t& i, const OutputTmpl& out, const RuleSet& rs) {
                           outfields.stPos, outfields.enPos);
 }
 
+// This type will eventually replace LoopRuleFields. For now,
+// it is constructed during codegen, but we will start moving it earlier,
+// to the point where LoopRule objects are constructed.
+// looklen needs to be >=1, and <=loopbody.size().
+struct LoopRuleNewFields {
+  ssize_t initidx, looklen;
+  vector<ssize_t> loopbody;
+};
+
+static LoopRuleNewFields
+toLoopRuleNewFields(const LoopRuleFields& f) {
+  if(f.lookidx != -1) Unimplemented("LoopRule lookahead");
+
+  if(f.glueidx == -1) {
+    // looklen == loopbody.size()
+    if(f.skipidx == -1) {
+      return { .initidx = f.partidx, .looklen = 1,
+               .loopbody{f.partidx} };
+    }else return { .initidx = f.partidx, .looklen = 2,
+                   .loopbody{f.skipidx, f.partidx} };
+  }else if(f.skipidx == -1) {
+    // looklen ends after glue.
+    return { .initidx = f.partidx, .looklen = 1,
+             .loopbody{f.glueidx, f.partidx} };
+  }else return { .initidx = f.partidx, .looklen = 2,
+                 .loopbody{f.skipidx, f.glueidx, f.skipidx, f.partidx}};
+}
+
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
-  if(loop.lookidx != -1) Unimplemented("LoopRule lookahead");
-
-  const SkipPoint* sp = nullptr;
-  if(loop.skipidx != -1) {
-    sp = dynamic_cast<const SkipPoint*>(&ruleAt(rs, loop.skipidx));
-    if(!sp) Bug("LoopRule skipidx {} is not a SkipPoint rule",
-                ruleDebugId(rs, loop.skipidx));
-  }
+  LoopRuleNewFields nf = toLoopRuleNewFields(loop);
 
   JsonLoc::Map rv;
   ssize_t maxsize = 0;
@@ -266,35 +287,32 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
     // else ignore component.
   };
 
-  // Unlike other rules, our fallback_point is different j because we need may
-  // need to discard even successful SkipPoints if the next component fails.
+  // Unlike other rules, our fallback_point is different from j because we need
+  // may need to discard even successful SkipPoints if the next component fails.
+
   ssize_t j = i, fallback_point = i;
-  bool first = true;
+  JsonLoc init = eval(ctx, j, rs, nf.initidx);
+  if(init.holdsErrorValue()) return init;
+  else recordComponent("init", std::move(init), nf.initidx);
+
   while(true) {
-    JsonLoc out = (first || loop.glueidx != -1)
-                    ? eval(ctx, j, rs, loop.partidx)
-                    : evalQuiet(ctx.input(), j, rs, loop.partidx);
-    if(out.holdsErrorValue()) {
-      if(loop.glueidx == -1 && !first) break;
-      else return out;
-    }else {
-      recordComponent("child", std::move(out), loop.partidx);
-      fallback_point = j;
-    }
-    if(sp && evalQuiet(ctx.input(), j, rs, loop.skipidx).holdsErrorValue())
-      break;
-    if(loop.glueidx != -1) {
-      JsonLoc out = evalQuiet(ctx.input(), j, rs, loop.glueidx);
-      if(out.holdsErrorValue()) break;
-      else recordComponent("glue", std::move(out), loop.glueidx);
-      if(sp) {
-        out = skip(ctx, j, *sp, rs);
+    fallback_point = j;
+    ssize_t c=0;
+    for(; c<ssize(nf.loopbody); ++c) {
+      JsonLoc out;
+      if(c < nf.looklen) {
+        out = evalQuiet(ctx.input(), j, rs, nf.loopbody[c]);
+        if(out.holdsErrorValue()) break;
+      }else {
+        out = eval(ctx, j, rs, nf.loopbody[c]);
         if(out.holdsErrorValue()) return out;
       }
+      recordComponent(format("loopbody_{}", c), std::move(out),
+                      nf.loopbody[c]);
     }
-    first = false;
+    if(c < ssize(nf.loopbody)) break;
   }
-  // discard any failures and SkipPoints.
+
   return JsonLoc::withPos(std::move(rv), std::exchange(i, fallback_point),
                                          fallback_point);
 }
