@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "analysis.h"
 #include "compiler.h"
 #include "lexer.h"
 #include "pattern.h"

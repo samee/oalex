@@ -27,6 +27,20 @@ namespace oalex {
 
 // Some of this is not specific to codegen, and should move elsewhere.
 
+// Unfortunately C++ does not support sum types. If it did, the last
+// Two enum values would have extra fields:
+// * jsonTmpl: JsonTmpl.
+// * flatStruct: vector<RuleField>.
+enum class OutputType {
+  unassigned = 0,  // UnassignedRule, DefinitionInProgress.
+  boolean,         // SkipPoint.
+  nullopt,         // ErrorRule.
+  string,          // StringRule, RegexRule, WordPreserving.
+  jsonLike,        // ExternRule, maybe OrRule.
+  jsonTmpl,        // OutputTmpl.
+  flatStruct,      // ConcatFlatRule, LoopRule, maybe OrRule.
+};
+
 struct RuleField {
   std::string field_name;  // Never empty. We might turn it into an Ident.
 
@@ -125,6 +139,9 @@ class UserExposure final {
   State validOrBug() const;
 };
 
+// Forward decl.
+struct RuleSet;
+
 // A RuleSlot isn't the best name, but it is the return type of dependencyOrder
 // computation. The generated code will have rules in this order.
 //
@@ -135,7 +152,7 @@ struct RuleSlot {
   Type slotType;
 };
 std::vector<RuleSlot>
-dependencyOrderForCodegen(const struct RuleSet& rs);
+dependencyOrderForCodegen(const RuleSet& rs);
 
 // Dev-note: Keep this class abstract, just so we can easily switch out
 // of RTTI and dynamic_cast if they become unbearably slow. We can use
@@ -456,11 +473,6 @@ struct RuleSet {
   std::vector<RegexOptions> regexOpts;
 };
 
-// Populates ruleset.rules[].flatFields(). This is used after a RuleSet
-// object is completed by the compiler, but before it is passed on to a backend.
-// Currently it is only used by the codegen() backend, and not eval().
-void populateFlatFields(RuleSet& ruleset);
-
 // Computes the ruleset.rules[].exposure() values for anything not yet set.
 // The assumptions are:
 //
@@ -520,5 +532,10 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 */
 JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);
+
+// TODO: Move to analysis.cpp.
+ssize_t flatWrapperTarget(const Rule& rule);
+bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
+ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);
 
 }  // namespace oalex

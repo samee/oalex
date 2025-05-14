@@ -24,9 +24,9 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 include_directories(${CMAKE_SOURCE_DIR})
 enable_testing()
 
-add_library(oalex-bin-lib STATIC codegen.cpp compiler.cpp ident.cpp jsontmpl.cpp
-                                 jsontmpl_parsers.cpp lexer.cpp
-                                 pattern.cpp regex_io.cpp)
+add_library(oalex-bin-lib STATIC analysis.cpp codegen.cpp compiler.cpp
+  ident.cpp jsontmpl.cpp jsontmpl_parsers.cpp lexer.cpp pattern.cpp
+  regex_io.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
@@ -55,6 +55,11 @@ add_executable(compiler_test compiler_test.cpp frontend_pieces.cpp
                codegen_test_util.cpp $<TARGET_OBJECTS:test_util>)
 target_link_libraries(compiler_test oalex-bin-lib)
 add_test(compiler_test compiler_test)
+
+add_executable(analysis_test analysis_test.cpp codegen_test_util.cpp
+               $<TARGET_OBJECTS:test_util>)
+target_link_libraries(analysis_test oalex-bin-lib)
+add_test(analysis_test analysis_test)
 
 add_executable(jsontmpl_parsers_test jsontmpl_parsers_test.cpp
                $<TARGET_OBJECTS:test_util>)

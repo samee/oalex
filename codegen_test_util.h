@@ -17,6 +17,8 @@
 #include "codegen.h"
 #include "runtime/util.h"
 // TODO move function bodies out of this header file, and remove util.h.
+// Consider renaming file, now that it is now used outside of
+// codegen*_test.cpp. I.e. analysis_test.cpp.
 
 namespace oalex::test {
 

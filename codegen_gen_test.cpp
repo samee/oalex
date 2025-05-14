@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
+#include "analysis.h"
 #include "jsontmpl_parsers.h"
 #include "regex_io.h"
 #include "runtime/oalex.h"
