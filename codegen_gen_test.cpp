@@ -589,7 +589,6 @@ int main(int argc, char* argv[]) {
           "bool goodFunc() { return true; }\n"
           "bool badFunc()  { return false; }\n\n",
           opts.hPathAsIncluded.c_str());
-  using std::placeholders::_1;
   WriteOrFail cppos{cppfp.get()}, hos{hfp.get()};
   auto linebreaks = [&](){ cppos("\n"); hos("\n"); };
 
