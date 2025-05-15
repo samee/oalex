@@ -22,6 +22,7 @@
 #include <vector>
 #include <getopt.h>
 #include <libgen.h>
+#include "analysis.h"
 #include "codegen.h"
 #include "frontend.h"
 #include "oalex.h"

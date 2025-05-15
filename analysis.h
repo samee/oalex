@@ -13,6 +13,7 @@
     limitations under the License. */
 
 #pragma once
+#include <vector>
 
 namespace oalex {
 
@@ -22,6 +23,18 @@ struct RuleSet;
 // object is completed by the compiler, but before it is passed on to a backend.
 // Currently it is only used by the codegen() backend, and not eval().
 void populateFlatFields(RuleSet& ruleset);
+
+// A RuleSlot isn't the best name, but it is the return type of dependencyOrder
+// computation. The generated code will have rules in this order.
+//
+// Dev-note: I am sorely missing sum types.
+struct RuleSlot {
+  enum class Type { definition, forwardDecl };
+  std::ptrdiff_t ruleidx;
+  Type slotType;
+};
+std::vector<RuleSlot>
+dependencyOrderForCodegen(const RuleSet& rs);
 
 }  // namespace oalex
 

@@ -32,6 +32,96 @@ using std::format;
 using std::string;
 using std::vector;
 
+namespace oalex {
+
+// --------------------- dependencyOrderForCodegen ----------------------------
+
+// Dev notes:
+// * Abusing RuleSlot as a convenient return struct.
+// * The if-else structure is borrowed from genTypeDefinition() below.
+//   We should refactor out this pattern if it becomes common.
+static vector<RuleSlot>
+dependencies(const RuleSet& rs, ssize_t idx) {
+  const Rule& r = *rs.rules.at(idx);
+  if(auto* out = dynamic_cast<const OutputTmpl*>(&r)) {
+    if(resultFlattenableOrError(rs, out->childidx)) {
+      // Technically, we don't need to depend on fields we don't use in our
+      // template. But this is a simpler overapproximation for now.
+      return dependencies(rs, out->childidx);
+    } else if(!out->childName.empty()) {
+      return {RuleSlot{.ruleidx = out->childidx,
+                       .slotType = RuleSlot::Type::definition
+             }};
+    }
+  }else if(resultFlattenableOrError(rs, idx)) {
+    vector<RuleSlot> rv;
+    for(const RuleField& f: r.flatFields()) {
+      RuleSlot::Type t = f.container == RuleField::single
+        ? RuleSlot::Type::definition
+        : RuleSlot::Type::forwardDecl;
+      rv.push_back(RuleSlot{.ruleidx = f.schema_source,
+                            .slotType = t});
+    }
+    return rv;
+  }
+  else if(ssize_t t = flatWrapperTarget(r);
+          t != -1 && returnsGeneratedStruct(rs, idx)) {
+      return {RuleSlot{.ruleidx = t,
+                       .slotType = RuleSlot::Type::definition
+             }};
+  }
+
+  return {};  // Strings and errors.
+}
+
+// If the field is wrapped in indopt or vector, it's a soft dependency, i.e.
+// we only need a forwardDecl. Everything else is a hard ordering dependency.
+// Cycles in hard dependencies are bugs in compilation.
+vector<RuleSlot>
+dependencyOrderForCodegen(const RuleSet& rs) {
+  ssize_t n = ssize(rs.rules);
+  vector<ssize_t> inorder(n, 0);
+
+  // Count dependencies.
+  for(ssize_t i=0; i<n; ++i) {
+    vector<RuleSlot> deps = dependencies(rs, i);
+    for(const RuleSlot& d: deps) if(d.slotType == RuleSlot::Type::definition)
+      inorder[d.ruleidx]++;
+  }
+
+  // Because of the direction of our dependency edge where we already store
+  // for other purposes, we generate the reverse order, and fix it just before
+  // returning. So definitions always need to come _after_ use while we sort.
+  vector<RuleSlot> rv;
+  vector<ssize_t> stk;
+  vector<bool> defined(n, false), needsForw(n, false);
+  for(ssize_t i=0; i<n; ++i) if(inorder[i] == 0) stk.push_back(i);
+  while(!stk.empty()) {
+    ssize_t ri = stk.back();
+    stk.pop_back();
+    rv.push_back(RuleSlot{.ruleidx = ri,
+                          .slotType = RuleSlot::Type::definition});
+    defined[ri]=true;
+    for(const RuleSlot& d: dependencies(rs, ri)) {
+      ssize_t di = d.ruleidx;
+      if(d.slotType == RuleSlot::Type::definition) {
+        ssize_t inc = --inorder[di];
+        if(inc == 0) stk.push_back(di);
+      }else if(d.slotType == RuleSlot::Type::forwardDecl) {
+        if(defined[di] && returnsGeneratedStruct(rs, di) && di != ri)
+          needsForw[di] = true;
+      }else Bug("Unknown slot type {}", int(d.slotType));
+    }
+  }
+  for(ssize_t i=0; i<n; ++i) if(needsForw[i])
+    rv.push_back(RuleSlot{.ruleidx = i,
+                          .slotType = RuleSlot::Type::forwardDecl});
+  std::reverse(rv.begin(), rv.end());
+  return rv;
+}
+
+}  // namespace oalex
+
 // --------------------------- populateFlatFields ----------------------------
 
 namespace {

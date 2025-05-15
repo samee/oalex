@@ -27,18 +27,6 @@ namespace oalex {
 class Rule;
 struct RuleSet;
 
-// A RuleSlot isn't the best name, but it is the return type of dependencyOrder
-// computation. The generated code will have rules in this order.
-//
-// Dev-note: I am sorely missing sum types.
-struct RuleSlot {
-  enum class Type { definition, forwardDecl };
-  ssize_t ruleidx;
-  Type slotType;
-};
-std::vector<RuleSlot>
-dependencyOrderForCodegen(const RuleSet& rs);
-
 // Computes the ruleset.rules[].exposure() values for anything not yet set.
 // The assumptions are:
 //
@@ -83,6 +71,8 @@ JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);
 
 // TODO: Move to analysis.cpp.
+bool
+returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx);
 ssize_t flatWrapperTarget(const Rule& rule);
 bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);
