@@ -70,8 +70,7 @@ class RulesWithLocs {
   */
   ssize_t defineIdent(DiagsDest ctx, const Ident& ident,
                       ssize_t context_skipper);
-  ssize_t defineIdentForTest(DiagsDest ctx, const Ident& ident)
-    { return defineIdent(ctx, ident, Rule::removedContext); }
+  ssize_t defineIdentForTest(DiagsDest ctx, const Ident& ident);
 
   /* Tries to reserve a local name just so we can later detect a conflict
      with a global name later. If a global name is already defined, this

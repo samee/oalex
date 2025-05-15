@@ -4,9 +4,10 @@
 #include <string>
 #include <vector>
 
-#include "codegen.h"  // TODO: move RuleSet to a separate header.
+#include "codegen.h"  // TODO remove after helpers have been moved out.
 #include "ident.h"
 #include "jsontmpl.h"
+#include "ruleset.h"
 #include "runtime/util.h"
 using oalex::Bug;
 using oalex::ConcatFlatRule;

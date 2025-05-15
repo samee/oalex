@@ -14,7 +14,7 @@
 
 #pragma once
 
-#include "codegen.h"
+#include "ruleset.h"
 #include "runtime/util.h"
 // TODO move function bodies out of this header file, and remove util.h.
 // Consider renaming file, now that it is now used outside of

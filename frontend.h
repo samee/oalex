@@ -18,6 +18,7 @@
 #include "ident.h"
 #include "codegen.h"
 #include "jsontmpl.h"
+#include "ruleset.h"
 #include "runtime/jsonloc.h"
 
 namespace oalex {

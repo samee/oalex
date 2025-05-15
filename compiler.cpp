@@ -20,6 +20,7 @@
 #include "runtime/jsonloc.h"
 #include "runtime/util.h"
 #include "lexer.h"
+#include "ruleset.h"
 using oalex::lex::GluedString;
 using oalex::lex::NewlineChar;
 using oalex::lex::unquote;
@@ -359,6 +360,11 @@ RulesWithLocs::defineIdent(DiagsDest ctx, const Ident& ident,
   rules_.push_back(make_unique<DefinitionInProgress>(ident, context_skipper));
   firstUseLocs_.push_back(nrange);
   return this->ssize()-1;
+}
+
+ssize_t
+RulesWithLocs::defineIdentForTest(DiagsDest ctx, const Ident& ident) {
+  return defineIdent(ctx, ident, Rule::removedContext);
 }
 
 static void appendIfNew(vector<Ident>& v, const Ident& ident) {

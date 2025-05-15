@@ -26,7 +26,7 @@ enable_testing()
 
 add_library(oalex-bin-lib STATIC analysis.cpp codegen.cpp compiler.cpp
   ident.cpp jsontmpl.cpp jsontmpl_parsers.cpp lexer.cpp pattern.cpp
-  regex_io.cpp)
+  ruleset.cpp regex_io.cpp)
 target_link_libraries(oalex-bin-lib oalex)
 
 add_executable(lexer_test lexer_matcher.cpp lexer_test.cpp
