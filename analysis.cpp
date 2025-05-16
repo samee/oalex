@@ -1,6 +1,8 @@
 #include "analysis.h"
 
 #include <format>
+#include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -29,10 +31,55 @@ using oalex::SkipPoint;
 using oalex::StringRule;
 using oalex::WordPreserving;
 using std::format;
+using std::optional;
 using std::string;
+using std::unique_ptr;
 using std::vector;
 
 namespace oalex {
+
+// ------------------- computeUserExposureForTypes ----------------------------
+
+// Assumes all topLevel rules have names.
+void
+computeUserExposureForTypes(RuleSet& ruleset) {
+  for(const unique_ptr<Rule>& r : ruleset.rules) {
+    if(producesString(*r) || producesJsonLike(*r))
+      r->exposure().state(UserExposure::builtin);
+    // If the rule has a global name assigned by the user,
+    // it's topLevel by definition.
+    else if(r->nameOrNull()) r->exposure().state(UserExposure::topLevel);
+    else if(ssize_t t = flatWrapperTarget(*r); t != -1)
+      r->exposure().state(UserExposure::notGenerated);
+  }
+  for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
+    const Rule& r = *ruleset.rules.at(ri);
+    if(r.exposure().state() != UserExposure::topLevel) continue;
+    for(const RuleField& field: r.flatFields()) {
+      ssize_t fi = field.schema_source;
+      UserExposure& fe = ruleset.rules[fi]->exposure();
+      if(fe.state() == UserExposure::topLevel
+         || fe.state() == UserExposure::builtin) continue;
+      else if(optional<ssize_t> oldopt = fe.nestedIn(); oldopt) {
+        Bug("Rule {} is already nested in {}, it cannot also be"
+            " a child of {}", fi,
+            ruleset.rules.at(*oldopt)->nameOrNull()->preserveCase(),
+            r.nameOrNull()->preserveCase() );
+      }
+      else if(fe.state() == UserExposure::unknown) {
+        if(!fe.nestedIn(ri)) {
+          Bug("Couldn't set field exposure a field of {}",
+              r.nameOrNull()->preserveCase() );
+        }
+      }else Bug("Unexpected type exposure on rule {}: {}",
+                fi, ssize_t{fe.state()});
+    }
+  }
+
+  for(const unique_ptr<Rule>& r : ruleset.rules)
+    if(r->exposure().state() == UserExposure::unknown)
+      r->exposure().state(UserExposure::notExposed);
+}
 
 // --------------------- dependencyOrderForCodegen ----------------------------
 

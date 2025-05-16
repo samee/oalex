@@ -27,18 +27,6 @@ namespace oalex {
 class Rule;
 struct RuleSet;
 
-// Computes the ruleset.rules[].exposure() values for anything not yet set.
-// The assumptions are:
-//
-// * populateFlatFields() has already run,
-//   and we can use that to determine field types.
-// * top-level rules already has exposure set to `topLevel`. The exposure is how
-//   we identify them as top-level here.
-// * string rules are also assumed to have their exposure set as such, just
-//   for the ease of implementation. It's easy to compute this here as well,
-//   if we later decide to.
-void computeUserExposureForTypes(RuleSet& ruleset);
-
 class OutputStream {
  public:
   virtual void operator()(std::string_view) const = 0;
@@ -71,8 +59,9 @@ JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);
 
 // TODO: Move to analysis.cpp.
-bool
-returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx);
+bool producesString(const Rule& r);
+bool producesJsonLike(const Rule& r);
+bool returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx);
 ssize_t flatWrapperTarget(const Rule& rule);
 bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);

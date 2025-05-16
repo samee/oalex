@@ -36,5 +36,16 @@ struct RuleSlot {
 std::vector<RuleSlot>
 dependencyOrderForCodegen(const RuleSet& rs);
 
-}  // namespace oalex
+// Computes the ruleset.rules[].exposure() values for anything not yet set.
+// The assumptions are:
+//
+// * populateFlatFields() has already run,
+//   and we can use that to determine field types.
+// * top-level rules already has exposure set to `topLevel`. The exposure is how
+//   we identify them as top-level here.
+// * string rules are also assumed to have their exposure set as such, just
+//   for the ease of implementation. It's easy to compute this here as well,
+//   if we later decide to.
+void computeUserExposureForTypes(RuleSet& ruleset);
 
+}  // namespace oalex
