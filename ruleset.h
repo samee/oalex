@@ -24,19 +24,9 @@
 
 namespace oalex {
 
-// Unfortunately C++ does not support sum types. If it did, the last
-// Two enum values would have extra fields:
-// * jsonTmpl: JsonTmpl.
-// * flatStruct: vector<RuleField>.
-enum class OutputType {
-  unassigned = 0,  // UnassignedRule, DefinitionInProgress.
-  boolean,         // SkipPoint.
-  nullopt,         // ErrorRule.
-  string,          // StringRule, RegexRule, WordPreserving.
-  jsonLike,        // ExternRule, maybe OrRule.
-  jsonTmpl,        // OutputTmpl.
-  flatStruct,      // ConcatFlatRule, LoopRule, maybe OrRule.
-};
+// Forward decl.
+struct RuleSet;
+class Rule;
 
 struct RuleField {
   std::string field_name;  // Never empty. We might turn it into an Ident.
@@ -53,6 +43,58 @@ struct RuleField {
   // Says whether the output type derived from schema_source needs to be
   // wrapped in optional (sz::any_of, really) or std::vector.
   enum Container { single, optional, vector } container;
+};
+
+// Unfortunately C++ does not support sum types. If it did, the last
+// Two enum values would have extra fields:
+// * jsonTmpl: JsonTmpl.
+// * flatStruct: vector<RuleField>.
+// Plus, an index to the target rule for wrappers, so we can produce struct
+// type names if they are pointing to types.
+enum class OutputType {
+  unassigned = 0,  // UnassignedRule, DefinitionInProgress.
+  boolean,         // SkipPoint.
+  nullopt,         // ErrorRule.
+  string,          // StringRule, RegexRule, WordPreserving.
+  jsonLike,        // ExternRule, maybe OrRule.
+  jsonTmpl,        // OutputTmpl.
+  flatStruct,      // ConcatFlatRule, LoopRule, maybe OrRule.
+};
+
+// This type is never stored explicitly in rules, but created on-demand
+// by their outputTypeInfo() virtual method. The value gets invalidated if
+// rs->rules is modified in any way: it has pointers to Rule objects.
+//
+// That method (and therefore the constructor here) take in a RuleSet to chase
+// wrappers like AliasRule, MatchOrError, and QuietMatch.
+//
+// Dev-note: There are reasons for keeping the typeSource_ a Rule*, and not an
+// index into a RuleSet:
+//
+//   * OutputTypeInfo objects are constructed from overridden outType()
+//     methods, where we don't always know the index. One hacky option would be
+//     to keep this index initialized to some special value like -1 to indicate
+//     "this rule". And have it be protected, while some public interface (like
+//     a friend outType(RuleSet, idx) function) looks up the rule, calls
+//     outType() and substitutes out the special value. I tried it for a bit,
+//     and didn't like it.
+//   * Many of the callers are in codegen(SomeRule), where we don't have an
+//     index. It is used, for instance, to figure out the name of a generated
+//     struct type. But at this poiint, the idx has already been resolved to
+//     a specific Rule.
+//
+// One concern was the pointer validity. However, this turned out not to be a
+// problem for short-lived objects like OutputTypeInfo.
+class OutputTypeInfo {
+ public:
+  OutputTypeInfo(const RuleSet* rs, const Rule& ts, OutputType t)
+    : ruleset_{rs}, type_{t}, typeSource_{&ts} {}
+  OutputType type() const { return type_; }
+ private:
+  const RuleSet* ruleset_;
+
+  OutputType type_;
+  const Rule* typeSource_;  // Never a WrapperRule.
 };
 
 // Encapsulates a single integer. This type is used to indicate whether a given
@@ -181,6 +223,11 @@ class Rule {
     helperRuleNoContext = -1,  // The vast majority of rules use this value.
     removedContext = -2,       // This is typically used by expression rules.
   };
+
+  // Careful: this may not work on wrapper types
+  // before resolveWrapperTypes() have been called.
+  virtual OutputTypeInfo outType(const RuleSet& rs) const = 0;
+
  private:
   Ident name_;
 
@@ -211,6 +258,9 @@ class UnassignedRule final : public Rule {
  public:
   explicit UnassignedRule(Ident name) : Rule(std::move(name)) {}
   std::string specifics_typename() const override { return "(unassigned)"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::unassigned};
+  }
 };
 
 class DefinitionInProgress final : public Rule {
@@ -221,6 +271,9 @@ class DefinitionInProgress final : public Rule {
     : Rule(std::move(name)) { this->context_skipper(context_skipper); }
   std::string specifics_typename() const override
     { return "DefinitionInProgress"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::unassigned};
+  }
 };
 
 // isTentativeTarget should be true if this rule is a target of either some:
@@ -238,6 +291,9 @@ class ConcatFlatRule final : public Rule {
   explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
   std::string specifics_typename() const override { return "ConcatFlatRule"; }
   std::vector<Component> comps;
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::flatStruct};
+  }
 };
 
 // This is typically used to organize the components of a ConcatFlatRule. The
@@ -270,6 +326,9 @@ class OutputTmpl final : public Rule {
   ssize_t childidx;
   std::string childName;  // used only if child is not producing JsonLoc::Map.
   JsonTmpl outputTmpl;
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::jsonTmpl};
+  }
 };
 
 // First parses rule initidx, then starts a loop that keeps parsing elements of
@@ -290,6 +349,9 @@ class LoopRule final : public LoopRuleFields, public Rule {
  public:
   explicit LoopRule(LoopRuleFields f) : LoopRuleFields{std::move(f)} {}
   std::string specifics_typename() const override { return "LoopRule"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::flatStruct};
+  }
 };
 
 inline const JsonTmpl passthroughTmpl{JsonTmpl::Placeholder{"child"}};
@@ -346,6 +408,10 @@ class OrRule final : public Rule {
   std::string specifics_typename() const override { return "OrRule"; }
   std::vector<Component> comps;
   bool flattenOnDemand;
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    auto ot = flattenOnDemand ? OutputType::flatStruct : OutputType::jsonLike;
+    return {&rs, *this, ot};
+  }
 };
 
 // This Rule is used as an OrRule target when something else fails, or in
@@ -356,6 +422,9 @@ class ErrorRule final : public Rule {
   explicit ErrorRule(std::string msg) : msg(std::move(msg)) {}
   std::string specifics_typename() const override { return "ErrorRule"; }
   std::string msg;
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::nullopt};
+  }
 };
 
 // These are "wrappers", whose output types depend on some other rule. The
@@ -369,9 +438,14 @@ class WrapperRule : public Rule {
   ssize_t target() const { return tg_; }
 
   // This is the recursive version of wrapTarget.
-  void typeSource(ssize_t idx) { ts_ = idx; }
   ssize_t typeSource() const { return ts_; }
+  void typeSource(ssize_t idx) { ts_ = idx; }
+
+  OutputTypeInfo outType(const RuleSet& rs) const override;
+
  private:
+  // It'd be nice to keep RuleSet* or even Rule* instead of an index
+  // to the rule. But the parent objects (esp. RuleSet) can be moved.
   ssize_t ts_ = -1;
   ssize_t tg_;
 };
@@ -390,6 +464,9 @@ class SkipPoint final : public Rule {
   SkipPoint(ssize_t skipperIndex) : skipperIndex{skipperIndex} {}
   std::string specifics_typename() const override { return "SkipPoint"; }
   ssize_t skipperIndex; // Index into RuleSet::skips.
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::boolean};
+  }
 };
 
 // Wraps an std::string, for when we want a word-preserving match. That is a
@@ -409,6 +486,9 @@ class WordPreserving final : public Rule {
   const std::string& operator*() const { return s; }
   const std::string* operator->() const { return &s; }
   std::string specifics_typename() const override { return "WordPreserving"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::string};
+  }
 };
 
 // Right now MatchOrError is used only with producesString() rules.
@@ -450,6 +530,9 @@ class ExternParser final : public Rule {
   std::string specifics_typename() const override { return "ExternParser"; }
   const std::string& externalName() const;
   const std::vector<ssize_t>& params() const { return params_; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::jsonLike};
+  }
 };
 
 class RegexRule final : public Rule {
@@ -457,6 +540,9 @@ class RegexRule final : public Rule {
   explicit RegexRule(std::unique_ptr<const Regex> patt, ssize_t roi)
     : patt(std::move(patt)), regexOptsIdx(roi) {}
   std::string specifics_typename() const override { return "RegexRule"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::string};
+  }
   std::unique_ptr<const Regex> patt;
   ssize_t regexOptsIdx = -1;
 };
@@ -474,6 +560,10 @@ class StringRule final : public Rule {
   StringRule& operator=(const StringRule&) = delete;
 
   std::string specifics_typename() const override { return "StringRule"; }
+  OutputTypeInfo outType(const RuleSet& rs) const override {
+    return {&rs, *this, OutputType::string};
+  }
+
   std::string val;
 };
 

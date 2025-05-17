@@ -45,6 +45,13 @@ Rule::context_skipper(ssize_t skipper_index) {
   contextSkipper_ = skipper_index;
 }
 
+OutputTypeInfo
+WrapperRule::outType(const RuleSet& rs) const {
+  const Rule& r = *rs.rules.at(ts_);
+  auto ot = r.outType(rs).type();
+  return {&rs, r, ot};
+}
+
 static bool validExtName(string_view name) {
   return name.find("oalexPlugin") == 0 || name.find("oalexBuiltin") == 0;
 }
