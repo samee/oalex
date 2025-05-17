@@ -15,7 +15,6 @@ using oalex::Bug;
 using oalex::ConcatFlatRule;
 using oalex::ErrorRule;
 using oalex::ExternParser;
-using oalex::flatWrapperTarget;
 using oalex::Ident;
 using oalex::JsonTmpl;
 using oalex::LoopRule;
@@ -29,6 +28,7 @@ using oalex::RuleField;
 using oalex::RuleSet;
 using oalex::SkipPoint;
 using oalex::StringRule;
+using oalex::WrapperRule;
 using oalex::WordPreserving;
 using std::format;
 using std::optional;
@@ -49,7 +49,7 @@ computeUserExposureForTypes(RuleSet& ruleset) {
     // If the rule has a global name assigned by the user,
     // it's topLevel by definition.
     else if(r->nameOrNull()) r->exposure().state(UserExposure::topLevel);
-    else if(ssize_t t = flatWrapperTarget(*r); t != -1)
+    else if(dynamic_cast<WrapperRule*>(r.get()))
       r->exposure().state(UserExposure::notGenerated);
   }
   for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
@@ -111,9 +111,9 @@ dependencies(const RuleSet& rs, ssize_t idx) {
     }
     return rv;
   }
-  else if(ssize_t t = flatWrapperTarget(r);
-          t != -1 && returnsGeneratedStruct(rs, idx)) {
-      return {RuleSlot{.ruleidx = t,
+  else if(auto* wr = dynamic_cast<const WrapperRule*>(&r);
+          wr && returnsGeneratedStruct(rs, idx)) {
+      return {RuleSlot{.ruleidx = wr->target(),
                        .slotType = RuleSlot::Type::definition
              }};
   }
@@ -207,7 +207,7 @@ orBranchSimpleTmpl(const RuleSet& rs, ssize_t partidx, const JsonTmpl& tmpl) {
 // its ultimate source. So it only lists direct components, like
 // ConcatFlatRule. The semantics are also analogous to ConcatFlatRule.
 //
-//   .field_name is empty for flattened components or flatWrapperTarget(),
+//   .field_name is empty for flattened components or WrapperRules,
 //     but must be provided for other components. Non-flattenable components
 //     with no names will be discarded.
 //   .schema_source is abused to represent a direct component.
@@ -243,9 +243,10 @@ flatDirectComps(const RuleSet& rs, ssize_t ruleidx) {
       Bug("LoopRule::initidx should appear again as part of loopbody");
     return rv;
   }
-  else if(ssize_t target = flatWrapperTarget(r); target != -1) {
+  else if(auto* wr = dynamic_cast<const WrapperRule*>(&r)) {
     return {{
-      .field_name{}, .schema_source = target, .container = RuleField::single
+      .field_name{}, .schema_source = wr->target(),
+      .container = RuleField::single
     }};
   }
   else if(auto* ors = dynamic_cast<const OrRule*>(&r)) {
@@ -368,9 +369,8 @@ resolveWrapperTypes(RuleSet& ruleset) {
   vector<vector<ssize_t>> revedge(n);
   vector<ssize_t> pending;
   for(ssize_t i=0; i<n; ++i) {
-    ssize_t t = flatWrapperTarget(*ruleset.rules.at(i));
-    if(t != -1) {
-      revedge[t].push_back(i);
+    if(auto* wr = dynamic_cast<const WrapperRule*>(ruleset.rules.at(i).get())) {
+      revedge[wr->target()].push_back(i);
       ++wrapperRemaining;
     } else pending.push_back(i);
   }
@@ -382,7 +382,7 @@ resolveWrapperTypes(RuleSet& ruleset) {
       ts = w->typeSource();
     for(ssize_t j : revedge[i]) {
       auto* w = dynamic_cast<WrapperRule*>(ruleset.rules.at(j).get());
-      if(!w) Bug("flatWrapperTarget pointed to non-WrapperRule object");
+      if(!w) Bug("revedge member should be WrapperRule");
       w->typeSource(ts);
       --wrapperRemaining;
       pending.push_back(j);

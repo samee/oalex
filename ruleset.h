@@ -89,7 +89,7 @@ class UserExposure final {
     notExposed = -4,
 
     // We never generate any type for this rule. Right now, this is used
-    // for flatWrapperTarget() which copies the target rule. Codegen always
+    // for WrapperRule which copies the target rule. Codegen always
     // resolves their target before generating a type.
     notGenerated = -5,
 
@@ -363,15 +363,17 @@ class ErrorRule final : public Rule {
 // not have a cycle of wrappers. Before that, this function returns -1.
 //
 // Meant to be called during codegen, which comes after analysis anyway.
-//
-// TODO: eliminate or simplify flatWrapperTarget, by moving the immediate target
-// here from the subtypes.
 class WrapperRule : public Rule {
  public:
+  explicit WrapperRule(ssize_t target) : tg_{target} {}
+  ssize_t target() const { return tg_; }
+
+  // This is the recursive version of wrapTarget.
   void typeSource(ssize_t idx) { ts_ = idx; }
   ssize_t typeSource() const { return ts_; }
  private:
   ssize_t ts_ = -1;
+  ssize_t tg_;
 };
 
 // Literally wraps a rule in quietMatch(). Used for
@@ -379,9 +381,8 @@ class WrapperRule : public Rule {
 // and customized error (which requires suppressing existing errors).
 class QuietMatch final : public WrapperRule {
  public:
-  explicit QuietMatch(ssize_t idx) : compidx{idx} {}
+  explicit QuietMatch(ssize_t idx) : WrapperRule{idx} {}
   std::string specifics_typename() const override { return "QuietMatch"; }
-  ssize_t compidx;
 };
 
 class SkipPoint final : public Rule {
@@ -415,22 +416,20 @@ class WordPreserving final : public Rule {
 // This was introduced for initial testing. Today, we should be able to replace
 // this with a composition of OrRule and ErrorRule.
 //
-// TODO Delete this, but make sure flatWrapperTarget and friends special-case
-// that composition too.
+// TODO Delete this, but make sure WrapperRule handling special case this
+// composition too.
 class MatchOrError final : public WrapperRule {
  public:
   MatchOrError(ssize_t compidx, std::string errmsg)
-    : compidx{compidx}, errmsg{std::move(errmsg)} {}
+    : WrapperRule{compidx}, errmsg{std::move(errmsg)} {}
   std::string specifics_typename() const override { return "MatchOrError"; }
-  ssize_t compidx;
   std::string errmsg;
 };
 
 class AliasRule final : public WrapperRule {
  public:
-  AliasRule(ssize_t targetidx) : targetidx{targetidx} {}
+  AliasRule(ssize_t targetidx) : WrapperRule{targetidx} {}
   std::string specifics_typename() const override { return "AliasRule"; }
-  ssize_t targetidx;
 };
 
 class StringLoc;  // forward declaration

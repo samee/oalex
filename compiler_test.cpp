@@ -154,7 +154,7 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
     string nm = nm_id ? nm_id->preserveCase() : "";
     string extra;
     if(auto* moe = dynamic_cast<const MatchOrError*>(rule_ptr.get())) {
-      extra = format("{{{}}}", moe->compidx);
+      extra = format("{{{}}}", moe->target());
     }else if(auto* regex = dynamic_cast<const RegexRule*>(rule_ptr.get())) {
       extra = format("{{{}}}", prettyPrint(*regex->patt));
     }else if(auto* tmpl = dynamic_cast<const OutputTmpl*>(rule_ptr.get())) {
@@ -166,7 +166,7 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
     }else if(auto* s = dynamic_cast<const StringRule*>(rule_ptr.get())) {
       extra = format("{{\"{}\"}}", s->val);
     }else if(auto* alias = dynamic_cast<const AliasRule*>(rule_ptr.get())) {
-      extra = format("{{ {} }}", alias->targetidx);
+      extra = format("{{ {} }}", alias->target());
     }
     oalex::Debug("  {: 3d}| {}: {}{}", i++, nm,
                  typeid(*rule_ptr).name(), extra);
@@ -245,11 +245,11 @@ void assertValidAndEqualRuleList(string_view msg,
       assertEqualOrRule(msg, stk, *aors, *bors);
     }else if(auto* aq = dynamic_cast<const QuietMatch*>(ar)) {
       auto* bq = static_cast<const QuietMatch*>(br);
-      stk.push_back({aq->compidx, bq->compidx});
+      stk.push_back({aq->target(), bq->target()});
     }else if(auto* amoe = dynamic_cast<const MatchOrError*>(ar)) {
       auto* bmoe = static_cast<const MatchOrError*>(br);
       assertEqual(msg, amoe->errmsg, bmoe->errmsg);
-      stk.push_back({amoe->compidx, bmoe->compidx});
+      stk.push_back({amoe->target(), bmoe->target()});
     }else if(auto* aregex = dynamic_cast<const RegexRule*>(ar)) {
       auto* bregex = static_cast<const RegexRule*>(br);
       assertEqual(msg, prettyPrint(*aregex->patt), prettyPrint(*bregex->patt));
@@ -258,7 +258,7 @@ void assertValidAndEqualRuleList(string_view msg,
       assertEqual(msg, as->val, bs->val);
     }else if(auto* alias = dynamic_cast<const AliasRule*>(ar)) {
       auto* blias = static_cast<const AliasRule*>(br);
-      stk.push_back({alias->targetidx, blias->targetidx});
+      stk.push_back({alias->target(), blias->target()});
     }else {
       Bug("{}: unknown Rule type {}", __func__, ar->specifics_typename());
     }

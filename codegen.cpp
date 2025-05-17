@@ -67,15 +67,6 @@ ruleAt(const RuleSet& rs, ssize_t ruleidx,
   else Bug("{}: Dereferencing null rule {}", location.function_name(), ruleidx);
 }
 
-ssize_t
-flatWrapperTarget(const Rule& rule) {
-  if(auto* mor = dynamic_cast<const MatchOrError*>(&rule)) return mor->compidx;
-  if(auto* qm = dynamic_cast<const QuietMatch*>(&rule)) return qm->compidx;
-  if(auto* alias = dynamic_cast<const AliasRule*>(&rule))
-    return alias->targetidx;
-  return -1;
-}
-
 bool
 resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 
@@ -83,8 +74,8 @@ static bool
 resultFlattenableOrError(const RuleSet& rs, const Rule& rule) {
   if(auto* orRule = dynamic_cast<const OrRule*>(&rule))
     return orRule->flattenOnDemand;
-  if(ssize_t target = flatWrapperTarget(rule); target != -1)
-    return resultFlattenableOrError(rs, target);
+  if(auto* wr = dynamic_cast<const WrapperRule*>(&rule))
+    return resultFlattenableOrError(rs, wr->target());
   else {
     auto& t = typeid(rule);
     // ConcatFlatRule: pass all fields through.
@@ -263,14 +254,14 @@ eval(InputDiags& ctx, ssize_t& i, const OrRule& ors, const RuleSet& rs) {
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const MatchOrError& me, const RuleSet& rs) {
   ssize_t oldi = i;
-  JsonLoc out = eval(ctx, i, rs, me.compidx);
+  JsonLoc out = eval(ctx, i, rs, me.target());
   if(out.holdsErrorValue()) Error(ctx, oldi, me.errmsg);
   return out;
 }
 
 static JsonLoc
 eval(InputDiags& ctx, ssize_t& i, const AliasRule& alias, const RuleSet& rs) {
-  return eval(ctx, i, rs, alias.targetidx);
+  return eval(ctx, i, rs, alias.target());
 }
 
 // Dev-note: move this to runtime/ directory if we want to use this in
@@ -360,7 +351,7 @@ eval(InputDiags& ctx, ssize_t& i, const RuleSet& ruleset, ssize_t ruleIndex) {
     if(!err->msg.empty()) errorValue(ctx, i, err->msg);
     return JsonLoc::ErrorValue{};
   }else if(auto* qm = dynamic_cast<const QuietMatch*>(&r))
-    return evalQuiet(ctx.input(), i, ruleset, qm->compidx);
+    return evalQuiet(ctx.input(), i, ruleset, qm->target());
   else if(auto* ors = dynamic_cast<const OrRule*>(&r))
     return eval(ctx, i, *ors, ruleset);
   else if(auto* me = dynamic_cast<const MatchOrError*>(&r))
@@ -930,10 +921,10 @@ codegen(const ErrorRule& errRule, const OutputStream& cppos) {
 static void
 codegen(const RuleSet& ruleset, const QuietMatch& qm,
         const OutputStream& cppos) {
-  if(const Ident* name = ruleAt(ruleset, qm.compidx).nameOrNull())
+  if(const Ident* name = ruleAt(ruleset, qm.target()).nameOrNull())
     cppos(format("  return oalex::quietMatch(ctx.input(), i, {});\n",
                  parserName(*name)));
-  else Bug("QuietMatch::compidx targets need to have names");
+  else Bug("QuietMatch::target() need to have names");
 }
 
 static void
@@ -1152,8 +1143,8 @@ codegen(const RuleSet& ruleset, const MatchOrError& me,
         const OutputStream& cppos) {
   cppos("  using oalex::Error;\n");
   cppos("  using oalex::holdsErrorValue;\n");
-  cppos(format("  {} res = ", parserResultOptional(ruleset, me.compidx)));
-     codegenParserCall(ruleAt(ruleset, me.compidx), "i", cppos);
+  cppos(format("  {} res = ", parserResultOptional(ruleset, me.target())));
+     codegenParserCall(ruleAt(ruleset, me.target()), "i", cppos);
      cppos(";\n");
   cppos("  if(holdsErrorValue(res))\n");
   cppos(format("    Error(ctx, i, {});\n", dquoted(me.errmsg)));
@@ -1164,7 +1155,7 @@ static void
 codegen(const RuleSet& ruleset, const AliasRule& alias,
         const OutputStream& cppos) {
   cppos("  return ");
-    codegenParserCall(ruleAt(ruleset, alias.targetidx), "i", cppos);
+    codegenParserCall(ruleAt(ruleset, alias.target()), "i", cppos);
     cppos(";\n");
 }
 
@@ -1566,7 +1557,7 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
     genOutputTmplTypeDefinition(ruleset, *out, cppos, hos);
   else if(resultFlattenableOrError(ruleset, ruleIndex))
     genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
-  else if(flatWrapperTarget(r) != -1
+  else if(dynamic_cast<const WrapperRule*>(&r)
           && returnsGeneratedStruct(ruleset, ruleIndex)) {
   }
 }

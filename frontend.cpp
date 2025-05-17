@@ -1296,7 +1296,7 @@ fillInNames(vector<unique_ptr<Rule>>& rules) {
       for(auto& comp : orrule->comps) if(comp.lookidx != -1)
         istentative[comp.lookidx] = true;
     }else if(auto* qmrule = dynamic_cast<const QuietMatch*>(rule.get()))
-      istentative[qmrule->compidx] = true;
+      istentative[qmrule->target()] = true;
     else if(auto* loop = dynamic_cast<const LoopRule*>(rule.get())) {
       for(ssize_t i=0; i<loop->looklen; ++i)
         istentative[loop->loopbody[i]] = true;
