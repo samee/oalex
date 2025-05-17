@@ -67,6 +67,7 @@ void testFlatFieldsForNonFlatRules() {
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   populateFlatFields(rs);
   for(const unique_ptr<Rule>& rule: rs.rules)
     assertEqual(__func__, ssize(rule->flatFields()), 0);
@@ -119,6 +120,7 @@ void testFlatFieldsForNestedList() {
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   populateFlatFields(rs);
   vector<vector<RuleField>> expected(rs.rules.size());
   expected[5] = expected[6] = expected[7] = vector {
@@ -160,6 +162,7 @@ void testFlatWrappers() {
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   populateFlatFields(rs);
   for(const RuleField& f: rs.rules[4]->flatFields()) {
     if(dynamic_cast<const AliasRule*>(rs.rules[f.schema_source].get()))

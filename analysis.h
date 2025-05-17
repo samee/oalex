@@ -24,6 +24,10 @@ struct RuleSet;
 // Currently it is only used by the codegen() backend, and not eval().
 void populateFlatFields(RuleSet& ruleset);
 
+// Populates WrapperRule::typeSource, after checking that we don't have a
+// cycle of wrappers.
+void resolveWrapperTypes(RuleSet& ruleset);
+
 // A RuleSlot isn't the best name, but it is the return type of dependencyOrder
 // computation. The generated code will have rules in this order.
 //

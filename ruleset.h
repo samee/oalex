@@ -358,10 +358,26 @@ class ErrorRule final : public Rule {
   std::string msg;
 };
 
+// These are "wrappers", whose output types depend on some other rule. The
+// typeSource is set during resolveWrapperTargets, after checking that we do
+// not have a cycle of wrappers. Before that, this function returns -1.
+//
+// Meant to be called during codegen, which comes after analysis anyway.
+//
+// TODO: eliminate or simplify flatWrapperTarget, by moving the immediate target
+// here from the subtypes.
+class WrapperRule : public Rule {
+ public:
+  void typeSource(ssize_t idx) { ts_ = idx; }
+  ssize_t typeSource() const { return ts_; }
+ private:
+  ssize_t ts_ = -1;
+};
+
 // Literally wraps a rule in quietMatch(). Used for
 // [optional] rules and "patterns", "(or | patterns)",
 // and customized error (which requires suppressing existing errors).
-class QuietMatch final : public Rule {
+class QuietMatch final : public WrapperRule {
  public:
   explicit QuietMatch(ssize_t idx) : compidx{idx} {}
   std::string specifics_typename() const override { return "QuietMatch"; }
@@ -401,7 +417,7 @@ class WordPreserving final : public Rule {
 //
 // TODO Delete this, but make sure flatWrapperTarget and friends special-case
 // that composition too.
-class MatchOrError final : public Rule {
+class MatchOrError final : public WrapperRule {
  public:
   MatchOrError(ssize_t compidx, std::string errmsg)
     : compidx{compidx}, errmsg{std::move(errmsg)} {}
@@ -410,7 +426,7 @@ class MatchOrError final : public Rule {
   std::string errmsg;
 };
 
-class AliasRule final : public Rule {
+class AliasRule final : public WrapperRule {
  public:
   AliasRule(ssize_t targetidx) : targetidx{targetidx} {}
   std::string specifics_typename() const override { return "AliasRule"; }

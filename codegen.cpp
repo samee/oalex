@@ -104,9 +104,10 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
 
 ssize_t
 resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
-  ssize_t nxt = flatWrapperTarget(ruleAt(ruleset, target));
-  if(nxt == -1) return target;
-  else return resolveIfWrapper(ruleset, nxt);
+  auto* w = dynamic_cast<const WrapperRule*>(ruleset.rules.at(target).get());
+  if(w && w->typeSource() == -1)
+    Bug("Somehow managed to call resolveIfWrapper before resolving wrappers");
+  return w ? w->typeSource() : target;
 }
 
 static string

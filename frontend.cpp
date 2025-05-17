@@ -1403,6 +1403,7 @@ parseOalexSource(InputDiags& ctx) {
      hasError(ctx.diags)) return nullopt;
 
   // Finalize the RuleSet before codegen starts.
+  resolveWrapperTypes(rs);
   populateFlatFields(rs);
   computeUserExposureForTypes(rs);
   fillInNames(rs.rules);

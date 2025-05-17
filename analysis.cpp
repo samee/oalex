@@ -361,6 +361,36 @@ populateFlatFields(RuleSet& ruleset) {
     ruleset.rules[i]->flatFields(std::move(flatFields[i]));
 }
 
+void
+resolveWrapperTypes(RuleSet& ruleset) {
+  ssize_t n = ssize(ruleset.rules);
+  ssize_t wrapperRemaining = 0;
+  vector<vector<ssize_t>> revedge(n);
+  vector<ssize_t> pending;
+  for(ssize_t i=0; i<n; ++i) {
+    ssize_t t = flatWrapperTarget(*ruleset.rules.at(i));
+    if(t != -1) {
+      revedge[t].push_back(i);
+      ++wrapperRemaining;
+    } else pending.push_back(i);
+  }
+  while(!pending.empty()) {
+    ssize_t i = pending.back();
+    pending.pop_back();
+    ssize_t ts = i;
+    if(auto* w = dynamic_cast<const WrapperRule*>(ruleset.rules.at(i).get()))
+      ts = w->typeSource();
+    for(ssize_t j : revedge[i]) {
+      auto* w = dynamic_cast<WrapperRule*>(ruleset.rules.at(j).get());
+      if(!w) Bug("flatWrapperTarget pointed to non-WrapperRule object");
+      w->typeSource(ts);
+      --wrapperRemaining;
+      pending.push_back(j);
+    }
+  }
+  if(wrapperRemaining != 0) Bug("We have cycles among wrappers");
+}
+
 }  // namespace oalex
 
 
