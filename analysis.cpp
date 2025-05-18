@@ -40,16 +40,20 @@ namespace oalex {
 
 // ------------------- computeUserExposureForTypes ----------------------------
 
-// Assumes all topLevel rules have names.
+// Assumes:
+// * all topLevel rules have names.
+// * resolveWrapperTypes is already complete, so we can use outType().
 void
 computeUserExposureForTypes(RuleSet& ruleset) {
-  for(const unique_ptr<Rule>& r : ruleset.rules) {
-    if(producesString(*r) || producesJsonLike(*r))
+  for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
+    Rule* r = ruleset.rules.at(ri).get();
+    OutputType ot = r->outType(ruleset).type();
+    if(ot == OutputType::string || ot == OutputType::jsonLike)
       r->exposure().state(UserExposure::builtin);
     // If the rule has a global name assigned by the user,
     // it's topLevel by definition.
     else if(r->nameOrNull()) r->exposure().state(UserExposure::topLevel);
-    else if(dynamic_cast<WrapperRule*>(r.get()))
+    else if(dynamic_cast<WrapperRule*>(r))
       r->exposure().state(UserExposure::notGenerated);
   }
   for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {

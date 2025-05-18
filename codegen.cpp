@@ -560,14 +560,6 @@ producesString(const Rule& r) {
   // TODO: add passthrough wrappers
 }
 
-bool
-producesJsonLike(const Rule& r) {
-  if(dynamic_cast<const ExternParser*>(&r)) return true;
-  if(auto* ors = dynamic_cast<const OrRule*>(&r))
-    return !ors->flattenOnDemand;
-  return false;
-}
-
 // Dev-note: This is only meant for parserResultTraits(). But sometimes other
 // code will use it as an unnecessary optimization to avoid a dynamic_cast.
 // TODO: replace all uses of this outside of parserResultTraits() with
@@ -603,31 +595,36 @@ struct ParserResultTraits {
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
   const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
-  bool isflat = resultFlattenableOrError(ruleset, ruleidx);
-  if(producesGeneratedStruct(rule, isflat) || producesString(rule)) {
-    string restype = parserResultName(ruleset, rule);
-    return { .type = restype,
-             .optional = format("std::optional<{}>", restype),
-             .get_value_tmpl = "{}.value()",
-           };
+  const OutputType outType = rule.outType(ruleset).type();
+  switch(outType) {
+    case OutputType::flatStruct:
+    case OutputType::jsonTmpl:
+    case OutputType::string:
+    {
+      string restype = parserResultName(ruleset, rule);
+      return { .type = restype,
+               .optional = format("std::optional<{}>", restype),
+               .get_value_tmpl = "{}.value()",
+             };
+    }
+    case OutputType::jsonLike:
+      return { .type = "oalex::JsonLike",
+               .optional = "oalex::JsonLike",
+               .get_value_tmpl = "{}",
+             };
+    case OutputType::boolean:
+      return { .type = "bool",
+               .optional = "bool",
+               .get_value_tmpl = "{}",
+             };
+    case OutputType::nullopt:
+      return { .type = "std::nullopt_t",
+               .optional = "std::nullopt_t",
+               .get_value_tmpl = "{}",
+             };
+    default:
+      Bug("Cannot compute return type for {}", rule.specifics_typename());
   }
-  else if(producesJsonLike(rule))
-    return { .type = "oalex::JsonLike",
-             .optional = "oalex::JsonLike",
-             .get_value_tmpl = "{}",
-           };
-  // TODO: make .type "void" rather than "bool". Or find a way to never use it.
-  else if(dynamic_cast<const SkipPoint*>(&rule))
-    return { .type = "bool",
-             .optional = "bool",
-             .get_value_tmpl = "{}",
-           };
-  else if(dynamic_cast<const ErrorRule*>(&rule))
-    return { .type = "std::nullopt_t",
-             .optional = "std::nullopt_t",
-             .get_value_tmpl = "{}",
-           };
-  else Bug("Cannot compute return type for {}", rule.specifics_typename());
 }
 
 static string
