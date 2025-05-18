@@ -406,14 +406,6 @@ std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
   return rv;
 }
 
-ParsedRule22::operator JsonLoc() const {
-  auto rv = JsonLoc::Map{
-    {"param", oalex::toJsonLoc(fields.param)},
-  };
-  using oalex::holdsErrorValue;
-  return JsonLoc::withPos(rv, loc.first, loc.second);
-}
-
 std::optional<ParsedRule21> parseRule22(oalex::InputDiags& ctx, ssize_t& i) {
   return oalex::quietMatch(ctx.input(), i, parseRule21);
 }

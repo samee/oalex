@@ -637,13 +637,10 @@ parserName(const Ident& rname) {
   return "parse" + rname.toUCamelCase();
 }
 
-// It's a version of producesGeneratedStruct() that can be called outside
-// of parserResultTraits().
 bool
 returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx) {
-  return producesGeneratedStruct(
-      ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx)),
-      false);
+  OutputType t = ruleset.rules.at(ruleidx)->outType(ruleset).type();
+  return t == OutputType::flatStruct || t == OutputType::jsonTmpl;
 }
 
 static void
@@ -1550,13 +1547,12 @@ static void
 genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                   const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
-  if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
+  if(dynamic_cast<const WrapperRule*>(&r)) {
+    // Do nothing.
+  }else if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
     genOutputTmplTypeDefinition(ruleset, *out, cppos, hos);
   else if(resultFlattenableOrError(ruleset, ruleIndex))
     genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
-  else if(dynamic_cast<const WrapperRule*>(&r)
-          && returnsGeneratedStruct(ruleset, ruleIndex)) {
-  }
 }
 
 void codegenForwardDecl(const RuleSet& ruleset, ssize_t ruleIndex,

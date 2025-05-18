@@ -90,14 +90,6 @@ struct ParsedRule21 {
 
 std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i);
 
-struct ParsedRule22 {
-  oalex::LocPair loc;
-  struct Fields {
-    std::vector<oalex::StringLoc> param;
-  } fields;
-  explicit operator oalex::JsonLoc() const;
-};
-
 std::optional<ParsedRule21> parseRule22(oalex::InputDiags& ctx, ssize_t& i);
 
 struct ParsedRule23 {
