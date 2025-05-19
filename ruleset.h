@@ -90,6 +90,7 @@ class OutputTypeInfo {
   OutputTypeInfo(const RuleSet* rs, const Rule& ts, OutputType t)
     : ruleset_{rs}, type_{t}, typeSource_{&ts} {}
   OutputType type() const { return type_; }
+  const Rule& typeSource() const { return *typeSource_; }
  private:
   const RuleSet* ruleset_;
 

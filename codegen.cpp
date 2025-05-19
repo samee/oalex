@@ -67,12 +67,10 @@ ruleAt(const RuleSet& rs, ssize_t ruleidx,
   else Bug("{}: Dereferencing null rule {}", location.function_name(), ruleidx);
 }
 
-ssize_t
-resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
-  auto* w = dynamic_cast<const WrapperRule*>(ruleset.rules.at(target).get());
-  if(w && w->typeSource() == -1)
-    Bug("Somehow managed to call resolveIfWrapper before resolving wrappers");
-  return w ? w->typeSource() : target;
+static const Rule&
+typeSource(const RuleSet& rs, ssize_t ruleidx,
+           std::source_location location = std::source_location::current()) {
+  return ruleAt(rs, ruleidx, location).outType(rs).typeSource();
 }
 
 static string
@@ -577,7 +575,7 @@ parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
 
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
-  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+  const Rule& rule = typeSource(ruleset, ruleidx);
   return parserResultTraits(ruleset, rule);
 }
 
@@ -937,14 +935,12 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
   }
 }
 
-// TODO: resolveIfWrapper() feels inconsistently used. Make a rule about when
-// it's resolved on the caller side vs. callee side.
 static void
 genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     string_view funName, string_view outType, string_view outField,
     string_view nonFlatMergeTmpl, string_view flatMergeTmpl,
     const OutputStream& cppos) {
-  const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
+  const Rule& compRule = typeSource(ruleset, compidx);
   const bool flat = makesFlatStruct(ruleset, compidx);
   string compType = parserResultTraits(ruleset, compRule).type;
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();

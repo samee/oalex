@@ -58,7 +58,4 @@ JsonLoc eval(InputDiags& ctx, ssize_t& i,
 JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);
 
-// TODO: Move to analysis.cpp.
-ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);
-
 }  // namespace oalex

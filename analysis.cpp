@@ -21,7 +21,6 @@ using oalex::LoopRule;
 using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::RegexRule;
-using oalex::resolveIfWrapper;
 using oalex::Rule;
 using oalex::RuleField;
 using oalex::RuleSet;
@@ -272,6 +271,14 @@ flexContainer(RuleField::Container a, RuleField::Container b) {
   if(a == RuleField::optional || b == RuleField::optional)
     return RuleField::optional;
   return RuleField::single;
+}
+
+static ssize_t
+resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
+  auto* w = dynamic_cast<const WrapperRule*>(ruleset.rules.at(target).get());
+  if(w && w->typeSource() == -1)
+    Bug("Somehow managed to call resolveIfWrapper before resolving wrappers");
+  return w ? w->typeSource() : target;
 }
 
 // This function is only used in the context of the toposort in
