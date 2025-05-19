@@ -580,4 +580,11 @@ struct RuleSet {
   std::vector<RegexOptions> regexOpts;
 };
 
+// Remember: these need resolveWrapperTypes to have already been called.
+// Otherwise, they won't work on AliasRule, QuietMatch, etc.
+inline OutputTypeInfo outType(const RuleSet& rs, ssize_t ruleidx) {
+  return rs.rules.at(ruleidx)->outType(rs);
+}
+bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
+bool makesFlatStruct(const RuleSet& rs, ssize_t ruleidx);
 }  // namespace oalex

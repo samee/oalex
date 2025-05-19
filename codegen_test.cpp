@@ -15,6 +15,7 @@
 #include "codegen.h"
 #include "codegen_test_util.h"
 
+#include "analysis.h"
 #include "jsontmpl_parsers.h"
 #include "regex_io.h"
 #include "runtime/jsonloc_fmt.h"
@@ -57,6 +58,7 @@ using oalex::passthroughTmpl;
 using oalex::RegexOptions;
 using oalex::QuietMatch;
 using oalex::Regex;
+using oalex::resolveWrapperTypes;
 using oalex::Rule;
 using oalex::RuleField;
 using oalex::RuleSet;
@@ -437,6 +439,7 @@ void testFlattenOnDemand() {
       ), .skips{}, .regexOpts = {regexOpts},
   };
   const ssize_t ruleidx = rs.rules.size()-1;
+  resolveWrapperTypes(rs);
 
   const tuple<string, bool, JsonLoc> inputOutputPairs[] = {
     {"let", false, *parseJsonLoc("{next_token: {keyword: 'let'}}")},
@@ -529,6 +532,7 @@ void testMiscFlattening() {
     .skips{},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   string msg = "hellohello";
 
   // Passthrough test.
@@ -579,6 +583,7 @@ void testLoopRule() {
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   // Some tests have extra trailing space to see if we are properly
   // backtracking from the final SkipPoint
   tuple<string, JsonLoc, ssize_t> goodcases[] = {
@@ -650,6 +655,7 @@ void testLoopFlattening() {
     .skips{cskip},
     .regexOpts = {regexOpts},
   };
+  resolveWrapperTypes(rs);
   const string msg = "[+a, -b]";
   InputDiags ctx{Input{msg}};
   ssize_t pos = 0;

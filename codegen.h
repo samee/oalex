@@ -60,7 +60,6 @@ JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
 
 // TODO: Move to analysis.cpp.
 bool returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx);
-bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);
 
 }  // namespace oalex

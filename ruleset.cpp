@@ -119,4 +119,17 @@ UserExposure::State UserExposure::state() const {
   }
 }
 
+bool
+resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
+  OutputType t = outType(rs, ruleidx).type();
+  return t == OutputType::flatStruct || t == OutputType::nullopt;
+}
+
+bool
+makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
+  OutputType t = outType(rs, ruleidx).type();
+  return t == OutputType::flatStruct;
+}
+
+
 }  // namespace oalex

@@ -22,7 +22,6 @@ using oalex::OrRule;
 using oalex::OutputTmpl;
 using oalex::RegexRule;
 using oalex::resolveIfWrapper;
-using oalex::resultFlattenableOrError;
 using oalex::Rule;
 using oalex::RuleField;
 using oalex::RuleSet;
@@ -95,7 +94,7 @@ static vector<RuleSlot>
 dependencies(const RuleSet& rs, ssize_t idx) {
   const Rule& r = *rs.rules.at(idx);
   if(auto* out = dynamic_cast<const OutputTmpl*>(&r)) {
-    if(resultFlattenableOrError(rs, out->childidx)) {
+    if(makesFlatStruct(rs, out->childidx)) {
       // Technically, we don't need to depend on fields we don't use in our
       // template. But this is a simpler overapproximation for now.
       return dependencies(rs, out->childidx);
@@ -104,7 +103,7 @@ dependencies(const RuleSet& rs, ssize_t idx) {
                        .slotType = RuleSlot::Type::definition
              }};
     }
-  }else if(resultFlattenableOrError(rs, idx)) {
+  }else if(makesFlatStruct(rs, idx)) {
     vector<RuleSlot> rv;
     for(const RuleField& f: r.flatFields()) {
       RuleSlot::Type t = f.container == RuleField::single
@@ -198,7 +197,7 @@ listCycle(const RuleSet& ruleset, const vector<ssize_t>& edges_remaining) {
 // See if it's of the type { key: "child" } with a single key. Return that key.
 static string
 orBranchSimpleTmpl(const RuleSet& rs, ssize_t partidx, const JsonTmpl& tmpl) {
-  if(resultFlattenableOrError(rs, partidx)) return "";
+  if(makesFlatStruct(rs, partidx)) return "";
   const JsonTmpl::Map* m = tmpl.getIfMap();
   if(!m) return "";
   if(m->size() == 0) return "";
@@ -290,7 +289,7 @@ gatherFlatComps(const RuleSet& ruleset, ssize_t ruleIndex,
   vector<RuleField> rv;
   for(RuleField field: directs) {  // copied element
     field.schema_source = resolveIfWrapper(ruleset, field.schema_source);
-    if(!resultFlattenableOrError(ruleset, field.schema_source)) {
+    if(!makesFlatStruct(ruleset, field.schema_source)) {
       if(field.field_name.empty()) continue;  // discard unnamed field
       rv.push_back(std::move(field));
     }else {

@@ -14,6 +14,7 @@
 
 #include "compiler.h"
 #include <string_view>
+#include "analysis.h"
 #include "codegen_test_util.h"
 #include "ident.h"
 #include "jsontmpl_parsers.h"
@@ -49,6 +50,7 @@ using oalex::QuietMatch;
 using oalex::Regex;
 using oalex::RegexOptions;
 using oalex::RegexRule;
+using oalex::resolveWrapperTypes;
 using oalex::Rule;
 using oalex::RuleExpr;
 using oalex::RuleExprConcat;
@@ -818,6 +820,7 @@ void testRuleExprCompilationAndParsing() {
                  stanzas({}), rl);
 
   RuleSet rs = rl.releaseRules();
+  resolveWrapperTypes(rs);
   auto expected_ruleset = makeVectorUnique<Rule>(
       RegexRule{parseRegex(ident_part_regex), 0},
       nmRule(MatchOrError{0, "Does not match expected pattern"},

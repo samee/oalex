@@ -67,32 +67,6 @@ ruleAt(const RuleSet& rs, ssize_t ruleidx,
   else Bug("{}: Dereferencing null rule {}", location.function_name(), ruleidx);
 }
 
-bool
-resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
-
-static bool
-resultFlattenableOrError(const RuleSet& rs, const Rule& rule) {
-  if(auto* orRule = dynamic_cast<const OrRule*>(&rule))
-    return orRule->flattenOnDemand;
-  if(auto* wr = dynamic_cast<const WrapperRule*>(&rule))
-    return resultFlattenableOrError(rs, wr->target());
-  else {
-    auto& t = typeid(rule);
-    // ConcatFlatRule: pass all fields through.
-    // LoopRule: wrap all fields in vector.
-    // ErrorRule: has no output field, but can be used
-    //   in a flattenable context.
-    return t == typeid(ConcatFlatRule) || t == typeid(LoopRule)
-        || t == typeid(ErrorRule);
-  }
-}
-
-bool
-resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
-  const Rule& rule = ruleAt(rs, ruleidx);
-  return resultFlattenableOrError(rs, rule);
-}
-
 ssize_t
 resolveIfWrapper(const RuleSet& ruleset, ssize_t target) {
   auto* w = dynamic_cast<const WrapperRule*>(ruleset.rules.at(target).get());
@@ -119,7 +93,7 @@ eval(InputDiags& ctx, ssize_t& i,
   for(auto& [idx, outname] : seq.comps) {
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsErrorValue()) return out;
-    else if(resultFlattenableOrError(rs,idx)) {
+    else if(makesFlatStruct(rs,idx)) {
       auto* m = out.getIfMap();
       if(!m) Bug("Child {} was expected to return a map, got: {}",
                  ruleDebugId(rs, idx), out);
@@ -172,7 +146,7 @@ eval(InputDiags& ctx, ssize_t& i, const LoopRule& loop, const RuleSet& rs) {
   };
   auto recordComponent =
     [&addChild, &rs](string_view desc, JsonLoc comp, ssize_t idx) {
-    if(resultFlattenableOrError(rs, idx)) {
+    if(makesFlatStruct(rs, idx)) {
       // TODO refactor out this validation between here and ConcatFlatRule.
       auto* m = comp.getIfMap();
       if(!m) Bug("LoopRule {} {} was expected to return a map, got {}",
@@ -619,7 +593,7 @@ parserName(const Ident& rname) {
 
 bool
 returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx) {
-  OutputType t = ruleset.rules.at(ruleidx)->outType(ruleset).type();
+  OutputType t = outType(ruleset, ruleidx).type();
   return t == OutputType::flatStruct || t == OutputType::jsonTmpl;
 }
 
@@ -772,7 +746,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
     cppos(";\n");
   cppos("  if(oalex::holdsErrorValue(outfields)) return std::nullopt;\n");
   map<string,string> placeholders;
-  if(resultFlattenableOrError(ruleset, out.childidx)) {
+  if(makesFlatStruct(ruleset, out.childidx)) {
     for(auto& [key, jsloc] : out.outputTmpl.allPlaceholders())
       placeholders.insert({key,
           format("std::move(outfields->fields.{})",
@@ -977,7 +951,7 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     string_view nonFlatMergeTmpl, string_view flatMergeTmpl,
     const OutputStream& cppos) {
   const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
-  const bool flat = resultFlattenableOrError(ruleset, compidx);
+  const bool flat = makesFlatStruct(ruleset, compidx);
   string compType = parserResultTraits(ruleset, compRule).type;
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
   if(emptyFun) {
@@ -1249,7 +1223,7 @@ fieldTypeWithContainer(const RuleSet& ruleset, const RuleField& field) {
 static const RuleField
 placeholderField(const RuleSet& ruleset, ssize_t childidx,
                  const JsonTmpl::Placeholder& p) {
-  if(!resultFlattenableOrError(ruleset, childidx)) return RuleField{
+  if(!makesFlatStruct(ruleset, childidx)) return RuleField{
     .field_name = p.key,  // This will always be "child".
     .schema_source = childidx,
     .container = RuleField::single,
@@ -1531,7 +1505,7 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
     // Do nothing.
   }else if(auto* out = dynamic_cast<const OutputTmpl*>(&r))
     genOutputTmplTypeDefinition(ruleset, *out, cppos, hos);
-  else if(resultFlattenableOrError(ruleset, ruleIndex))
+  else if(makesFlatStruct(ruleset, ruleIndex))
     genFlatTypeDefinition(ruleset, ruleIndex, cppos, hos);
 }
 
