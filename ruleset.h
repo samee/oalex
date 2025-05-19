@@ -491,7 +491,7 @@ class WordPreserving final : public Rule {
   }
 };
 
-// Right now MatchOrError is used only with producesString() rules.
+// Right now MatchOrError is used only with OutputType::string rules.
 //
 // This was introduced for initial testing. Today, we should be able to replace
 // this with a composition of OrRule and ErrorRule.

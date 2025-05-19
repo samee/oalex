@@ -543,42 +543,17 @@ codegenDefaultRegexOptions(const RuleSet& ruleset, const OutputStream& cppos) {
   cppos("}\n");
 }
 
-// Assumes resolveIfWrapper() is already invoked.
-static bool
-producesGeneratedStruct(const Rule& r, bool flattenable) {
-  if(flattenable) return !dynamic_cast<const ErrorRule*>(&r);
-  auto* out = dynamic_cast<const OutputTmpl*>(&r);
-  return out && out->nameOrNull();
-}
-
-// Assumes resolveIfWrapper() is already invoked.
-bool
-producesString(const Rule& r) {
-  return dynamic_cast<const StringRule*>(&r) ||
-         dynamic_cast<const RegexRule*>(&r) ||
-         dynamic_cast<const WordPreserving*>(&r);
-  // TODO: add passthrough wrappers
-}
-
-// Dev-note: This is only meant for parserResultTraits(). But sometimes other
-// code will use it as an unnecessary optimization to avoid a dynamic_cast.
-// TODO: replace all uses of this outside of parserResultTraits() with
-// parserResultTraits().type.
+// Dev-note: This is only meant for parserResultTraits().
 static string
-parserResultName(const Rule& rule, bool flattenable) {
-  if(producesString(rule)) return "oalex::StringLoc";
-  else if(producesGeneratedStruct(rule, flattenable))
-   return "Parsed" + rule.nameOrNull()->toUCamelCase();
-  else if(dynamic_cast<const ExternParser*>(&rule) ||
-          dynamic_cast<const OrRule*>(&rule)) return "oalex::JsonLike";
-  else if(dynamic_cast<const SkipPoint*>(&rule)) return "bool";
-  else if(dynamic_cast<const ErrorRule*>(&rule)) return "std::nullopt_t";
-  else Bug("parserResultName() does not work for {}",
-           rule.specifics_typename());
-}
-static string
-parserResultName(const RuleSet& ruleset, const Rule& rule) {
-  return parserResultName(rule, resultFlattenableOrError(ruleset, rule));
+parserResultName(OutputType outType, const Rule& rule) {
+  switch(outType) {
+    case OutputType::string: return "oalex::StringLoc";
+    case OutputType::flatStruct:
+    case OutputType::jsonTmpl:
+      return "Parsed" + rule.nameOrNull()->toUCamelCase();
+    default: Bug("parserResultName() does not work for {}",
+                 rule.specifics_typename());
+  }
 }
 
 struct ParserResultTraits {
@@ -593,15 +568,14 @@ struct ParserResultTraits {
 };
 
 static ParserResultTraits
-parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
-  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
   const OutputType outType = rule.outType(ruleset).type();
   switch(outType) {
     case OutputType::flatStruct:
     case OutputType::jsonTmpl:
     case OutputType::string:
     {
-      string restype = parserResultName(ruleset, rule);
+      string restype = parserResultName(outType, rule);
       return { .type = restype,
                .optional = format("std::optional<{}>", restype),
                .get_value_tmpl = "{}.value()",
@@ -625,6 +599,12 @@ parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
     default:
       Bug("Cannot compute return type for {}", rule.specifics_typename());
   }
+}
+
+static ParserResultTraits
+parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
+  const Rule& rule = ruleAt(ruleset, resolveIfWrapper(ruleset, ruleidx));
+  return parserResultTraits(ruleset, rule);
 }
 
 static string
@@ -723,7 +703,7 @@ static void
 codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
   ssize_t comp_serial = 0;
-  string outType = parserResultName(ruleset, cfrule);
+  string outType = parserResultTraits(ruleset, cfrule).type;
   cppos("  using oalex::holdsErrorValue;\n");
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
@@ -800,7 +780,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
   }
   else if(!out.childName.empty())
     placeholders.insert({{ out.childName, "std::move(*outfields)" }});
-  cppos(format("  {} rv{{\n", parserResultName(ruleset, out)));
+  cppos(format("  {} rv{{\n", parserResultTraits(ruleset, out).type));
   cppos("    .loc{oldi, i},\n");
   cppos("    .fields");
     genStructValues(out.outputTmpl, placeholders, 4, cppos);
@@ -812,7 +792,7 @@ codegen(const RuleSet& ruleset, const OutputTmpl& out,
 static void
 codegen(const RuleSet& ruleset, const LoopRule& loop,
         const OutputStream& cppos) {
-  string outType = parserResultName(ruleset, loop);
+  string outType = parserResultTraits(ruleset, loop).type;
   cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::quietMatch;\n");
   cppos("  ssize_t j = i, fallback_point = i;\n\n");
@@ -960,7 +940,7 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
         __func__);
 
   ssize_t branchNumber = 0;
-  string outType = parserResultName(orRule, orRule.flattenOnDemand);
+  string outType = parserResultTraits(ruleset, orRule).type;
   for(auto& comp: orRule.comps) {
     string funName = format("convertBranch{}Into{}", branchNumber++, outType);
     const Rule& compRule = ruleAt(ruleset, comp.parseidx);
@@ -998,7 +978,7 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     const OutputStream& cppos) {
   const Rule& compRule = ruleAt(ruleset, resolveIfWrapper(ruleset, compidx));
   const bool flat = resultFlattenableOrError(ruleset, compidx);
-  string compType = parserResultName(compRule, flat);
+  string compType = parserResultTraits(ruleset, compRule).type;
   const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
   if(emptyFun) {
     cppos(format("static void {}({} /*src*/, {}& /*dest*/) {{}}\n",
@@ -1023,7 +1003,7 @@ static void
 genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
                 const OutputStream& cppos) {
   ssize_t partNumber = 0;
-  string outType = parserResultName(ruleset, seq);
+  string outType = parserResultTraits(ruleset, seq).type;
   for(auto& comp: seq.comps) {
     string funName = format("mergePart{}Into{}", partNumber++, outType);
     genMergeHelperCatPart(
@@ -1036,7 +1016,7 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
-  string outType = parserResultName(ruleset, rep);
+  string outType = parserResultTraits(ruleset, rep).type;
   string funName = "mergeInitPartInto" + outType;
   genMergeHelperCatPart(
       ruleset, rep.initidx,
@@ -1074,7 +1054,7 @@ codegen(const RuleSet& ruleset, const OrRule& orRule,
   cppos("  using oalex::holdsErrorValue;\n");
   if(orRule.flattenOnDemand) {
     ssize_t branchNum = 0;
-    string outType = parserResultName(ruleset, orRule);
+    string outType = parserResultTraits(ruleset, orRule).type;
     for(auto& [lidx, pidx, tmpl] : orRule.comps) {
       // Frontend should make sure even string-producing rules are
       // wrapped in empty maps.
@@ -1246,7 +1226,7 @@ genExternDeclaration(const OutputStream& hos, string_view extName,
 static string
 fieldTypeWithContainer(const RuleSet& ruleset, const RuleField& field) {
   const Rule& source = ruleAt(ruleset, field.schema_source);
-  string vtype = parserResultName(ruleset, source);
+  string vtype = parserResultTraits(ruleset, source).type;
 
   if(field.container == RuleField::single) return vtype;
   else if(field.container == RuleField::optional)
@@ -1406,7 +1386,7 @@ genFlatTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
                       const OutputStream& cppos, const OutputStream& hos) {
   const Rule& r = ruleAt(ruleset, ruleIndex);
   if(r.nameOrNull() == nullptr) return;
-  string className = parserResultName(ruleset, r);
+  string className = parserResultTraits(ruleset, r).type;
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  struct Fields {\n");
@@ -1513,7 +1493,7 @@ static void
 genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
     const OutputStream& cppos, const OutputStream& hos) {
   if(out.nameOrNull() == nullptr) return;
-  string className = parserResultName(ruleset, out);
+  string className = parserResultTraits(ruleset, out).type;
   hos("struct " + className + " {\n");
   hos("  oalex::LocPair loc;\n");
   hos("  ");
