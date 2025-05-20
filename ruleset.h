@@ -586,5 +586,6 @@ inline OutputTypeInfo outType(const RuleSet& rs, ssize_t ruleidx) {
   return rs.rules.at(ruleidx)->outType(rs);
 }
 bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
+bool makesStruct(const RuleSet& ruleset, ssize_t ruleidx);
 bool makesFlatStruct(const RuleSet& rs, ssize_t ruleidx);
 }  // namespace oalex

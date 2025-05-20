@@ -115,7 +115,7 @@ dependencies(const RuleSet& rs, ssize_t idx) {
     return rv;
   }
   else if(auto* wr = dynamic_cast<const WrapperRule*>(&r);
-          wr && returnsGeneratedStruct(rs, idx)) {
+          wr && makesStruct(rs, idx)) {
       return {RuleSlot{.ruleidx = wr->target(),
                        .slotType = RuleSlot::Type::definition
              }};
@@ -158,7 +158,7 @@ dependencyOrderForCodegen(const RuleSet& rs) {
         ssize_t inc = --inorder[di];
         if(inc == 0) stk.push_back(di);
       }else if(d.slotType == RuleSlot::Type::forwardDecl) {
-        if(defined[di] && returnsGeneratedStruct(rs, di) && di != ri)
+        if(defined[di] && makesStruct(rs, di) && di != ri)
           needsForw[di] = true;
       }else Bug("Unknown slot type {}", int(d.slotType));
     }

@@ -591,12 +591,6 @@ parserName(const Ident& rname) {
   return "parse" + rname.toUCamelCase();
 }
 
-bool
-returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx) {
-  OutputType t = outType(ruleset, ruleidx).type();
-  return t == OutputType::flatStruct || t == OutputType::jsonTmpl;
-}
-
 static void
 parserHeaders(const RuleSet& ruleset, ssize_t ruleidx,
               const OutputStream& cppos, const OutputStream& hos) {
@@ -1511,7 +1505,7 @@ genTypeDefinition(const RuleSet& ruleset, ssize_t ruleIndex,
 
 void codegenForwardDecl(const RuleSet& ruleset, ssize_t ruleIndex,
                         const OutputStream& hos) {
-  if(!returnsGeneratedStruct(ruleset, ruleIndex))
+  if(!makesStruct(ruleset, ruleIndex))
     Bug("We shouldn't need forward declaration");
   hos(format("struct {};\n", parserResultTraits(ruleset, ruleIndex).type));
 }

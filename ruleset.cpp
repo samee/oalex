@@ -126,6 +126,12 @@ resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx) {
 }
 
 bool
+makesStruct(const RuleSet& rs, ssize_t ruleidx) {
+  OutputType t = outType(rs, ruleidx).type();
+  return t == OutputType::flatStruct || t == OutputType::jsonTmpl;
+}
+
+bool
 makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
   OutputType t = outType(rs, ruleidx).type();
   return t == OutputType::flatStruct;

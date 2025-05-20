@@ -59,7 +59,6 @@ JsonLoc trimAndEval(InputDiags& ctx, ssize_t& i,
                     const RuleSet& ruleset, ssize_t ruleIndex);
 
 // TODO: Move to analysis.cpp.
-bool returnsGeneratedStruct(const RuleSet& ruleset, ssize_t ruleidx);
 ssize_t resolveIfWrapper(const RuleSet& ruleset, ssize_t target);
 
 }  // namespace oalex
