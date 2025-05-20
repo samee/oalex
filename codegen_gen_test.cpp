@@ -276,11 +276,7 @@ void generateNestedTypesTest(const OutputStream& cppos,
            "ThreeAddrOperation")
     ), {cskip}, {regexOpts}
   };
-
-  rs.rules[4]->exposure() = oalex::UserExposure{};
-  if(!rs.rules[4]->exposure().nestedIn(7))
-    Bug("Failed to set exposure state: {}",
-        (int)rs.rules[4]->exposure().state());
+  rs.rules[4]->nestedIn(7);
 
   codegenNamedRules(rs, cppos, hos);
 }

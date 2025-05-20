@@ -450,7 +450,7 @@ RulesWithLocs::deferred_assign_ptr(ssize_t idx, unique_ptr<Rule> rule) {
 
   rule->deferred_name(ruleNameOrEmpty(rules_[idx].get()));  // preserve old name
   rule->context_skipper(rules_[idx]->context_skipper());    // and skipper
-  rule->exposure() = rules_[idx]->exposure();
+  rule->nestedIn(rules_[idx]->nestedIn());
   rules_[idx] = std::move(rule);
 }
 

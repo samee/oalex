@@ -44,43 +44,18 @@ namespace oalex {
 void
 computeUserExposureForTypes(RuleSet& ruleset) {
   for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
-    Rule* r = ruleset.rules.at(ri).get();
-    OutputType ot = r->outType(ruleset).type();
-    if(ot == OutputType::string || ot == OutputType::jsonLike)
-      r->exposure().state(UserExposure::builtin);
-    // If the rule has a global name assigned by the user,
-    // it's topLevel by definition.
-    else if(r->nameOrNull()) r->exposure().state(UserExposure::topLevel);
-    else if(dynamic_cast<WrapperRule*>(r))
-      r->exposure().state(UserExposure::notGenerated);
-  }
-  for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
     const Rule& r = *ruleset.rules.at(ri);
-    if(r.exposure().state() != UserExposure::topLevel) continue;
-    for(const RuleField& field: r.flatFields()) {
-      ssize_t fi = field.schema_source;
-      UserExposure& fe = ruleset.rules[fi]->exposure();
-      if(fe.state() == UserExposure::topLevel
-         || fe.state() == UserExposure::builtin) continue;
-      else if(optional<ssize_t> oldopt = fe.nestedIn(); oldopt) {
-        Bug("Rule {} is already nested in {}, it cannot also be"
-            " a child of {}", fi,
-            ruleset.rules.at(*oldopt)->nameOrNull()->preserveCase(),
-            r.nameOrNull()->preserveCase() );
-      }
-      else if(fe.state() == UserExposure::unknown) {
-        if(!fe.nestedIn(ri)) {
-          Bug("Couldn't set field exposure a field of {}",
-              r.nameOrNull()->preserveCase() );
-        }
-      }else Bug("Unexpected type exposure on rule {}: {}",
-                fi, ssize_t{fe.state()});
+    if(!r.nameOrNull()) continue;
+    for(const RuleField& rf : r.flatFields()) {
+      ssize_t rj = rf.schema_source;
+      Rule& r2 = *ruleset.rules.at(rj);
+      if(r2.nameOrNull() || !makesStruct(ruleset, rj)) continue;
+      if(r2.nestedIn() == -1) r2.nestedIn(ri);
+      else if(r2.nestedIn() != ri)
+        Bug("Rule {} is already nested in {}, cannot also be nested in {}",
+            rj, r2.nestedIn(), ri);
     }
   }
-
-  for(const unique_ptr<Rule>& r : ruleset.rules)
-    if(r->exposure().state() == UserExposure::unknown)
-      r->exposure().state(UserExposure::notExposed);
 }
 
 // --------------------- dependencyOrderForCodegen ----------------------------

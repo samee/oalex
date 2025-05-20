@@ -1237,9 +1237,7 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName,
   else if(const JsonTmpl::Placeholder* p = t.getIfPlaceholder()) {
     RuleField field = placeholderField(ruleset, childidx, *p);
     string vtype = fieldTypeWithContainer(ruleset, field);
-    UserExposure::State xpo
-      = ruleAt(ruleset, field.schema_source).exposure().state();
-    if (xpo == UserExposure::nested) {
+    if (ruleAt(ruleset, field.schema_source).nestedIn() != -1) {
       hos(format("using {} = {};", fieldName.toUCamelCase(), vtype));
       linebreak(hos, indent);
       hos(format("{} {};", fieldName.toUCamelCase(), fieldName.toSnakeCase()));

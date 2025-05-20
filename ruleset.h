@@ -98,87 +98,6 @@ class OutputTypeInfo {
   const Rule* typeSource_;  // Never a WrapperRule.
 };
 
-// Encapsulates a single integer. This type is used to indicate whether a given
-// rule produces a user-visible type, or not. And if it's visible, what makes it
-// visible.
-//
-// These are used in computeUserExposureForTypes() for two things:
-//
-//   * Catch internal bugs, where we are leaving a user-facing return type
-//     unnamed. This has the effect of them being assigned arbitrary unstable
-//     numeric names like `ParsedRule42`, which can change unpredictably.
-//   * Marking local field names as nested structs, like ParsedAddr::ZipCode.
-//     A nested type is the cleanest way I could think of generating sensible
-//     type names that do not conflict with other generated names.
-class UserExposure final {
- public:
-  enum State : ssize_t {
-    // Positive values are used internally to indicate parent container index for
-    // nested fields. The `nested` value here is never explicitly stored.
-    // Precedence order: if builtin applies, as well as topLevel or nested,
-    // we represent it here as builtin. Other combinations are semantically
-    // impossible.
-
-    // We have not yet figured out if the type is exposed in the public API.
-    unknown = -1,
-
-    // The type is exposed, since it represents the output of a top-level rule.
-    topLevel = -2,
-
-    // The built-in types StringLoc and JsonLike are always in the public API.
-    builtin = -3,
-
-    // We know for sure this type is only used internally in generated code.
-    notExposed = -4,
-
-    // We never generate any type for this rule. Right now, this is used
-    // for WrapperRule which copies the target rule. Codegen always
-    // resolves their target before generating a type.
-    notGenerated = -5,
-
-    // This type is exposed since they are defined nested in another type.
-    // Nesting is the cleanest way we could avoid collisions among generated
-    // names that need to be stable.
-    nested = -6,
-  };
-
-  // Sets exposure state only if it has not been set yet.
-  // Returns true on success. A "nested" state is set via the nestedIn() setter.
-  bool state(State s) {
-    if(state_ != unknown) return false;
-    switch(s) {
-      case topLevel:
-      case builtin:
-      case notExposed:
-      case notGenerated:
-        state_ = s;
-        return true;
-      default:
-        return false;
-    }
-  }
-  State state() const;
-
-  // Returns a real value only if state() is nested.
-  std::optional<ssize_t> nestedIn() const {
-    if(state_ < 0) return std::nullopt;
-    else return state_;
-  }
-  // Verifies that s is positive.
-  bool nestedIn(ssize_t s) {
-    if(s < 0) return false;
-    if(state_ != unknown && state_ != s) return false;
-    state_ = s;
-    return true;
-  }
-
-  UserExposure() = default;
-  UserExposure(const UserExposure&) = default;
- private:
-  ssize_t state_ = unknown;
-  State validOrBug() const;
-};
-
 /*
 Return types are either an ErrorValue or:
 
@@ -214,8 +133,8 @@ class Rule {
   ssize_t context_skipper() const { return contextSkipper_; }
   void flatFields(std::vector<RuleField> ff) { flatFields_ = std::move(ff); }
   const std::vector<RuleField>& flatFields() const { return flatFields_; }
-  UserExposure exposure() const { return exposure_; }
-  UserExposure& exposure() { return exposure_; }
+  ssize_t nestedIn() const { return nestedIn_; }
+  void nestedIn(ssize_t idx) { nestedIn_ = idx; }
 
   // Used for debugging/logging.
   virtual std::string specifics_typename() const = 0;
@@ -244,11 +163,9 @@ class Rule {
   // Therefore this is always empty for OutputTmpl rules.
   std::vector<RuleField> flatFields_;
 
-  // This field always starts out as UserExposure::unknown.
-  // Over time, a rule may acquire a reason for its type to be exposed to the
-  // user, depending on what role it plays in the generated API. If it remains
-  // unknown by the time of codegen, we set it to UserExposure::notExposed.
-  UserExposure exposure_;
+  // Set if this rule is an unnamed struct-making field nested in another
+  // struct.
+  ssize_t nestedIn_ = -1;
 };
 
 // UnassignedRule really means used but not defined. It is used when we have

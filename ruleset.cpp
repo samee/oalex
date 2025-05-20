@@ -34,7 +34,6 @@ void
 Rule::deferred_name(Ident name) {
   if(name_) Bug("Cannot rename rule {} to {}",
                 name_.preserveCase(), name.preserveCase());
-  if(name) exposure().state(UserExposure::topLevel);
   name_ = name;
 }
 void
@@ -101,22 +100,6 @@ const string&
 ExternParser::externalName() const {
   if(!externalName_.empty()) return externalName_;
   else Bug("External parsers must have an external name");
-}
-
-UserExposure::State UserExposure::state() const {
-  switch(state_) {
-    case unknown:
-    case topLevel:
-    case builtin:
-    case notExposed:
-    case notGenerated:
-      return State{state_};
-    // case nested intentionally left out. It should never
-    // be explicitly represented.
-    default:
-      if(state_ >= 0) return State::nested;
-      else Bug("Invalid UserExposure::Status {}", state_);
-  }
 }
 
 bool
