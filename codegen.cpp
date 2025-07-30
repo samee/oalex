@@ -630,37 +630,6 @@ codegen(const RuleSet& ruleset, const RegexRule& regex,
   cppos("  return oalex::match(ctx, i, *r, *regexOpts);\n");
 }
 
-// TODO: use sorted vector instead of map here too.
-static void
-codegen(const JsonTmpl& jstmpl, const OutputStream& cppos,
-        const map<string,string>& placeholders, ssize_t indent) {
-  auto br = [&]() { linebreak(cppos, indent); };
-  if(auto* p = jstmpl.getIfPlaceholder()) {
-    auto v = placeholders.find(p->key);
-    if(v == placeholders.end())
-      Bug("Undefined placeholder in codegen: {}", p->key);
-    cppos(v->second);
-  }else if(jstmpl.holdsEllipsis()) {
-    Bug("Frontend should have desugared all ellipsis");
-  }else if(auto* s = jstmpl.getIfString()) {
-    cppos(format("{}s", dquoted(*s)));
-  }else if(auto* v = jstmpl.getIfVector()) {
-    cppos("JsonLoc::Vector{");
-    genMakeVector("JsonLoc", *v, [&](auto& child) {
-                   codegen(child, cppos, placeholders, indent+2);
-                 }, br, cppos);
-    cppos("}");
-  }else if(auto* m = jstmpl.getIfMap()) {
-    cppos("JsonLoc::Map{"); br();
-    for(const auto& [k, v] : *m) {
-      cppos(format("  {{{}, ", dquoted(k)));
-      codegen(v, cppos, placeholders, indent+4);
-      cppos("},"); br();
-    }
-    cppos("}");
-  }else cppos("JsonLoc::ErrorValue{}");
-}
-
 static void
 codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
         const OutputStream& cppos) {
@@ -702,6 +671,9 @@ genStructValues(const JsonTmpl& outputTmpl,
     cppos(" = ");
     cppos(v->second);
   }else if(auto* v = outputTmpl.getIfVector()) {
+    // TODO: Check if this still works, now that we moved away from JsonLoc.
+    // This is used when OutputTmpl has a list _without_ repeating elements.
+    // E.g. ["decl", decl_fields]. This should really become a tuple.
     cppos(" = ");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
                    genStructValues(child, placeholders, indent+2, cppos);
@@ -719,11 +691,6 @@ genStructValues(const JsonTmpl& outputTmpl,
   else Bug("{}: Unknown type {}", __func__, outputTmpl.tagName());
 }
 
-// TODO Make it possible to figure out at compile-time whether a rule produces
-// a JsonLoc::Map. E.g. by having OrRule also autobox its non-map branches.
-// TODO Once we can figure out at compile-time whether something produces a
-// Map, and reflect that in the generated code. E.g. by returning the concrete
-// type.
 static void
 codegen(const RuleSet& ruleset, const OutputTmpl& out,
         const OutputStream& cppos) {
