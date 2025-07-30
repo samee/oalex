@@ -540,6 +540,14 @@ struct ParserResultTraits {
 };
 
 static ParserResultTraits
+traitNoOptional(string gentype) {
+  return { .type = gentype,
+           .optional = gentype,
+           .get_value_tmpl = "{}",
+         };
+}
+
+static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
   const OutputType outType = rule.outType(ruleset).type();
   switch(outType) {
@@ -553,21 +561,9 @@ parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
                .get_value_tmpl = "{}.value()",
              };
     }
-    case OutputType::jsonLike:
-      return { .type = "oalex::JsonLike",
-               .optional = "oalex::JsonLike",
-               .get_value_tmpl = "{}",
-             };
-    case OutputType::boolean:
-      return { .type = "bool",
-               .optional = "bool",
-               .get_value_tmpl = "{}",
-             };
-    case OutputType::nullopt:
-      return { .type = "std::nullopt_t",
-               .optional = "std::nullopt_t",
-               .get_value_tmpl = "{}",
-             };
+    case OutputType::jsonLike: return traitNoOptional("oalex::JsonLike");
+    case OutputType::boolean: return traitNoOptional("bool");
+    case OutputType::nullopt: return traitNoOptional("std::nullopt_t");
     default:
       Bug("Cannot compute return type for {}", rule.specifics_typename());
   }
