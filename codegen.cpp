@@ -549,13 +549,13 @@ traitNoOptional(string gentype) {
 
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
-  const OutputType outType = rule.outType(ruleset).type();
-  switch(outType) {
+  const OutputTypeInfo out = rule.outType(ruleset);
+  switch(out.type()) {
     case OutputType::flatStruct:
     case OutputType::jsonTmpl:
     case OutputType::string:
     {
-      string restype = parserResultName(outType, rule);
+      string restype = parserResultName(out.type(), out.typeSource());
       return { .type = restype,
                .optional = format("std::optional<{}>", restype),
                .get_value_tmpl = "{}.value()",
@@ -571,8 +571,7 @@ parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
 
 static ParserResultTraits
 parserResultTraits(const RuleSet& ruleset, ssize_t ruleidx) {
-  const Rule& rule = typeSource(ruleset, ruleidx);
-  return parserResultTraits(ruleset, rule);
+  return parserResultTraits(ruleset, ruleAt(ruleset, ruleidx));
 }
 
 static string
