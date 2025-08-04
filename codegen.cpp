@@ -951,7 +951,7 @@ genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
     genMergeHelperCatPart(
         ruleset, rep.initidx,
         funName,  outType, "",
-        "dest.fields.{}.push_back(std::move(src))",
+        "-- invalid: not used --",
         "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 
   for(ssize_t c=0; c<ssize(rep.loopbody); ++c)
@@ -960,7 +960,7 @@ genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
       genMergeHelperCatPart(
           ruleset, rep.loopbody[c],
           funName,  outType, "",
-          "dest.fields.{}.push_back(std::move(src))",
+          "-- invalid: not used --",
           "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
     }
 }
