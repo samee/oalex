@@ -1202,7 +1202,8 @@ unique_ptr<Rule>
 RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
   vector<ConcatFlatRule::Component> comps;
   for(const unique_ptr<const RuleExpr>& c : catxpr.parts) {
-    comps.push_back({rl_->appendAnonRulePtr(std::move(process(*c)->rule)), {}});
+    comps.push_back({rl_->appendAnonRulePtr(std::move(process(*c)->rule)),
+                     {}});
   }
   return move_to_unique(ConcatFlatRule{{std::move(comps)}});
 }

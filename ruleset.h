@@ -199,6 +199,14 @@ class DefinitionInProgress final : public Rule {
 // * QuietMatch::compidx in the containing RuleSet
 bool needsName(const Rule& rule, bool isTentativeTarget);
 
+// Values:
+// * asOpaque: just copy or move the value as a single field. The field is given
+//   a new name by the outer rule. E.g.
+//   ConcatFlatRule::Component::outputPlaceholder
+// * unpackStruct: this is the "flattening" of ConcatFlatRule and other rules.
+// * discard: don't use the result.
+enum class CompRead { asOpaque, unpackStruct, discard };
+
 class ConcatFlatRule final : public Rule {
  public:
   // outputPlaceholder can be empty if you never need to refer to the result.
@@ -506,4 +514,10 @@ inline OutputTypeInfo outType(const RuleSet& rs, ssize_t ruleidx) {
 bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 bool makesStruct(const RuleSet& ruleset, ssize_t ruleidx);
 bool makesFlatStruct(const RuleSet& rs, ssize_t ruleidx);
+
+CompRead
+compRead(const RuleSet& ruleset, const ConcatFlatRule::Component& c);
+bool
+compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c);
+
 }  // namespace oalex

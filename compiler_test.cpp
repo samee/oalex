@@ -27,6 +27,7 @@ using oalex::assertEqual;
 using oalex::assertHasDiagWithSubstr;
 using oalex::assertWhatHasSubstr;
 using oalex::Bug;
+using oalex::CompRead;
 using oalex::ConcatFlatRule;
 using oalex::DefinitionInProgress;
 using oalex::Ident;
@@ -163,7 +164,8 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
       extra = format("{{{}, \"{}\"}}", tmpl->childidx, tmpl->childName);
     }else if(auto* cat = dynamic_cast<const ConcatFlatRule*>(rule_ptr.get())) {
       extra = "{ ";
-      for(auto& [id,p] : cat->comps) extra += format("{{{}, \"{}\"}}, ", id, p);
+      for(auto& [id,p] : cat->comps)
+        extra += format("{{{}, \"{}\"}}, ", id, p);
       extra += "}";
     }else if(auto* s = dynamic_cast<const StringRule*>(rule_ptr.get())) {
       extra = format("{{\"{}\"}}", s->val);

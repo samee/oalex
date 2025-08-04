@@ -120,5 +120,20 @@ makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
   return t == OutputType::flatStruct;
 }
 
+CompRead
+compRead(const RuleSet& ruleset, const ConcatFlatRule::Component& c) {
+  if(makesFlatStruct(ruleset, c.idx)) {
+    const Rule& ts = ruleset.rules[c.idx]->outType(ruleset).typeSource();
+    if(ts.flatFields().empty()) return CompRead::discard;
+    else return CompRead::unpackStruct;
+  }else {
+    if(c.outputPlaceholder.empty()) return CompRead::discard;
+    else return CompRead::asOpaque;
+  }
+}
+bool
+compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c) {
+  return compRead(ruleset, c) == CompRead::discard;
+}
 
 }  // namespace oalex

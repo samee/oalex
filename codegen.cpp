@@ -637,7 +637,8 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  using oalex::holdsErrorValue;\n");
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
-  for(auto& [childid, key] : cfrule.comps) {
+  for(auto& comp : cfrule.comps) {
+    auto& [childid, key] = comp;
     ParserResultTraits resdeets = parserResultTraits(ruleset, childid);
     // TODO Check for duplicate keys at compile-time.
     string rescomp = format("res{}", comp_serial);
@@ -645,8 +646,9 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
       codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
     cppos(format("  if(holdsErrorValue({})) return std::nullopt;\n", rescomp));
-    cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
-                 comp_serial, outType, resdeets.value(rescomp)));
+    if(!compDiscarded(ruleset, comp))
+      cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
+                   comp_serial, outType, resdeets.value(rescomp)));
     comp_serial++;
   }
   if(cfrule.comps.empty())
@@ -931,11 +933,14 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
   ssize_t partNumber = 0;
   string outType = parserResultTraits(ruleset, seq).type;
   for(auto& comp: seq.comps) {
-    string funName = format("mergePart{}Into{}", partNumber++, outType);
-    genMergeHelperCatPart(
-        ruleset, comp.idx, funName, outType, comp.outputPlaceholder,
-        "dest.fields.{} = std::move(src)",
-        "dest.fields.{0} = std::move(src.fields.{0})", cppos);
+    if(!compDiscarded(ruleset, comp)) {
+      string funName = format("mergePart{}Into{}", partNumber, outType);
+      genMergeHelperCatPart(
+          ruleset, comp.idx, funName, outType, comp.outputPlaceholder,
+          "dest.fields.{} = std::move(src)",
+          "dest.fields.{0} = std::move(src.fields.{0})", cppos);
+    }
+    ++partNumber;
   }
 }
 

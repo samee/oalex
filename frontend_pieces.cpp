@@ -475,30 +475,18 @@ ParsedRule26::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-static void mergePart0IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart1IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart2IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart3IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart4IntoParsedRule26(ParsedRule10 src, ParsedRule26& dest) {
   dest.fields.rule_name = std::move(src.fields.rule_name);
 }
 
-static void mergePart5IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart6IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart7IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart8IntoParsedRule26(ParsedRule14 src, ParsedRule26& dest) {
   dest.fields.external_name = std::move(src.fields.external_name);
 }
 
-static void mergePart9IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart10IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart11IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
 static void mergePart12IntoParsedRule26(ParsedRule23 src, ParsedRule26& dest) {
   dest.fields.param = std::move(src.fields.param);
 }
 
-static void mergePart13IntoParsedRule26(bool /*src*/, ParsedRule26& /*dest*/) {}
-static void mergePart14IntoParsedRule26(oalex::StringLoc /*src*/, ParsedRule26& /*dest*/) {}
 std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::holdsErrorValue;
   ssize_t j = i;
@@ -507,19 +495,15 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
 
   std::optional<oalex::StringLoc> res0 = parseRule6(ctx, j);
   if(holdsErrorValue(res0)) return std::nullopt;
-  mergePart0IntoParsedRule26(std::move(res0.value()), rv);
 
   bool res1 = parseRule7(ctx, j);
   if(holdsErrorValue(res1)) return std::nullopt;
-  mergePart1IntoParsedRule26(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule8(ctx, j);
   if(holdsErrorValue(res2)) return std::nullopt;
-  mergePart2IntoParsedRule26(std::move(res2.value()), rv);
 
   bool res3 = parseRule9(ctx, j);
   if(holdsErrorValue(res3)) return std::nullopt;
-  mergePart3IntoParsedRule26(std::move(res3), rv);
 
   std::optional<ParsedRule10> res4 = parseRule10(ctx, j);
   if(holdsErrorValue(res4)) return std::nullopt;
@@ -527,15 +511,12 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
 
   bool res5 = parseRule11(ctx, j);
   if(holdsErrorValue(res5)) return std::nullopt;
-  mergePart5IntoParsedRule26(std::move(res5), rv);
 
   std::optional<oalex::StringLoc> res6 = parseRule12(ctx, j);
   if(holdsErrorValue(res6)) return std::nullopt;
-  mergePart6IntoParsedRule26(std::move(res6.value()), rv);
 
   bool res7 = parseRule13(ctx, j);
   if(holdsErrorValue(res7)) return std::nullopt;
-  mergePart7IntoParsedRule26(std::move(res7), rv);
 
   std::optional<ParsedRule14> res8 = parseRule14(ctx, j);
   if(holdsErrorValue(res8)) return std::nullopt;
@@ -543,15 +524,12 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
 
   bool res9 = parseRule15(ctx, j);
   if(holdsErrorValue(res9)) return std::nullopt;
-  mergePart9IntoParsedRule26(std::move(res9), rv);
 
   std::optional<oalex::StringLoc> res10 = parseRule16(ctx, j);
   if(holdsErrorValue(res10)) return std::nullopt;
-  mergePart10IntoParsedRule26(std::move(res10.value()), rv);
 
   bool res11 = parseRule17(ctx, j);
   if(holdsErrorValue(res11)) return std::nullopt;
-  mergePart11IntoParsedRule26(std::move(res11), rv);
 
   std::optional<ParsedRule23> res12 = parseRule23(ctx, j);
   if(holdsErrorValue(res12)) return std::nullopt;
@@ -559,11 +537,9 @@ std::optional<ParsedRule26> parseRule26(oalex::InputDiags& ctx, ssize_t& i) {
 
   bool res13 = parseRule24(ctx, j);
   if(holdsErrorValue(res13)) return std::nullopt;
-  mergePart13IntoParsedRule26(std::move(res13), rv);
 
   std::optional<oalex::StringLoc> res14 = parseRule25(ctx, j);
   if(holdsErrorValue(res14)) return std::nullopt;
-  mergePart14IntoParsedRule26(std::move(res14.value()), rv);
   rv.loc.first = i; rv.loc.second = j;
   i = j;
   return rv;
@@ -748,9 +724,6 @@ static void mergePart0IntoParsedRule34(ParsedRule29 src, ParsedRule34& dest) {
   dest.fields.ident = std::move(src.fields.ident);
 }
 
-static void mergePart1IntoParsedRule34(bool /*src*/, ParsedRule34& /*dest*/) {}
-static void mergePart2IntoParsedRule34(oalex::StringLoc /*src*/, ParsedRule34& /*dest*/) {}
-static void mergePart3IntoParsedRule34(bool /*src*/, ParsedRule34& /*dest*/) {}
 static void mergePart4IntoParsedRule34(ParsedRule33 src, ParsedRule34& dest) {
   dest.fields.error_msg = std::move(src.fields.error_msg);
 }
@@ -767,15 +740,12 @@ std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i) {
 
   bool res1 = parseRule30(ctx, j);
   if(holdsErrorValue(res1)) return std::nullopt;
-  mergePart1IntoParsedRule34(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule31(ctx, j);
   if(holdsErrorValue(res2)) return std::nullopt;
-  mergePart2IntoParsedRule34(std::move(res2.value()), rv);
 
   bool res3 = parseRule32(ctx, j);
   if(holdsErrorValue(res3)) return std::nullopt;
-  mergePart3IntoParsedRule34(std::move(res3), rv);
 
   std::optional<ParsedRule33> res4 = parseRule33(ctx, j);
   if(holdsErrorValue(res4)) return std::nullopt;
@@ -905,13 +875,6 @@ ParsedRule42::operator JsonLoc() const {
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
 
-static void mergePart0IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart1IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart2IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart3IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart4IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart5IntoParsedRule42(bool /*src*/, ParsedRule42& /*dest*/) {}
-static void mergePart6IntoParsedRule42(oalex::StringLoc /*src*/, ParsedRule42& /*dest*/) {}
 std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
   using oalex::holdsErrorValue;
   ssize_t j = i;
@@ -920,31 +883,24 @@ std::optional<ParsedRule42> parseRule42(oalex::InputDiags& ctx, ssize_t& i) {
 
   std::optional<oalex::StringLoc> res0 = parseRule35(ctx, j);
   if(holdsErrorValue(res0)) return std::nullopt;
-  mergePart0IntoParsedRule42(std::move(res0.value()), rv);
 
   bool res1 = parseRule36(ctx, j);
   if(holdsErrorValue(res1)) return std::nullopt;
-  mergePart1IntoParsedRule42(std::move(res1), rv);
 
   std::optional<oalex::StringLoc> res2 = parseRule37(ctx, j);
   if(holdsErrorValue(res2)) return std::nullopt;
-  mergePart2IntoParsedRule42(std::move(res2.value()), rv);
 
   bool res3 = parseRule38(ctx, j);
   if(holdsErrorValue(res3)) return std::nullopt;
-  mergePart3IntoParsedRule42(std::move(res3), rv);
 
   std::optional<oalex::StringLoc> res4 = parseRule39(ctx, j);
   if(holdsErrorValue(res4)) return std::nullopt;
-  mergePart4IntoParsedRule42(std::move(res4.value()), rv);
 
   bool res5 = parseRule40(ctx, j);
   if(holdsErrorValue(res5)) return std::nullopt;
-  mergePart5IntoParsedRule42(std::move(res5), rv);
 
   std::optional<oalex::StringLoc> res6 = parseRule41(ctx, j);
   if(holdsErrorValue(res6)) return std::nullopt;
-  mergePart6IntoParsedRule42(std::move(res6.value()), rv);
   rv.loc.first = i; rv.loc.second = j;
   i = j;
   return rv;
