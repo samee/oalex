@@ -901,6 +901,8 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
   }
 }
 
+// Callers are expected to check if this is about to generate an empty function.
+// See compDiscarded and friends.
 static void
 genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
     string_view funName, string_view outType, string_view outField,
@@ -909,12 +911,6 @@ genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
   const Rule& compRule = typeSource(ruleset, compidx);
   const bool flat = makesFlatStruct(ruleset, compidx);
   string compType = parserResultTraits(ruleset, compRule).type;
-  const bool emptyFun = flat ? compRule.flatFields().empty() : outField.empty();
-  if(emptyFun) {
-    cppos(format("static void {}({} /*src*/, {}& /*dest*/) {{}}\n",
-                 funName, compType, outType));
-    return;
-  }
   string funHeader = format("static void {}({} src, {}& dest)", funName,
                             compType, outType);
 
