@@ -516,8 +516,12 @@ bool makesStruct(const RuleSet& ruleset, ssize_t ruleidx);
 bool makesFlatStruct(const RuleSet& rs, ssize_t ruleidx);
 
 CompRead
-compRead(const RuleSet& ruleset, const ConcatFlatRule::Component& c);
+compRead(const RuleSet& ruleset, ssize_t idx, std::string_view fieldName);
 bool
 compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c);
+bool
+compDiscardedLoopInit(const RuleSet& ruleset, const LoopRule& rep);
+bool
+compDiscardedLoopPart(const RuleSet& ruleset, const LoopRule& rep, ssize_t i);
 
 }  // namespace oalex

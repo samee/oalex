@@ -733,8 +733,9 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
     codegenParserCall(ruleAt(ruleset, loop.initidx), "j", cppos);
     cppos(";\n");
   cppos("  if(holdsErrorValue(init)) return std::nullopt;\n");
-  cppos(format("  mergeInitPartInto{}(std::move({}), rv);\n", outType,
-               initdeets.value("init")));
+  if(!compDiscardedLoopInit(ruleset, loop))
+    cppos(format("  mergeInitPartInto{}(std::move({}), rv);\n", outType,
+                 initdeets.value("init")));
   cppos("\n");
   cppos("  while(true) {\n");
   cppos("    fallback_point = j;\n");
@@ -755,8 +756,9 @@ codegen(const RuleSet& ruleset, const LoopRule& loop,
       cppos(format("    if(holdsErrorValue({})) return std::nullopt;\n",
                    outVar));
     }
-    cppos(format("    mergePart{}Into{}(std::move({}), rv);\n", c, outType,
-                 deets.value(outVar)));
+    if(!compDiscardedLoopPart(ruleset, loop, c))
+      cppos(format("    mergePart{}Into{}(std::move({}), rv);\n", c, outType,
+                   deets.value(outVar)));
   }
   cppos("  }\n");
 
@@ -949,20 +951,22 @@ genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
   string outType = parserResultTraits(ruleset, rep).type;
   string funName = "mergeInitPartInto" + outType;
-  genMergeHelperCatPart(
-      ruleset, rep.initidx,
-      funName,  outType, "",
-      "dest.fields.{}.push_back(std::move(src))",
-      "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
-
-  for(ssize_t c=0; c<ssize(rep.loopbody); ++c) {
-    funName = format("mergePart{}Into{}", c, outType);
+  if(!compDiscardedLoopInit(ruleset, rep))
     genMergeHelperCatPart(
-        ruleset, rep.loopbody[c],
+        ruleset, rep.initidx,
         funName,  outType, "",
         "dest.fields.{}.push_back(std::move(src))",
         "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
-  }
+
+  for(ssize_t c=0; c<ssize(rep.loopbody); ++c)
+    if(!compDiscardedLoopPart(ruleset, rep, c)) {
+      funName = format("mergePart{}Into{}", c, outType);
+      genMergeHelperCatPart(
+          ruleset, rep.loopbody[c],
+          funName,  outType, "",
+          "dest.fields.{}.push_back(std::move(src))",
+          "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
+    }
 }
 
 static void

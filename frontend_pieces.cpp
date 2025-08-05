@@ -365,9 +365,6 @@ static void mergeInitPartIntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) 
   dest.fields.param.push_back(std::move(src.fields.param));
 }
 
-static void mergePart0IntoParsedRule21(bool /*src*/, ParsedRule21& /*dest*/) {}
-static void mergePart1IntoParsedRule21(oalex::StringLoc /*src*/, ParsedRule21& /*dest*/) {}
-static void mergePart2IntoParsedRule21(bool /*src*/, ParsedRule21& /*dest*/) {}
 static void mergePart3IntoParsedRule21(ParsedRule18 src, ParsedRule21& dest) {
   dest.fields.param.push_back(std::move(src.fields.param));
 }
@@ -387,15 +384,12 @@ std::optional<ParsedRule21> parseRule21(oalex::InputDiags& ctx, ssize_t& i) {
 
     bool res0 = quietMatch(ctx.input(), j, parseRule20);
     if(holdsErrorValue(res0)) break;
-    mergePart0IntoParsedRule21(std::move(res0), rv);
 
     std::optional<oalex::StringLoc> res1 = quietMatch(ctx.input(), j, parseRule19);
     if(holdsErrorValue(res1)) break;
-    mergePart1IntoParsedRule21(std::move(res1.value()), rv);
 
     bool res2 = parseRule20(ctx, j);
     if(holdsErrorValue(res2)) return std::nullopt;
-    mergePart2IntoParsedRule21(std::move(res2), rv);
 
     std::optional<ParsedRule18> res3 = parseRule18(ctx, j);
     if(holdsErrorValue(res3)) return std::nullopt;

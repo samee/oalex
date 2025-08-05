@@ -121,19 +121,27 @@ makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
 }
 
 CompRead
-compRead(const RuleSet& ruleset, const ConcatFlatRule::Component& c) {
-  if(makesFlatStruct(ruleset, c.idx)) {
-    const Rule& ts = ruleset.rules[c.idx]->outType(ruleset).typeSource();
+compRead(const RuleSet& ruleset, ssize_t idx, string_view fieldName) {
+  if(makesFlatStruct(ruleset, idx)) {
+    const Rule& ts = ruleset.rules[idx]->outType(ruleset).typeSource();
     if(ts.flatFields().empty()) return CompRead::discard;
     else return CompRead::unpackStruct;
   }else {
-    if(c.outputPlaceholder.empty()) return CompRead::discard;
+    if(fieldName.empty()) return CompRead::discard;
     else return CompRead::asOpaque;
   }
 }
 bool
 compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c) {
-  return compRead(ruleset, c) == CompRead::discard;
+  return compRead(ruleset, c.idx, c.outputPlaceholder) == CompRead::discard;
+}
+bool
+compDiscardedLoopInit(const RuleSet& ruleset, const LoopRule& rep) {
+  return compRead(ruleset, rep.initidx, {}) == CompRead::discard;
+}
+bool
+compDiscardedLoopPart(const RuleSet& ruleset, const LoopRule& rep, ssize_t i) {
+  return compRead(ruleset, rep.loopbody[i], {}) == CompRead::discard;
 }
 
 }  // namespace oalex
