@@ -67,12 +67,6 @@ ruleAt(const RuleSet& rs, ssize_t ruleidx,
   else Bug("{}: Dereferencing null rule {}", location.function_name(), ruleidx);
 }
 
-static const Rule&
-typeSource(const RuleSet& rs, ssize_t ruleidx,
-           std::source_location location = std::source_location::current()) {
-  return ruleAt(rs, ruleidx, location).outType(rs).typeSource();
-}
-
 static string
 ruleDebugId(const RuleSet& rs, ssize_t i) {
   if(const Ident* opt = ruleAt(rs, i).nameOrNull())
@@ -548,8 +542,7 @@ traitNoOptional(string gentype) {
 }
 
 static ParserResultTraits
-parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
-  const OutputTypeInfo out = rule.outType(ruleset);
+parserResultTraits(const OutputTypeInfo& out) {
   switch(out.type()) {
     case OutputType::flatStruct:
     case OutputType::jsonTmpl:
@@ -565,8 +558,15 @@ parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
     case OutputType::boolean: return traitNoOptional("bool");
     case OutputType::nullopt: return traitNoOptional("std::nullopt_t");
     default:
-      Bug("Cannot compute return type for {}", rule.specifics_typename());
+      Bug("Cannot compute return type for {}",
+          out.typeSource().specifics_typename());
   }
+}
+
+static ParserResultTraits
+parserResultTraits(const RuleSet& ruleset, const Rule& rule) {
+  const OutputTypeInfo out = rule.outType(ruleset);
+  return parserResultTraits(out);
 }
 
 static ParserResultTraits
@@ -905,21 +905,21 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
 // See compDiscarded and friends.
 static void
 genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
-    string_view funName, string_view outType, string_view outField,
+    string_view funName, string_view outTypeName, string_view outField,
     string_view nonFlatMergeTmpl, string_view flatMergeTmpl,
     const OutputStream& cppos) {
-  const Rule& compRule = typeSource(ruleset, compidx);
-  const bool flat = makesFlatStruct(ruleset, compidx);
-  string compType = parserResultTraits(ruleset, compRule).type;
+  const OutputTypeInfo info = outType(ruleset, compidx);
+  string compTypeName = parserResultTraits(info).type;
   string funHeader = format("static void {}({} src, {}& dest)", funName,
-                            compType, outType);
+                            compTypeName, outTypeName);
 
   cppos(funHeader + " {\n");
+
   // Use std::runtime_format in C++26.
-  if(!flat)
+  if(info.type() != OutputType::flatStruct)
     cppos(format("  {};\n", vformat(nonFlatMergeTmpl,
                                     make_format_args(outField))));
-  else for(auto& field: compRule.flatFields())
+  else for(auto& field: info.typeSource().flatFields())
     cppos(format("  {};\n", vformat(flatMergeTmpl,
                                     make_format_args(field.field_name))));
   cppos("}\n\n");
