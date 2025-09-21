@@ -171,6 +171,8 @@ makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
   return t == OutputType::flatStruct;
 }
 
+// TODO: Consider moving this into analysis.cpp once everyone else has moved
+// over to using precalculated compRead.
 CompRead
 compRead(const RuleSet& ruleset, ssize_t idx, string_view fieldName) {
   if(makesFlatStruct(ruleset, idx)) {

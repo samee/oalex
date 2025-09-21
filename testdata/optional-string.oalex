@@ -1,3 +1,6 @@
+# This tests the case where the compiler takes a string rule and implicitly
+# converts it into an empty struct.
+
 rule dbl_quoted_greeting: "hello [world]"
 
 example dbl_quoted_greeting:

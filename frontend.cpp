@@ -1406,6 +1406,7 @@ parseOalexSource(InputDiags& ctx) {
   resolveWrapperTypes(rs);
   populateFlatFields(rs);
   computeUserExposureForTypes(rs);
+  normalizeCompRead(rs);
   fillInNames(rs.rules);
 
   return ParsedSource{std::move(rs), std::move(examples)};

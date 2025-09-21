@@ -52,4 +52,7 @@ dependencyOrderForCodegen(const RuleSet& rs);
 //   if we later decide to.
 void computeUserExposureForTypes(RuleSet& ruleset);
 
+// This must happen after resoleWrapperTypes. Uses outType().
+void normalizeCompRead(RuleSet& ruleset);
+
 }  // namespace oalex

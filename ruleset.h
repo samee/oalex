@@ -290,6 +290,7 @@ class LoopRule final : public Rule {
 
   ssize_t initidx, looklen;
   std::vector<ssize_t> loopbody;
+
   // Much like ConcatFlatRule::Component::compRead(), this can be adjusted
   // to `discard` in analysis.cpp.
   CompRead initRead;

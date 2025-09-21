@@ -4,6 +4,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "codegen.h"  // TODO remove after helpers have been moved out.
@@ -20,6 +21,7 @@ using oalex::JsonTmpl;
 using oalex::LoopRule;
 using oalex::OrRule;
 using oalex::OutputTmpl;
+using oalex::OutputType;
 using oalex::RegexRule;
 using oalex::Rule;
 using oalex::RuleField;
@@ -31,6 +33,7 @@ using oalex::WordPreserving;
 using std::format;
 using std::optional;
 using std::string;
+using std::string_view;
 using std::unique_ptr;
 using std::vector;
 
@@ -374,6 +377,104 @@ resolveWrapperTypes(RuleSet& ruleset) {
     }
   }
   if(wrapperRemaining != 0) Bug("We have cycles among wrappers");
+}
+
+static void
+explainBadFlatStructHandling(const RuleSet& ruleset, ssize_t fieldidx,
+                             const Rule& typeSource, CompRead cr) {
+  if(cr == CompRead::asOpaque)
+    Bug("OutputType::flatStruct should not be used as an opaque struct.");
+  else if(cr != CompRead::discard)
+    Bug("Unexpected CompRead value in {}: {}", __func__, int(cr));
+
+  string mytype = ruleset.rules[fieldidx]->specifics_typename();
+  string wraptarget = typeSource.specifics_typename();
+  oalex::BugWarn("Types: {} and {}", mytype, wraptarget);
+  oalex::BugWarn("Listing fields for rule {}", fieldidx);
+  for(const RuleField& f : typeSource.flatFields()) {
+    oalex::BugWarn("  Field name: {}, schema source: {}, cont: {}",
+                   f.field_name, f.schema_source, (int)f.container);
+  }
+  Bug("FlatField rule is proactively discarding fields"
+      " before OutputTmpl");
+}
+
+static void
+explainBadOpaqueFieldHandling(CompRead cr, string_view fieldName) {
+  if(cr == CompRead::unpackStruct)
+    Bug("The target rule produces a flat struct, we cannot name it `{}`",
+        fieldName);
+  if(cr == CompRead::discard)
+    Bug("Compiler should not discard fields with names, such as `{}`",
+        fieldName);
+  Bug("Unexpected CompRead value in {}: {}", __func__, int(cr));
+
+}
+
+// Either sets `cr` to `CompRead::discard`, or checks if the pre-existing
+// value is sane. If not, it raises a Bug() since the compiler must be broken.
+// TODO: Find a way to unit-test these, instead of runtime consistency checks.
+static void
+normalizeOne(const RuleSet& ruleset, ssize_t fieldidx,
+             string_view fieldName, CompRead& cr) {
+  OutputTypeInfo out = outType(ruleset, fieldidx);
+  bool producesStruct = (out.type() == OutputType::flatStruct);
+  if(producesStruct) {
+    const Rule& ts = out.typeSource();
+    if(ts.flatFields().empty()) { cr = CompRead::discard; return; }
+    else if(cr != CompRead::unpackStruct)
+      explainBadFlatStructHandling(ruleset, fieldidx, ts, cr);
+  }else {
+    bool producesString = (out.type() == OutputType::string);
+    if(cr == CompRead::unpackStruct && !producesString) {
+      /*
+      This branch ignores strings because our compiler currently adds
+      unpackStruct annotation even on components producing a string. This is a
+      bit sloppy, by which the compiler means: "please treat this string as an
+      empty struct". It really should have been CompRead:discard instead. It's
+      much easier to fix CompRead here in one place instead, after
+      resolveWrapperTypes() is done.
+
+      If we don't want to allow that here, we will not only have to deal with
+      AliasRules, we will also have to make the compiler a fair bit more
+      defensive, where each possible case will now need to check "if child is
+      not struct, use CompRead::discard, otherwise use unpackStruct."
+
+      We don't have to check any other OutputTypes, since they cannot be
+      referenced in a RuleExpr or Pattern without being named. At which point,
+      they become flatFields in a struct.
+      */
+      Bug("We are supposed to unpack something, but there is nothing to unpack.");
+    }
+    if(fieldName.empty()) { cr = CompRead::discard; return; }
+    else if(cr != CompRead::asOpaque)
+      explainBadOpaqueFieldHandling(cr, fieldName);
+  }
+}
+
+// TODO: Make sure this compRead field in rules is consistent with outType() of
+// the target rule. E.g. we can only have unpackStruct here if somebody is
+// exporting a struct. Values can only be discarded if they have no name or no
+// fields, etc.
+void
+normalizeCompRead(RuleSet& ruleset) {
+  for(ssize_t i=0; i<ssize(ruleset.rules); ++i) {
+    Rule* r = ruleset.rules.at(i).get();
+    // TODO expand to other rule types with components.
+    if(auto* seq = dynamic_cast<ConcatFlatRule*>(r))
+      for(ConcatFlatRule::Component& c : seq->comps) {
+        normalizeOne(ruleset, c.idx, c.outputPlaceholder, c.compRead);
+      }
+    else if(auto* rep = dynamic_cast<LoopRule*>(r)) {
+      // normalizeOne(ruleset, rep->initidx, {}, rep->initRead);
+      rep->initRead = compRead(ruleset, rep->initidx, {});
+      ssize_t n = ssize(rep->loopbody);
+      rep->partRead.assign(n, CompRead::unpackStruct);
+      for(ssize_t i=0; i<n; ++i)
+        // normalizeOne(ruleset, rep->loopbody[i], {}, rep->partRead[i]);
+        rep->partRead[i] = compRead(ruleset, rep->loopbody[i], {});
+    }
+  }
 }
 
 }  // namespace oalex
