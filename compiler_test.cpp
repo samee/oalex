@@ -149,6 +149,16 @@ namedRuleMappings(string_view msg, const vector<unique_ptr<Rule>>& a,
   return rv;
 }
 
+string
+compReadDebugPrint(CompRead cr) {
+  switch(cr) {
+    case CompRead::discard: return "discard";
+    case CompRead::asOpaque: return "asOpaque";
+    case CompRead::unpackStruct: return "unpackStruct";
+    default: return "unknown";
+  }
+}
+
 [[maybe_unused]] void
 ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
   ssize_t i = 0;
@@ -164,8 +174,8 @@ ruleListDebugPrint(const vector<unique_ptr<Rule>>& rl) {
       extra = format("{{{}, \"{}\"}}", tmpl->childidx, tmpl->childName);
     }else if(auto* cat = dynamic_cast<const ConcatFlatRule*>(rule_ptr.get())) {
       extra = "{ ";
-      for(auto& [id,p] : cat->comps)
-        extra += format("{{{}, \"{}\"}}, ", id, p);
+      for(auto& [id,p,acc] : cat->comps)
+        extra += format("{{{}, \"{}\", {}}}, ", id, p, compReadDebugPrint(acc));
       extra += "}";
     }else if(auto* s = dynamic_cast<const StringRule*>(rule_ptr.get())) {
       extra = format("{{\"{}\"}}", s->val);
@@ -535,7 +545,7 @@ void testRuleExprCompilation() {
     MatchOrError{3, "Expected '\"'"},
     StringRule{"\""},
     MatchOrError{5, "Expected '\"'"},
-    ConcatFlatRule{{ {4, {}}, {2, {}}, {6, {}} }},
+    ConcatFlatRule{{ {4}, {2}, {6} }},
     nmRule(OutputTmpl{7, {}, JsonTmpl{JsonTmpl::Map{
              {"body", JsonTmpl::Placeholder{"body"}}
            }} }, "string_body_only")
@@ -570,7 +580,7 @@ void testRuleExprCompilation() {
     nmRule(MatchOrError{3, "Does not match expected pattern"},
            "quoted_part"),
     ConcatFlatRule{{{4, "quoted_part"}}},
-    ConcatFlatRule{{ {2, {}}, {5, {}} }},
+    ConcatFlatRule{{ {2}, {5} }},
     nmRule(OutputTmpl{6, {}, JsonTmpl{JsonTmpl::Map{
              {"literal_prefix", JsonTmpl::Placeholder{"literal_prefix"}},
              {"quoted_part", JsonTmpl::Placeholder{"quoted_part"}},
@@ -599,7 +609,7 @@ void testRuleExprCompilation() {
     RegexRule{signed_int_value_regex->clone(), 0},
     MatchOrError{3, "Does not match expected pattern"},
     ConcatFlatRule{{{4, "sign"}}},
-    ConcatFlatRule{{ {5, {}}, {2, {}} }},
+    ConcatFlatRule{{ {5}, {2} }},
     nmRule(OutputTmpl{6, {}, JsonTmpl{JsonTmpl::Map{
         {"sign", JsonTmpl::Placeholder{"sign"}},
         {"value", JsonTmpl::Placeholder{"value"}},
@@ -655,7 +665,7 @@ void testRuleExprCompilation() {
     QuietMatch{4},
     StringRule{{}},
     OrRule{{ {-1, 6, oalex::passthroughTmpl}, {-1, 7, JsonTmpl::Map{}} }, true},
-    ConcatFlatRule{{ {8, {}}, {5, {}} }},
+    ConcatFlatRule{{ {8}, {5} }},
     nmRule(OutputTmpl{9, {}, JsonTmpl{JsonTmpl::Map{
             {"keyword_indicator",
               JsonTmpl{JsonTmpl::Placeholder{"keyword_indicator"}}},
@@ -759,8 +769,8 @@ void testLocalNameResolution() {
     MatchOrError{8, "Expected 'u'"},
     ConcatFlatRule{{{1, "string_literal"}}},
     ConcatFlatRule{{{5, "string_literal"}}},
-    ConcatFlatRule{{ {7, {}}, {10, {}} }},
-    ConcatFlatRule{{ {9, {}}, {11, {}} }},
+    ConcatFlatRule{{ {7}, {10} }},
+    ConcatFlatRule{{ {9}, {11} }},
     nmRule(OutputTmpl{12, {}, JsonTmpl{JsonTmpl::Map{
             {"string_literal",
              JsonTmpl{JsonTmpl::Placeholder{"string_literal"}}}

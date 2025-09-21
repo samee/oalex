@@ -58,6 +58,7 @@ using oalex::SkipPoint;
 using oalex::UserError;
 using oalex::WordPreserving;
 using oalex::test::cskip;
+using oalex::test::flatcat;
 using oalex::test::nmRule;
 using oalex::test::parseRegexRule;
 using oalex::test::regexOpts;
@@ -160,6 +161,7 @@ void codegenNamedRules(RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
   resolveWrapperTypes(rs);
   populateFlatFields(rs);
+  normalizeCompRead(rs);
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i]->nameOrNull() != nullptr) codegen(rs, i, cppos, hos);
 }
@@ -211,11 +213,12 @@ void generateConcatFlatTest(const OutputStream& cppos,
                StringRule{";"},
                nmRule(SkipPoint{0}, "FlatSpace"),
                nmRule(ConcatFlatRule{{
-                   {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
+                   {1, "var_name"}, {6}, {2}, {6}, {1, "type"},
                }}, "FlatVarAndType"),
                nmRule(ConcatFlatRule{{
-                 {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
-                 {6, ""}, {4, "rhs"}, {6, ""}, {5, ""} }}, "FlatDefn"),
+                 {0}, {6}, flatcat(varTypeIndex), {6}, {3},
+                 {6}, {4, "rhs"}, {6}, {5}
+               }}, "FlatDefn"),
                nmRule(OutputTmpl{declIndex, {},
                  *parseJsonTmpl("{var_name, init_value: {type, value: rhs}}")
                }, "FlatThenAssembled")),
@@ -248,10 +251,10 @@ void generateConcatTest(const OutputStream& cppos,
     nmRule(parseRegexRule("/-?[0-9]+\\b/"), "IntegerLiteral"),
     StringRule{";"},
     nmRule(SkipPoint{0}, "CommentsAndWhitespace"),
-    nmRule(ConcatFlatRule{{{0,""}, {5,""}, {1,"id"}, {5,""}, {2,""}, {5,""},
-                           {3,"value"}, {5,""}, {4,""}}}, "DefinitionFields"),
-    nmRule(ConcatFlatRule{{{1,"lhs"}, {5,""}, {2,""}, {5,""}, {1,"rhs"}, {5,""},
-                           {4,""}}}, "AssignmentFields"),
+    nmRule(ConcatFlatRule{{{0}, {5}, {1,"id"}, {5}, {2}, {5},
+                           {3,"value"}, {5}, {4}}}, "DefinitionFields"),
+    nmRule(ConcatFlatRule{{{1,"lhs"}, {5}, {2}, {5}, {1,"rhs"}, {5}, {4}}},
+           "AssignmentFields"),
     nmRule(OutputTmpl{6, {}, *parseJsonTmpl("{id, value}")}, "Definition"),
     nmRule(OutputTmpl{7, {}, *parseJsonTmpl("{rhs, lhs}")}, "Assignment")
     ), {cskip}, {regexOpts}
@@ -265,12 +268,11 @@ void generateNestedTypesTest(const OutputStream& cppos,
     nmRule(parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"), "ThreeAddrLhs"),
     StringRule{"+"},
     nmRule(SkipPoint{0}, "ThreeAddrSkip"),
-    nmRule(ConcatFlatRule{{ {0, "src_1"}, {2, ""}, {1, ""}, {2, ""},
-                            {0, "src_2"} }},
+    nmRule(ConcatFlatRule{{ {0, "src_1"}, {2}, {1}, {2}, {0, "src_2"} }},
            "ThreeAddrRhsFields"),
     nmRule(OutputTmpl{3, {}, *parseJsonTmpl("{src_1, src_2}")}, "ThreeAddrRhs"),
     StringRule{"="},
-    nmRule(ConcatFlatRule{{{0, "lhs"}, {2, ""}, {5, ""}, {2, ""}, {4, "expr"}}},
+    nmRule(ConcatFlatRule{{{0, "lhs"}, {2}, {5}, {2}, {4, "expr"}}},
            "ThreeAddrFields"),
     nmRule(OutputTmpl{6, {}, *parseJsonTmpl("{lhs, expr}")},
            "ThreeAddrOperation")
@@ -290,8 +292,8 @@ void generateExternParserDeclaration(const OutputStream& cppos,
       StringRule{":"},
       nmRule(ExternParser{"oalexPluginIndentedTmpl", {}}, "IndentedTmpl"),
       nmRule(SkipPoint{0}, "ExtSpace"),
-      nmRule(ConcatFlatRule{{{0,""}, {4,""}, {1,"id"}, {4,""}, {2,""}, {4,""},
-                             {3,"tmpl"}},}, "ExtTmplFields"),
+      nmRule(ConcatFlatRule{{{0}, {4}, {1,"id"}, {4}, {2}, {4}, {3,"tmpl"}}},
+             "ExtTmplFields"),
       nmRule(OutputTmpl{5, {}, *parseJsonTmpl("{id, tmpl}")}, "ExtTmpl")
     ), {shskip}, {regexOpts}
   };
@@ -314,10 +316,10 @@ void generateIndentedListBuiltin(const OutputStream& cppos,
       StringRule{"my_list"},
       nmRule(SkipPoint{0}, "ListLeaderSkip"),
       StringRule{":"},
-      nmRule(ConcatFlatRule{{ {0, ""}, {1, ""}, {2, ""} }}, "ListLeader"),
+      nmRule(ConcatFlatRule{{ {0}, {1}, {2} }}, "ListLeader"),
       nmRule(StringRule{"item"}, "ListItemKeyword"),
       nmRule(parseRegexRule("/[0-9]+/"), "ListItemNumber"),
-      nmRule(ConcatFlatRule{{ {4, ""}, {1, ""}, {5, "num"} }}, "ListItem"),
+      nmRule(ConcatFlatRule{{ {4}, {1}, {5, "num"} }}, "ListItem"),
       nmRule(ExternParser{"oalexBuiltinIndentedList", {3,6}},
              "SimpleIndentedList")
     ), {cskip}, {regexOpts}
@@ -365,14 +367,14 @@ void generateOptionalComponent(const OutputStream& cppos,
                "OptionalCompVarName"),
         StringRule{"="},
         nmRule(parseRegexRule("/[0-9]+\\b/"), "OptionalCompValue"),
-        nmRule(ConcatFlatRule{{ {3, ""}, {0, ""}, {4, "init_value"} }},
+        nmRule(ConcatFlatRule{{ {3}, {0}, {4, "init_value"} }},
                "OptionalCompInititializer"),
         nmRule(ConcatFlatRule{{ }}, "OptionalCompAbsent"),
         nmRule(OrRule{{
           {-1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl},
         }, /* flattenOnDemand */ true}, "OptionalCompOptInitializer"),
-        nmRule( ConcatFlatRule{{ {1, ""}, {0, ""}, {2, "var_name"},
-                                 {0, ""}, {7, ""} }}, "VarOptionalInitValue" )
+        nmRule( ConcatFlatRule{{ {1}, {0}, {2, "var_name"}, {0}, flatcat(7) }},
+                "VarOptionalInitValue" )
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -428,7 +430,7 @@ void generateFlattenOnDemand(const OutputStream& cppos,
         nmRule(ConcatFlatRule{{{5, "next_token"}}}, "UnflattenSingleConcat"),
         nmRule(OrRule{orrule.comps, /* flattenOnDemand */ true},
                "FlattenKeywordOrNumber"),
-        nmRule(ConcatFlatRule{{{7, ""}}}, "FlattenSingleConcat")
+        nmRule(ConcatFlatRule{{flatcat(7)}}, "FlattenSingleConcat")
       ), .skips{}, .regexOpts = {regexOpts},
   };
 
@@ -443,17 +445,16 @@ void generateLookaheads(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(parseRegexRule("/[a-z]+/"), "lookahead_ident"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
-          {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
-          {2, "init_value"}, {0, ""}, {4, ""},
+          {1}, {0}, {2, "var"}, {0}, {3}, {0}, {2, "init_value"}, {0}, {4},
         }}, "decl"),
         nmRule(ConcatFlatRule{{
-          {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
+          {2, "lhs"}, {0}, {3}, {0}, {2, "rhs"}, {0}, {4},
         }}, "asgn"),
         StringRule{"."},
-        nmRule(ConcatFlatRule{{ {7, ""}, {2, "directive"} }}, "directive"),
+        nmRule(ConcatFlatRule{{ {7}, {2, "directive"} }}, "directive"),
         nmRule(parseRegexRule("/[0-9]+/"), "lookahead_line_number_regex"),
         StringRule{":"},
-        nmRule(ConcatFlatRule{{ {9, "line_number"}, {10, ""} }},
+        nmRule(ConcatFlatRule{{ {9, "line_number"}, {10} }},
                "lookahead_line_num"),
         nmRule(OrRule{{ {1, 5, passthroughTmpl},
                         {7, 8, passthroughTmpl},
@@ -491,11 +492,12 @@ void generateMiscFlatteningTest(const OutputStream& cppos,
         nmRule(ConcatFlatRule{{ {0, "hello_for_mor"} }}, "flat_hello_flat2"),
         nmRule(MatchOrError{3, "Expected keyword 'hello'"},
           "flat_match_or_error_passing_thru_concat_flat"),
-        nmRule(ConcatFlatRule{{ {2, ""}, {4, ""} }}, "flat_hello_flat3"),
+        nmRule(ConcatFlatRule{{ flatcat(2), flatcat(4) }},
+          "flat_hello_flat3"),
         nmRule(QuietMatch{0}, "flat_hello_quiet_dropped_by_concat_flat"),
         nmRule(MatchOrError{0, "Expected keyword 'hello'"},
           "flat_match_or_error_dropped_by_concat_flat"),
-        nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "flat_hello_flat4")
+        nmRule(ConcatFlatRule{{ {6}, {7} }}, "flat_hello_flat4")
      ),
     .skips{},
     .regexOpts = {regexOpts},
@@ -521,7 +523,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         // Test glueidx == -1
         nmRule(",", "LoopComma"),
         nmRule(
-          ConcatFlatRule{{ {0, "elements"}, {2, ""}, {7, ""} }},
+          ConcatFlatRule{{ {0, "elements"}, {2}, {7} }},
           "ListPrefixPart"),
         nmRule(LoopRule{{
           .initidx = 8,
@@ -539,7 +541,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
           .loopbody {2, 7, 2, 11},
         }}, "SignedListContents"),
         StringRule{"["}, StringRule{"]"},
-        nmRule(ConcatFlatRule{{ {13, ""}, {12, ""}, {14, ""} }}, "SignedList")
+        nmRule(ConcatFlatRule{{ {13}, flatcat(12), {14} }}, "SignedList")
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},

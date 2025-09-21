@@ -127,13 +127,12 @@ void testOptionalComponent() {
         parseRegexRule("/[a-zA-Z_][a-zA-Z_0-9]*\\b/"),
         StringRule{"="},
         parseRegexRule("/[0-9]+\\b/"),
-        ConcatFlatRule{{ {3, ""}, {0, ""}, {4, "init_value"} }},
+        ConcatFlatRule{{ {3}, {0}, {4, "init_value"} }},
         ConcatFlatRule{{ }},
         OrRule{{
           {-1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl},
         }, /* flattenOnDemand */ true},
-        ConcatFlatRule{{ {1, ""}, {0, ""}, {2, "var_name"},
-                         {0, ""}, {7, ""} }}
+        ConcatFlatRule{{ {1}, {0}, {2, "var_name"}, {0}, {7} }}
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -312,9 +311,8 @@ void testConcatMatch() {
                parseRegexRule("/[0-9]+/"), StringRule{";"},
                SkipPoint{0},
                ConcatFlatRule{
-                 { {0, "lhs"}, {4, ""}, {1, ""}, {4, ""}, {2, "rhs"}, {4, ""},
-                   {3, ""}
-                 } },
+                 { {0, "lhs"}, {4}, {1}, {4}, {2, "rhs"}, {4}, {3} }
+               },
                nmRule(OutputTmpl{5, {},
                       *parseJsonTmpl("{ stmt: 'asgn', lhs, rhs }")}, "asgn")),
     .skips{cskip},
@@ -349,12 +347,11 @@ void testConcatFlatMatch() {
     .regexOpts = {regexOpts},
   };
   rs.rules.push_back(move_to_unique(ConcatFlatRule{{
-      {1, "var_name"}, {6, ""}, {2, ""}, {6, ""}, {1, "type"},
+      {1, "var_name"}, {6}, {2}, {6}, {1, "type"},
   }}));
   ssize_t varTypeIndex = rs.rules.size() - 1;
   rs.rules.push_back(move_to_unique(ConcatFlatRule{{
-      {0, ""}, {6, ""}, {varTypeIndex, ""}, {6, ""}, {3, ""},
-      {6, ""}, {4, "rhs"}, {6, ""}, {5, ""}
+      {0}, {6}, {varTypeIndex}, {6}, {3}, {6}, {4, "rhs"}, {6}, {5}
   }}));
   ssize_t declIndex = rs.rules.size() - 1;
   rs.rules.push_back(move_to_unique(OutputTmpl{declIndex, {},
@@ -467,11 +464,10 @@ void testLookaheads() {
         parseRegexRule("/[a-z]+/"),
         StringRule{"="}, StringRule{";"},
         nmRule(ConcatFlatRule{{
-          {1, ""}, {0, ""}, {2, "var"}, {0, ""}, {3, ""}, {0, ""},
-          {2, "init_value"}, {0, ""}, {4, ""},
+          {1}, {0}, {2, "var"}, {0}, {3}, {0}, {2, "init_value"}, {0}, {4},
         }}, "decl"),
         nmRule(ConcatFlatRule{{
-          {2, "lhs"}, {0, ""}, {3, ""}, {0, ""}, {2, "rhs"}, {0, ""}, {4, ""},
+          {2, "lhs"}, {0}, {3}, {0}, {2, "rhs"}, {0}, {4},
         }}, "asgn"),
         nmRule(OrRule{{{1, 5, passthroughTmpl}, {-1, 6, passthroughTmpl}},
                       /* flattenOnDemand */ true}, "simple_stmt")),
@@ -523,11 +519,11 @@ void testMiscFlattening() {
         nmRule(ConcatFlatRule{{ {0, "hello_for_mor"} }}, "hello_flat1"),
         nmRule(MatchOrError{3, "Expected keyword 'hello'"},
           "match_or_error_passing_thru_concat_flat"),
-        nmRule(ConcatFlatRule{{ {2, ""}, {4, ""} }}, "hello_flat2"),
+        nmRule(ConcatFlatRule{{ {2}, {4} }}, "hello_flat2"),
         nmRule(QuietMatch{0}, "hello_quiet_dropped_by_concat_flat"),
         nmRule(MatchOrError{0, "Expected keyword 'hello'"},
           "match_or_error_dropped_by_concat_flat"),
-        nmRule(ConcatFlatRule{{ {6, ""}, {7, ""} }}, "hello_flat3")
+        nmRule(ConcatFlatRule{{ {6}, {7} }}, "hello_flat3")
      ),
     .skips{},
     .regexOpts = {regexOpts},
@@ -576,7 +572,7 @@ void testLoopRule() {
 
         // Cases for glueidx == -1
         StringRule{","},
-        ConcatFlatRule{{{0, "elements"}, {2, ""}, {7, ""}, {2, ""}}},
+        ConcatFlatRule{{{0, "elements"}, {2}, {7}, {2}}},
         nmRule(LoopRule{{ .initidx = 8, .looklen = 1, .loopbody{8} }},
                "list_prefix")
     ),
@@ -650,7 +646,7 @@ void testLoopFlattening() {
           .loopbody{4, 5, 4, 3}
         }}, "sum"),
         StringRule{"["}, StringRule{"]"},
-        ConcatFlatRule{{ {7, ""}, {6, ""}, {8, ""} }}
+        ConcatFlatRule{{ {7}, {6}, {8} }}
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},

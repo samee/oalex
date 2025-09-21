@@ -82,7 +82,7 @@ eval(InputDiags& ctx, ssize_t& i,
      const ConcatFlatRule& seq, const RuleSet& rs) {
   JsonLoc::Map rv;
   ssize_t j = i;
-  for(auto& [idx, outname] : seq.comps) {
+  for(auto& [idx, outname, acc] : seq.comps) {
     JsonLoc out = eval(ctx, j, rs, idx);
     if(out.holdsErrorValue()) return out;
     else if(makesFlatStruct(rs,idx)) {
@@ -638,7 +638,7 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
   cppos("  ssize_t j = i;\n\n");
   cppos(format("  {} rv;\n", outType));
   for(auto& comp : cfrule.comps) {
-    auto& [childid, key] = comp;
+    auto& [childid, key, acc] = comp;
     ParserResultTraits resdeets = parserResultTraits(ruleset, childid);
     // TODO Check for duplicate keys at compile-time.
     string rescomp = format("res{}", comp_serial);

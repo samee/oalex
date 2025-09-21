@@ -213,13 +213,30 @@ class ConcatFlatRule final : public Rule {
   // It is also required to be empty for components returning a flattenable map.
   // TODO: change outputPlaceholder type to ident,
   // since they go into struct fields.
-  struct Component { ssize_t idx; std::string outputPlaceholder; };
-  explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
+  struct Component;
   std::string specifics_typename() const override { return "ConcatFlatRule"; }
   std::vector<Component> comps;
+  explicit ConcatFlatRule(std::vector<Component> c) : comps(std::move(c)) {}
   OutputTypeInfo outType(const RuleSet& rs) const override {
     return {&rs, *this, OutputType::flatStruct};
   }
+};
+
+// TODO: During the analysis phase, the compRead field is set to
+// `discard` if the field is empty. This can happen if, e.g. compRead is set
+// to unpackStruct but analysis finds an empty struct. Or if it's asOpaque but
+// outputPlaceholder is empty. These combinations are valid during the compiler
+// phase, but not after analysis phase.
+struct ConcatFlatRule::Component {
+  ssize_t idx;
+  std::string outputPlaceholder;
+  CompRead compRead;
+  Component(ssize_t idx, CompRead cr = CompRead::discard,
+            std::string_view fieldName = {})  // implicit.
+    : idx{idx}, outputPlaceholder{fieldName}, compRead{cr} {}
+  // additional overload for CompRead::discard:
+  Component(ssize_t idx, std::string_view fieldName)
+    : idx{idx}, outputPlaceholder{fieldName}, compRead{CompRead::discard} {}
 };
 
 // This is typically used to organize the components of a ConcatFlatRule. The

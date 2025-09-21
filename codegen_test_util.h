@@ -37,6 +37,9 @@ template <class X> X nmRule(X x, std::string s) {
   return x;
 }
 
+inline ConcatFlatRule::Component
+flatcat(ssize_t i) { return {i, CompRead::unpackStruct}; }
+
 inline RuleSet singletonRuleSet(const char* s) {
   RuleSet rs{{}, {}, {regexOpts}};
   rs.rules.push_back(move_to_unique(StringRule{s}));

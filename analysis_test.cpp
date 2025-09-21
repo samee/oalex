@@ -110,7 +110,7 @@ void testFlatFieldsForNestedList() {
         LoopRule{{.initidx = 10, .looklen = 1, .loopbody{1, 10}}},  // [5]
         OrRule{{{-1,5,passthroughTmpl}, {-1,4,passthroughTmpl}},
                true /* flattenOnDemand */ },  // [items, items, ... ]
-        ConcatFlatRule{{ {2,""}, {6,""}, {3,""} }},
+        ConcatFlatRule{{ {2}, {6}, {3} }},
         OutputTmpl{7, {}, *parseJsonTmpl("{items}")},  // paren_group
         OrRule{{ {2,5,passthroughTmpl},
                  {-1,0,*parseJsonTmpl("{word: child}")}},

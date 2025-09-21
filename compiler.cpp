@@ -180,18 +180,18 @@ class PatternToRulesCompiler {
 
 unique_ptr<Rule>
 PatternToRulesCompiler::processConcat(const PatternConcat& concatPatt) {
-  ConcatFlatRule concatRule{ {} };
+  vector<ConcatFlatRule::Component> comps;
   for(ssize_t i = 0; i < ssize(concatPatt.parts); ++i) {
     if(i > 0) {
       // Intersperse concat components with SkipPoint components.
-      concatRule.comps.push_back({rl_->ssize(), {}});
+      comps.push_back({rl_->ssize()});
       rl_->appendAnonRule(SkipPoint{skipIndex_});
     }
     const Pattern& child = concatPatt.parts[i];
     ssize_t j = rl_->appendAnonRulePtr(this->process(child).rule);
-    concatRule.comps.push_back({j, {}});
+    comps.push_back({j, CompRead::unpackStruct});
   }
-  return move_to_unique(concatRule);
+  return move_to_unique(ConcatFlatRule{std::move(comps)});
 }
 
 // TODO failed tests should output location. Or tests should have names.
@@ -1203,7 +1203,7 @@ RuleExprCompiler::processConcat(const RuleExprConcat& catxpr) {
   vector<ConcatFlatRule::Component> comps;
   for(const unique_ptr<const RuleExpr>& c : catxpr.parts) {
     comps.push_back({rl_->appendAnonRulePtr(std::move(process(*c)->rule)),
-                     {}});
+                     CompRead::unpackStruct});
   }
   return move_to_unique(ConcatFlatRule{{std::move(comps)}});
 }
@@ -1484,8 +1484,7 @@ RuleExprCompiler::compileToFlatStruct(const RuleExpr& rxpr) {
   if(!rv) return std::nullopt;
   if(rv->outType == RuleOutputType::string) {
     ssize_t ridx = rl_->appendAnonRulePtr(std::move(rv->rule));
-    rv->rule = move_to_unique(ConcatFlatRule {{{ .idx = ridx,
-                                                 .outputPlaceholder{} }}} );
+    rv->rule = move_to_unique(ConcatFlatRule{ {{ridx}} });
     rv->outType = RuleOutputType::flat_map;
     // Pass through rv->{exportedIdents,identsUsed}. They should be empty.
   }else if(rv->outType == RuleOutputType::bare_ident) {
