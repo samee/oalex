@@ -1,9 +1,24 @@
 rule lexpr choices:
-| (id ~ /[a-zA-Z_]+/)
+| ident -> (id ~ ident)
 | "( [ elt elt ... ] )"
 where:
   elt ~ lexpr
 outputs: { id, elts: [elt, ...] }
+
+rule ident: /[a-zA-Z_]+/
+
+example lexpr:
+  (a b (c d))
+outputs: {
+  elts: [
+    { id: "a" },
+    { id: "b" },
+    { elts: [
+      { id: "c" },
+      { id: "d" }
+    ]}
+  ]
+}
 
 # Notes:
 # * This is really a codegen test, but I don't have a good script to run

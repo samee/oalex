@@ -401,6 +401,10 @@ bool testExample(const RuleSet& rs, const Example& ex) {
     }else return true;
   }
 
+  // TODO: Make this "success" equivalent to `oalex eval`. Right now, by using
+  // of OrRule shenanigans, it is possible to produce error diags even if we
+  // produce the correct parsed value. Warnings are always allowed anyway.
+  // But this runSucceeded considers it a failure. Make them the same.
   bool success = Example::runSucceeded(jsloc, ctx.diags);
   fprintf(stderr, "%s\n", describeTestFailure(ex, success).c_str());
   if(!jsloc.holdsErrorValue())
@@ -408,6 +412,7 @@ bool testExample(const RuleSet& rs, const Example& ex) {
   if(!ctx.diags.empty()) {
     fprintf(stderr, "Errors received:\n");
     diagsToStderr(ctx.diags);
+    fprintf(stderr, "\n");
   }
   return false;
 }
