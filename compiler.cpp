@@ -585,6 +585,7 @@ createOptionalRule(RulesWithLocs& rl, TypedRule tr) {
 
   bool flat_out = (tr.type == RuleOutputType::flat_map);
   OrRule orRule{ {}, /* flattenOnDemand */ flat_out };
+  orRule.allString = (tr.type == RuleOutputType::string);
 
   ssize_t i = rl.appendAnonRulePtr(std::move(tr.rule));
   i = rl.appendAnonRule(QuietMatch{i});

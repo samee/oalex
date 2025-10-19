@@ -51,6 +51,15 @@ WrapperRule::outType(const RuleSet& rs) const {
   return {&rs, r, ot};
 }
 
+OutputTypeInfo
+OrRule::outType(const RuleSet& rs) const {
+  OutputType ot;
+  if(flattenOnDemand) ot = OutputType::flatStruct;
+  else if(allString) ot = OutputType::string;
+  else ot = OutputType::jsonLike;
+  return {&rs, *this, ot};
+}
+
 static bool validExtName(string_view name) {
   return name.find("oalexPlugin") == 0 || name.find("oalexBuiltin") == 0;
 }

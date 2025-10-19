@@ -351,10 +351,9 @@ class OrRule final : public Rule {
   std::string specifics_typename() const override { return "OrRule"; }
   std::vector<Component> comps;
   bool flattenOnDemand;
-  OutputTypeInfo outType(const RuleSet& rs) const override {
-    auto ot = flattenOnDemand ? OutputType::flatStruct : OutputType::jsonLike;
-    return {&rs, *this, ot};
-  }
+  bool allString = false;
+
+  OutputTypeInfo outType(const RuleSet& rs) const override;
 };
 
 // This Rule is used as an OrRule target when something else fails, or in
