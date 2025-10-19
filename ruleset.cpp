@@ -171,30 +171,4 @@ makesFlatStruct(const RuleSet& rs, ssize_t ruleidx) {
   return t == OutputType::flatStruct;
 }
 
-// TODO: Consider moving this into analysis.cpp once everyone else has moved
-// over to using precalculated compRead.
-CompRead
-compRead(const RuleSet& ruleset, ssize_t idx, string_view fieldName) {
-  if(makesFlatStruct(ruleset, idx)) {
-    const Rule& ts = ruleset.rules[idx]->outType(ruleset).typeSource();
-    if(ts.flatFields().empty()) return CompRead::discard;
-    else return CompRead::unpackStruct;
-  }else {
-    if(fieldName.empty()) return CompRead::discard;
-    else return CompRead::asOpaque;
-  }
-}
-bool
-compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c) {
-  return compRead(ruleset, c.idx, c.outputPlaceholder) == CompRead::discard;
-}
-bool
-compDiscardedLoopInit(const RuleSet& ruleset, const LoopRule& rep) {
-  return compRead(ruleset, rep.initidx, {}) == CompRead::discard;
-}
-bool
-compDiscardedLoopPart(const RuleSet& ruleset, const LoopRule& rep, ssize_t i) {
-  return compRead(ruleset, rep.loopbody[i], {}) == CompRead::discard;
-}
-
 }  // namespace oalex

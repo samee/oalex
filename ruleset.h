@@ -207,6 +207,8 @@ bool needsName(const Rule& rule, bool isTentativeTarget);
 // * discard: don't use the result.
 enum class CompRead { asOpaque, unpackStruct, discard };
 
+inline bool isDiscard(CompRead cr) { return cr == CompRead::discard; }
+
 class ConcatFlatRule final : public Rule {
  public:
   // outputPlaceholder can be empty if you never need to refer to the result.
@@ -530,14 +532,5 @@ inline OutputTypeInfo outType(const RuleSet& rs, ssize_t ruleidx) {
 bool resultFlattenableOrError(const RuleSet& rs, ssize_t ruleidx);
 bool makesStruct(const RuleSet& ruleset, ssize_t ruleidx);
 bool makesFlatStruct(const RuleSet& rs, ssize_t ruleidx);
-
-CompRead
-compRead(const RuleSet& ruleset, ssize_t idx, std::string_view fieldName);
-bool
-compDiscarded(const RuleSet& ruleset, const ConcatFlatRule::Component& c);
-bool
-compDiscardedLoopInit(const RuleSet& ruleset, const LoopRule& rep);
-bool
-compDiscardedLoopPart(const RuleSet& ruleset, const LoopRule& rep, ssize_t i);
 
 }  // namespace oalex

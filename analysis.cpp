@@ -379,6 +379,19 @@ resolveWrapperTypes(RuleSet& ruleset) {
   if(wrapperRemaining != 0) Bug("We have cycles among wrappers");
 }
 
+// --------------------------- normalizeCompRead -----------------------------
+
+static CompRead
+compRead(const RuleSet& ruleset, ssize_t idx, string_view fieldName) {
+  if(makesFlatStruct(ruleset, idx)) {
+    const Rule& ts = ruleset.rules[idx]->outType(ruleset).typeSource();
+    if(ts.flatFields().empty()) return CompRead::discard;
+    else return CompRead::unpackStruct;
+  }else {
+    if(fieldName.empty()) return CompRead::discard;
+    else return CompRead::asOpaque;
+  }
+}
 static void
 explainBadFlatStructHandling(const RuleSet& ruleset, ssize_t fieldidx,
                              const Rule& typeSource, CompRead cr) {
