@@ -635,7 +635,7 @@ void testRuleExprCompilation() {
     ConcatFlatRule{{{1, "ident"}}},
     StringRule{"-"},
     MatchOrError{3, "Expected '-'"},
-    LoopRule::fold(2, 4, -1),
+    LoopRule::fold(2, 4),
     nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
             {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
           }}}, "hyphen_ident")
@@ -840,7 +840,7 @@ void testRuleExprCompilationAndParsing() {
       ConcatFlatRule{{{1, "ident"}}},
       StringRule{"-"},
       MatchOrError{3, "Expected '-'"},
-      LoopRule::fold(2, 4, -1),
+      LoopRule::fold(2, 4),
       nmRule(OutputTmpl{5, {}, JsonTmpl{JsonTmpl::Map{
               {"ident", JsonTmpl{JsonTmpl::Placeholder{"ident"}}}
             }}}, "hyphen_ident")

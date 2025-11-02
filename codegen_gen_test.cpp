@@ -511,7 +511,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{0}, "LoopSkip"),
-        nmRule(LoopRule::fold(6, 5, 2), "LoopSum"),
+        nmRule(LoopRule::fold(6, 5).skip(2), "LoopSum"),
         nmRule(parseRegexRule("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
         nmRule(ConcatFlatRule{{ {0, "operand"} }}, "LoopOperand"),
@@ -521,13 +521,13 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(
           ConcatFlatRule{{ {0, "elements"}, {2}, {7} }},
           "ListPrefixPart"),
-        nmRule(LoopRule::repeat(8, 2), "ListPrefix"),
+        nmRule(LoopRule::repeat(8).skip(2), "ListPrefix"),
 
         // Flattenable child.
         nmRule(parseRegexRule("/[-+]/"), "LoopPlusOrMinus"),
         nmRule(ConcatFlatRule{{ {10, "sign"}, {0, "elements"} }},
                "LoopFlatElt"),
-        nmRule(LoopRule::fold(11, 7, 2), "SignedListContents"),
+        nmRule(LoopRule::fold(11, 7).skip(2), "SignedListContents"),
         StringRule{"["}, StringRule{"]"},
         nmRule(ConcatFlatRule{{ {13}, flatcat(12), {14} }}, "SignedList")
     ),
@@ -545,7 +545,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         StringRule{"-"},
         nmRule(parseRegexRule("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule::fold(0, 2, -1), "GpSwappedString")
+        nmRule(LoopRule::fold(0, 2), "GpSwappedString")
     ),
     .skips{},
     .regexOpts = {regexOpts},

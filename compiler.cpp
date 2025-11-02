@@ -230,7 +230,7 @@ unique_ptr<Rule>
 PatternToRulesCompiler::processRepeat(const PatternRepeat& repPatt) {
   ssize_t i = rl_->appendAnonRulePtr(this->process(repPatt.part).rule);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
-  return move_to_unique(LoopRule::repeat(i, ski));
+  return move_to_unique(LoopRule::repeat(i).skip(ski));
 }
 
 unique_ptr<Rule>
@@ -238,7 +238,7 @@ PatternToRulesCompiler::processFold(const PatternFold& foldPatt) {
   ssize_t pi = rl_->appendAnonRulePtr(this->process(foldPatt.part).rule);
   ssize_t gi = rl_->appendAnonRulePtr(this->process(foldPatt.glue).rule);
   ssize_t ski = rl_->appendAnonRule(SkipPoint{skipIndex_});
-  return move_to_unique(LoopRule::fold(pi, gi, ski));
+  return move_to_unique(LoopRule::fold(pi,gi).skip(ski));
 }
 
 TypedRule
@@ -1212,9 +1212,9 @@ RuleExprCompiler::processRepeat(const RuleExprRepeat& repxpr) {
     = rl_->appendAnonRulePtr(std::move(this->process(*repxpr.part)->rule)), j;
   if(repxpr.glue) {
     j = rl_->appendAnonRulePtr(std::move(this->process(*repxpr.glue)->rule));
-    return move_to_unique(LoopRule::fold(i, j, -1));
+    return move_to_unique(LoopRule::fold(i, j));
   }else {
-    return move_to_unique(LoopRule::repeat(i, -1));
+    return move_to_unique(LoopRule::repeat(i));
   }
 }
 // TODO change this to use string_view.

@@ -561,7 +561,7 @@ void testLoopRule() {
     .rules = makeVectorUnique<Rule>(
         MatchOrError{4, "Expected an identifier"},
         StringRule{"+"}, SkipPoint{0},
-        nmRule(LoopRule::fold(5, 6, 2), "sum"),
+        nmRule(LoopRule::fold(5,6).skip(2), "sum"),
         parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ {0, "operand"} }},
         MatchOrError{1, "Expected operator '+'"},
@@ -569,7 +569,7 @@ void testLoopRule() {
         // Cases for glueidx == -1
         StringRule{","},
         ConcatFlatRule{{{0, "elements"}, {2}, {7}, {2}}},
-        nmRule(LoopRule::repeat(8, -1), "list_prefix")
+        nmRule(LoopRule::repeat(8), "list_prefix")
     ),
     .skips{cskip},
     .regexOpts = {regexOpts},
@@ -635,7 +635,7 @@ void testLoopFlattening() {
         ConcatFlatRule{{ {0, "sign"}, {2, "elements"} }},
         SkipPoint{0},
         StringRule{","},
-        nmRule(LoopRule::fold(3, 5, 4), "sum"),
+        nmRule(LoopRule::fold(3,5).skip(4), "sum"),
         StringRule{"["}, StringRule{"]"},
         ConcatFlatRule{{ {7}, {6}, {8} }}
     ),
@@ -662,7 +662,7 @@ void testGluePartSwapped() {
         StringRule{"-"},
         parseRegexRule("/[a-z]+/"),
         ConcatFlatRule{{ { 1, "words" } }},
-        LoopRule::fold(0, 2, -1)
+        LoopRule::fold(0,2)
     ),
     .skips{},
     .regexOpts = {regexOpts},

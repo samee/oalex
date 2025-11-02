@@ -287,14 +287,17 @@ class LoopRule final : public Rule {
   OutputTypeInfo outType(const RuleSet& rs) const override {
     return {&rs, *this, OutputType::flatStruct};
   }
-  static LoopRule repeat(ssize_t body, ssize_t skip);
-  static LoopRule fold(ssize_t body, ssize_t glue, ssize_t skip);
+
+  // The factory and builder methods.
+  static LoopRule repeat(ssize_t body);
+  static LoopRule fold(ssize_t body, ssize_t glue);
+  LoopRule skip(ssize_t sp) &&;
 
   ssize_t initidx, looklen;
   std::vector<ssize_t> loopbody;
 
-  // Much like ConcatFlatRule::Component::compRead(), this can be adjusted
-  // to `discard` in analysis.cpp.
+  // Much like ConcatFlatRule::Component::compRead(),
+  // these can be adjusted to `CompRead::discard` in analysis.cpp.
   CompRead initRead;
   std::vector<CompRead> partRead;
 };
