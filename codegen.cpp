@@ -1420,23 +1420,12 @@ genOptionalTemplateField(string_view dest, string_view first_comp,
 }
 
 static void
-genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
-    const OutputStream& cppos, const OutputStream& hos) {
-  if(out.nameOrNull() == nullptr) return;
-  string className = parserResultTraits(ruleset, out).type;
-  hos("struct " + className + " {\n");
-  hos("  oalex::LocPair loc;\n");
-  hos("  ");
-    genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"),
-                    ruleset, out.childidx, 2, hos);
-    hos("\n");
-  hos("  explicit operator oalex::JsonLoc() const;\n");
-  hos("};\n\n");
-
+genOutputTmplToJsonLocConversion(const RuleSet& ruleset, const OutputTmpl& out,
+                                 const OutputStream& cppos) {
   vector<string> optIdents = getOptionalFields(ruleset, out.childidx);
   vector<vector<JsonPathComp>> optPaths
     = getPlaceholderPaths(optIdents, out.outputTmpl);
-  cppos(format("{}::operator JsonLoc() const {{\n", className));
+
   if(!optPaths.empty())
     cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::toJsonLoc;\n");
@@ -1452,6 +1441,24 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
     genOptionalTemplateField("rv", "fields", optPath, cppos);
   if(!optPaths.empty()) cppos("\n");
   cppos("  return rv;\n");
+}
+
+static void
+genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
+    const OutputStream& cppos, const OutputStream& hos) {
+  if(out.nameOrNull() == nullptr) return;
+  string className = parserResultTraits(ruleset, out).type;
+  hos("struct " + className + " {\n");
+  hos("  oalex::LocPair loc;\n");
+  hos("  ");
+    genOutputFields(out.outputTmpl, Ident::parseGenerated("fields"),
+                    ruleset, out.childidx, 2, hos);
+    hos("\n");
+  hos("  explicit operator oalex::JsonLoc() const;\n");
+  hos("};\n\n");
+
+  cppos(format("{}::operator JsonLoc() const {{\n", className));
+  genOutputTmplToJsonLocConversion(ruleset, out, cppos);
   cppos("}\n\n");
 }
 
