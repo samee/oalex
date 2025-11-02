@@ -1297,8 +1297,13 @@ genOptionalFieldAppends(
     const vector<RuleField>& fields,
     string_view resvar,
     const OutputStream& cppos) {
-  cppos("  using oalex::holdsErrorValue;\n");
+  bool first = true;
   for(auto& field: fields) if(field.container == RuleField::optional) {
+    if(first) {
+      cppos("\n");
+      cppos("  using oalex::holdsErrorValue;\n");
+      first = false;
+    }
     cppos(format("  if(!holdsErrorValue(fields.{}))\n", field.field_name));
     cppos(format("    {}.emplace_back({}, oalex::toJsonLoc(fields.{}));\n",
                  resvar, dquoted(field.field_name), field.field_name));
@@ -1435,10 +1440,14 @@ genOutputTmplTypeDefinition(const RuleSet& ruleset, const OutputTmpl& out,
   if(!optPaths.empty())
     cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::toJsonLoc;\n");
+
+  // First, convert the fields we know will be there.
   cppos("  auto rv = JsonLoc::withPos(");
     genFieldConversion(out.outputTmpl, "fields", optIdents, cppos, 2);
     cppos(", loc.first, loc.second);\n");
   cppos("\n");
+
+  // Then, add in the optional fields only if they exist.
   for(auto& optPath : optPaths)
     genOptionalTemplateField("rv", "fields", optPath, cppos);
   if(!optPaths.empty()) cppos("\n");
