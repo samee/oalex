@@ -646,9 +646,15 @@ codegen(const RuleSet& ruleset, const ConcatFlatRule& cfrule,
       codegenParserCall(ruleAt(ruleset, childid), "j", cppos);
       cppos(";\n");
     cppos(format("  if(holdsErrorValue({})) return std::nullopt;\n", rescomp));
-    if(!isDiscard(comp.compRead))
+    if(comp.compRead == CompRead::asOpaque)
+      cppos(format("  rv.fields.{} = std::move({});\n", comp.outputPlaceholder,
+                   resdeets.value(rescomp)));
+    else if(comp.compRead == CompRead::unpackStruct)
       cppos(format("  mergePart{}Into{}(std::move({}), rv);\n",
                    comp_serial, outType, resdeets.value(rescomp)));
+    else if(comp.compRead == CompRead::discard) ;  // nothing to generate.
+    else Bug("Unknown CompRead value when "
+             "gernerating ConcatFlatRule component: {}", int(comp.compRead));
     comp_serial++;
   }
   if(cfrule.comps.empty())
@@ -901,26 +907,21 @@ genMergeHelpers(const RuleSet& ruleset, const OrRule& orRule,
   }
 }
 
-// Callers are expected to check if this is about to generate an empty function.
-// See uses of isDiscard().
+// This only generates helpers for CompRead::unpackStruct. Callers are expected
+// to check that's the case.
 static void
-genMergeHelperCatPart(const RuleSet& ruleset, ssize_t compidx,
-    string_view funName, string_view outTypeName, string_view outField,
-    string_view nonFlatMergeTmpl, string_view flatMergeTmpl,
-    const OutputStream& cppos) {
-  const OutputTypeInfo info = outType(ruleset, compidx);
-  string compTypeName = parserResultTraits(info).type;
+genMergeHelperCatPart(const OutputTypeInfo& compinfo,
+    string_view funName, string_view outTypeName,
+    string_view fieldMergeTmpl, const OutputStream& cppos) {
+  string compTypeName = parserResultTraits(compinfo).type;
   string funHeader = format("static void {}({} src, {}& dest)", funName,
                             compTypeName, outTypeName);
 
   cppos(funHeader + " {\n");
 
   // Use std::runtime_format in C++26.
-  if(info.type() != OutputType::flatStruct)
-    cppos(format("  {};\n", vformat(nonFlatMergeTmpl,
-                                    make_format_args(outField))));
-  else for(auto& field: info.typeSource().flatFields())
-    cppos(format("  {};\n", vformat(flatMergeTmpl,
+  for(auto& field: compinfo.typeSource().flatFields())
+    cppos(format("  {};\n", vformat(fieldMergeTmpl,
                                     make_format_args(field.field_name))));
   cppos("}\n\n");
 }
@@ -929,13 +930,12 @@ static void
 genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
                 const OutputStream& cppos) {
   ssize_t partNumber = 0;
-  string outType = parserResultTraits(ruleset, seq).type;
+  string resType = parserResultTraits(ruleset, seq).type;
   for(auto& comp: seq.comps) {
-    if(!isDiscard(comp.compRead)) {
-      string funName = format("mergePart{}Into{}", partNumber, outType);
+    if(comp.compRead == CompRead::unpackStruct) {
+      string funName = format("mergePart{}Into{}", partNumber, resType);
       genMergeHelperCatPart(
-          ruleset, comp.idx, funName, outType, comp.outputPlaceholder,
-          "dest.fields.{} = std::move(src)",
+          outType(ruleset, comp.idx), funName, resType,
           "dest.fields.{0} = std::move(src.fields.{0})", cppos);
     }
     ++partNumber;
@@ -945,22 +945,18 @@ genMergeHelpers(const RuleSet& ruleset, const ConcatFlatRule& seq,
 static void
 genMergeHelpers(const RuleSet& ruleset, const LoopRule& rep,
                 const OutputStream& cppos) {
-  string outType = parserResultTraits(ruleset, rep).type;
-  string funName = "mergeInitPartInto" + outType;
+  string resType = parserResultTraits(ruleset, rep).type;
+  string funName = "mergeInitPartInto" + resType;
   if(!isDiscard(rep.initRead))
     genMergeHelperCatPart(
-        ruleset, rep.initidx,
-        funName,  outType, "",
-        "-- invalid: not used --",
+        outType(ruleset, rep.initidx), funName,  resType,
         "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
 
   for(ssize_t c=0; c<ssize(rep.loopbody); ++c)
     if(!isDiscard(rep.partRead[c])) {
-      funName = format("mergePart{}Into{}", c, outType);
+      funName = format("mergePart{}Into{}", c, resType);
       genMergeHelperCatPart(
-          ruleset, rep.loopbody[c],
-          funName,  outType, "",
-          "-- invalid: not used --",
+          outType(ruleset, rep.loopbody[c]), funName,  resType,
           "dest.fields.{0}.push_back(std::move(src.fields.{0}))", cppos);
     }
 }
