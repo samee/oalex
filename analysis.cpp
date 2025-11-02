@@ -381,17 +381,6 @@ resolveWrapperTypes(RuleSet& ruleset) {
 
 // --------------------------- normalizeCompRead -----------------------------
 
-static CompRead
-compRead(const RuleSet& ruleset, ssize_t idx, string_view fieldName) {
-  if(makesFlatStruct(ruleset, idx)) {
-    const Rule& ts = ruleset.rules[idx]->outType(ruleset).typeSource();
-    if(ts.flatFields().empty()) return CompRead::discard;
-    else return CompRead::unpackStruct;
-  }else {
-    if(fieldName.empty()) return CompRead::discard;
-    else return CompRead::asOpaque;
-  }
-}
 static void
 explainBadFlatStructHandling(const RuleSet& ruleset, ssize_t fieldidx,
                              const Rule& typeSource, CompRead cr) {
@@ -465,10 +454,6 @@ normalizeOne(const RuleSet& ruleset, ssize_t fieldidx,
   }
 }
 
-// TODO: Make sure this compRead field in rules is consistent with outType() of
-// the target rule. E.g. we can only have unpackStruct here if somebody is
-// exporting a struct. Values can only be discarded if they have no name or no
-// fields, etc.
 void
 normalizeCompRead(RuleSet& ruleset) {
   for(ssize_t i=0; i<ssize(ruleset.rules); ++i) {
@@ -479,13 +464,10 @@ normalizeCompRead(RuleSet& ruleset) {
         normalizeOne(ruleset, c.idx, c.outputPlaceholder, c.compRead);
       }
     else if(auto* rep = dynamic_cast<LoopRule*>(r)) {
-      // normalizeOne(ruleset, rep->initidx, {}, rep->initRead);
-      rep->initRead = compRead(ruleset, rep->initidx, {});
-      ssize_t n = ssize(rep->loopbody);
-      rep->partRead.assign(n, CompRead::unpackStruct);
-      for(ssize_t i=0; i<n; ++i)
-        // normalizeOne(ruleset, rep->loopbody[i], {}, rep->partRead[i]);
-        rep->partRead[i] = compRead(ruleset, rep->loopbody[i], {});
+      normalizeOne(ruleset, rep->initidx, {}, rep->initRead);
+      for(ssize_t i=0; i<ssize(rep->loopbody); ++i) {
+        normalizeOne(ruleset, rep->loopbody[i], {}, rep->partRead[i]);
+      }
     }
   }
 }
