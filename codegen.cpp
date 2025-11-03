@@ -1228,9 +1228,9 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName,
 }
 
 static bool
-excludedField(const vector<string>& excluded_fields, const JsonTmpl& tmpl) {
-  for(const string& ex : excluded_fields)
-    if(isPlaceholder(tmpl, ex)) return true;
+oneOf(const vector<string>& v, const JsonTmpl& tmpl) {
+  for(const string& f : v)
+    if(isPlaceholder(tmpl, f)) return true;
   return false;
 }
 
@@ -1247,7 +1247,7 @@ excludedField(const vector<string>& excluded_fields, const JsonTmpl& tmpl) {
 // to support lists in mapNestedAppend("a.b[3].c")
 static void
 genFieldConversion(const JsonTmpl& t, string field_prefix,
-                   const vector<string>& excluded_fields,
+                   const vector<string>& optional_fields,
                    const OutputStream& cppos, ssize_t indent) {
   if(t.holdsString()) cppos(field_prefix);
   else if(t.holdsPlaceholder()) cppos(format("toJsonLoc({})", field_prefix));
@@ -1263,12 +1263,13 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
   }else if(const JsonTmpl::Map* m = t.getIfMap()) {
     cppos("oalex::mapTmpl({"); linebreak(cppos, indent);
     for(const auto& [k, v] : *m) {
-      if(excludedField(excluded_fields, v)) continue;
-      cppos(format("  keepOnError({}, ", dquoted(k)));
+      string init = oneOf(optional_fields, v)
+        ? "dropOnError" : "keepOnError";
+      cppos(format("  {}({}, ", init, dquoted(k)));
       genFieldConversion(
           v, format("{}.{}", field_prefix,
                     Ident::parseGenerated(k).toSnakeCase()),
-          excluded_fields, cppos, indent+2);
+          optional_fields, cppos, indent+2);
       cppos("),"); linebreak(cppos, indent);
     }
     cppos("})");
@@ -1374,38 +1375,6 @@ getPlaceholderPaths(const vector<string>& placeholders,
 }
 
 static void
-genOptionalTemplateField(string_view dest, string_view first_comp,
-                         vector<JsonPathComp> path,
-                         const OutputStream& cppos) {
-  // Convert path to a C++ field.<...> accessor.
-  string struct_field{first_comp};
-  for(auto& c : path) {
-    if(c.key.empty()) struct_field += format("[{}]", c.pos);
-    else struct_field += "." + c.key;
-  }
-
-  // The new_value parameter for mapAppendNestedMap().
-  string_view inner_key = path.back().key;
-  if(inner_key.empty()) Bug("Cannot suppress field not directly in a map");
-
-  // The new_key parameter for mapAppendNestedMap().
-  // The last key is already part of inner_key above.
-  string output_path = "{";
-  for(ssize_t i=0; i+1 < ssize(path); ++i) {
-    if(path[i].key.empty()) output_path += std::to_string(path[i].pos);
-    else output_path += dquoted(path[i].key);
-    if(i+2 < ssize(path)) output_path += ", ";
-  }
-  output_path += "}";
-
-  // TODO: Instead of an asterisk, use ParserResultTraits::get_value_tmpl.
-  // Requires us to know schema_source, though.
-  cppos(format("  if(!holdsErrorValue({}))\n", struct_field));
-  cppos(format("    mapNestedAppend({}, {}, {}, JsonLoc(*{}));\n",
-               dest, output_path, dquoted(inner_key), struct_field));
-}
-
-static void
 genOutputTmplToJsonLocConversion(const RuleSet& ruleset, const OutputTmpl& out,
                                  const OutputStream& cppos) {
   vector<string> optIdents = getOptionalFields(ruleset, out.childidx);
@@ -1416,16 +1385,11 @@ genOutputTmplToJsonLocConversion(const RuleSet& ruleset, const OutputTmpl& out,
     cppos("  using oalex::holdsErrorValue;\n");
   cppos("  using oalex::toJsonLoc;\n");
 
-  // First, convert the fields we know will be there.
   cppos("  auto rv = JsonLoc::withPos(");
     genFieldConversion(out.outputTmpl, "fields", optIdents, cppos, 2);
     cppos(", loc.first, loc.second);\n");
   cppos("\n");
 
-  // Then, add in the optional fields only if they exist.
-  for(auto& optPath : optPaths)
-    genOptionalTemplateField("rv", "fields", optPath, cppos);
-  if(!optPaths.empty()) cppos("\n");
   cppos("  return rv;\n");
 }
 
