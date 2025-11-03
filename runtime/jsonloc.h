@@ -183,4 +183,33 @@ void mapNestedAppend(JsonLoc& jsloc,
                      const std::vector<JsonPathComp>& path_to_map,
                      std::string new_key, JsonLoc new_value);
 
+// This represents a single key-value entry in a map, as used when
+// constructing JsonLoc::Map. It can be of two kinds:
+//   * ones where the key itself is dropped on error.
+//   * ones where any error is a bug.
+// TODO: See if JsonPathComp and mapNestedAppend can be deleted.
+struct JsonLocEntry {
+  std::string key;
+  JsonLoc jsloc;
+  enum OnError { keep, drop } onerror;
+};
+
+inline JsonLocEntry dropOnError(std::string k, JsonLoc v) {
+  return {std::move(k), std::move(v), JsonLocEntry::drop};
+}
+inline JsonLocEntry keepOnError(std::string k, JsonLoc v) {
+  return {std::move(k), std::move(v), JsonLocEntry::keep};
+}
+
+/* Usage in generated code:
+
+  auto rv = mapTmpl({
+    {"k1", toJsonLoc(v1)},
+    {"k2", dropOnError(v2)},
+  });
+
+  The idea being that k2 can be dropped if v2 is an error value.
+*/
+JsonLoc::Map mapTmpl(std::vector<JsonLocEntry> kv);
+
 }  // namespace oalex

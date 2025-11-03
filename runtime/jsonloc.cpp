@@ -239,6 +239,18 @@ JsonPathComp::JsonPathComp(ssize_t pos)
   if(pos < 0) Bug("JsonPath position cannot be negative");
 }
 
+JsonLoc::Map
+mapTmpl(vector<JsonLocEntry> kv) {
+  JsonLoc::Map rv;
+  // Propagate unexpected JsonLoc::ErrorValue for visibility.
+  // We probably don't produce these maps.
+  for(auto& [k, jsloc, oe] : kv) {
+    if(!jsloc.holdsErrorValue() || oe != JsonLocEntry::drop)
+      rv.push_back({k, jsloc});
+  }
+  return rv;
+}
+
 }  // namespace oalex
 
 auto std::formatter<oalex::JsonLoc>::parse(format_parse_context& ctx)

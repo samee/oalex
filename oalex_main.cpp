@@ -476,8 +476,10 @@ void produceSourceFiles(const ParsedSource& src,
       "#include <cstdint>\n"
       "#include <oalex.h>\n\n");
   cppos(format("#include \"{}\"\n"
+               "using oalex::dropOnError;\n"
                "using oalex::InputDiags;\n"
                "using oalex::JsonLoc;\n"
+               "using oalex::keepOnError;\n"
                "using namespace std::string_literals;\n"
                "\n",
                hFname));

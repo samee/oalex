@@ -1261,17 +1261,17 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
     }
     cppos("}");
   }else if(const JsonTmpl::Map* m = t.getIfMap()) {
-    cppos("JsonLoc::Map{"); linebreak(cppos, indent);
+    cppos("oalex::mapTmpl({"); linebreak(cppos, indent);
     for(const auto& [k, v] : *m) {
       if(excludedField(excluded_fields, v)) continue;
-      cppos(format("  {{{}, ", dquoted(k)));
+      cppos(format("  keepOnError({}, ", dquoted(k)));
       genFieldConversion(
           v, format("{}.{}", field_prefix,
                     Ident::parseGenerated(k).toSnakeCase()),
           excluded_fields, cppos, indent+2);
-      cppos("},"); linebreak(cppos, indent);
+      cppos("),"); linebreak(cppos, indent);
     }
-    cppos("}");
+    cppos("})");
   }
 }
 
@@ -1281,16 +1281,16 @@ static void
 genRequiredFieldsConversion(
     const vector<RuleField>& fields,
     const OutputStream& cppos, ssize_t indent) {
-  cppos("JsonLoc::Map{"); linebreak(cppos, indent);
+  cppos("oalex::mapTmpl({"); linebreak(cppos, indent);
   for(auto& field: fields) if(field.container != RuleField::optional) {
-    cppos(format("  {{{}, ", dquoted(field.field_name)));
+    cppos(format("  keepOnError({}, ", dquoted(field.field_name)));
     if(field.container == RuleField::single)
       cppos(format("JsonLoc{{fields.{}}}", field.field_name));
     else
       cppos(format("oalex::toJsonLoc(fields.{})", field.field_name));
-    cppos("},"); linebreak(cppos, indent);
+    cppos("),"); linebreak(cppos, indent);
   }
-  cppos("}");
+  cppos("})");
 }
 static void
 genOptionalFieldAppends(
