@@ -157,7 +157,7 @@ bool parseRule9(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedRule10::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("rule_name", JsonLoc{fields.rule_name}),
+    keepOnError("rule_name", oalex::toJsonLoc(fields.rule_name)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
@@ -225,7 +225,7 @@ bool parseRule13(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedRule14::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("external_name", JsonLoc{fields.external_name}),
+    keepOnError("external_name", oalex::toJsonLoc(fields.external_name)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
@@ -293,7 +293,7 @@ bool parseRule17(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedRule18::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("param", JsonLoc{fields.param}),
+    keepOnError("param", oalex::toJsonLoc(fields.param)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
@@ -446,8 +446,8 @@ std::optional<oalex::StringLoc> parseRule25(oalex::InputDiags& ctx, ssize_t& i) 
 
 ParsedRule26::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("rule_name", JsonLoc{fields.rule_name}),
-    keepOnError("external_name", JsonLoc{fields.external_name}),
+    keepOnError("rule_name", oalex::toJsonLoc(fields.rule_name)),
+    keepOnError("external_name", oalex::toJsonLoc(fields.external_name)),
     keepOnError("param", oalex::toJsonLoc(fields.param)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
@@ -592,7 +592,7 @@ std::optional<ParsedErrorStanzaLine> parseErrorStanzaLine(oalex::InputDiags& ctx
 
 ParsedRule29::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("ident", JsonLoc{fields.ident}),
+    keepOnError("ident", oalex::toJsonLoc(fields.ident)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
@@ -660,7 +660,7 @@ bool parseRule32(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedRule33::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("error_msg", JsonLoc{fields.error_msg}),
+    keepOnError("error_msg", oalex::toJsonLoc(fields.error_msg)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }
@@ -681,8 +681,8 @@ std::optional<ParsedRule33> parseRule33(oalex::InputDiags& ctx, ssize_t& i) {
 
 ParsedRule34::operator JsonLoc() const {
   auto rv = oalex::mapTmpl({
-    keepOnError("ident", JsonLoc{fields.ident}),
-    keepOnError("error_msg", JsonLoc{fields.error_msg}),
+    keepOnError("ident", oalex::toJsonLoc(fields.ident)),
+    keepOnError("error_msg", oalex::toJsonLoc(fields.error_msg)),
   });
   return JsonLoc::withPos(rv, loc.first, loc.second);
 }

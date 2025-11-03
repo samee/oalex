@@ -569,8 +569,10 @@ int main(int argc, char* argv[]) {
         "extern bool badFunc();\n\n", hfp.get());
   fprintf(cppfp.get(),
           "#include \"%s\"\n"
+          "using oalex::dropOnError;\n"
           "using oalex::InputDiags;\n"
           "using oalex::JsonLoc;\n"
+          "using oalex::keepOnError;\n"
           "using namespace std::string_literals;\n\n"
           "JsonLoc parseAsgnStmt(InputDiags&, size_t&) {\n"
           "  // Unimplemented\n"
