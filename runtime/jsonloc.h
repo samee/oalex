@@ -162,8 +162,7 @@ template <class V> JsonLoc toJsonLoc(const std::vector<V>& v) {
   for(auto& e: v) rv.push_back(JsonLoc{e});
   return rv;
 }
-// TODO: improve codegen so these two overloads aren't necessary.
-inline JsonLoc toJsonLoc(JsonLoc v) { return v; }
+// TODO: improve codegen so this overload isn't necessary.
 template <class V> std::enable_if_t<std::is_constructible_v<JsonLoc, V>,
                                     JsonLoc>
 toJsonLoc(const V& v) { return JsonLoc{v}; }
@@ -172,7 +171,7 @@ toJsonLoc(const V& v) { return JsonLoc{v}; }
 // but I didn't want to include that file again, slowing down compilation.
 struct JsonPathComp {
   std::string key;
-  ssize_t pos;  // pos is used if and only if comp is empty.
+  ssize_t pos;  // pos is used if and only if key is empty.
 
   // Implicit conversion ctors.
   JsonPathComp(std::string s);

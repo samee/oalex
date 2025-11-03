@@ -67,9 +67,6 @@ bool holdsErrorValue(const std::optional<V>& v) { return !v.has_value(); }
 template <class V>
 bool holdsErrorValue(const indopt<V>& v) { return !v.has_value(); }
 
-inline bool holdsErrorValue(const JsonLoc& jsloc)
-  { return jsloc.holdsErrorValue(); }
-
 // bool for SkipPoint return type
 inline bool holdsErrorValue(bool b) { return !b; }
 
