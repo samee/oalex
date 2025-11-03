@@ -179,15 +179,10 @@ struct JsonPathComp {
   JsonPathComp(ssize_t pos);
 };
 
-void mapNestedAppend(JsonLoc& jsloc,
-                     const std::vector<JsonPathComp>& path_to_map,
-                     std::string new_key, JsonLoc new_value);
-
 // This represents a single key-value entry in a map, as used when
 // constructing JsonLoc::Map. It can be of two kinds:
 //   * ones where the key itself is dropped on error.
 //   * ones where any error is a bug.
-// TODO: See if JsonPathComp and mapNestedAppend can be deleted.
 struct JsonLocEntry {
   std::string key;
   JsonLoc jsloc;

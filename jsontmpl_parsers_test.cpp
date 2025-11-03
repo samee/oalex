@@ -182,43 +182,6 @@ void testLocations() {
   assertEqual("testLocations.goodbye.enPos", gp->enPos, size_t(50));
 }
 
-void testJsonPath() {
-  JsonLoc jsloc = JsonLoc::Map{};
-  mapNestedAppend(jsloc, {}, "new_key1", JsonLoc::String{"new_value1"});
-  assertEqual("Append to empty map", jsloc,
-              *parseJsonLoc("{new_key1: 'new_value1'}"));
-  mapNestedAppend(jsloc, {}, "new_key2", JsonLoc::String{"new_value2"});
-  assertEqual("Append to empty map", jsloc,
-              *parseJsonLoc(R"({new_key1: 'new_value1',
-                                new_key2: 'new_value2'})"));
-
-  jsloc = *parseJsonLoc("{a: {b: {c: {old_key: 'old_value'}}, d: 'xyz'}}");
-  mapNestedAppend(jsloc, {"a", "b", "c"},
-                  "new_key", JsonLoc::String{"new_value"});
-  assertEqual("Append three levels deep", jsloc,
-              *parseJsonLoc(R"({a: {b: {c: {
-                                  old_key: 'old_value',
-                                  new_key: 'new_value',
-                                }},
-                                d: 'xyz'}})"));
-
-  jsloc = *parseJsonLoc(R"({a: {
-            b: ['hello', {c: {old_key: 'old_value'}}, 'world'],
-            d: 'xyz',
-          }})");
-  mapNestedAppend(jsloc, {"a", "b", 1, "c"},
-                  "new_key", JsonLoc::String{"new_value"});
-  assertEqual("Append within a list", jsloc,
-              *parseJsonLoc(R"({a: {b: [
-                'hello',
-                {c: {
-                  old_key: 'old_value',
-                  new_key: 'new_value',
-                }},
-                'world'
-              ], d: 'xyz'}})"));
-}
-
 }  // namespace
 
 // Note: none of these check JsonTmpl::stPos or enPos of parse results, since we
@@ -248,6 +211,5 @@ int main() {
   testEquality("{hello: 'world', goodbye: ['till', 'next', 'time']}",
                "{hello: 'world', goodbyee: ['till', 'next', 'time']}",
                false);
-  testJsonPath();
   testLocations();
 }

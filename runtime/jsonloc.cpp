@@ -215,20 +215,6 @@ bool JsonLoc::operator==(const JsonLoc& that) const {
   BugUnknownJsonType(tag_);
 }
 
-void mapNestedAppend(JsonLoc& jsloc, const vector<JsonPathComp>& path_to_map,
-                     string new_key, JsonLoc new_value) {
-  JsonLoc* cur = &jsloc;
-  for(auto& comp : path_to_map) {
-    if(comp.key.empty()) cur = &cur->getIfVector()->at(comp.pos);
-    else cur = JsonLoc::mapScanForValue(*cur->getIfMap(), comp.key);
-  }
-  // TODO: Print out JsonPathComp in dot-notation.
-  JsonLoc::Map* m = cur->getIfMap();
-  if(m == nullptr) Bug("Can only append to map values");
-  m->push_back({std::move(new_key), std::move(new_value)});
-  JsonLoc::mapSort(*m);
-}
-
 JsonPathComp::JsonPathComp(std::string s)
   : key{std::move(s)}, pos{-1} {
   if(key.empty()) Bug("JsonPath component cannot have an empty key");
