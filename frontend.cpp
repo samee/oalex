@@ -187,7 +187,7 @@ resemblesExternRule(InputDiags& ctx, size_t i) {
 bool
 matchesTokens(const vector<ExprToken>& tokens, ssize_t start,
               const vector<string_view>& expectations) {
-  if(start + tokens.size() < expectations.size()) return false;
+  if(tokens.size() < start + expectations.size()) return false;
   for(size_t i=0; i<expectations.size(); ++i)
     if(!expectations[i].empty() && !isToken(tokens[start+i], expectations[i]))
       return false;
