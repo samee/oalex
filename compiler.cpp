@@ -1290,7 +1290,7 @@ ruleExprOutputIdentsCheckUnique(
 // Sometimes, the caller special-cases RuleExpr{Squoted,Regex,Ident} so that
 // they are not handled by this function.
 //
-// All identifiers in rxpr are appended to exportedOutput. They are used to
+// All identifiers in rxpr are appended to exportedIdents. They are used to
 // generate an output template if needed. Moreover, they are also used to
 // verify that any `outputs:` template provided are actually defined, and has
 // matching listyness.
@@ -1468,7 +1468,7 @@ RuleExprCompiler::compileSingleExpr(const RuleExpr& rxpr) {
 // In both cases, it is used only if an `outputs:` stanza is explicitly
 // provided, where such a flattenable struct output is important.
 //
-// The exportedOutput is an output parameter that aggregates all the fields
+// The exportedIdents is an output parameter that aggregates all the fields
 // we see across the branches.
 //
 // Semantics:
