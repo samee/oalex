@@ -234,9 +234,9 @@ struct ConcatFlatRule::Component {
   Component(ssize_t idx, CompRead cr = CompRead::discard,
             std::string_view fieldName = {})  // implicit.
     : idx{idx}, outputPlaceholder{fieldName}, compRead{cr} {}
-  // additional overload for CompRead::discard:
+  // additional overload for named fields:
   Component(ssize_t idx, std::string_view fieldName)
-    : idx{idx}, outputPlaceholder{fieldName}, compRead{CompRead::discard} {}
+    : idx{idx}, outputPlaceholder{fieldName}, compRead{CompRead::asOpaque} {}
 };
 
 // This is typically used to organize the components of a ConcatFlatRule. The
