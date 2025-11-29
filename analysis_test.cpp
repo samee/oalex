@@ -107,7 +107,7 @@ void testFlatFieldsForNestedList() {
         StringRule{"("},
         StringRule{")"},
         StringRule{""},
-        LoopRule{{.initidx = 10, .looklen = 1, .loopbody{1, 10}}},  // [5]
+        LoopRule::fold(10, 1, -1),  // [5]
         OrRule{{{-1,5,passthroughTmpl}, {-1,4,passthroughTmpl}},
                true /* flattenOnDemand */ },  // [items, items, ... ]
         ConcatFlatRule{{ {2}, {6}, {3} }},

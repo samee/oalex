@@ -51,6 +51,48 @@ WrapperRule::outType(const RuleSet& rs) const {
   return {&rs, r, ot};
 }
 
+static vector<CompRead>
+discards(vector<bool> dv) {
+  vector<CompRead> rv(dv.size(), CompRead::unpackStruct);
+  for(size_t i=0; i<dv.size(); ++i) if(dv[i]) rv[i] = CompRead::discard;
+  return rv;
+}
+
+LoopRule
+LoopRule::repeat(ssize_t body, ssize_t skip) {
+  LoopRule rv;
+  rv.initidx = body;
+  rv.initRead = CompRead::unpackStruct;
+  if(skip != -1) {
+    rv.looklen = 2;
+    rv.loopbody = {skip, body};
+    rv.partRead = discards({1, 0});
+  }else {
+    rv.looklen = 1;
+    rv.loopbody = {body};
+    rv.partRead = discards({0});
+  }
+  return rv;
+}
+
+LoopRule
+LoopRule::fold(ssize_t body, ssize_t glue, ssize_t skip) {
+  LoopRule rv;
+  rv.initidx = body;
+  rv.initRead = CompRead::unpackStruct;
+  if(skip != -1) {
+    rv.looklen = 2;
+    rv.loopbody = {skip, glue, skip, body};
+    rv.partRead = discards({1,0,1,0});
+  }
+  else {
+    rv.looklen = 1;
+    rv.loopbody = {glue, body};
+    rv.partRead = discards({0,0});
+  }
+  return rv;
+}
+
 OutputTypeInfo
 OrRule::outType(const RuleSet& rs) const {
   OutputType ot;

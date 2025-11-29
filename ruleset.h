@@ -279,22 +279,21 @@ class OutputTmpl final : public Rule {
 // any error returned from those cause the loop to silently break.
 //
 // looklen needs to be >=1, and <=loopbody.size().
-//
-// The fields are kept in a separate struct to allow designated initializers.
-// They are inherited into LoopRule, so you can still access them through the
-// familiar dot or arrow notations.
-struct LoopRuleFields {
-  ssize_t initidx, looklen;
-  std::vector<ssize_t> loopbody;
-};
-
-class LoopRule final : public LoopRuleFields, public Rule {
+class LoopRule final : public Rule {
  public:
-  explicit LoopRule(LoopRuleFields f) : LoopRuleFields{std::move(f)} {}
   std::string specifics_typename() const override { return "LoopRule"; }
   OutputTypeInfo outType(const RuleSet& rs) const override {
     return {&rs, *this, OutputType::flatStruct};
   }
+  static LoopRule repeat(ssize_t body, ssize_t skip);
+  static LoopRule fold(ssize_t body, ssize_t glue, ssize_t skip);
+
+  ssize_t initidx, looklen;
+  std::vector<ssize_t> loopbody;
+  // Much like ConcatFlatRule::Component::compRead(), this can be adjusted
+  // to `discard` in analysis.cpp.
+  CompRead initRead;
+  std::vector<CompRead> partRead;
 };
 
 inline const JsonTmpl passthroughTmpl{JsonTmpl::Placeholder{"child"}};

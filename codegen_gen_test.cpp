@@ -161,7 +161,6 @@ void codegenNamedRules(RuleSet& rs,
                        const OutputStream& cppos, const OutputStream& hos) {
   resolveWrapperTypes(rs);
   populateFlatFields(rs);
-  normalizeCompRead(rs);
   for(size_t i=0; i<size(rs.rules); ++i)
     if(rs.rules[i]->nameOrNull() != nullptr) codegen(rs, i, cppos, hos);
 }
@@ -511,11 +510,7 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(MatchOrError{4, "Expected an identifier"}, "LoopIdent"),
         nmRule("+", "LoopPlusOperator"),
         nmRule(SkipPoint{0}, "LoopSkip"),
-        nmRule(LoopRule{{
-          .initidx = 6,
-          .looklen = 2,
-          .loopbody{2, 5, 2, 6},
-        }}, "LoopSum"),
+        nmRule(LoopRule::fold(6, 5, 2), "LoopSum"),
         nmRule(parseRegexRule("/[a-z]+/"), "LoopIdentRegex"),
         nmRule(MatchOrError{1, "Expected operator '+'"}, "LoopPlusOrError"),
         nmRule(ConcatFlatRule{{ {0, "operand"} }}, "LoopOperand"),
@@ -525,21 +520,13 @@ void generateLoopRuleTest(const OutputStream& cppos, const OutputStream& hos) {
         nmRule(
           ConcatFlatRule{{ {0, "elements"}, {2}, {7} }},
           "ListPrefixPart"),
-        nmRule(LoopRule{{
-          .initidx = 8,
-          .looklen = 2,
-          .loopbody {2, 8},
-        }}, "ListPrefix"),
+        nmRule(LoopRule::repeat(8, 2), "ListPrefix"),
 
         // Flattenable child.
         nmRule(parseRegexRule("/[-+]/"), "LoopPlusOrMinus"),
         nmRule(ConcatFlatRule{{ {10, "sign"}, {0, "elements"} }},
                "LoopFlatElt"),
-        nmRule(LoopRule{{
-          .initidx = 11,
-          .looklen = 2,
-          .loopbody {2, 7, 2, 11},
-        }}, "SignedListContents"),
+        nmRule(LoopRule::fold(11, 7, 2), "SignedListContents"),
         StringRule{"["}, StringRule{"]"},
         nmRule(ConcatFlatRule{{ {13}, flatcat(12), {14} }}, "SignedList")
     ),
@@ -557,8 +544,7 @@ void generateGluePartSwappedTest(const OutputStream& cppos,
         StringRule{"-"},
         nmRule(parseRegexRule("/[a-z]+/"), "GpSwappedIdent"),
         nmRule(ConcatFlatRule{{ { 1, "words" } }}, "GpSwappedWord"),
-        nmRule(LoopRule{{ .initidx = 0, .looklen = 1, .loopbody{2, 0}}},
-               "GpSwappedString")
+        nmRule(LoopRule::fold(0, 2, -1), "GpSwappedString")
     ),
     .skips{},
     .regexOpts = {regexOpts},
