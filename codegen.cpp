@@ -670,18 +670,16 @@ genStructValues(const JsonTmpl& outputTmpl,
                 const map<string,string>& placeholders, ssize_t indent,
                 const OutputStream& cppos) {
   if(auto* s = outputTmpl.getIfString()) {
-    cppos(" = "); cppos(dquoted(*s));
+    cppos(dquoted(*s));
   }else if(auto* p = outputTmpl.getIfPlaceholder()) {
     auto v = placeholders.find(p->key);
     if(v == placeholders.end())
       Bug("Undefined placeholder in codegen: {}", p->key);
-    cppos(" = ");
     cppos(v->second);
   }else if(auto* v = outputTmpl.getIfVector()) {
     // TODO: Check if this still works, now that we moved away from JsonLoc.
     // This is used when OutputTmpl has a list _without_ repeating elements.
     // E.g. ["decl", decl_fields]. This should really become a tuple.
-    cppos(" = ");
     genMakeVector("JsonLoc", *v, [&](auto& child) {
                    genStructValues(child, placeholders, indent+2, cppos);
                  }, [&]{ linebreak(cppos, indent); }, cppos);
@@ -689,6 +687,7 @@ genStructValues(const JsonTmpl& outputTmpl,
     cppos("{"); linebreak(cppos, indent);
     for(auto& [k,v] : *m) {
       cppos("  ."); cppos(Ident::parseGenerated(k).toSnakeCase());
+      cppos(" = ");
       genStructValues(v, placeholders, indent+2, cppos);
       cppos(","); linebreak(cppos, indent);
     }

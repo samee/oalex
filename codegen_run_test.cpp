@@ -266,6 +266,15 @@ void runNestedTypesTest() {
   assertEqual(__func__, "b", *expr.fields.src_2);
 }
 
+void runTupleTypesTest() {
+  InputDiags ctx{Input{"25-12-25"}};
+  ssize_t pos = 0;
+  ParsedDate date = *parseDate(ctx, pos);
+  assertEqual(__func__, "25", *date.fields.date_fields[0].getIfString());
+  assertEqual(__func__, "12", *date.fields.date_fields[1].getIfString());
+  assertEqual(__func__, "25", *date.fields.date_fields[2].getIfString());
+}
+
 }  // namespace
 
 // This one needs to be extern for linking to generated code.
@@ -612,6 +621,7 @@ int main() {
   runRegexWordOverride();
   runConcatFlatTest();
   runNestedTypesTest();
+  runTupleTypesTest();
   runSingleWordTemplate();
   runConcatTest();
   runExternParserDeclaration();

@@ -283,6 +283,22 @@ void generateNestedTypesTest(const OutputStream& cppos,
   codegenNamedRules(rs, cppos, hos);
 }
 
+void generateTupleTypesTest(const OutputStream& cppos,
+                            const OutputStream& hos) {
+  RuleSet rs { oalex::makeVectorUnique<Rule>(
+    nmRule(parseRegexRule("/[0-9][0-9]/"), "DateComp"),
+    StringRule{"-"},
+    nmRule(ConcatFlatRule{{ {0, "day"}, {1}, {0, "month"}, {1}, {0, "year"} }},
+           "DateFields"),
+    nmRule(OutputTmpl{2, {},
+      *parseJsonTmpl("{date_fields: [day, month, year]}")},
+      "Date")
+    ), {cskip}, {regexOpts}
+  };
+
+  codegenNamedRules(rs, cppos, hos);
+}
+
 void generateExternParserDeclaration(const OutputStream& cppos,
                                      const OutputStream& hos) {
   const Skipper shskip{ {{"#", "\n"}}, {}, Skipper::Newlines::keep_all };
@@ -602,6 +618,8 @@ int main(int argc, char* argv[]) {
   generateConcatTest(cppos, hos);
   linebreaks();
   generateNestedTypesTest(cppos, hos);
+  linebreaks();
+  generateTupleTypesTest(cppos, hos);
   linebreaks();
   generateExternParserDeclaration(cppos, hos);
   linebreaks();
