@@ -41,6 +41,15 @@ namespace oalex {
 
 // ------------------- computeUserExposureForTypes ----------------------------
 
+static const vector<RuleField>&
+ruleFields(const RuleSet& ruleset, const Rule& r) {
+  if(auto* outtmpl = dynamic_cast<const OutputTmpl*>(&r)) {
+    if(outtmpl->childName.empty())
+      return ruleset.rules.at(outtmpl->childidx)->flatFields();
+    else oalex::Unimplemented("OutputTmpl without flatFields");
+  }else return r.flatFields();
+}
+
 // Assumes:
 // * all topLevel rules have names.
 // * resolveWrapperTypes is already complete, so we can use outType().
@@ -49,7 +58,7 @@ computeUserExposureForTypes(RuleSet& ruleset) {
   for(ssize_t ri = 0; ri < ssize(ruleset.rules); ++ri) {
     const Rule& r = *ruleset.rules.at(ri);
     if(!r.nameOrNull()) continue;
-    for(const RuleField& rf : r.flatFields()) {
+    for(const RuleField& rf : ruleFields(ruleset, r)) {
       ssize_t rj = rf.schema_source;
       Rule& r2 = *ruleset.rules.at(rj);
       if(r2.nameOrNull() || !makesStruct(ruleset, rj)) continue;
