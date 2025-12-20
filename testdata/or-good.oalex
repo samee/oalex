@@ -214,3 +214,16 @@ where:
 
 # Test that we support single-quotes in codegen
 rule readable_name: /[a-z']+/
+
+rule vector: "[x, y, z]"
+where:
+  x, y, z ~ decimal
+  decimal ~ /[0-9]+(\.[0-9])?+/
+
+# Test of tuples in output.
+rule cross_prod: "u x v"
+where:
+  u, v ~ vector
+outputs: {
+  expr: ["cross-product", u, v]
+}

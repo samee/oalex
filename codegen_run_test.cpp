@@ -270,9 +270,10 @@ void runTupleTypesTest() {
   InputDiags ctx{Input{"25-12-25"}};
   ssize_t pos = 0;
   ParsedDate date = *parseDate(ctx, pos);
-  assertEqual(__func__, "25", *date.fields.date_fields[0].getIfString());
-  assertEqual(__func__, "12", *date.fields.date_fields[1].getIfString());
-  assertEqual(__func__, "25", *date.fields.date_fields[2].getIfString());
+  using std::get;
+  assertEqual(__func__, "25", *get<0>(date.fields.date_fields));
+  assertEqual(__func__, "12", *get<1>(date.fields.date_fields));
+  assertEqual(__func__, "25", *get<2>(date.fields.date_fields));
 }
 
 }  // namespace

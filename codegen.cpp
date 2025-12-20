@@ -679,12 +679,13 @@ genStructValues(const JsonTmpl& outputTmpl,
       Bug("Undefined placeholder in codegen: {}", p->key);
     cppos(v->second);
   }else if(auto* v = outputTmpl.getIfVector()) {
-    // TODO: Check if this still works, now that we moved away from JsonLoc.
-    // This is used when OutputTmpl has a list _without_ repeating elements.
-    // E.g. ["decl", decl_fields]. This should really become a tuple.
-    genMakeVector("JsonLoc", *v, [&](auto& child) {
-                   genStructValues(child, placeholders, indent+2, cppos);
-                 }, [&]{ linebreak(cppos, indent); }, cppos);
+    cppos("std::tuple{"); linebreak(cppos, indent);
+    for(auto& e : *v) {
+      cppos("  ");
+      genStructValues(e, placeholders, indent+2, cppos);
+      cppos(","); linebreak(cppos, indent);
+    }
+    cppos("}");
   }else if(auto* m = outputTmpl.getIfMap()) {
     cppos("{"); linebreak(cppos, indent);
     for(auto& [k,v] : *m) {
@@ -1231,7 +1232,7 @@ genOutputFieldType(const JsonTmpl& t, const string& typeNamePrefix,
     }
     tt += ">";
     hos(format("using {} = {};", rv, tt));
-    return tuple{"std::vector<oalex::JsonLoc>", true};  // TODO: migrate to rv.
+    return tuple{rv, true};
   }
   else if(const JsonTmpl::Map* m = t.getIfMap()) {
     hos(format("struct {} {{", rv));
@@ -1290,7 +1291,7 @@ genFieldConversion(const JsonTmpl& t, string field_prefix,
   else if(const JsonTmpl::Vector* v = t.getIfVector()) {
     cppos("JsonLoc::Vector{"); linebreak(cppos, indent);
     for(ssize_t i=0; i<ssize(*v); ++i) {
-      cppos(format("  toJsonLoc({}[{}]),", field_prefix, i));
+      cppos(format("  toJsonLoc(std::get<{}>({})),", i, field_prefix));
         linebreak(cppos, indent);
     }
     cppos("}");
