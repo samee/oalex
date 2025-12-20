@@ -18,6 +18,7 @@
 #include <memory>
 #include <source_location>
 #include <string_view>
+#include <tuple>
 #include <utility>
 #include <vector>
 #include "ruleset.h"
@@ -32,6 +33,7 @@ using std::make_format_args;
 using std::map;
 using std::string;
 using std::string_view;
+using std::tuple;
 using std::unique_ptr;
 using std::vector;
 using std::vformat;
@@ -1188,33 +1190,51 @@ placeholderField(const RuleSet& ruleset, ssize_t childidx,
       ruleset.rules[childidx]->flatFields().size());
 }
 
-// TODO: Eliminate parseGenerated() by keeping them as idents.
+// Forward decl.
 static void
 genOutputFields(const JsonTmpl& t, const Ident& fieldName,
   const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
+  const OutputStream& hos);
+
+// Returns type name for a given field. typePrefix is either:
+//   * toUCamelCase, or
+//   * Something with underscores for std::tuple temp types.
+// Generates type definition, while returning the name of the defined type.
+// In many cases, the returned type is simply typeNamePrefix.
+// It also returns a bool indicating whether any type definition was
+// generated at all.
+static tuple<string, bool>
+genOutputFieldType(const JsonTmpl& t, const string& typeNamePrefix,
+  const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
   const OutputStream& hos) {
-  if(const JsonTmpl::String* s = t.getIfString())
-    hos(format("std::string {} = {};", fieldName.toSnakeCase(),
-               dquoted(*s)));
-  else if(const JsonTmpl::Placeholder* p = t.getIfPlaceholder()) {
+  if(t.holdsString()) return tuple{"std::string", false};
+  else if(t.holdsEllipsis())
+    Bug("The compiler was supposed to have removed ellipsis");
+  const string& rv = typeNamePrefix;
+  if(const JsonTmpl::Placeholder* p = t.getIfPlaceholder()) {
     RuleField field = placeholderField(ruleset, childidx, *p);
     string vtype = fieldTypeWithContainer(ruleset, field);
     if (ruleAt(ruleset, field.schema_source).nestedIn() != -1) {
-      hos(format("using {} = {};", fieldName.toUCamelCase(), vtype));
-      linebreak(hos, indent);
-      hos(format("{} {};", fieldName.toUCamelCase(), fieldName.toSnakeCase()));
-    }else {
-      hos(format("{} {};", vtype, fieldName.toSnakeCase()));
-    }
+      hos(format("using {} = {};", rv, vtype));
+      return {rv, true};
+    }else return {vtype, false};
   }
-  else if(t.holdsEllipsis())
-    Bug("The compiler was supposed to have removed ellipsis");
-  else if(t.holdsVector())
-    // This one is for vectors that stay vectors after desugaring.
-    // I'm not sure if this should become JsonLike, actually.
-    hos(format("std::vector<oalex::JsonLoc> {};", fieldName.toSnakeCase()));
+  else if(const JsonTmpl::Vector* vec = t.getIfVector()) {
+    string tt = "std::tuple<";
+    for(ssize_t i=0; i<ssize(*vec); ++i) {
+      const JsonTmpl& e = vec->at(i);
+      const string partName = format("{}_part{}", rv, i);
+      auto [partType, gen]
+        = genOutputFieldType(e, partName, ruleset, childidx, indent, hos);
+      if(i != 0) tt += ", ";
+      tt += partType;
+    }
+    tt += ">";
+    hos(format("using {} = {};", rv, tt));
+    return tuple{"std::vector<oalex::JsonLoc>", true};  // TODO: migrate to rv.
+  }
   else if(const JsonTmpl::Map* m = t.getIfMap()) {
-    hos(format("struct {} {{", fieldName.toUCamelCase()));
+    hos(format("struct {} {{", rv));
       linebreak(hos, indent);  // not indent+2, in case the next line is '}'
     for(auto& [k,child]: *m) {
       hos("  ");
@@ -1222,8 +1242,23 @@ genOutputFields(const JsonTmpl& t, const Ident& fieldName,
                            indent+2, hos);
       linebreak(hos, indent);
     }
-    hos(format("}} {};", fieldName.toSnakeCase()));
+    hos("};");
+    return tuple{rv, true};
   }else Bug("Don't know how to generate field for type {}", t.tagName());
+}
+
+static void
+genOutputFields(const JsonTmpl& t, const Ident& fieldName,
+  const RuleSet& ruleset, ssize_t childidx, ssize_t indent,
+  const OutputStream& hos) {
+  auto [typeName, geneddef] = genOutputFieldType(t, fieldName.toUCamelCase(),
+                                ruleset, childidx, indent, hos);
+  if(geneddef) linebreak(hos, indent);
+
+  if(const JsonTmpl::String* s = t.getIfString())
+    hos(format("std::string {} = {};", fieldName.toSnakeCase(),
+               dquoted(*s)));
+  else hos(format("{} {};", typeName, fieldName.toSnakeCase()));
 }
 
 static bool

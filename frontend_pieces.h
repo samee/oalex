@@ -20,7 +20,8 @@ struct ParsedExternRule {
     oalex::StringLoc external_name;
     std::vector<oalex::StringLoc> param;
     oalex::StringLoc rule_name;
-  } fields;
+  };
+  Fields fields;
   explicit operator oalex::JsonLoc() const;
 };
 
@@ -129,7 +130,8 @@ struct ParsedErrorStanzaLine {
   struct Fields {
     oalex::StringLoc error_msg;
     oalex::StringLoc ident;
-  } fields;
+  };
+  Fields fields;
   explicit operator oalex::JsonLoc() const;
 };
 
@@ -175,7 +177,8 @@ std::optional<ParsedRule34> parseRule34(oalex::InputDiags& ctx, ssize_t& i);
 struct ParsedErrorStanzaLeader {
   oalex::LocPair loc;
   struct Fields {
-  } fields;
+  };
+  Fields fields;
   explicit operator oalex::JsonLoc() const;
 };
 
